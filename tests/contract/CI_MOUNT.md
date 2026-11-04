@@ -321,4 +321,6 @@ file-level 窄豁免且 H2 签，不给目录级）。扫描强度与全量数�
 - 矩阵：profile∈{prod,e2e,test} × tier∈{internal_eval,c_end_display} × 授权控制状态∈{missing, 显式 0, 配齐} = **15 组合**；另两条全局断言（无 fail-open 组合、维度覆盖）。
 - 判据：①`tier!=internal_eval` 且 flags 缺失/0 → 拒启（不 listen）；②放行组合必须真实监听且 hold/audit/sha 三者 true；③拒启原因必须 ∈ `BLOCKING_REASONS`（`config_mismatch`），不允许静默放行；④`internal_eval` + 缺失时默认 hold/audit=true（E2E_MODE 不改默认值），显式 0 仅 internal 档允许。
 - 证据：`tests/data/acceptance/artifacts/kd-ent-01-startup-matrix-20261104T1220Z.md` sha256 `bf4a87df9eabe492435e25d953570c2e901aea20e99f3115169b877128d99f44`（15 条 tsx 输出逐条表 + 判据 + 对应关系）。
-- 状态（2026-11-04T12:20Z）：对 A3 修复后的 working tree **17 passed**；A3 的 `services/market/src/config.ts` 修复当时**未提交**（`git status` 显示 `M`），因此在当前 HEAD 上本门禁会红，A3 提交后转绿——这是 KD-ENT-01 的回归钉。CI 不以 env 关 audit 绕过矩阵（H5 明确）。
+- 状态（2026-11-04T12:20Z）：对 A3 修复后的 working tree **18 passed**；A3 的 `services/market/src/config.ts` 修复当时**未提交**（`git status` 显示 `M`），因此在当前 HEAD 上本门禁会红，A3 提交后转绿——这是 KD-ENT-01 的回归钉。CI 不以 env 关 audit 绕过矩阵（H5 明确）。
+- **绑定 commit**：旧证据 `artifacts/kd-ent-01-startup-matrix-20261104T1220Z.md`（sha `bf4a87df…`）已标 `preview/uncommitted-tree`（侧车 `.PREVIEW.md`，原字节不动）；A3 提交后必须在干净 HEAD 重跑，产物命名 `kd-ent-01-startup-matrix-<commit7>-<UTC>.md` 并记录 `git rev-parse HEAD`。
+- 第 4 条断言（H5 m03552）：`test_e2e_mode_does_not_participate_in_hold_audit_defaults` 直接读 `services/market/src/config.ts` 的 `entitlementHoldCheck:`/`entitlementAuditEnabled:` 赋值表达式，出现 `e2eMode`/`E2E_MODE` 即红。

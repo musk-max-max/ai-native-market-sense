@@ -174,3 +174,17 @@ def test_matrix_covers_required_dimensions(matrix: dict[str, dict]) -> None:
             assert f"{profile}-cend-{state}" in ids, f"矩阵缺组合 {profile}-cend-{state}"
         for state in ("missing", "zero"):
             assert f"{profile}-internal-{state}" in ids, f"矩阵缺组合 {profile}-internal-{state}"
+
+
+def test_e2e_mode_does_not_participate_in_hold_audit_defaults() -> None:
+    """H5 m03552：E2E_MODE 不得出现在 hold/audit 默认值判断里（防 KD-ENT-01 回退）。"""
+    src = (REPO_ROOT / "services/market/src/config.ts").read_text(encoding="utf-8")
+    for key in ("entitlementHoldCheck:", "entitlementAuditEnabled:"):
+        start = src.index(key)
+        end = src.index("\n", start)
+        expr = src[start:end]
+        assert "e2eMode" not in expr, f"{key} 默认值仍引用 e2eMode：{expr!r}"
+        assert "E2E_MODE" not in expr, f"{key} 默认值仍引用 E2E_MODE：{expr!r}"
+    # 原始缺陷形态：`... || (E2E_MODE !== '1' && !e2eMode)` 一类短路，整文件禁止出现在这两个赋值里
+    for bad in ("E2E_MODE !== '1' && !e2eMode", "!e2eMode"):
+        assert bad not in src, f"config.ts 仍含 E2E_MODE 豁免形态：{bad}"
