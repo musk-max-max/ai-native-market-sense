@@ -81,6 +81,7 @@ try:
     with os.fdopen(fd, "w", encoding="utf-8") as fh:
         json.dump(report, fh, ensure_ascii=False, sort_keys=True, indent=2)
         fh.write("\n")
+    os.chmod(tmp, 0o644)  # api 以非 root 运行、/state 只读挂载：报告必须 world-readable
     os.replace(tmp, REPORT)
     print(f"[report] ready={report['ready']} failed_step={failed_step} "
           f"reason={failed_reason} quality={report['quality_level']}")

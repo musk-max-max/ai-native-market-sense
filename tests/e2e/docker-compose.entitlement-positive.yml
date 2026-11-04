@@ -30,6 +30,12 @@
 # 校验：`python3 tests/e2e/scripts/validate_compose.py`（会断言本文件的 tier/hold/audit/sha/expiry
 # 成对出现、且所有发布端口都绑 127.0.0.1；缺一 FAIL）。
 
+# 本 override 会把 app-net 翻成非 internal（仍只有 loopback 发布端口，公网不可达）：
+# docker compose v5 在 internal 网络上不落地宿主端口映射（KD-ENT-01 运行时证据需宿主 curl/preflight）。
+networks:
+  app-net:
+    internal: false
+
 services:
 
   api:
@@ -38,6 +44,8 @@ services:
       # 授权链与发布语义一致：hold/audit 显式开；不再靠默认关旁路（KD-ENT-01）。
       ENTITLEMENT_HOLD_CHECK: "1"
       ENTITLEMENT_AUDIT: "1"
+      # 审计事件必须带 deployment_uid（A5 observed_required_chk）；否则 healthz degraded。
+      DEPLOYMENT_UID: "e2e-ent-positive"
       # A3 规范：sha256("c_end_display|2030-12-31T00:00:00.000Z")
       ENTITLEMENT_CONFIG_EXPECTED_SHA256: "b0d185b9af0eb2a228dd4195967d02bfe987a92979da2980188b5942bb15cef9"
       ENTITLEMENT_EXPIRES_AT: "2030-12-31T00:00:00Z"

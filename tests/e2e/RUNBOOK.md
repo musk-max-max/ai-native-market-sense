@@ -7,7 +7,7 @@ Owner: A12 qa-e2e。目标：让首跑失败 = 5 分钟内定位到「哪一跳�
 
 `docker compose build` / `docker compose up` **一次都没在真实 docker 上跑过**：本机没有容器运行时（且只剩 5.9GiB
 磁盘，装 colima + 拉镜像会压到临界），仓库也还没接远端。已做的是**等价命令**验证（A0 多阶段构建命令、A1 CLI
-冒烟、A12 的 compose 静态 80/80 断言）——**不等于镜像能构建、能起**。
+冒烟、A12 的 compose 静态 82/82 断言）——**不等于镜像能构建、能起**。
 
 所以：看到「10 passed / 1 skipped」时不要理解为「真栈可用」；首跑（远端接上后）第一条请跑
 `tests/e2e/ci/BUILD-SMOKE.md` 的 `docker compose build` 冒烟，预期失败点与归属清单都在那里。**一条 skip 的
@@ -34,7 +34,7 @@ bash tests/e2e/scripts/up.sh
 
 预期输出（按顺序）：
 
-1. （静默）`validate_compose.py --quiet` 退出 0 —— 80 项 compose 静态断言全过；失败会打印断言 ID、期望值与实际值。
+1. （静默）`validate_compose.py --quiet` 退出 0 —— 82 项 compose 静态断言全过；失败会打印断言 ID、期望值与实际值。
 2. `==> 启动基础设施（postgres / redis / tushare-replay）`
 3. `==> 一次性 ingest（真实 adapter + 录播回放 → PG）`（`--no-seed` 可跳过；将扩为 ingest → load →
    质量报告三步，seed 失败时 api/web 仍会启动但 `/healthz` 报 `data_ready=false`，契约见 `docs/INGEST-ONCE-CONTRACT.md`）

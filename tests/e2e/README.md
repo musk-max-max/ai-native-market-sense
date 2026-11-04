@@ -13,7 +13,7 @@ tests/e2e/
 ├── docker-compose.entitlement-positive.yml  # 已授权/hold/audit 正向 override（独立 project + loopback-only；KD-ENT-01）
 ├── tushare-replay/             # tushare HTTP 边界录播代理（含 8 条自测）
 ├── scripts/
-│   ├── validate_compose.py     # 无需 docker 的结构断言（80 项，含 KD-ENT-01 授权配置）
+│   ├── validate_compose.py     # 无需 docker 的结构断言（82 项，含 KD-ENT-01 授权配置）
 │   ├── preflight.py            # 准入判定 READY/SKIP(78)/FAIL(1)，产出 .e2e-status.json
 │   ├── up.sh                   # 一条命令起真栈（含一次性 ingest 与 preflight）
 │   └── record-fixtures.sh      # 本地「录一次真实响应」（CI 拒绝执行）
@@ -194,7 +194,7 @@ FAIL 会带独立 reason code，让红灯可归因、不用每天重查：
 
 本机当前**没有 docker / pnpm / Playwright 浏览器**，因此本轮交付的验证边界是：
 
-- ✅ `validate_compose.py` 80/80 通过（真栈/录播/断网/token/授权矩阵/positive override/seed 链/`sh` 迁移脚本/loopback 端口）
+- ✅ `validate_compose.py` 82/82 通过（真栈/录播/断网/token/授权矩阵/positive override/seed 链/`sh` 迁移脚本/loopback 端口）
 - ✅ `pytest tushare-replay/test_server.py tests/e2e/scripts/test_preflight.py` 42 passed
 - ✅ 合成录制 19 条 + `build_recordings.py --check` 通过；replay 冒烟：已录制 200（`SYNTHETIC-*` 值）、未录制 503 `FIXTURE_MISSING`
 - ✅ `preflight.py --offline` 正确输出 `SKIP(78)` 并落 `.e2e-status.json`

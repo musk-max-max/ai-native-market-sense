@@ -160,6 +160,10 @@ def main(argv) -> int:
               f"实际 {hold_expr!r}；H5 KD-ENT-01：e2e 不再依赖默认关 hold/audit")
     rep.check(audit_expr == "1", "默认栈 ENTITLEMENT_AUDIT=1（同上，与发布语义一致）",
               f"实际 {audit_expr!r}")
+    dep_uid = str(env_of(api, "DEPLOYMENT_UID") or "").strip()
+    rep.check(bool(dep_uid),
+              "默认栈 DEPLOYMENT_UID 非空（A5 observed_required_chk：tier_state_observed 必须带 deployment_uid）",
+              "缺失时 API 降级 internal_eval、/healthz 报 entitlement_degraded=true")
     # 5aa. positive override（独立 project + loopback，禁止公网可达）
     positive = load(POSITIVE)
     pos_api = ((positive.get("services") or {}).get("api") or {})
@@ -171,6 +175,9 @@ def main(argv) -> int:
               and str(pos_env.get("ENTITLEMENT_AUDIT")) == "1",
               "positive override 同时开 HOLD_CHECK=1 / AUDIT=1",
               "缺一：正向 hold/audit 用例与发布语义不一致")
+    rep.check(bool(str(pos_env.get("DEPLOYMENT_UID") or "").strip()),
+              "positive override DEPLOYMENT_UID 非空（否则 /healthz entitlement_degraded=true）",
+              "A5 observed_required_chk 要求 tier_state_observed 带 deployment_uid")
     sha = str(pos_env.get("ENTITLEMENT_CONFIG_EXPECTED_SHA256") or "")
     expires = str(pos_env.get("ENTITLEMENT_EXPIRES_AT") or "")
     rep.check(bool(re.fullmatch(r"[0-9a-f]{64}", sha)),

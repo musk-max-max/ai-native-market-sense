@@ -109,6 +109,9 @@ services:
       # e2e 不再依赖「默认关」旁路；显式开 1 与发布配置语义一致（H5 KD-ENT-01/A13 m02124）。
       ENTITLEMENT_HOLD_CHECK: "1"
       ENTITLEMENT_AUDIT: "1"
+      # 审计事件 tier_state_observed 必须带 deployment_uid（A5 约束 observed_required_chk）；
+      # 缺省时 API 会降级 internal_eval 且 /healthz 报 entitlement_degraded=true。
+      DEPLOYMENT_UID: "e2e-default"
     volumes:
       - ../fixtures/tushare:/fixtures/tushare:ro
       - ./.state:/state:ro             # ingest-once 契约 §4：只读读 ingest-report.json（宿主 tests/e2e/.state）
