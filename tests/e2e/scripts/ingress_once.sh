@@ -14,6 +14,11 @@ CSV_FILE="${INGEST_CSV_FILE:-/app/data/instruments/base_info.csv}"
 TERMS_FILE="${INGEST_TERMS_FILE:-/app/services/ingest/config/terms-synthetic.txt}"
 BARS_START="${INGEST_BARS_START:-2026-10-28}"
 BARS_END="${INGEST_BARS_END:-2026-11-03}"
+# 录播 fixture 是 per-instrument 录的（无 market-wide 的 daily key），且只覆盖
+# SSE:600519 / SZSE:000001 / SSE:601398；其中 601398 不在 base_info.csv（它必须保持
+# 「未落库」以覆盖 E2E-P0 未录制标的场景），硬塞会触发 A2 CONS-02（bar 必须有
+# instrument 主数据）blocker。因此 seed 的 bars 只取「fixture ∩ base_info」两个标的。
+BARS_INSTRUMENTS="${INGEST_BARS_INSTRUMENTS:-SSE:600519,SZSE:000001}"
 export MARKET_NOW
 mkdir -p "$ODS_ROOT" "$AUDIT_ROOT" "$(dirname "$STEP_FILE")" 2>/dev/null || true
 
@@ -29,7 +34,8 @@ python -m market_ingest sync-instruments --source csv \
 
 rc_bars=0
 if [ "$rc_instruments" -eq 0 ]; then
-  python -m market_ingest sync-bars --start "$BARS_START" --end "$BARS_END" \
+  python -m market_ingest sync-bars --instruments "$BARS_INSTRUMENTS" \
+    --start "$BARS_START" --end "$BARS_END" \
     --ods-root "$ODS_ROOT" --db "$INGEST_DB" --budget-calls 100 || rc_bars=$?
 else
   echo "[ingress] skip sync-bars: sync-instruments rc=${rc_instruments}"
