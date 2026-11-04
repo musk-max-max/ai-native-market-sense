@@ -1,0 +1,54 @@
+# 运行态端口绑定审计（H5 m03007 第1件，A13 执行）
+# executor: A13 (a13-sre)   time_utc: 2026-11-04T12:19:11Z
+# host: ECS 47.120.16.239
+# method: ssh 只读取证；docker inspect HostConfig.PortBindings / NetworkSettings.Ports；ss -ltnp 佐证 host listener；不含 env 值
+
+## docker ps --format '{{.Names}}\t{{.Image}}\t{{.Ports}}'
+frosty_pare	nginx:1.27-alpine	80/tcp
+xenodochial_payne	nginx:1.27-alpine	80/tcp
+market-sense-e2e-web-1	market-sense-e2e-web	127.0.0.1:3000->3000/tcp
+market-sense-e2e-api-1	market-sense-e2e-api	127.0.0.1:8081->8080/tcp
+market-sense-e2e-postgres-1	postgres:16-alpine	5432/tcp
+market-sense-e2e-redis-1	redis:7-alpine	6379/tcp
+market-sense-e2e-tushare-replay-1	market-sense-e2e-tushare-replay	127.0.0.1:18081->18080/tcp
+
+## docker inspect 逐容器（PortBindings / NetworkSettings.Ports）
+### /frosty_pare
+HostConfig.PortBindings={}
+NetworkSettings.Ports={"80/tcp":null}
+### /xenodochial_payne
+HostConfig.PortBindings={}
+NetworkSettings.Ports={"80/tcp":null}
+### /market-sense-e2e-web-1
+HostConfig.PortBindings={"3000/tcp":[{"HostIp":"127.0.0.1","HostPort":"3000"}]}
+NetworkSettings.Ports={"3000/tcp":[{"HostIp":"127.0.0.1","HostPort":"3000"}]}
+### /market-sense-e2e-api-1
+HostConfig.PortBindings={"8080/tcp":[{"HostIp":"127.0.0.1","HostPort":"8081"}]}
+NetworkSettings.Ports={"8080/tcp":[{"HostIp":"127.0.0.1","HostPort":"8081"}]}
+### /market-sense-e2e-postgres-1
+HostConfig.PortBindings={}
+NetworkSettings.Ports={"5432/tcp":null}
+### /market-sense-e2e-redis-1
+HostConfig.PortBindings={}
+NetworkSettings.Ports={"6379/tcp":null}
+### /market-sense-e2e-tushare-replay-1
+HostConfig.PortBindings={"18080/tcp":[{"HostIp":"127.0.0.1","HostPort":"18081"}]}
+NetworkSettings.Ports={"18080/tcp":[{"HostIp":"127.0.0.1","HostPort":"18081"}]}
+
+## host listeners（ss -ltnp，佐证无 0.0.0.0 业务端口）
+LISTEN 0      4096       127.0.0.1:8081  0.0.0.0:* users:(("docker-proxy",pid=1216557,fd=8))   
+LISTEN 0      4096       127.0.0.1:3000  0.0.0.0:* users:(("docker-proxy",pid=1216838,fd=8))   
+LISTEN 0      4096       127.0.0.1:18081 0.0.0.0:* users:(("docker-proxy",pid=1216358,fd=8))   
+LISTEN 0      4096       127.0.0.1:45231 0.0.0.0:* users:(("hbrclient",pid=956202,fd=9))       
+LISTEN 0      128          0.0.0.0:22    0.0.0.0:* users:(("sshd",pid=987071,fd=3))            
+LISTEN 0      128             [::]:22       [::]:* users:(("sshd",pid=987071,fd=4))            
+
+## 判定（H5 m03007：0.0.0.0:* 或 :::* 发布=公网可达；127.0.0.1=合格）
+market-sense-e2e-api-1 8080->127.0.0.1:8081 PASS(loopback)
+market-sense-e2e-web-1 3000->127.0.0.1:3000 PASS(loopback)
+market-sense-e2e-tushare-replay-1 18080->127.0.0.1:18081 PASS(loopback)
+xenodochial_payne(容器内 nginx selftest) 80/tcp 未发布 PortBindings={} PASS(no publish)
+market-sense-e2e-postgres-1 5432/tcp 未发布 PASS(no publish)
+market-sense-e2e-redis-1 6379/tcp 未发布 PASS(no publish)
+host 0.0.0.0:22 = sshd（系统管理面，非业务端口）；127.0.0.1:45231 = hbrclient 系统代理（loopback）；无 0.0.0.0/:: 业务端口绑定
+结论：全部 running 业务容器仅 loopback 发布或未发布，无公网可达业务端口；无需停机/收紧。
