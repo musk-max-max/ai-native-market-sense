@@ -1,0 +1,37 @@
+{
+  "label": "restricted_malformed_403",
+  "web_url": "http://127.0.0.1:3001",
+  "instrument": "SSE:600519",
+  "started_at": "2026-11-04T02:42:29.416Z",
+  "finished_at": "2026-11-04T02:42:30.377Z",
+  "console_errors": [
+    "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+    "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+  ],
+  "counts": {
+    "quotePrice": 0,
+    "quoteChange": 0,
+    "quoteStaleBadge": 0,
+    "entitlementNotice": 0,
+    "errorBanner": 1,
+    "disclaimer": 0
+  },
+  "bodyFlags": {
+    "hasYuanAmount": false,
+    "hasPercent": false,
+    "hasHours": false
+  },
+  "url": "http://127.0.0.1:3001/stocks/SSE%3A600519",
+  "title": "Market Sense · A 股数据工具",
+  "testids": [
+    "error-banner",
+    "stock-page",
+    "stock-page-error"
+  ],
+  "numericTestids": [],
+  "leaks": [],
+  "entitlementNotice": null,
+  "disclaimer": null,
+  "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n\n数据暂时不可用\n\n数据暂时不可用，请稍后重试。\n\n重新加载\n\n页面不会展示缺少免责声明或数据时点不明的价格，也不会用旧价格冒充当前行情。\n\n本平台为客观数据工具，展示公开数据源与平台自有数据，不构成投资建议、要约或收益承诺。\n\n数据均标注来源与截止时间 · 免责声明由服务端版本化下发且不可关闭",
+  "skeletonPresent": 0
+}

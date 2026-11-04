@@ -292,8 +292,23 @@ describe('market 插件：授权矩阵（F1）', () => {
     await app.close();
   });
 
-  it('restricted 层级：未收录标的仍先返回 404 INSTRUMENT_NOT_FOUND（不能误报 403）', async () => {
+  it('A13 #3/L77：gate blocked 时先 403，不碰 serving（存在性检查在授权之后）', async () => {
     const { app, serving } = createHarness({ entitlementTier: 'internal_eval' });
+    serving.instrument = null;
+    for (const path of [
+      '/v1/instruments/SZSE:000001/quote',
+      '/v1/instruments/SZSE:000001/bars',
+      '/v1/instruments/SZSE:000001/fundamental-summary',
+    ]) {
+      const response = await app.inject({ method: 'GET', url: path });
+      assert.equal(response.statusCode, 403, `${path} 应 403，实际 ${response.statusCode}: ${response.body}`);
+      assert.equal(json<{ code: string }>(response).code, 'ENTITLEMENT_RESTRICTED');
+    }
+    await app.close();
+  });
+
+  it('正常档位（未 blocked）：未收录标的仍返回 404 INSTRUMENT_NOT_FOUND（存在性检查保留）', async () => {
+    const { app, serving } = createHarness();
     serving.instrument = null;
     for (const path of [
       '/v1/instruments/SZSE:000001/quote',
@@ -1035,9 +1050,9 @@ describe('market 插件：响应缓存头与 C 端受众（L30/L36）', () => {
     const forbidden = await restricted.app.inject({ method: 'GET', url: '/v1/instruments/SSE:600519/quote' });
     assert.equal(forbidden.statusCode, 403);
     assert.equal(forbidden.headers['cache-control'], 'no-store');
-    // 顺序：存在性先于 entitlement（Lead m00443）——未知标的 404 而非 403。
+    // A13 #3：blocked 时 403 先于 serving 读（未知标的也不再先查库），且同样 no-store。
     const unknown = await restricted.app.inject({ method: 'GET', url: '/v1/instruments/SSE:999999/quote' });
-    assert.equal(unknown.statusCode, 404);
+    assert.equal(unknown.statusCode, 403);
     assert.equal(unknown.headers['cache-control'], 'no-store');
     const watchlist = await app.inject({
       method: 'GET',

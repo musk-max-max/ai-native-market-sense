@@ -72,6 +72,7 @@ def main() -> int:
     web_url = os.environ.get("EVIDENCE_WEB_URL", "http://127.0.0.1:3001")
     api_url = os.environ.get("EVIDENCE_API_URL", "http://127.0.0.1:8082")
     label = os.environ.get("EVIDENCE_LABEL", "restricted")
+    malformed = os.environ.get("EVIDENCE_MALFORMED_403") == "1"
     out_dir = os.environ.get("EVIDENCE_OUT_DIR")
     if not out_dir:
         print("缺少 EVIDENCE_OUT_DIR", file=sys.stderr)
@@ -135,6 +136,7 @@ def main() -> int:
         "EVIDENCE_OUT_DIR": out_dir,
         "EVIDENCE_LABEL": label,
         "EVIDENCE_INSTRUMENT": INSTRUMENT,
+        "EVIDENCE_MALFORMED_403": "1" if malformed else "0",
     })
     capture_code, capture_out = run(
         [node, os.path.join(HERE, "capture-f1-dom.mjs")], capture_env, REPO_ROOT
@@ -145,6 +147,8 @@ def main() -> int:
 
     # 3) Playwright P0-06/P0-12（断言真源在 spec，evidence 只复核）
     report_path = os.path.join(out_dir, f"playwright-{label}.json")
+    pw_code = 0
+    pw_out = "not_applicable: malformed-403 场景只在浏览器网络层注入，P0-06/P0-12 的 API 断言不适用；页面判定见下方规则。"
     pw_env = dict(os.environ)
     pw_env.update({
         "E2E_BASE_URL": web_url,
@@ -154,12 +158,13 @@ def main() -> int:
         "E2E_FAILCLOSED_SCENARIO": "1",
         "PLAYWRIGHT_JSON_OUTPUT_NAME": report_path,
     })
-    pw_code, pw_out = run(
-        ["npx", "playwright", "test", "-g", "E2E-P0-06|E2E-P0-12",
-         "--reporter=json", "--workers=1"],
-        pw_env,
-        E2E_ROOT,
-    )
+    if not malformed:
+        pw_code, pw_out = run(
+            ["npx", "playwright", "test", "-g", "E2E-P0-06|E2E-P0-12",
+             "--reporter=json", "--workers=1"],
+            pw_env,
+            E2E_ROOT,
+        )
     record(
         "playwright-P0-06-P0-12",
         "EVIDENCE_BASE_URL=<web> E2E_FAILCLOSED_SCENARIO=1 npx playwright test -g 'E2E-P0-06|E2E-P0-12'",
@@ -180,6 +185,53 @@ def main() -> int:
     dom_ok = bool(dom) and not dom.get("leaks") and dom.get("disclaimer") is not None \
         and dom.get("entitlementNotice") is not None
     playwright_ok = pw_code == 0
+    counts = dom.get("counts") or {}
+    body_flags = dom.get("bodyFlags") or {}
+    no_artifacts_ok = counts.get("quotePrice", 0) == 0 and counts.get("quoteStaleBadge", 0) == 0
+    body_clean_ok = not (body_flags.get("hasYuanAmount") or body_flags.get("hasPercent") or body_flags.get("hasHours"))
+    if malformed:
+        rules = {
+            "injected_403_malformed": {
+                "ok": quote_status == 403 and not api_title and not api_detail,
+                "observed_quote_status": quote_status,
+                "api_title": api_title,
+                "api_detail": api_detail,
+                "note": "浏览器网络层注入无 title/detail 的 403；真实 API 仍返回合法 Problem（见 api.json）。",
+            },
+            "full_page_error_no_numeric": {
+                "ok": counts.get("entitlementNotice", 0) == 0
+                    and counts.get("quotePrice", 0) == 0
+                    and counts.get("quoteStaleBadge", 0) == 0
+                    and counts.get("errorBanner", 0) >= 1
+                    and not dom.get("leaks")
+                    and body_clean_ok,
+                "counts": counts,
+                "bodyFlags": body_flags,
+                "leaks": dom.get("leaks", []),
+            },
+        }
+        verdict = {
+            "label": label,
+            "scenario": label,
+            "generated_at": now(),
+            "rules": rules,
+        }
+        verdict["overall"] = "PASS" if all(rule.get("ok") for rule in rules.values()) else "FAIL"
+        with open(os.path.join(out_dir, "verdict.json"), "w", encoding="utf-8") as handle:
+            json.dump(verdict, handle, ensure_ascii=False, indent=2)
+        transcript.append("")
+        transcript.append("## verdict")
+        for name, rule in verdict["rules"].items():
+            transcript.append(f"- {name}: {'PASS' if rule.get('ok') else 'FAIL'}  {json.dumps(rule, ensure_ascii=False)}")
+        transcript.append(f"- overall: {verdict['overall']}")
+        transcript.append(f"# finished_at: {now()}")
+        with open(os.path.join(out_dir, "transcript.log"), "w", encoding="utf-8") as handle:
+            handle.write("\n".join(transcript) + "\n")
+        print(f"[{verdict['overall']}] {label} → {out_dir}")
+        for name, rule in verdict["rules"].items():
+            print(f"  {'PASS' if rule.get('ok') else 'FAIL'}  {name}")
+        return 0 if verdict["overall"] == "PASS" else 1
+
     verdict = {
         "label": label,
         "generated_at": now(),
@@ -212,6 +264,16 @@ def main() -> int:
                 "disclaimer": dom.get("disclaimer"),
                 "entitlement_notice": dom.get("entitlementNotice"),
             },
+            "no_quote_artifacts": {
+                "ok": no_artifacts_ok,
+                "counts": counts,
+                "expected": "quote-price / quote-stale-badge 计数均为 0（受限页不得渲染行情时效）",
+            },
+            "body_no_currency_percent_hours": {
+                "ok": body_clean_ok,
+                "bodyFlags": body_flags,
+                "expected": "正文不含 元 / % / 小时",
+            },
             "playwright_P0_06_P0_12": {
                 "ok": playwright_ok,
                 "exit_code": pw_code,
@@ -221,7 +283,7 @@ def main() -> int:
     }
     verdict["overall"] = "PASS" if all(rule.get("ok") for rule in verdict["rules"].values()) else "FAIL"
     # 覆盖度以证据根目录下已存在的 verdict.json 为准，不靠单次运行的自我声明（H4：不冒领 PASS）。
-    expected = ["expired", "hold_active", "hold_stale", "unauthorized_config"]
+    expected = ["expired", "hold_active", "hold_stale", "restricted_malformed_403", "unauthorized_config"]
     covered = {label: verdict["overall"]}
     if os.path.isdir(EVIDENCE_ROOT):
         for entry in sorted(os.listdir(EVIDENCE_ROOT)):

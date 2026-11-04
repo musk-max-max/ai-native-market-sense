@@ -91,3 +91,20 @@
 | **L80** | M04 ST 时点性 P0 用当前名称快照（无历史名称源）；未知 board fail-closed=limit_status NULL；namechange 记 P1 数据依赖 | 2026-11-04 |
 | **L81** | C01 正向清单扩 `services/ingest/tests/**` + 渠道标识 `tushare`（H4 强制名）豁免；`samples/h4-audit/` 清除 | 2026-11-04 |
 | **L82** | ① L52 哈希范围句：事件表按 001，JSONL 按 L52（不推翻已交证据）② 11-12 compliance 纯 DDL（clause_review 走运维角色 psql，apr_uuidv7 属 P1/A4）③ 外部校验哈希 DB canonical 文本不用 Python 重排 float ④ copy 版本裁 b：死常量不触发门禁，受限页时效显示是 bug 现在删，其余记 2026.11.5 文案清单（f56 保持）⑤ 自指哈希=坏模式，CI 只校验 manifest 覆盖率+独立复算，不扫内容十六进制串 ⑥ M04 维持 L80 ②（A1 纠偏：上游下游均无历史名称源）⑦ C01 扩 ingest/tests | 2026-11-04 |
+
+---
+
+## 暂停快照（2026-11-04 10:44，用户指令「暂停任务。记住当前状态。」）
+
+**激活名单（用户 m04171/m04174）**：在岗 = H1/H2/H4/H5 + A0/A1/A2/A3/A5/A7/A11/A12/A13/A19（14 个）；休眠 = H3/H6 + A4/A6/A8/A9/A10/A14–A18。
+
+**已发未回的请求（暂停时挂起）**：
+- **H4**：A3 的 403/404 顺序变更裁决（受限档 gate-blocked 时 403 先于 404，正常档仍 404 先于 403）。A3 为修 #3 熔断（P95 1011ms→3ms）已实现方案 a，等 H4 认可或要求回退。
+- **H2**：L83 C01 测试宿主排除签字（`services/*/test/**` 单数 test/ 与 `/tests/` 同等，`src/**` 强度不变）。A11 门禁保持红待签。
+- **A13**：#3 封版复跑（A3 已修，本地 P95~3ms；四证 #1/#2/#4 已 PASS）。
+- **A11**：v4 证据包整合（A19 G3 已重跑 45 PASS/0 FAIL/1 INFO；待 logs/ 入包 + 指针命中断言）。
+- **A12**：P0-06/P0-12 + `restricted-malformed-403` 三场独立复跑（#5）。
+
+**未决（等用户）**：11-12 授权主体 A/B/C（不说按 C 推进）；git remote（无则 H1 判 P0「未发布」）；docker 装不装（m00604/m00697）；子 agent 模型改 sense/glm（m04157，无直接接口）。
+
+**本机真栈**：PG16@55432（`.state/pgdata`，db `market_sense`，002 迁移已跑完）；API/Web 已停；磁盘 228Gi 剩 ~10Gi。

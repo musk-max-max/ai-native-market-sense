@@ -1,0 +1,32 @@
+{
+  "label": "restricted_malformed_403",
+  "scenario": "restricted_malformed_403",
+  "generated_at": "2026-11-04T10:42:30+08:00",
+  "rules": {
+    "injected_403_malformed": {
+      "ok": false,
+      "observed_quote_status": 403,
+      "api_title": "行情数据暂不可用",
+      "api_detail": "当前版本暂不提供该标的行情数据",
+      "note": "浏览器网络层注入无 title/detail 的 403；真实 API 仍返回合法 Problem（见 api.json）。"
+    },
+    "full_page_error_no_numeric": {
+      "ok": true,
+      "counts": {
+        "quotePrice": 0,
+        "quoteChange": 0,
+        "quoteStaleBadge": 0,
+        "entitlementNotice": 0,
+        "errorBanner": 1,
+        "disclaimer": 0
+      },
+      "bodyFlags": {
+        "hasYuanAmount": false,
+        "hasPercent": false,
+        "hasHours": false
+      },
+      "leaks": []
+    }
+  },
+  "overall": "FAIL"
+}

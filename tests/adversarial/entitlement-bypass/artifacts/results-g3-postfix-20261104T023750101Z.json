@@ -1,0 +1,72 @@
+{
+  "meta": {
+    "runId": "20261104T023750101Z",
+    "startedAt": "2026-11-04T02:37:50.101Z",
+    "finishedAt": "2026-11-04T02:40:29.319Z",
+    "command": "node tests/adversarial/entitlement-bypass/run.mjs",
+    "exitCode": 0,
+    "dbUrl": "postgresql://ms@localhost:55432/market_sense_a19",
+    "purpose": "G3 post-fix 重跑（H5-R22 / L75）：prod profile + DEPLOYMENT_UID + 无 E2E env",
+    "toolchain": {
+      "node": "v23.11.0",
+      "chromium": "156.0.8078.4",
+      "platform": "darwin"
+    },
+    "preFixRef": {
+      "results": "artifacts/results-prefix-g3-20261104T012350680Z.json",
+      "sha256": "46dac6158c1e13d044be33befa9f7119d9d595bb5adcf8c1cfdce518028eedaa",
+      "g3": "FAIL（started:false）——prod 缺 DEPLOYMENT_UID，config.ts:205 L65 守卫触发（预期行为）",
+      "log": "artifacts/logs/api-prod-profile.log",
+      "logSha256": "a8b25550dc5bab0b2039e5a6ad6027a698e277fa9335e39ab86cb32cb7073216"
+    },
+    "transcript": {
+      "path": "artifacts/http-attempts-20261104T023750101Z.jsonl",
+      "role": "raw HTTP transcript",
+      "caseIds": [
+        "ALL"
+      ],
+      "run": "20261104T023750101Z",
+      "bytes": 135663,
+      "sha256": "b2e6875a70067f78731d8eebb9aefc6ba6a362396b86adfc3569ecd0bb50824f",
+      "mtime": "2026-11-04T02:40:29.315877+00:00"
+    },
+    "serviceLog": {
+      "path": "artifacts/logs/20261104T023750101Z/api-prod-profile.log",
+      "role": "service stderr/stdout",
+      "caseIds": [
+        "G3"
+      ],
+      "run": "20261104T023750101Z",
+      "bytes": 658,
+      "sha256": "2563a9c9b0bcf9c39d78b3074548f1980ab253e32f7c43d1e786ffdcd3c7f7a4",
+      "mtime": "2026-11-04T02:38:26.649823+00:00"
+    }
+  },
+  "check": {
+    "id": "G3",
+    "title": "生产 profile 实例正常启动，但 dev-token 不被接受（固定身份入口关闭）",
+    "clause": [
+      "decisions.md L28",
+      "config.ts:158-176 L44/L46",
+      "config.ts:205 L65"
+    ],
+    "attempt": "APP_PROFILE 缺省（=prod）+ DEPLOYMENT_UID 注入、无 E2E env 启动；用 Authorization: Bearer dev-token 访问 /v1/watchlist",
+    "expectation": "实例健康，watchlist 返回 401 且 body 无内部原因码",
+    "observed": {
+      "started": true,
+      "deploymentUidInjected": true,
+      "e2eEnvPresent": false,
+      "appProfile": "prod（APP_PROFILE 缺省）",
+      "healthzStatus": 200,
+      "watchlistStatus": 401,
+      "watchlistBody": "{\"type\":\"https://errors.market-sense.invalid/unauthenticated\",\"title\":\"未认证\",\"status\":401,\"code\":\"UNAUTHENTICATED\",\"trace_id\":\"req-3\",\"detail\":\"自选为私有数据，需要有效的 Bearer 凭据。\"}",
+      "internalReasonCodeInBody": false,
+      "logTail": "(node:90419) Warning: [PAGE] {\"event\":\"entitlement_audit_write_failed\",\"severity\":\"page\",\"reason\":\"audit_write_misconfigured\"}"
+    },
+    "status": "PASS",
+    "severity": null,
+    "evidence": {
+      "log": "tests/adversarial/entitlement-bypass/artifacts/logs/20261104T023750101Z/api-prod-profile.log"
+    }
+  }
+}

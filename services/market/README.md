@@ -16,7 +16,7 @@
 
 403 Problem 的人类可读层为中性产品语言（`title=行情数据暂不可用`、`detail=当前版本暂不提供该标的行情数据`），**不得出现「授权/未取得/法律」等定性**；`code=ENTITLEMENT_RESTRICTED` 保持不变（机器可读、契约冻结，A11/A12 断言依赖）。契约未要求客户端回显该码，前端如塞进 DOM 属性属二次暴露（A7 在改）。
 
-错误码与判定顺序（A0/shared 0.2.1 + Lead m00443）：**先确认标的存在性**（`INSTRUMENT_NOT_FOUND`=标识不存在/未收录）→ **再判 entitlement**（`ENTITLEMENT_RESTRICTED`=已收录但 tier 无权看内容）→ **再取数**（`NOT_FOUND`=存在但无行情/财报/路由）。`VALIDATION_ERROR`=参数非法/自选上限/数值字段格式非法；`UNAUTHENTICATED`=自选无凭据。错误体一律 `application/problem+json`，由外壳注入 `trace_id`。
+错误码与判定顺序（A0/shared 0.2.1 + Lead m00443 + A13 #3/L77）：**gate 已 blocked 时先 403，不读 serving**（熔断/超时/到期/hold 下不付 serving 读的 1s）；正常档位下仍为**先存在性 404**（`INSTRUMENT_NOT_FOUND`=标识不存在/未收录）→ **再判 entitlement**（`ENTITLEMENT_RESTRICTED`）→ **再取数**（`NOT_FOUND`=存在但无行情/财报/路由）。`VALIDATION_ERROR`=参数非法/自选上限/数值字段格式非法；`UNAUTHENTICATED`=自选无凭据。错误体一律 `application/problem+json`，由外壳注入 `trace_id`。
 
 ## 挂载方式（A0 接线）
 
@@ -124,7 +124,7 @@ pnpm --filter @market-sense/market typecheck   # tsc --noEmit（依赖 A0 修 pa
 pnpm --filter @market-sense/market test        # node:test + fastify.inject，86 条，无需 PG
 ```
 
-测试覆盖：F1 三接口 403 / instrument 200+internal_eval / watchlist platform_user_data、存在性 404 先于 403、
+测试覆盖：F1 三接口 403 / instrument 200+internal_eval / watchlist platform_user_data、blocked 时 403 先于 serving 读（正常档位存在性 404 保留）、
 quote 停牌三态、bars 口径回显与参数校验、404 语义、来源词表映射（platform_eod/fundamental/watchlist、source_id 溯源）、
 降级快照与无快照 500、自选鉴权/幂等/上限、H3 红线字段扫描、授权到期 fail-closed、**fail-open 默认值（缺省
 tier=internal_eval、非 internal 缺 expires/期望指纹拒绝启动、effective tier）**、ingest-report → data_ready 解析、

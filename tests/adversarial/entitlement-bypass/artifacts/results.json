@@ -1,7 +1,7 @@
 {
   "meta": {
-    "startedAt": "2026-11-04T01:23:50.680Z",
-    "runId": "20261104T012350680Z",
+    "startedAt": "2026-11-04T02:37:50.101Z",
+    "runId": "20261104T023750101Z",
     "node": "v23.11.0",
     "platform": "darwin",
     "dbUrl": "postgresql://ms@localhost:55432/market_sense_a19",
@@ -17,41 +17,30 @@
       "expiringWeb": 3201
     },
     "expiryLeadMs": 120000,
-    "rawHttpLog": "tests/adversarial/entitlement-bypass/artifacts/http-attempts-20261104T012350680Z.jsonl",
-    "distMtime": "2026-11-04T01:00:21.048Z",
+    "rawHttpLog": "tests/adversarial/entitlement-bypass/artifacts/http-attempts-20261104T023750101Z.jsonl",
+    "distMtime": "2026-11-04T02:34:35.856Z",
     "browser": "156.0.8078.4",
-    "expiresAt": "2026-11-04T01:27:06.318Z",
-    "transitionStartedAt": "2026-11-04T01:25:08.187Z",
-    "expiredObservedAt": "2026-11-04T01:27:07.816Z",
-    "expiryWaitMs": 118244,
+    "expiresAt": "2026-11-04T02:40:27.568Z",
+    "transitionStartedAt": "2026-11-04T02:38:29.046Z",
+    "expiredObservedAt": "2026-11-04T02:40:27.582Z",
+    "expiryWaitMs": 116920,
     "rawHttpLogEvidence": {
-      "path": "tests/adversarial/entitlement-bypass/artifacts/http-attempts-20261104T012350680Z.jsonl",
-      "bytes": 135630,
-      "lines": 175,
-      "httpCalls": 175,
-      "sha256": "9ed2b522a2afeac0b2875dbe33cc772e4fea8c24156aa0d4869ed895dbc86160",
+      "path": "tests/adversarial/entitlement-bypass/artifacts/http-attempts-20261104T023750101Z.jsonl",
+      "bytes": 135663,
+      "lines": 176,
+      "httpCalls": 176,
+      "sha256": "b2e6875a70067f78731d8eebb9aefc6ba6a362396b86adfc3569ecd0bb50824f",
       "missingFields": 0
     },
-    "finishedAt": "2026-11-04T01:27:09.679Z"
+    "finishedAt": "2026-11-04T02:40:29.319Z"
   },
   "summary": {
     "total": 46,
-    "pass": 44,
-    "fail": 1,
+    "pass": 45,
+    "fail": 0,
     "info": 1,
-    "verdict": "BYPASS_FOUND",
-    "failures": [
-      {
-        "id": "G3",
-        "title": "生产 profile 实例正常启动，但 dev-token 不被接受（固定身份入口关闭）",
-        "severity": "P1",
-        "observed": {
-          "started": false,
-          "watchlistStatus": null,
-          "watchlistBody": null
-        }
-      }
-    ]
+    "verdict": "NO_BYPASS",
+    "failures": []
   },
   "checks": [
     {
@@ -68,7 +57,7 @@
       "severity": null,
       "evidence": {
         "assets": [
-          "index-BV-LW5VG.js",
+          "index-g28OweWO.js",
           "vendor-hNU1DSyb.js",
           "vendor-react-CrowJ5J7.js"
         ],
@@ -174,7 +163,7 @@
         "hasState": false,
         "hasName": false,
         "scriptSrcs": [
-          "/assets/index-BV-LW5VG.js"
+          "/assets/index-g28OweWO.js"
         ]
       },
       "status": "PASS",
@@ -202,7 +191,7 @@
         "hasState": false,
         "hasName": false,
         "scriptSrcs": [
-          "/assets/index-BV-LW5VG.js"
+          "/assets/index-g28OweWO.js"
         ]
       },
       "status": "PASS",
@@ -230,7 +219,7 @@
         "hasState": false,
         "hasName": false,
         "scriptSrcs": [
-          "/assets/index-BV-LW5VG.js"
+          "/assets/index-g28OweWO.js"
         ]
       },
       "status": "PASS",
@@ -258,7 +247,7 @@
         "hasState": false,
         "hasName": false,
         "scriptSrcs": [
-          "/assets/index-BV-LW5VG.js"
+          "/assets/index-g28OweWO.js"
         ]
       },
       "status": "PASS",
@@ -333,8 +322,8 @@
       "expectation": "-",
       "observed": [
         {
-          "file": "index-BV-LW5VG.js",
-          "bytes": 28668
+          "file": "index-g28OweWO.js",
+          "bytes": 29060
         },
         {
           "file": "vendor-hNU1DSyb.js",
@@ -793,7 +782,7 @@
               "is_entitled": false
             },
             "forbidden": [],
-            "body": "{\"data\":{\"instrument_id\":\"SSE:600519\",\"exchange\":\"SSE\",\"name\":\"贵州茅台\",\"board\":\"main\",\"security_type\":\"stock\",\"list_status\":\"listed\",\"listed_at\":\"2001-08-27\"},\"meta\":{\"source\":{\"source\":\"platform_eod\",\"as_of\":\"2026-11-04T08:23:59+08:00\",\"staleness_ms\":3593241,\"source_id\":\"tushare\"},\"entitlement\":{\"tier\":\"internal_eval\",\"is_entitled\":false}}}"
+            "body": "{\"data\":{\"instrument_id\":\"SSE:600519\",\"exchange\":\"SSE\",\"name\":\"贵州茅台\",\"board\":\"main\",\"security_type\":\"stock\",\"list_status\":\"listed\",\"listed_at\":\"2001-08-27\"},\"meta\":{\"source\":{\"source\":\"platform_eod\",\"as_of\":\"2026-11-04T08:23:59+08:00\",\"staleness_ms\":8032136,\"source_id\":\"tushare\"},\"entitlement\":{\"tier\":\"internal_eval\",\"is_entitled\":false}}}"
           },
           {
             "instrument": "SZSE:000001",
@@ -812,7 +801,7 @@
               "is_entitled": false
             },
             "forbidden": [],
-            "body": "{\"data\":{\"instrument_id\":\"SZSE:000001\",\"exchange\":\"SZSE\",\"name\":\"平安银行\",\"board\":\"main\",\"security_type\":\"stock\",\"list_status\":\"listed\",\"listed_at\":\"1991-04-03\"},\"meta\":{\"source\":{\"source\":\"platform_eod\",\"as_of\":\"2026-11-04T08:23:59+08:00\",\"staleness_ms\":3593243,\"source_id\":\"tushare\"},\"entitlement\":{\"tier\":\"internal_eval\",\"is_entitled\":false}}}"
+            "body": "{\"data\":{\"instrument_id\":\"SZSE:000001\",\"exchange\":\"SZSE\",\"name\":\"平安银行\",\"board\":\"main\",\"security_type\":\"stock\",\"list_status\":\"listed\",\"listed_at\":\"1991-04-03\"},\"meta\":{\"source\":{\"source\":\"platform_eod\",\"as_of\":\"2026-11-04T08:23:59+08:00\",\"staleness_ms\":8032138,\"source_id\":\"tushare\"},\"entitlement\":{\"tier\":\"internal_eval\",\"is_entitled\":false}}}"
           }
         ]
       }
@@ -834,7 +823,7 @@
         "devMeta": {
           "source": {
             "source": "platform_watchlist",
-            "as_of": "2026-11-04T09:23:52+08:00",
+            "as_of": "2026-11-04T10:37:51+08:00",
             "staleness_ms": 0
           },
           "entitlement": {
@@ -896,7 +885,7 @@
         {
           "path": "/healthz",
           "status": 200,
-          "body": "{\"status\":\"ok\",\"service\":\"market-sense-api\",\"version\":\"0.1.0\",\"uptime_s\":2,\"domains\":[\"market\"],\"data_ready\":false,\"data_ready_reason\":\"INGEST_REPORT_MISSING\",\""
+          "body": "{\"status\":\"ok\",\"service\":\"market-sense-api\",\"version\":\"0.1.0\",\"uptime_s\":1,\"domains\":[\"market\"],\"data_ready\":false,\"data_ready_reason\":\"INGEST_REPORT_MISSING\",\""
         },
         {
           "path": "/v1/healthz",
@@ -1055,7 +1044,7 @@
             "connection": "keep-alive",
             "content-length": "172",
             "content-type": "application/problem+json; charset=utf-8",
-            "date": "Wed, 04 Nov 2026 01:23:52 GMT",
+            "date": "Wed, 04 Nov 2026 02:37:51 GMT",
             "keep-alive": "timeout=72",
             "retry-after": "1"
           },
@@ -1115,7 +1104,7 @@
       "status": "PASS",
       "severity": null,
       "evidence": {
-        "log": "tests/adversarial/entitlement-bypass/artifacts/logs/api-trustproxy-true.log"
+        "log": "tests/adversarial/entitlement-bypass/artifacts/logs/20261104T023750101Z/api-trustproxy-true.log"
       }
     },
     {
@@ -1136,7 +1125,7 @@
       "status": "PASS",
       "severity": null,
       "evidence": {
-        "log": "tests/adversarial/entitlement-bypass/artifacts/logs/api-trustproxy-cidr.log"
+        "log": "tests/adversarial/entitlement-bypass/artifacts/logs/20261104T023750101Z/api-trustproxy-cidr.log"
       }
     },
     {
@@ -1150,12 +1139,12 @@
       "expectation": "进程退出，日志含「E2E 模式在生产不可用」与 APP_PROFILE",
       "observed": {
         "exited": true,
-        "log": "{\"level\":50,\"time\":1793755464945,\"pid\":83327,\"hostname\":\"ly-2.local\",\"err\":{\"type\":\"MarketConfigError\",\"message\":\"E2E 模式在生产不可用（L44/L46）：APP_PROFILE=\\\"\\\"（缺省=prod）下禁止 E2E_MODE=1、E2E_AUTH_TOKEN\",\"stack\":\"MarketConfigError: E2E 模式在生产不可用（L44/L46）：APP_PROFILE=\\\"\\\"（缺省=prod）下禁止 E2E_MODE=1、E2E_AUTH_TOKEN\\n    at assertNoE2EBackdoorInProduction (/Users/leiyu/Documents/deepseek-harness/default-workspace/serv"
+        "log": "{\"level\":50,\"time\":1793759902935,\"pid\":90412,\"hostname\":\"ly-2.local\",\"err\":{\"type\":\"MarketConfigError\",\"message\":\"E2E 模式在生产不可用（L44/L46）：APP_PROFILE=\\\"\\\"（缺省=prod）下禁止 E2E_MODE=1、E2E_AUTH_TOKEN\",\"stack\":\"MarketConfigError: E2E 模式在生产不可用（L44/L46）：APP_PROFILE=\\\"\\\"（缺省=prod）下禁止 E2E_MODE=1、E2E_AUTH_TOKEN\\n    at assertNoE2EBackdoorInProduction (/Users/leiyu/Documents/deepseek-harness/default-workspace/serv"
       },
       "status": "PASS",
       "severity": null,
       "evidence": {
-        "log": "tests/adversarial/entitlement-bypass/artifacts/logs/api-backdoor-default.log"
+        "log": "tests/adversarial/entitlement-bypass/artifacts/logs/20261104T023750101Z/api-backdoor-default.log"
       }
     },
     {
@@ -1169,12 +1158,12 @@
       "expectation": "进程退出，日志点名 E2E_AUTH_TOKEN",
       "observed": {
         "exited": true,
-        "log": "{\"level\":50,\"time\":1793755465383,\"pid\":83332,\"hostname\":\"ly-2.local\",\"err\":{\"type\":\"MarketConfigError\",\"message\":\"E2E 模式在生产不可用（L44/L46）：APP_PROFILE=\\\"\\\"（缺省=prod）下禁止 E2E_AUTH_TOKEN\",\"stack\":\"MarketConfigError: E2E 模式在生产不可用（L44/L46）：APP_PROFILE=\\\"\\\"（缺省=prod）下禁止 E2E_AUTH_TOKEN\\n    at assertNoE2EBackdoorInProduction (/Users/leiyu/Documents/deepseek-harness/default-workspace/services/market/src/config"
+        "log": "{\"level\":50,\"time\":1793759903619,\"pid\":90416,\"hostname\":\"ly-2.local\",\"err\":{\"type\":\"MarketConfigError\",\"message\":\"E2E 模式在生产不可用（L44/L46）：APP_PROFILE=\\\"\\\"（缺省=prod）下禁止 E2E_AUTH_TOKEN\",\"stack\":\"MarketConfigError: E2E 模式在生产不可用（L44/L46）：APP_PROFILE=\\\"\\\"（缺省=prod）下禁止 E2E_AUTH_TOKEN\\n    at assertNoE2EBackdoorInProduction (/Users/leiyu/Documents/deepseek-harness/default-workspace/services/market/src/config"
       },
       "status": "PASS",
       "severity": null,
       "evidence": {
-        "log": "tests/adversarial/entitlement-bypass/artifacts/logs/api-backdoor-token-only.log"
+        "log": "tests/adversarial/entitlement-bypass/artifacts/logs/20261104T023750101Z/api-backdoor-token-only.log"
       }
     },
     {
@@ -1182,19 +1171,26 @@
       "title": "生产 profile 实例正常启动，但 dev-token 不被接受（固定身份入口关闭）",
       "clause": [
         "decisions.md L28",
-        "config.ts:158-176 L44/L46"
+        "config.ts:158-176 L44/L46",
+        "config.ts:205 L65"
       ],
-      "attempt": "APP_PROFILE 缺省（=prod）、无 E2E env 启动；用 Authorization: Bearer dev-token 访问 /v1/watchlist",
-      "expectation": "实例健康，watchlist 返回 401（无 dev 身份）",
+      "attempt": "APP_PROFILE 缺省（=prod）+ DEPLOYMENT_UID 注入、无 E2E env 启动；用 Authorization: Bearer dev-token 访问 /v1/watchlist",
+      "expectation": "实例健康，watchlist 返回 401 且 body 无内部原因码",
       "observed": {
-        "started": false,
-        "watchlistStatus": null,
-        "watchlistBody": null
+        "started": true,
+        "deploymentUidInjected": true,
+        "e2eEnvPresent": false,
+        "appProfile": "prod（APP_PROFILE 缺省）",
+        "healthzStatus": 200,
+        "watchlistStatus": 401,
+        "watchlistBody": "{\"type\":\"https://errors.market-sense.invalid/unauthenticated\",\"title\":\"未认证\",\"status\":401,\"code\":\"UNAUTHENTICATED\",\"trace_id\":\"req-3\",\"detail\":\"自选为私有数据，需要有效的 Bearer 凭据。\"}",
+        "internalReasonCodeInBody": false,
+        "logTail": "(node:90419) Warning: [PAGE] {\"event\":\"entitlement_audit_write_failed\",\"severity\":\"page\",\"reason\":\"audit_write_misconfigured\"}"
       },
-      "status": "FAIL",
-      "severity": "P1",
+      "status": "PASS",
+      "severity": null,
       "evidence": {
-        "log": "tests/adversarial/entitlement-bypass/artifacts/logs/api-prod-profile.log"
+        "log": "tests/adversarial/entitlement-bypass/artifacts/logs/20261104T023750101Z/api-prod-profile.log"
       }
     },
     {
@@ -1218,7 +1214,7 @@
       "status": "PASS",
       "severity": null,
       "evidence": {
-        "log": "tests/adversarial/entitlement-bypass/artifacts/logs/api-bare-start.log"
+        "log": "tests/adversarial/entitlement-bypass/artifacts/logs/20261104T023750101Z/api-bare-start.log"
       }
     },
     {
@@ -1311,7 +1307,7 @@
         "priceVisible": true,
         "priceText": "10.30 元",
         "disclaimerVisible": true,
-        "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n最新行情\n\n最新价 · 收盘快照\n\n10.30 元\n-1.90%\n-0.20 元\n\n数据截止（北京时间）\n2024-01-04T15:00:00+08:00\n数据来源\n平台行情（收盘）\n价格口径\n不复权（快照）\n交易日\n2024-01-04\n\n延时数据 · 非实时（滞后约 24834.4小时）\n\n☆\n加入自选\n登录后可加自选\n免责声明\n\n本页面数据仅供参考，不构成任何投资建议或买卖依据。数据可能存在延迟，请"
+        "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n最新行情\n\n最新价 · 收盘快照\n\n10.30 元\n-1.90%\n-0.20 元\n\n数据截止（北京时间）\n2024-01-04T15:00:00+08:00\n数据来源\n平台行情（收盘）\n价格口径\n不复权（快照）\n交易日\n2024-01-04\n\n延时数据 · 非实时（滞后约 24835.6小时）\n\n☆\n加入自选\n登录后可加自选\n免责声明\n\n本页面数据仅供参考，不构成任何投资建议或买卖依据。数据可能存在延迟，请"
       },
       "status": "PASS",
       "severity": null,
@@ -1334,8 +1330,8 @@
         "hasCurrencyNumber": false,
         "containsValidPrice": false,
         "noticeVisible": true,
-        "noticeText": "数据暂不可用\n\n当前版本暂不提供该标的行情数据，本页不会展示任何价格数字。\n\n该数据在当前版本中不提供。",
-        "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n数据暂不可用\n\n当前版本暂不提供该标的行情数据，本页不会展示任何价格数字。\n\n该数据在当前版本中不提供。\n\n☆\n加入自选\n登录后可加自选\n免责声明\n\n本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。\n\n基本面摘要\n\n财报为报告期口径，与上方行情时点不同，请勿混读。\n\n基本面数据暂时无法取得；页面不会用 0 或猜测值填充。\n\n本页行情为收盘快照，非盘中实时；如上方出现「延时数据」标记，请以标记为准。数据口径与免责声明不可关闭。\n\n本平台为客观数据工具，展示公开数据源与平台自有数据，不构成投资建议、要约或收益承诺。\n\n数据均标注来源与截止时间 · 免责声明由服务端版本化下发且不可关闭"
+        "noticeText": "行情数据暂不可用\n\n当前版本暂不提供该标的行情数据",
+        "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n行情数据暂不可用\n\n当前版本暂不提供该标的行情数据\n\n☆\n加入自选\n登录后可加自选\n免责声明\n\n本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。\n\n基本面摘要\n\n财报为报告期口径，与上方行情时点不同，请勿混读。\n\n基本面数据暂时无法取得；页面不会用 0 或猜测值填充。\n\n本页行情为收盘快照，非盘中实时；如上方出现「延时数据」标记，请以标记为准。数据口径与免责声明不可关闭。\n\n本平台为客观数据工具，展示公开数据源与平台自有数据，不构成投资建议、要约或收益承诺。\n\n数据均标注来源与截止时间 · 免责声明由服务端版本化下发且不可关闭"
       },
       "status": "PASS",
       "severity": null,
@@ -1364,7 +1360,7 @@
             "priceCount": 0,
             "containsValidPrice": false,
             "noticeVisible": true,
-            "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n数据暂不可用\n\n当前版本暂不提供该标的行情数据，本页不会展示任何价格数字。\n\n该数据在当前版本中不提供。\n\n☆\n加入自选\n未自选\n免责声明\n\n本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。\n\n基本面摘要\n\n财报为报告期口径，与上方行情时点不同，请勿混读。\n\n基本面数据暂时无法取得；页面不会用 0 或猜测值填充。\n\n本页行情为收盘快照，非盘中实时；如上方出现「延时数据」标记，请"
+            "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n行情数据暂不可用\n\n当前版本暂不提供该标的行情数据\n\n☆\n加入自选\n未自选\n免责声明\n\n本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。\n\n基本面摘要\n\n财报为报告期口径，与上方行情时点不同，请勿混读。\n\n基本面数据暂时无法取得；页面不会用 0 或猜测值填充。\n\n本页行情为收盘快照，非盘中实时；如上方出现「延时数据」标记，请以标记为准。数据口径与免责声明不可关闭。\n\n本平台为客"
           },
           {
             "variant": "?mock=1",
@@ -1372,7 +1368,7 @@
             "priceCount": 0,
             "containsValidPrice": false,
             "noticeVisible": true,
-            "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n数据暂不可用\n\n当前版本暂不提供该标的行情数据，本页不会展示任何价格数字。\n\n该数据在当前版本中不提供。\n\n☆\n加入自选\n未自选\n免责声明\n\n本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。\n\n基本面摘要\n\n财报为报告期口径，与上方行情时点不同，请勿混读。\n\n基本面数据暂时无法取得；页面不会用 0 或猜测值填充。\n\n本页行情为收盘快照，非盘中实时；如上方出现「延时数据」标记，请"
+            "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n行情数据暂不可用\n\n当前版本暂不提供该标的行情数据\n\n☆\n加入自选\n未自选\n免责声明\n\n本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。\n\n基本面摘要\n\n财报为报告期口径，与上方行情时点不同，请勿混读。\n\n基本面数据暂时无法取得；页面不会用 0 或猜测值填充。\n\n本页行情为收盘快照，非盘中实时；如上方出现「延时数据」标记，请以标记为准。数据口径与免责声明不可关闭。\n\n本平台为客"
           },
           {
             "variant": "?mock=normal",
@@ -1380,7 +1376,7 @@
             "priceCount": 0,
             "containsValidPrice": false,
             "noticeVisible": true,
-            "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n数据暂不可用\n\n当前版本暂不提供该标的行情数据，本页不会展示任何价格数字。\n\n该数据在当前版本中不提供。\n\n☆\n加入自选\n未自选\n免责声明\n\n本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。\n\n基本面摘要\n\n财报为报告期口径，与上方行情时点不同，请勿混读。\n\n基本面数据暂时无法取得；页面不会用 0 或猜测值填充。\n\n本页行情为收盘快照，非盘中实时；如上方出现「延时数据」标记，请"
+            "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n行情数据暂不可用\n\n当前版本暂不提供该标的行情数据\n\n☆\n加入自选\n未自选\n免责声明\n\n本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。\n\n基本面摘要\n\n财报为报告期口径，与上方行情时点不同，请勿混读。\n\n基本面数据暂时无法取得；页面不会用 0 或猜测值填充。\n\n本页行情为收盘快照，非盘中实时；如上方出现「延时数据」标记，请以标记为准。数据口径与免责声明不可关闭。\n\n本平台为客"
           },
           {
             "variant": "?data_mode=mock&mock=normal",
@@ -1388,7 +1384,7 @@
             "priceCount": 0,
             "containsValidPrice": false,
             "noticeVisible": true,
-            "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n数据暂不可用\n\n当前版本暂不提供该标的行情数据，本页不会展示任何价格数字。\n\n该数据在当前版本中不提供。\n\n☆\n加入自选\n未自选\n免责声明\n\n本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。\n\n基本面摘要\n\n财报为报告期口径，与上方行情时点不同，请勿混读。\n\n基本面数据暂时无法取得；页面不会用 0 或猜测值填充。\n\n本页行情为收盘快照，非盘中实时；如上方出现「延时数据」标记，请"
+            "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n行情数据暂不可用\n\n当前版本暂不提供该标的行情数据\n\n☆\n加入自选\n未自选\n免责声明\n\n本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。\n\n基本面摘要\n\n财报为报告期口径，与上方行情时点不同，请勿混读。\n\n基本面数据暂时无法取得；页面不会用 0 或猜测值填充。\n\n本页行情为收盘快照，非盘中实时；如上方出现「延时数据」标记，请以标记为准。数据口径与免责声明不可关闭。\n\n本平台为客"
           },
           {
             "variant": "?tier=c_end_display&is_entitled=true&debug=1",
@@ -1396,7 +1392,7 @@
             "priceCount": 0,
             "containsValidPrice": false,
             "noticeVisible": true,
-            "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n数据暂不可用\n\n当前版本暂不提供该标的行情数据，本页不会展示任何价格数字。\n\n该数据在当前版本中不提供。\n\n☆\n加入自选\n未自选\n免责声明\n\n本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。\n\n基本面摘要\n\n财报为报告期口径，与上方行情时点不同，请勿混读。\n\n基本面数据暂时无法取得；页面不会用 0 或猜测值填充。\n\n本页行情为收盘快照，非盘中实时；如上方出现「延时数据」标记，请"
+            "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n行情数据暂不可用\n\n当前版本暂不提供该标的行情数据\n\n☆\n加入自选\n未自选\n免责声明\n\n本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。\n\n基本面摘要\n\n财报为报告期口径，与上方行情时点不同，请勿混读。\n\n基本面数据暂时无法取得；页面不会用 0 或猜测值填充。\n\n本页行情为收盘快照，非盘中实时；如上方出现「延时数据」标记，请以标记为准。数据口径与免责声明不可关闭。\n\n本平台为客"
           },
           {
             "variant": "?demo=1&entitled=1",
@@ -1404,7 +1400,7 @@
             "priceCount": 0,
             "containsValidPrice": false,
             "noticeVisible": true,
-            "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n数据暂不可用\n\n当前版本暂不提供该标的行情数据，本页不会展示任何价格数字。\n\n该数据在当前版本中不提供。\n\n☆\n加入自选\n未自选\n免责声明\n\n本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。\n\n基本面摘要\n\n财报为报告期口径，与上方行情时点不同，请勿混读。\n\n基本面数据暂时无法取得；页面不会用 0 或猜测值填充。\n\n本页行情为收盘快照，非盘中实时；如上方出现「延时数据」标记，请"
+            "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n行情数据暂不可用\n\n当前版本暂不提供该标的行情数据\n\n☆\n加入自选\n未自选\n免责声明\n\n本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。\n\n基本面摘要\n\n财报为报告期口径，与上方行情时点不同，请勿混读。\n\n基本面数据暂时无法取得；页面不会用 0 或猜测值填充。\n\n本页行情为收盘快照，非盘中实时；如上方出现「延时数据」标记，请以标记为准。数据口径与免责声明不可关闭。\n\n本平台为客"
           },
           {
             "variant": "#entitled",
@@ -1412,7 +1408,7 @@
             "priceCount": 0,
             "containsValidPrice": false,
             "noticeVisible": true,
-            "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n数据暂不可用\n\n当前版本暂不提供该标的行情数据，本页不会展示任何价格数字。\n\n该数据在当前版本中不提供。\n\n☆\n加入自选\n未自选\n免责声明\n\n本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。\n\n基本面摘要\n\n财报为报告期口径，与上方行情时点不同，请勿混读。\n\n基本面数据暂时无法取得；页面不会用 0 或猜测值填充。\n\n本页行情为收盘快照，非盘中实时；如上方出现「延时数据」标记，请"
+            "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n行情数据暂不可用\n\n当前版本暂不提供该标的行情数据\n\n☆\n加入自选\n未自选\n免责声明\n\n本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。\n\n基本面摘要\n\n财报为报告期口径，与上方行情时点不同，请勿混读。\n\n基本面数据暂时无法取得；页面不会用 0 或猜测值填充。\n\n本页行情为收盘快照，非盘中实时；如上方出现「延时数据」标记，请以标记为准。数据口径与免责声明不可关闭。\n\n本平台为客"
           },
           {
             "variant": "运行时注毒后 reload",
@@ -1475,11 +1471,11 @@
       "observed": {
         "restrictedReplay": {
           "priceVisible": false,
-          "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n数据暂不可用\n\n当前版本暂不提供该标的行情数据，本页不会展示任何价格数字。\n\n该数据在当前版本中不提供。\n\n☆\n加入自选\n登录后可加自选\n免责声明\n\n本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。\n\n基本面摘要\n\n财报为报告期口径，与上方行情时点不同，请勿混读。\n\n基本面数据暂时无法取得；页面不会"
+          "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n行情数据暂不可用\n\n当前版本暂不提供该标的行情数据\n\n☆\n加入自选\n登录后可加自选\n免责声明\n\n本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。\n\n基本面摘要\n\n财报为报告期口径，与上方行情时点不同，请勿混读。\n\n基本面数据暂时无法取得；页面不会用 0 或猜测值填充。\n\n本页行情为收盘快照，非盘中实"
         },
         "missingDisclaimer": {
           "priceVisible": false,
-          "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n数据暂不可用\n\n当前版本暂不提供该标的行情数据，本页不会展示任何价格数字。\n\n该数据在当前版本中不提供。\n\n☆\n加入自选\n登录后可加自选\n免责声明\n\n本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。\n\n基本面摘要\n\n财报为报告期口径，与上方行情时点不同，请勿混读。\n\n基本面数据暂时无法取得；页面不会"
+          "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n行情数据暂不可用\n\n当前版本暂不提供该标的行情数据\n\n☆\n加入自选\n登录后可加自选\n免责声明\n\n本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。\n\n基本面摘要\n\n财报为报告期口径，与上方行情时点不同，请勿混读。\n\n基本面数据暂时无法取得；页面不会用 0 或猜测值填充。\n\n本页行情为收盘快照，非盘中实"
         },
         "fullValidReplay": {
           "priceVisible": false,
@@ -1524,7 +1520,7 @@
         "priceVisible": false,
         "priceCount": 0,
         "containsValidPrice": false,
-        "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n数据暂不可用\n\n当前版本暂不提供该标的行情数据，本页不会展示任何价格数字。\n\n该数据在当前版本中不提供。\n\n☆\n加入自选\n登录后可加自选\n免责声明\n\n本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。\n\n基本面摘要\n\n财报为报告期口径，与上方行情时点不同，请勿混读。\n\n基本面数据暂时无法取得；页面不会用 0 或猜测值填充。\n\n本页行情为收盘快照，非盘中实时；如上方出现「延时数据」标记，请以标记为准。数据口径与免责声明不可关闭。\n\n本平台为客观数据工具，展示公开数据源与平台自有数据，不构成投资建议、要约或收益承诺。\n\n数据均标注来源与截止时间 · 免责声明由服务端版本化下发且不"
+        "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n行情数据暂不可用\n\n当前版本暂不提供该标的行情数据\n\n☆\n加入自选\n登录后可加自选\n免责声明\n\n本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。\n\n基本面摘要\n\n财报为报告期口径，与上方行情时点不同，请勿混读。\n\n基本面数据暂时无法取得；页面不会用 0 或猜测值填充。\n\n本页行情为收盘快照，非盘中实时；如上方出现「延时数据」标记，请以标记为准。数据口径与免责声明不可关闭。\n\n本平台为客观数据工具，展示公开数据源与平台自有数据，不构成投资建议、要约或收益承诺。\n\n数据均标注来源与截止时间 · 免责声明由服务端版本化下发且不可关闭"
       },
       "status": "PASS",
       "severity": null,
@@ -1548,7 +1544,7 @@
         "containsValidPrice": false,
         "hasCurrencyNumber": false,
         "noticeVisible": true,
-        "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n数据暂不可用\n\n当前版本暂不提供该标的行情数据，本页不会展示任何价格数字。\n\n该数据在当前版本中不提供。\n\n☆\n加入自选\n登录后可加自选\n免责声明\n\n本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。\n\n基本面摘要\n\n财报为报告期口径，与上方行情时点不同，请勿混读。\n\n基本面数据暂时无法取得；页面不会用 0 或猜测值填充。\n\n本页行情为收盘快照，非盘中实时；如上方出现「延时数据」标记，请以标记为准。数据口径与免责声明不可关闭。\n\n本平台为客观数据工具，展示公开数据源与平台自有数据，不构成投资建议、要约或收益承诺。\n\n数据均标注来源与截止时间 · 免责声明由服务端版本化下发且不可关闭"
+        "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n行情数据暂不可用\n\n当前版本暂不提供该标的行情数据\n\n☆\n加入自选\n登录后可加自选\n免责声明\n\n本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。\n\n基本面摘要\n\n财报为报告期口径，与上方行情时点不同，请勿混读。\n\n基本面数据暂时无法取得；页面不会用 0 或猜测值填充。\n\n本页行情为收盘快照，非盘中实时；如上方出现「延时数据」标记，请以标记为准。数据口径与免责声明不可关闭。\n\n本平台为客观数据工具，展示公开数据源与平台自有数据，不构成投资建议、要约或收益承诺。\n\n数据均标注来源与截止时间 · 免责声明由服务端版本化下发且不可关闭"
       },
       "status": "PASS",
       "severity": null,
@@ -1665,56 +1661,56 @@
             "status": 403,
             "code": "ENTITLEMENT_RESTRICTED",
             "cacheControl": "no-store",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-25\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-24\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
           },
           {
             "attempt": "X-Entitlement-Tier: c_end_display",
             "status": 403,
             "code": "ENTITLEMENT_RESTRICTED",
             "cacheControl": "no-store",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-26\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-25\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
           },
           {
             "attempt": "X-Entitlement: granted",
             "status": 403,
             "code": "ENTITLEMENT_RESTRICTED",
             "cacheControl": "no-store",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-27\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-26\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
           },
           {
             "attempt": "X-Debug: 1",
             "status": 403,
             "code": "ENTITLEMENT_RESTRICTED",
             "cacheControl": "no-store",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-28\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-27\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
           },
           {
             "attempt": "X-Forwarded-For: 8.8.8.8",
             "status": 403,
             "code": "ENTITLEMENT_RESTRICTED",
             "cacheControl": "no-store",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-29\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-28\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
           },
           {
             "attempt": "X-Forwarded-For: 127.0.0.1",
             "status": 403,
             "code": "ENTITLEMENT_RESTRICTED",
             "cacheControl": "no-store",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-2a\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-29\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
           },
           {
             "attempt": "X-Real-IP: 8.8.8.8",
             "status": 403,
             "code": "ENTITLEMENT_RESTRICTED",
             "cacheControl": "no-store",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-2b\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-2a\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
           },
           {
             "attempt": "X-Original-URL",
             "status": 403,
             "code": "ENTITLEMENT_RESTRICTED",
             "cacheControl": "no-store",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-2c\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-2b\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
           }
         ]
       }

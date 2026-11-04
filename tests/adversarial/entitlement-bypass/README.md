@@ -25,7 +25,11 @@ node tests/adversarial/entitlement-bypass/run.mjs
 node tests/adversarial/entitlement-bypass/run.mjs --only=R4
 ```
 
-退出码：`0` = 全部 BLOCKED（`--only=R4` 时 = 配置层拒绝 loopback CIDR 或伪造 XFF 不换桶）；`1` = 存在 FAIL（BYPASS/LEAK）；`2` = harness/preflight 失败（环境问题，不是产品结论）。`--only=R4` 的单条结果写 `artifacts/results-r4.json`，不覆盖全量 `artifacts/results.json`；若修复方式改为"拒绝启动"，日志 `artifacts/logs/api-trustproxy-cidr.log` 会带 `TRUST_PROXY` 拒绝原文，同样按 PASS 记录。
+退出码：`0` = 全部 BLOCKED（`--only=R4` 时 = 配置层拒绝 loopback CIDR 或伪造 XFF 不换桶）；`1` = 存在 FAIL（BYPASS/LEAK）；`2` = harness/preflight 失败（环境问题，不是产品结论）。`--only=R4` 的单条结果写 `artifacts/results-r4.json`，不覆盖全量 `artifacts/results.json`。
+
+**run-scoped 证据（L75）**：每次 run 生成唯一 `runId`（UTC 时间戳），transcript 写 `artifacts/http-attempts-<runId>.jsonl`，实例日志写 `artifacts/logs/<runId>/`；创建用 `wx`，目标已存在直接报错，**永不 truncate 历史证据**。runner 退出前自检 transcript 非空、行数等于 `http()` 调用数、每行含 `method/url/status/headers`，不通过即 `exit 2`。
+
+G3 需要**真实部署形态**：`APP_PROFILE` 缺省（=prod）+ 流水线注入 `DEPLOYMENT_UID` + 无任何 E2E env（`E2E_MODE`/`E2E_AUTH_TOKEN` 都不设），期望 healthz 200 → `Bearer dev-token` 访问 `/v1/watchlist` 返回 401。若漏 `DEPLOYMENT_UID`，实例会被 L65 守卫拒绝启动——那是"配置不全拒启"，不是 G3 的"固定身份入口关闭"。
 
 隔离边界：只监听 `127.0.0.1:18182-18187`/`3200`/`3201`，只连 `market_sense_a19`；不碰 lead 的 8081/3000、生产、真实用户数据。端口被占时 preflight 直接失败，不会复用别人的进程。
 
@@ -54,14 +58,18 @@ node tests/adversarial/entitlement-bypass/run.mjs --only=R4
 
 ## 产物
 
-- `artifacts/results.json`：每次运行的 checks（attempt/expectation/observed/status/severity）与 meta。
-- `artifacts/http-attempts.jsonl`：原始 HTTP 往返（`note` 可 grep，如 `H1 baseline`、`R4 cidr after XFF`）。
-- `artifacts/logs/*.log`：隔离实例日志（含 G1/G2 的拒绝启动原文、运行失败时的栈）。
+- `artifacts/results.json`：**当次**运行的 checks（attempt/expectation/observed/status/severity）与 meta（含 `runId`、`rawHttpLog`、`rawHttpLogEvidence`）。
+- `artifacts/http-attempts-<runId>.jsonl`：当次原始 HTTP 往返（每行 `seq/note/method/url/status/headers/body`，`note` 可 grep）；历史 run 的文件全部保留。
+- `artifacts/logs/<runId>/`：当次隔离实例日志（含 G1/G2 拒绝启动原文、运行失败栈）；`artifacts/logs/*.log` 为历史 run 日志。
+- `artifacts/results-g3-postfix-<runId>.json`：G3 post-fix 专项结果（command/exitCode/observed/log/transcript）。
+- `artifacts/evidence-manifest-<runId>.json`：证据清单，逐文件 `path/sha256/bytes/mtime/caseIds/run`（manifest 本身不内嵌自身哈希）。
+- `artifacts/run-stdout-<runId>.log`：runner 完整 stdout/stderr。
+- `artifacts/http-attempts.jsonl`：旧 truncate bug 的 0 字节墓碑，**不要使用**。
 - `artifacts/*.png`：受限/注毒/拦截/有效态/到期刷新截图。
 
 ## 维护提示
 
-- 本轮 `results.json` 的 `verdict=BYPASS_FOUND` 仅因 **R4**（条件性限流换桶，不产出行情数值）；门禁 #7 本身无 BYPASS。
+- post-fix 全量 `results.json` 为 `verdict=NO_BYPASS`（45 PASS / 0 FAIL / 1 INFO）；修复前首轮存档 `results-prefix-g3-20261104T012350680Z.json` 的 `verdict=BYPASS_FOUND` 仅因 R4，R4 修复后见 `REPORT.md` §11。
 - 检查只使用公开契约（HTTP + 浏览器 DOM/CDP），不 import 产品源码；产品实现变动不需要改用例，改的是预期响应形态。
 - 若报 `column "display_safe" does not exist` 或 preflight 失败：先跑 `provision-db.sh` 重建隔离库（warehouse schema 可能已更新）。
 - 若报端口被占：确认没有残留的 A19 实例（`lsof -nP -iTCP:18182-18187 -sTCP:LISTEN`）；harness 正常退出会 SIGTERM 清理自己起的进程。

@@ -143,7 +143,9 @@ async function withDegradation<T extends { meta: MetaWithSource }>(
 
 export function registerMarketRoutes(app: FastifyInstance, deps: MarketRouteDeps): void {
   const clock = (): Date => (deps.config.now ?? (() => new Date()))();
-  // Lead 定：先确认标的存在性（404 INSTRUMENT_NOT_FOUND）→ 再判授权（403）→ 再取数（无数据 404 NOT_FOUND）。
+  // Lead 定（L27）：先确认存在性（404）→ 授权（403）→ 取数（404）。
+  // A13 #3/L77 修正：gate 已 blocked 时把授权判定前置到 serving 读之前——否则熔断后每条请求
+  // 仍付 1s query_timeout，熔断器保护的调用点不在关键路径上。blocked 时直接 403，不碰 serving。
   // display_safe=false 由 repo 层（audience='c_end'）过滤掉 → 对外表现为不存在（L30）。
   const audience = 'c_end' as const;
 
@@ -155,21 +157,13 @@ export function registerMarketRoutes(app: FastifyInstance, deps: MarketRouteDeps
    * DB 正常时仍保持 Lead m00443 顺序：存在性 404 → 授权 403。
    */
   const loadInstrument = async (
-    decision: GateDecision,
-    reply: FastifyReply,
     instrumentId: string,
   ): Promise<Awaited<ReturnType<ServingRepo['getInstrument']>>> => {
-    try {
-      return await deps.serving.getInstrument(instrumentId, audience);
-    } catch (error) {
-      if (decision.resolution.blocked) {
-        throw entitlementRestricted();
-      }
-      throw error;
-    }
+    // blocked 已在上游 403 返回；这里读失败按真实故障交给外壳（不再用 authority 掩盖）。
+    return deps.serving.getInstrument(instrumentId, audience);
   };
 
-  const requireEntitled = (decision: GateDecision, reply: FastifyReply): void => {
+  const requireEntitled = (decision: GateDecision, _reply: FastifyReply): void => {
     // H3 fail-closed：本地时间盒/control hold/指纹不一致都在 gate 内归一为 blocked；403 不暴露原因给 C 端文案。
     if (!decision.resolution.blocked) return;
     throw entitlementRestricted();
@@ -197,9 +191,10 @@ export function registerMarketRoutes(app: FastifyInstance, deps: MarketRouteDeps
     const instrumentId = parseInstrumentId(request);
     return withDegradation(deps, `quote:${instrumentId}`, clock(), async () => {
       const decision = await evaluate();
-      const instrument = await loadInstrument(decision, reply, instrumentId);
-      if (instrument === null) throw instrumentNotFound(instrumentId);
+      // L77/A13 #3：gate blocked → 先 403，不付 serving 读的 1s 超时代价。
       requireEntitled(decision, reply);
+      const instrument = await loadInstrument(instrumentId);
+      if (instrument === null) throw instrumentNotFound(instrumentId);
       const row = await deps.serving.getQuote(instrumentId);
       if (row === null || row.trade_date === null) {
         throw dataNotFound();
@@ -226,9 +221,9 @@ export function registerMarketRoutes(app: FastifyInstance, deps: MarketRouteDeps
 
     return withDegradation(deps, key, clock(), async () => {
       const decision = await evaluate();
-      const instrument = await loadInstrument(decision, reply, instrumentId);
-      if (instrument === null) throw instrumentNotFound(instrumentId);
       requireEntitled(decision, reply);
+      const instrument = await loadInstrument(instrumentId);
+      if (instrument === null) throw instrumentNotFound(instrumentId);
       const page = await deps.serving.getBars({
         instrumentId,
         adjType: adjustment,
@@ -256,9 +251,9 @@ export function registerMarketRoutes(app: FastifyInstance, deps: MarketRouteDeps
     const instrumentId = parseInstrumentId(request);
     return withDegradation(deps, `fundamental:${instrumentId}`, clock(), async () => {
       const decision = await evaluate();
-      const instrument = await loadInstrument(decision, reply, instrumentId);
-      if (instrument === null) throw instrumentNotFound(instrumentId);
       requireEntitled(decision, reply);
+      const instrument = await loadInstrument(instrumentId);
+      if (instrument === null) throw instrumentNotFound(instrumentId);
       const row = await deps.serving.getFundamentalSummary(instrumentId);
       if (row === null) throw dataNotFound();
       return buildFundamentalResponse(

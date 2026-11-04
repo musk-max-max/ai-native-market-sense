@@ -1,0 +1,72 @@
+# L76 开关台账（三分法，不允许第四类）
+#
+# 扫描面：services/*/src 中读取环境变量的实现（当前 market/api config + entitlement gate）。
+# 规则：
+#   hard_deny_prevent_startup —— 存在即让服务拒绝启动（prod 口径；test/e2e 也不得放宽判定语义）
+#   authoritative_not_disable —— 决定判定结果或口径，允许存在，但不得「关掉门禁」；改值 = 改授权状态，必须留审计/审批
+#   unrelated_to_decision    —— 与 entitlement 判定无关，可自由设置
+#
+# 新增 env 必须落进且只落进一类；三类之外不允许。改分类须 H2 签字（L76）。
+version: 1
+owner: A11
+approved_by: pending_H2
+decision_refs: [L73, L76, L83]
+scan_targets:
+  - services/market/src/config.ts
+  - services/market/src/domain/entitlement-gate.ts
+  - services/market/src/plugin.ts
+  - services/api/src/config.ts
+sources:
+  market_config: services/market/src/config.ts
+  api_config: services/api/src/config.ts
+
+hard_deny_prevent_startup:
+  - name: ENTITLEMENT_HOLD_CHECK
+    reason: "=0 关闭 hold/新鲜度门禁；prod 拒启（config.ts assertNoE2EBackdoorInProduction）"
+  - name: ENTITLEMENT_AUDIT
+    reason: "=0 关闭审计写入，等于可静默 fail-open；prod 拒启（L73）"
+  - name: MARKET_NOW
+    reason: "冻结时钟可绕过 ENTITLEMENT_EXPIRES_AT；prod 拒启（L73）"
+  - name: E2E_MODE
+    reason: "E2E 后门总开关；prod 拒启"
+  - name: E2E_AUTH_TOKEN
+    reason: "静态 E2E 令牌，等于免鉴权；prod 拒启"
+  - name: WATCHLIST_DEV_AUTH
+    reason: "自选开发态鉴权旁路；prod 拒启"
+
+authoritative_not_disable:
+  - name: ENTITLEMENT_TIER
+    reason: "授权档位权威值（缺省 internal_eval）；改值=改授权状态，需审批+审计"
+  - name: ENTITLEMENT_EXPIRES_AT
+    reason: "授权到期时间；非 internal_eval 必须存在，值变化决定 fail-closed"
+  - name: ENTITLEMENT_CONFIG_EXPECTED_SHA256
+    reason: "配置指纹校验；不匹配=config_mismatch 阻断"
+  - name: APP_PROFILE
+    reason: "运行 profile 选择；缺省/空/拼错/localhost 一律按 prod，不得用于放宽"
+  - name: EVENT_PAYLOADS_PATH
+    reason: "事件 payload 契约路径；当前未限 prod，A3 residual（只影响校验宽度，不改变判定结果）"
+  - name: TRUST_PROXY
+    reason: "限流桶的客户端 IP 归因；不得配 0.0.0.0/0 等宽覆盖（A0 已拒启）"
+
+unrelated_to_decision:
+  - name: DATABASE_URL
+  - name: DEPLOYMENT_UID
+  - name: RELEASE_ID
+  - name: HOST
+  - name: PORT
+  - name: NODE_ENV
+  - name: LOG_LEVEL
+  - name: REDIS_URL
+  - name: RATE_LIMIT_IP_PER_MIN
+  - name: RATE_LIMIT_IP_BURST
+  - name: RATE_LIMIT_LIST_PER_MIN
+  - name: WATCHLIST_LIMIT
+  - name: WATCHLIST_TABLE
+  - name: WATCHLIST_AUTO_MIGRATE
+  - name: E2E_WATCHLIST_TABLE
+  - name: DISCLAIMER_TEXT
+  - name: DISCLAIMER_VERSION
+  - name: INGEST_REPORT_PATH
+  - name: INGEST_STRICT_AUDIT_ROOT
+  - name: VITE_E2E_AUTH_STORAGE_KEY
+  - name: E2E_MARKET_NOW

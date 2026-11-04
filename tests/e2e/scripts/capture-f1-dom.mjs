@@ -28,6 +28,9 @@ const LABEL = process.env.EVIDENCE_LABEL || 'fail-closed';
 const AUTH_KEY = process.env.EVIDENCE_AUTH_KEY || 'e2e_token';
 const AUTH_VALUE = process.env.EVIDENCE_AUTH_VALUE || 'dev-token';
 const INSTRUMENT = process.env.EVIDENCE_INSTRUMENT || 'SSE:600519';
+// H4 #5 增补场景：403 但 Problem 结构不合法（无 title/detail）→ 页面必须是整页中性错误态，
+// 不能只替换行情区（否则基本面数值仍会渲染）。注入点在浏览器网络层，真实 API 不变。
+const MALFORMED_403 = process.env.EVIDENCE_MALFORMED_403 === '1';
 
 if (!OUT) {
   console.error('缺少 EVIDENCE_OUT_DIR');
@@ -52,6 +55,16 @@ try {
     window.localStorage.setItem(key, value);
   }, [AUTH_KEY, AUTH_VALUE]);
   const page = await context.newPage();
+  if (MALFORMED_403) {
+    await page.route('**/v1/instruments/*/quote*', (route) =>
+      route.fulfill({
+        status: 403,
+        contentType: 'application/json',
+        // 结构不合法：缺 title/detail（只剩机器 code），页面不得据此自造受限文案。
+        body: JSON.stringify({ type: 'about:blank', status: 403, code: 'ENTITLEMENT_RESTRICTED' }),
+      }),
+    );
+  }
   const consoleErrors = [];
   page.on('console', (msg) => {
     if (msg.type() === 'error') consoleErrors.push(msg.text());
@@ -109,7 +122,22 @@ try {
     const notice = document.querySelector('[data-testid="entitlement-notice"]');
     const disclaimer = document.querySelector('[data-testid="disclaimer"]');
     const bodyText = (document.body.innerText || '').replace(/\r\n/g, '\n');
+    const count = (id) => document.querySelectorAll(`[data-testid="${id}"]`).length;
     return {
+      counts: {
+        quotePrice: count('quote-price'),
+        quoteChange: count('quote-change'),
+        quoteStaleBadge: count('quote-stale-badge'),
+        entitlementNotice: count('entitlement-notice'),
+        errorBanner: count('error-banner'),
+        disclaimer: count('disclaimer'),
+      },
+      bodyFlags: {
+        // 「元数据」会命中裸「元」字，按金额形状判定：数字紧邻元（如 1510.00 元 / 元1510）。
+        hasYuanAmount: /[0-9][0-9,.]*\s*元/.test(bodyText) || /元\s*[0-9]/.test(bodyText),
+        hasPercent: bodyText.includes('%'),
+        hasHours: bodyText.includes('小时'),
+      },
       url: location.href,
       title: document.title,
       testids: [...new Set(testids)].sort(),
