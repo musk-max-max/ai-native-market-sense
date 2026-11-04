@@ -30,6 +30,11 @@ bash tests/e2e/scripts/up.sh
 # 已授权档 override 配齐 c_end_display / HOLD_CHECK=1 / AUDIT=1 /
 # ENTITLEMENT_CONFIG_EXPECTED_SHA256 / ENTITLEMENT_EXPIRES_AT=2030-12-31T00:00:00Z；
 # 见 docker-compose.entitlement-positive.yml 与 README §授权矩阵。
+#
+# 注意：positive override 把 app-net 翻成非 internal。原因是 compose v5 在 internal 网络上
+# 不落地宿主端口映射（容器有 PortBindings、宿主 curl 000，KD-ENT-01 v2 实证）。发布端口仍全部
+# 127.0.0.1（loopback-only，公网不可达）；默认栈保持 internal:true，不因此改默认拓扑。
+# 证据：tests/e2e/evidence/kd-ent-01-runtime-v2-20261104T1243Z/
 ```
 
 预期输出（按顺序）：
