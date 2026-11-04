@@ -124,7 +124,7 @@ def test_v7_archive_matches_packed_commit(tmp_path: Path) -> None:
     import json
     import tarfile
     repo = Path(__file__).resolve().parents[2]
-    archive = repo / "tests/data/acceptance/artifacts/11-12-evidence-20261104-v7.tar.gz"
+    archive = repo / "tests/data/acceptance/artifacts/11-12-evidence-20261104-v7-2523256.tar.gz"
     assert archive.is_file()
     with tarfile.open(archive) as tar:
         manifest = json.loads(tar.extractfile("evidence-manifest-v7-20261104T0730Z.json").read())

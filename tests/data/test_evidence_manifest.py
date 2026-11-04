@@ -196,7 +196,7 @@ def test_v5_binds_a19_rev4_and_keeps_rev3_historical(tmp_path: Path) -> None:
     )
 
 
-V7_TAR = REPO_ROOT / "tests/data/acceptance/artifacts/11-12-evidence-20261104-v7.tar.gz"
+V7_TAR = REPO_ROOT / "tests/data/acceptance/artifacts/11-12-evidence-20261104-v7-2523256.tar.gz"
 V7_SUMS = REPO_ROOT / "tests/data/acceptance/artifacts/SHA256SUMS-v7"
 V7_MANIFEST = "evidence-manifest-v7-20261104T0730Z.json"
 
@@ -209,7 +209,7 @@ def _sha256(path):
 def test_v7_archive_is_pinned_and_manifest_covers_it(tmp_path):
     assert V7_TAR.is_file() and V7_SUMS.is_file()
     lines = dict(reversed(line.split()) for line in V7_SUMS.read_text().splitlines() if line.strip())
-    assert lines["11-12-evidence-20261104-v7.tar.gz"] == _sha256(V7_TAR)
+    assert lines["11-12-evidence-20261104-v7-2523256.tar.gz"] == _sha256(V7_TAR)
     with tarfile.open(V7_TAR) as tar:
         raw = tar.extractfile(V7_MANIFEST).read()
     manifest = json.loads(raw)
@@ -221,7 +221,7 @@ def test_v7_archive_is_pinned_and_manifest_covers_it(tmp_path):
         "437f1c4071797959e4a1b8e1b6dbf1667eb3ff9b1e2d114f535ee2e2ddd1c71f",
         "f1e6f8e4f1cb07040c24903638c2ebbfb3e3d60d170da029326021881fc4908e",
     }
-    assert all(p["status"] == "superseded-before-delivery" for p in predecessors)
+    assert all(p["status"] == "superseded-by-v7" for p in predecessors)
     entries = {e["path"]: e for e in manifest["entries"]}
     assert entries["11-12-evidence-20261104-v5.tar.gz"]["authority"] == "historical"
     assert "stale-market-evidence-manifest-race" in entries["11-12-evidence-20261104-v5.tar.gz"]["note"]
