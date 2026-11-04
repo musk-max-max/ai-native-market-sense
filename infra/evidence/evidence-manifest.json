@@ -2,7 +2,7 @@
   "schema_version": "0.1",
   "owner": "A13",
   "generated_by": "a13-sre",
-  "generated_at": "2026-11-04T23:49:31Z",
+  "generated_at": "2026-11-04T23:55:54Z",
   "rule": "artifact 不内嵌自身哈希；哈希只进 manifest；内容改动必须换新文件名（UTC 时间戳），旧 artifact 保留；CI 独立复算每条 sha。",
   "authority_values": [
     "authoritative",
@@ -343,6 +343,20 @@
       ],
       "notes": "L91 ④-B：公网 47.120.16.239 的 80/8081/3000/18081 全部无 HTTP 响应（80 refused；其余 timeout），/healthz、/metrics 不可达；安全组由用户控制台处置、ECS 侧无法验证，已注明。",
       "code_ref": "agents/decisions.md L91（内网访问，不暴露公网）"
+    },
+    {
+      "path": "infra/evidence/internal-exposure-redteam-20261104T2356Z.txt",
+      "sha256": "afbeaf526b252a09d14e78a6170e2be1e19f5a0d7d0e3d754ca2522bc8c76653",
+      "bytes": 19427,
+      "recompute": "sha256sum infra/evidence/internal-exposure-redteam-20261104T2356Z.txt",
+      "role": "evidence-artifact-v2",
+      "authority": "authoritative",
+      "phase": "post-fix",
+      "case_ids": [
+        "H5-R10",
+        "H5-R19"
+      ],
+      "notes": "L91 内网暴露面红队复核（A19）：公网不可达=缺监听而非网络层拒绝（80/8888 外网 0.0.0.0 绑定实测 HTTP 200；ms-nginx 保留 0.0.0.0:80 绑定+Basic Auth）；内网隧道 403+无价 DOM；审计/hold 运行态 0/0 漂移（audit events=0）；限流 600/120 且 web 代理共享桶；root/docker 可 psql 直读绕过 403；多用户再分发风险成立。"
     }
   ],
   "related_manifests": [
@@ -352,5 +366,8 @@
       "owner": "a3-backend-market",
       "notes": "A3 证据包（含 #3 采样两档：internal_eval 短路 + c_end_display+hold_active）；A3 更新 MANIFEST 时必须同 commit 更新本 sha；历史自指哈希 errata 见其 MANIFEST 正文。"
     }
-  ]
+  ],
+  "amended_by": "a19-red-team",
+  "amended_at": "2026-11-04T23:55:54Z",
+  "amend_note": "在 A13 生成的 evidence-manifest 上追加 A19 L91 内网暴露面复核 artifact；既有条目未改动。"
 }

@@ -1,0 +1,302 @@
+# L91 内网暴露面复核（A19 红队对抗视角，只读 + 有界临时探测）
+# mode: internal   authority: authoritative   phase: post-fix   case_ids: H5-R10,H5-R19
+# timestamp: 2026-11-04T23:56Z   executor: A19 (a19-red-team)   task_ref: lead m01054 / decisions.md L91
+# base_commit: 90b8666（本 artifact 落盘前）；ECS 运行代码 HEAD 653f671（镜像构建态，与仓库最新源码存在漂移）
+# runtime: Darwin 25.5.0 arm64（外网 vantage）+ ECS heyuan Linux 5.15.0-179-generic x86_64
+# code_ref: agents/decisions.md L91（内网访问、不暴露公网）；用户 m05225/m05235；lead m01054
+#
+# 方法声明（可复现、可审计）：
+# - 只读检查为主；为证明"公网不可达是缺监听还是网络层拒绝"，在 ECS 上临时绑定 0.0.0.0:80 / 0.0.0.0:8888
+#   各约 2 秒做外网 curl，随即 kill；未改动任何容器/配置/防火墙，未启动 ms-nginx，未做密码爆破。
+# - SSH 隧道仅用于验证"内网可达"与门禁运行态；隧道在本机侧建立、用完关闭（T1 末尾记录 0 监听）。
+# - 所有数字为执行时实测；sha256/bytes 由 infra/evidence/evidence-manifest.json 外置登记。
+#
+# ============ 结论摘要（先给判定，再给原始证据） ============
+#
+# 1) 公网不可达：当前"事实"成立（无业务监听），但"网络层拒绝"不成立。
+#    - 外网 vantage 实测：22 succeeded；80/8888 = reachable-RST（connection refused，非 filtered）；
+#      443/3000/8081/18081/20/21/888/25730/39000 = timeout（安全组侧拦截）。
+#    - 在 ECS 临时绑定 0.0.0.0:80 与 0.0.0.0:8888 后，从 Mac 外网 curl 均返回 HTTP 200
+#      （time≈0.075s/0.083s）→ 云安全组 + ufw 仍对 Internet 放行 80/8888；当前不可达仅因没有进程监听。
+#    - ms-nginx 虽 stopped/restart=no，但保留 PortBindings={"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"80"}]}，
+#      且 nginx.conf 有 auth_basic + proxy_pass api:8080/web:3000、htpasswd 51B/1 行；拥有 root/docker 权限者
+#      `docker start ms-nginx` 即可恢复"公网 80 + Basic Auth"入口（需要 root，P2 残留）。
+#    - ufw 仍放行 8888/20/21/888/25730/39000-40000（遗留面板端口）；这些端口当前被安全组封住（外网 timeout），
+#      但主机侧是"armed"状态：安全组一旦回退，无监听则 RST、有监听即刻暴露。
+#    - 唯一当前公网可直连入口 = 22；sshd PermitRootLogin=yes、PasswordAuthentication=yes、MaxAuthTries=6、
+#      authorized_keys=1 行、fail2ban=inactive，auth.log 已累计 1130 次 "Failed password"。
+#      无凭据尝试返回 "Permission denied (publickey,password)"（证明密码通道开放）。
+#
+# 2) 内网可达与 C 端门禁：PASS（在 internal_eval 下看不到任何数值）。
+#    - Mac 侧 `ssh -L 18100:127.0.0.1:8081 -L 13100:127.0.0.1:3000` 隧道：web / =200（1216B）、
+#      quote=403 + cache-control: no-store（中性 detail）、watchlist 无 token=401 UNAUTHENTICATED。
+#    - Playwright 经隧道打开 /stocks/SSE:600519：status=200、quotePriceNodes=0、entitlementNoticeNodes=1、
+#      body 无小数/货币、无 9999、2 个 403 console error → 内网入口与公网口径一致，403 后不残留数值 DOM。
+#
+# 3) 认证 / 限流 / 审计是否仍按 tier 生效：
+#    - 认证：Basic Auth 只存在于已停止的 ms-nginx 层；运行栈本身无用户认证（web 匿名 200；E2E_AUTH_TOKEN 为空，
+#      curl 带 dev-token 仍 401）。即"内网模式下是否还需要认证"目前无技术答案——当前靠 internal_eval 的 403 兜底。
+#    - 限流：运行参数 RATE_LIMIT_IP_PER_MIN=600 / BURST=120（决策默认 60/10）；X-Forwarded-For 不换桶
+#      （trustProxy=false，实测爆发后 no-xff=429、xff=429，2s 后两者 403）。
+#      但 web 反向代理把所有浏览器用户汇聚成同一源 IP：web-proxy 爆发后 web 侧 429，而 direct API 仍 403
+#      → 证明桶按"源 IP（= web 容器）"共享；单个内网用户可耗尽 120 burst/600 每分钟，让同侪全部 429。
+#    - 审计/hold：运行容器 ENTITLEMENT_AUDIT=0、ENTITLEMENT_HOLD_CHECK=0；compose 渲染为 "1"/"1" → 运行时漂移。
+#      audit.entitlement_events=0 行；audit.entitlement_hold 仅 1 行（hold=f，last_reconciled_at=启动时刻）；
+#      api 日志 "audit" 0 行；/healthz entitlement_degraded=false。→ 当前内网栈审计与 hold 均未生效；
+#      若把 tier 切到 c_end_display 而容器未重建，门禁只剩 tier 配置，到期/hold/审计事件链缺失。
+#    - 数据面：授权门禁只在 API 层。root/docker 权限者 `docker exec postgres psql` 直读
+#      public.dwd_stock_bar_daily(10)、serving.serving_quote_latest(5；SSE:600519 close=9999.99、
+#      as_of=2026-11-03T07:00:00Z、staleness_ms=147,306,754≈40.9h)、serving_bar_daily(30)、serving_instrument(5)，
+#      完全绕过 403/tier。docker.sock=root:docker 660、docker 组无成员、无 uid≥1000 可登录用户 → 现状仅 root；
+#      一旦给熟人 shell/docker 组，"C 端 403/internal_eval 门禁"对数据面整体失效（且可直接读到 40.9h 陈旧快照）。
+#    - 再分发：tushare「仅个人查看」措辞下，熟人小范围多人访问仍是对外提供数据。当前无用户身份、无访问审计
+#      （audit=0）、无按用户限流，技术上无法证明"仅个人查看"；任一隧道持有者可在自己机器二次转发（端口转发），
+#      服务端无可观测的阻断证据。多用户不是"看到 403"就安全：一旦 tier 合法切到 c_end_display（demo/go-live），
+#      所有能到内网入口的人（含转发者）都会无身份地看到行情。
+#
+# 判定汇总：
+#   - 公网不可达（当前状态）：PASS；网络层拒绝/纵深：FAIL（80/8888 SG+ufw 放行；ms-nginx 保留 0.0.0.0:80 绑定）。
+#   - 内网门禁（internal_eval）：PASS（403 + 无价 DOM）。
+#   - 认证：无（匿名 web 200；Basic Auth 已停）→ 是否补认证属 H3/H5 决策；A19 只提交攻击面事实。
+#   - 限流：默认桶/XFF 不换桶 PASS；共享桶 + 放宽阈值 = 单用户 DoS 同侪（容量口径 FAIL）。
+#   - 审计/hold 按 tier：FAIL（运行态 0/0、事件 0 行、hold 未持续校准）。
+#   - 再分发/多用户：风险成立（无身份 + root 可直读库 + 隧道可二次转发），无法技术证明"仅个人查看"。
+#
+# residual / handoff（只列事实与归属，不提代码修法）：
+#   R1 [P2] SG+ufw 仍放行 80/8888（外网绑定实测 200）；ms-nginx 保留 0.0.0.0:80 绑定+htpasswd → H5/A13。
+#   R2 [P1] 公网 22 + root 密码认证 + 1130 次失败无 fail2ban → 主机接管即数据面全穿 → H5（是否改认证/加防护由其裁定）。
+#   R3 [P2] 运行时 ENTITLEMENT_AUDIT=0/HOLD=0 与 compose 1/1 漂移，audit events=0 → 重建容器后才生效 → A13。
+#   R4 [P2] 数据面绕过（root/docker→psql 直读，绕过 API 403）→ 与"熟人可登录"边界绑定 → H5/H3。
+#   R5 [P3] 限流共享 web 容器桶 + 600/120 放宽，单用户可 DoS 同侪 → A13/A0（容量口径）。
+#   R6 [P2 合规] 多用户内网再分发 + 无身份/无审计/可转发 → H3 定措辞与准入，H5 定技术边界。
+#   证据未覆盖：VPC 内其他主机对 172.27.179.110:22 的可达性（安全组 VPC 规则未从对端验证）；
+#   Basic Auth 口令强度未测（不猜密码）；ms-nginx 未启动验证（避免制造公网暴露）。
+#
+# ============ 原始 transcript（命令 + 原始输出；未改写） ============
+### timestamp: 2026-11-04T23:54:02Z
+### vantage: Darwin 192.168.1.5 25.5.0 Darwin Kernel Version 25.5.0: Mon Apr 27 20:38:00 PDT 2026; root
+
+## E1 外网 TCP 连通性（Mac，nc -vz -w3）
+port 22: Connection to 47.120.16.239 port 22 [tcp/ssh] succeeded! 
+port 80: nc: connectx to 47.120.16.239 port 80 (tcp) failed: Connection refused 
+port 8888: nc: connectx to 47.120.16.239 port 8888 (tcp) failed: Connection refused 
+port 443: nc: connectx to 47.120.16.239 port 443 (tcp) failed: Operation timed out 
+port 3000: nc: connectx to 47.120.16.239 port 3000 (tcp) failed: Operation timed out 
+port 8081: nc: connectx to 47.120.16.239 port 8081 (tcp) failed: Operation timed out 
+port 18081: nc: connectx to 47.120.16.239 port 18081 (tcp) failed: Operation timed out 
+port 20: nc: connectx to 47.120.16.239 port 20 (tcp) failed: Operation timed out 
+port 21: nc: connectx to 47.120.16.239 port 21 (tcp) failed: Operation timed out 
+port 888: nc: connectx to 47.120.16.239 port 888 (tcp) failed: Operation timed out 
+port 25730: nc: connectx to 47.120.16.239 port 25730 (tcp) failed: Operation timed out 
+port 39000: nc: connectx to 47.120.16.239 port 39000 (tcp) failed: Operation timed out 
+
+## E2 HTTP 探测（curl --max-time 5）
+--- http://47.120.16.239/
+curl: (7) Failed to connect to 47.120.16.239 port 80 after 37 ms: Could not connect to server
+http=000 exit=7 time=0.037402
+--- http://47.120.16.239:8888/
+curl: (7) Failed to connect to 47.120.16.239 port 8888 after 41 ms: Could not connect to server
+http=000 exit=7 time=0.041326
+--- https://47.120.16.239/
+curl: (28) Connection timed out after 5011 milliseconds
+http=000 exit=28 time=5.011990
+--- http://47.120.16.239:8081/
+curl: (28) Connection timed out after 5002 milliseconds
+http=000 exit=28 time=5.002421
+--- http://47.120.16.239:3000/
+curl: (28) Connection timed out after 5006 milliseconds
+http=000 exit=28 time=5.006946
+--- http://47.120.16.239:18081/
+curl: (28) Connection timed out after 5006 milliseconds
+http=000 exit=28 time=5.006527
+
+## E3 SSH 22 可达性与认证方式（BatchMode，无凭据）
+  Warning: Permanently added '47.120.16.239' (ED25519) to the list of known hosts.
+
+## E4 临时 0.0.0.0 绑定暴露测试（8888/80，2s 内启停；证明云 SG+ufw 是否仍放行该端口）
+  bound: LISTEN 0      5            0.0.0.0:8888       0.0.0.0:*          
+  bound: LISTEN 0      5            0.0.0.0:80         0.0.0.0:*          
+  external http://47.120.16.239:8888/ -> http=200 time=0.082611
+  external http://47.120.16.239:80/ -> http=200 time=0.075230
+  cleaned
+0
+
+
+## E3b SSH 22 密码认证暴露（禁公钥、BatchMode，无凭据）
+  Warning: Permanently added '47.120.16.239' (ED25519) to the list of known hosts.
+  root@47.120.16.239: Permission denied (publickey,password).
+### ECS probe 2026-11-04T23:55:05Z
+## I1 host
+5.15.0-179-generic
+heyuan
+  lo 127.0.0.1/8
+  eth0 172.27.179.110/20
+  docker0 172.17.0.1/16
+  br-cffdd1dfd5ce 172.18.0.1/16
+
+## I2 listening sockets (business)
+  State  Recv-Q Send-Q Local Address:Port  Peer Address:PortProcess                                      
+  LISTEN 0      4096       127.0.0.1:8081       0.0.0.0:*    users:(("docker-proxy",pid=1216557,fd=8))   
+  LISTEN 0      4096       127.0.0.1:3000       0.0.0.0:*    users:(("docker-proxy",pid=1216838,fd=8))   
+  LISTEN 0      4096       127.0.0.1:18081      0.0.0.0:*    users:(("docker-proxy",pid=1216358,fd=8))   
+  LISTEN 0      4096   127.0.0.53%lo:53         0.0.0.0:*    users:(("systemd-resolve",pid=976727,fd=14))
+  LISTEN 0      4096       127.0.0.1:45231      0.0.0.0:*    users:(("hbrclient",pid=956202,fd=9))       
+  LISTEN 0      128          0.0.0.0:22         0.0.0.0:*    users:(("sshd",pid=987071,fd=3))            
+  LISTEN 0      128             [::]:22            [::]:*    users:(("sshd",pid=987071,fd=4))            
+
+## I3 containers + port bindings + restart
+  ms-nginx|exited|Exited (0) 12 hours ago|
+  market-sense-e2e-web-1|running|Up 18 hours (healthy)|127.0.0.1:3000->3000/tcp
+  market-sense-e2e-api-1|running|Up 18 hours (healthy)|127.0.0.1:8081->8080/tcp
+  market-sense-e2e-postgres-1|running|Up 18 hours (healthy)|5432/tcp
+  market-sense-e2e-redis-1|running|Up 18 hours (healthy)|6379/tcp
+  market-sense-e2e-tushare-replay-1|running|Up 18 hours (healthy)|127.0.0.1:18081->18080/tcp
+  /ms-nginx restart=no ports={"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"80"}]}
+  /market-sense-e2e-web-1 restart=no ports={"3000/tcp":[{"HostIp":"127.0.0.1","HostPort":"3000"}]}
+  /market-sense-e2e-api-1 restart=no ports={"8080/tcp":[{"HostIp":"127.0.0.1","HostPort":"8081"}]}
+  /market-sense-e2e-postgres-1 restart=no ports={}
+  /market-sense-e2e-redis-1 restart=no ports={}
+  /market-sense-e2e-tushare-replay-1 restart=no ports={"18080/tcp":[{"HostIp":"127.0.0.1","HostPort":"18081"}]}
+
+## I4 api runtime env (selected, token masked)
+  RATE_LIMIT_IP_BURST=120
+  ENTITLEMENT_EXPIRES_AT=
+  ENTITLEMENT_TIER=internal_eval
+  E2E_MODE=1
+  E2E_AUTH_TOKEN set=no
+  APP_PROFILE=e2e
+  RATE_LIMIT_IP_PER_MIN=600
+  ENTITLEMENT_AUDIT=0
+  ENTITLEMENT_HOLD_CHECK=0
+  E2E_WATCHLIST_TABLE=watchlist_items
+
+## I5 compose vs runtime (rendered expect)
+        APP_PROFILE: e2e
+        E2E_MODE: "1"
+        ENTITLEMENT_AUDIT: "1"
+        ENTITLEMENT_HOLD_CHECK: "1"
+        ENTITLEMENT_TIER: internal_eval
+        E2E_MODE: "1"
+
+## I6 audit/hold state and data-at-rest via psql (root-only path)
+   audit_events 
+  --------------
+              0
+  (1 row)
+  
+   id | hold |      last_reconciled_at       
+  ----+------+-------------------------------
+    1 | f    | 2026-11-04 06:06:46.216405+00
+  (1 row)
+  
+   bars | quotes | instruments 
+  ------+--------+-------------
+     10 |      5 |           5
+  (1 row)
+  
+   instrument_id | trade_date |  open   |   high   |   low   |  close  |         as_of          | staleness_ms 
+  ---------------+------------+---------+----------+---------+---------+------------------------+--------------
+   SSE:600519    | 2026-11-03 | 9999.00 | 10000.00 | 9998.00 | 9999.99 | 2026-11-03 07:00:00+00 |    147306754
+  (1 row)
+  
+
+## I7 gate behavior via loopback
+  quote http=403
+  content-type: application/problem+json; charset=utf-8
+  cache-control: no-store
+{"type":"https://errors.market-sense.invalid/entitlement-restricted","title":"行情数据暂不可用","status":403,"code":"ENTITLEMENT_RESTRICTED","trace_id":"req-fvg","detail":"当前版本暂不提供该标的行情数据"}
+  instrument http=200
+  content-type: application/problem+json; charset=utf-8
+{"type":"https://errors.market-sense.invalid/unauthenticated","title":"未认证","status":401,"code":"UNAUTHENTICATED","trace_id":"req-fvi","detail":"自选为私有数据，需要有效的 Bearer 凭据。"}
+  Cache-Control: no-store
+  Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'; font-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'
+
+## I8 rate limit (loopback, direct API)
+      123 403
+        7 429
+  post-burst:
+    no-xff=429
+    xff-8.8.8.8=429
+
+## I9 web-proxy bucket vs direct bucket (all browser users share web container IP)
+  web-proxy burst:     128 403
+  web-proxy burst:       2 429
+  web-proxy post-burst=429
+  direct-api post-burst=403
+
+## I10 perimeter/hardening state
+  Status: active
+  
+       To                         Action      From
+       --                         ------      ----
+  [ 1] 8888/tcp                   ALLOW IN    Anywhere                  
+  [ 2] 20/tcp                     ALLOW IN    Anywhere                  
+  [ 3] 21/tcp                     ALLOW IN    Anywhere                  
+  [ 4] 22/tcp                     ALLOW IN    Anywhere                  
+  [ 5] 80/tcp                     ALLOW IN    Anywhere                  
+  [ 6] 443/tcp                    ALLOW IN    Anywhere                  
+  [ 7] 888/tcp                    ALLOW IN    Anywhere                  
+  [ 8] 25730/tcp                  ALLOW IN    Anywhere                  
+  [ 9] 39000:40000/tcp            ALLOW IN    Anywhere                  
+  [10] 8888/tcp (v6)              ALLOW IN    Anywhere (v6)             
+  [11] 20/tcp (v6)                ALLOW IN    Anywhere (v6)             
+  [12] 21/tcp (v6)                ALLOW IN    Anywhere (v6)             
+  [13] 22/tcp (v6)                ALLOW IN    Anywhere (v6)             
+  [14] 80/tcp (v6)                ALLOW IN    Anywhere (v6)             
+  [15] 443/tcp (v6)               ALLOW IN    Anywhere (v6)             
+  [16] 888/tcp (v6)               ALLOW IN    Anywhere (v6)             
+  [17] 25730/tcp (v6)             ALLOW IN    Anywhere (v6)             
+  [18] 39000:40000/tcp (v6)       ALLOW IN    Anywhere (v6)             
+  
+  sshd: maxauthtries 6 permitrootlogin yes pubkeyauthentication yes passwordauthentication yes 
+  fail2ban=inactive; authlog_failed_password=1130; authorized_keys_lines=1
+  docker.sock: srw-rw---- root:docker; docker_group=docker:x:999:
+  nonroot_shell_users: 
+
+## I11 ms-nginx residual (stopped but still armed for public 80)
+  state=exited restart=no portbindings={"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"80"}]}
+  /tmp/a19-nginx/nginx.conf:28:    listen 80 default_server;
+  /tmp/a19-nginx/nginx.conf:30:    auth_basic "market-sense restricted";
+  /tmp/a19-nginx/nginx.conf:31:    auth_basic_user_file /etc/nginx/htpasswd;
+  /tmp/a19-nginx/nginx.conf:40:      proxy_pass http://api:8080;
+  /tmp/a19-nginx/nginx.conf:43:      proxy_pass http://web:3000;
+  /tmp/a19-nginx/conf.d/default.conf:2:    listen       80;
+  /tmp/a19-nginx/conf.d/default.conf:3:    listen  [::]:80;
+  /tmp/a19-nginx/conf.d/default.conf:25:    #    proxy_pass   http://127.0.0.1;
+  htpasswd_bytes=51 htpasswd_lines=1
+  nginx_access_log_basic_auth_hits=11 (historical, pre-L91; client IP not reproduced)
+
+## I12 boot persistence
+  cron: LANG=en_US.UTF-8
+  cron: LC_ALL=en_US.UTF-8
+  cron: 
+  cron: 41 8 * * *  /www/server/cron/3ab48c27ec99cb9787749c362afae517 >> /www/server/cron/3ab48c27ec99cb9787749c362afae517.log 2>&1
+  cron_script_exists=no
+  rc_local=no
+
+## T1 SSH 隧道内网可达 + 页面运行态（Mac 侧，ssh -L；不代表公网入口）
+--- tunnel quote
+HTTP/1.1 403 Forbidden
+content-type: application/problem+json; charset=utf-8
+cache-control: no-store
+content-length: 227
+http=403
+{"type":"https://errors.market-sense.invalid/entitlement-restricted","title":"行情数据暂不可用","status":403,"code":"ENTITLEMENT_RESTRICTED","trace_id":"req-g2y","detail":"当前版本暂不提供该标的行情数据"}
+--- tunnel web
+http=200 bytes=1216
+--- tunnel watchlist
+http=401
+{"type":"https://errors.market-sense.invalid/unauthenticated","title":"未认证","status":401,"code":"UNAUTHENTICATED","trace_id":"req-g2z","detail":"自选为私有数据，需要有效的 Bearer 凭据。"}
+  {
+    "status": 200,
+    "quotePriceNodes": 0,
+    "entitlementNoticeNodes": 1,
+    "decimalOrMoney": [],
+    "has9999": false,
+    "bodySample": "跳到主要内容 MS Market Sense A 股数据 首页 自选 ← 首页 / 贵州茅台 贵州茅台 SSE:600519 上交所 主板 股票 已上市 上市日期 2001-08-27 行情数据暂不可用 当前版本暂不提供该标的行情数据 ☆ 加入自选 登录后可加自选 免责声明 本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。 基本面摘要 财报为报告期口径，与上方行情时点不同，请勿混读。 基本面数据暂时无法取得；页面不会用 0 或猜测值填充。 本页行",
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
+  }
+tunnel_closed_listeners=0/0
