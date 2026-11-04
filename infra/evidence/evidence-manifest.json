@@ -187,6 +187,45 @@
         "KD-ENT-01"
       ],
       "notes": "E2E 默认栈/positive override 的 compose config 解析与合并复验（不启动容器）"
+    },
+    {
+      "path": "tests/e2e/evidence/kd-ent-01-runtime-20261104T1237Z/runtime-evidence.tar.gz",
+      "sha256": "0cfd1c4f3342c29f1fca065db0b5c1e8e54446f5da445ec35536391531ff5047",
+      "bytes": 11352,
+      "recompute": "sha256sum tests/e2e/evidence/kd-ent-01-runtime-20261104T1237Z/runtime-evidence.tar.gz",
+      "role": "evidence-artifact-v2",
+      "authority": "authoritative",
+      "phase": "post-fix",
+      "case_ids": [
+        "KD-ENT-01"
+      ],
+      "notes": "KD-ENT-01 运行时四观测完整证据包（单次干净 run；含 16 文件；默认栈 403 / positive 200 / hold 403+no-store / clear 后 200；ECS e2e-ent-positive 隔离 project，端口全 loopback）"
+    },
+    {
+      "path": "tests/e2e/evidence/kd-ent-01-runtime-20261104T1237Z/transcript.log",
+      "sha256": "5ae1bdd439b6a8baee27d396c28522df6af3551a3cbbb2ced21f8f1792aceb06",
+      "bytes": 24433,
+      "recompute": "sha256sum tests/e2e/evidence/kd-ent-01-runtime-20261104T1237Z/transcript.log",
+      "role": "transcript",
+      "authority": "authoritative",
+      "phase": "post-fix",
+      "case_ids": [
+        "KD-ENT-01"
+      ],
+      "notes": "四观测完整 stdout/rc/时间戳；run 窗口 2026-11-04T20:36:40→20:38:06+08:00；api RestartCount=0"
+    },
+    {
+      "path": "tests/e2e/evidence/kd-ent-01-runtime-20261104T1237Z/README.md",
+      "sha256": "6015f92b6d941efe335a9847110258f360f71f26ca86b846c82d3fbe580bc5f5",
+      "bytes": 6909,
+      "recompute": "sha256sum tests/e2e/evidence/kd-ent-01-runtime-20261104T1237Z/README.md",
+      "role": "runtime-evidence-readme",
+      "authority": "authoritative",
+      "phase": "post-fix",
+      "case_ids": [
+        "KD-ENT-01"
+      ],
+      "notes": "执行人/命令/四观测/caveat：验证运行时配置与授权链，非镜像构建 provenance；ECS checkout 0c78433，compose 规格来自本地 7911a03+0a6beba；默认栈仍旧 api 镜像；合成 fixture 不作 DA 证据"
     }
   ],
   "related_manifests": [
