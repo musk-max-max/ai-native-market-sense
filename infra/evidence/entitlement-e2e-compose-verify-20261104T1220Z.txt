@@ -1,0 +1,26 @@
+# E2E compose 授权配置复验（KD-ENT-01，A13 复验 A12 交付）
+# executor: A13 (a13-sre)   time_utc: 2026-11-04T12:20:53Z
+# host: ECS 47.120.16.239（docker compose v5.7.0；本机无 docker，故在 docker-capable 主机仅做 config 解析，不启动容器）
+# files: tests/e2e/docker-compose.yml + tests/e2e/docker-compose.entitlement-positive.yml（scp 到 /tmp/a13-compose-check，未使用 repo 内运行栈）
+
+## 1) 默认栈 config 语法
+$ docker compose -f docker-compose.yml config -q
+BASE_OK (exit 0)
+
+## 2) 默认栈 api 授权 env（config 解析结果，不含密钥）
+{"APP_PROFILE": "e2e", "E2E_MODE": "1", "ENTITLEMENT_TIER": "internal_eval", "ENTITLEMENT_HOLD_CHECK": "1", "ENTITLEMENT_AUDIT": "1", "ENTITLEMENT_CONFIG_EXPECTED_SHA256": null, "ENTITLEMENT_EXPIRES_AT": ""}
+
+## 3) 默认 + positive override 合并 config 语法
+$ docker compose -f docker-compose.yml -f docker-compose.entitlement-positive.yml config -q
+POSITIVE_OK (exit 0)
+
+## 4) positive override 合并后 api 授权 env
+{"api": {"APP_PROFILE": "e2e", "ENTITLEMENT_AUDIT": "1", "ENTITLEMENT_CONFIG_EXPECTED_SHA256": "b0d185b9af0eb2a228dd4195967d02bfe987a92979da2980188b5942bb15cef9", "ENTITLEMENT_EXPIRES_AT": "2030-12-31T00:00:00Z", "ENTITLEMENT_HOLD_CHECK": "1", "ENTITLEMENT_TIER": "c_end_display", "E2E_MODE": "1"}}
+
+## 5) 静态断言（A13 门禁）
+- node infra/ci/check-entitlement-config.mjs → 45 项通过（含默认栈 tier 字面量 internal_eval/无 ${} override/无 c_end_display/HOLD_CHECK=1/AUDIT=1/loopback 端口；positive override 200→ c_end_display + HOLD/AUDIT=1 + sha 64hex + expires 成对）
+- python3 tests/e2e/scripts/validate_compose.py --quiet → 80/80 通过
+
+## 结论
+默认栈固定 internal_eval 且显式 HOLD_CHECK=1/AUDIT=1；c_end_display 仅存在于独立 positive override，sha 与 expires 成对（sha256("c_end_display|2030-12-31T00:00:00.000Z")=b0d185b9…，本地复算一致）；发布端口 loopback-only。
+边界：本证据只验证 compose 配置解析与合并，不启动容器、不证明运行时 200/403 行为；E2E_MODE=1 仍只允许隔离栈、禁止公网可达（RB-ENT-002）。

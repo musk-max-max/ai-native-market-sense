@@ -174,6 +174,19 @@
         "KD-ENT-01"
       ],
       "notes": "运行态端口绑定审计：业务容器仅 loopback 发布或未发布，唯一 0.0.0.0 为 sshd"
+    },
+    {
+      "path": "infra/evidence/entitlement-e2e-compose-verify-20261104T1220Z.txt",
+      "sha256": "c47aedb8f9fe8e22edb153a03e4cadccdf6429d6c22db54c68eb7346cb7c4089",
+      "bytes": 2153,
+      "recompute": "sha256sum infra/evidence/entitlement-e2e-compose-verify-20261104T1220Z.txt",
+      "role": "compose-verification",
+      "authority": "authoritative",
+      "phase": "post-fix",
+      "case_ids": [
+        "KD-ENT-01"
+      ],
+      "notes": "E2E 默认栈/positive override 的 compose config 解析与合并复验（不启动容器）"
     }
   ],
   "related_manifests": [
