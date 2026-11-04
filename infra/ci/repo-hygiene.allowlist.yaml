@@ -1,0 +1,27 @@
+# 入库例外白名单（仓库卫生门禁 / 2MB 阈值）
+#
+# 规则（H4 m02780 / H5 m02782；A13 维护）：
+#   * 只允许**精确文件路径**（禁通配符/目录前缀）；每条必须 {path, sha256, owner, reason, expires_at,
+#     approved_by, approval_ref}；
+#   * CI 校验「当前文件字节哈希 == 条目 sha256」才豁免：同路径换内容 → 豁免自动失效、按超限拦；
+#   * 到期前 5 天告警（CI 日志），到期后直接红；续期必须 H4/H5 复审签字，不自动续；
+#   * owner 固定 A13；本次仅 v6/v7 两条（签字对象，H5 四元组绑定）。
+#   * 解析器：infra/ci/lib/mini-yaml.mjs；校验器：infra/ci/check-repo-hygiene.mjs。
+schema_version: "0.1"
+owner: A13
+notes: "H5 #7 签字对象：11-12 evidence tar 留在 repo 内可追溯；go-live 前迁发布产物存储，最晚 2026-12-15（与 lot_size waiver 同日盘点；go-live 前完成迁移）。"
+entries:
+  - path: "tests/data/acceptance/artifacts/11-12-evidence-20261104-v6.tar.gz"
+    sha256: "f1e6f8e4f1cb07040c24903638c2ebbfb3e3d60d170da029326021881fc4908e"
+    owner: "A13"
+    reason: "release evidence（H5 签字对象，tar+manifest+packed+SHA256SUMS 四元组绑定），待迁发布产物存储"
+    expires_at: "2026-12-15"
+    approved_by: "H4"
+    approval_ref: "H4 m02775 + H5 m02782"
+  - path: "tests/data/acceptance/artifacts/11-12-evidence-20261104-v7-2523256.tar.gz"
+    sha256: "75f89a2dc92f64c7995edfc7a33696efbd245bb081cc782006f0400b78bc7d8f"
+    owner: "A13"
+    reason: "release evidence（H5 签字对象，tar+manifest+packed+SHA256SUMS 四元组绑定），待迁发布产物存储"
+    expires_at: "2026-12-15"
+    approved_by: "H5"
+    approval_ref: "H5 m02782"

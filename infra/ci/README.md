@@ -128,3 +128,10 @@ actionlint                           # 需本地安装（见 docs/adr 或 /tmp/t
 - 只允许 `PASS / PARTIAL / FAIL / PENDING-H5`；不允许无条件打印「CI 通过」。
 - 当前 ci-gate：e2e 非 success → 状态固定 `PARTIAL`（明确写「不代表 e2e 已验证」）；台账 `.ci/e2e-ledger.jsonl`（run_id/attempt/sha/event/ref/e2e result）每 run 一行，artifact `e2e-ledger`。
 - S1 转必绿：连续 3 次 success（以台账为准）后，e2e failure 计入红灯；在此之前的任何发布说明只能写 `PARTIAL`。
+
+## 仓库卫生 / 大证据包 allowlist（2026-11-04）
+
+- 门禁：`infra/ci/check-repo-hygiene.mjs`（2MB 阈值；秘密/状态文件前向拦截）。
+- 例外：`infra/ci/repo-hygiene.allowlist.yaml`，**精确路径 + sha256 + 到期**；换字节自动失效；到期前 5 天告警、到期红；续期须 H4+H5 复审签字。
+- 当前两条：A11 release evidence v6/v7 tar（H5 签字对象，四元组绑定）；`expires_at: 2026-12-15`，与 `lot_size` waiver 同日盘点但语义不同（本 allowlist 到期复审判定是否续；waiver 到期不续、用新 baseline 冻结消解）。
+- **backlog（owner A13，deadline 2026-12-15）**：把大证据包迁到发布产物存储/对象存储，repo 只留 locator + sha256；未迁移则 CI 红，不放行。已请 Lead 记 decisions 一条（decisions.md 非 A13 写域）。
