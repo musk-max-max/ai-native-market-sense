@@ -49,6 +49,10 @@ export const domainPlugins = [marketPlugin];
 | `INGEST_REPORT_PATH` | `/state/ingest-report.json` | ingest-once 报告路径（`/healthz` 数据就绪字段来源，只读） |
 | `EVENT_PAYLOADS_PATH` | 仓库 `docs/reference/event-payloads.json`（镜像内 `/app/docs/reference/event-payloads.json`） | L70 事件 payload 键集唯一真源；prod 缺文件/坏 JSON 拒启，非 prod 告警跳过校验 |
 
+## DB 超时（L77）
+
+`services/market/src/plugin.ts` 建池即配 `connectionTimeoutMillis=1000`、`query_timeout=1000`、`statement_timeout=1000`（连接级 `-c statement_timeout=1000`）；control 行读取另有独立 1s 超时（`EntitlementGateOptions.controlTimeoutMs`），不依赖驱动默认。TCP 黑洞下启动探测约 1s 返回 fail-closed，请求路径返回 403，不会挂死（`test/entitlement-gate.test.ts`、`test/market-plugin.test.ts` L77 用例）。
+
 ## 数据就绪（/healthz 贡献，A12 INGEST-ONCE-CONTRACT §4）
 
 `marketPlugin` 与 `createMarketPlugin` 都带 `health()`（见 `src/health.ts`），外壳把它合并进 `/healthz` 200 响应体：

@@ -1059,3 +1059,18 @@ A13 如实交了失败记录（本机无 iptables、pf 无权限），**没有�
 **H5-R20 同步（A19 域外一条）**：`infra/helm/market-sense/templates/ingress.yaml` 已收敛为只 `path: /v1`；`networkpolicy.yaml` 有 default-deny + ingress-controller + monitoring 三条，与 R10 五条不变式一致。**但这是清单层，证据仍须集群外 404 + Pod 内 200 + `helm template` 守卫三件，等 staging/PUBLIC_BASE_URL，H5 不拿 YAML 签。** 待办：allow-monitoring 放行整个 `http` 端口而非仅 `/metrics`，当前无风险，补 `/metrics` 时需独立端口或 A11 断言命名空间隔离。
 
 **A3 证据哈希仍不符**（申报 `730cddf5…` vs 实算 `f80562ca…`，未重发）→ 按「内容抽查合格、凭证待补」处理，不进签字范围。
+
+### L80 M04「按当日 ST 状态」在 P0 不可实现——裁 ②（2026-11-04）
+
+**事实（A2 报）**：DWD/ODS P0 **无历史名称/ST 状态输入**（A1 只产 bar/adj_factor/instrument/fundamental，无 namechange），「按交易日当时状态」今天无法实现。H4 给的备选「限定无 ST 状态变更窗口 + known_limitation + 质量 flag」**同样需要名称历史才能证明窗口内无变更**，否则 flag 是空话。
+
+**我裁 ②**（**不改成 ①**，理由见下）：
+- P0 **明确声明**「ST 判定 = 当前名称快照，历史时点未还原，跨 ST 变更窗口不适用」。
+- SQL 输出带 `known_limitation`；质量规则对「当前 ST 名称的早于 `dim.as_of` 的 bar」出 **warn flag**（不是 blocker，不拖绿）。
+- namechange 数据到位后转 blocker。
+
+**为什么不选 ①**：P0 竖切片渲染的是**最新一根 bar 的名称+价格+涨跌幅**，不做 20 年历史回溯计算（golden 只有 20 根 bar）。为一个 P1 才用得上的历史 ST 还原，现在扩 A1 范围（加 `instrument_name_history`/tushare namechange）+ 动 ODS schema，**收益在 P1、成本与排期风险在 S0**。**记 P1 数据依赖**，不塞进 S0。
+
+**未阻塞项 A2 现在就改**：M04 未知 board fail-closed、M02 注释/L3 anchor_date+factor_version、§8 批注。改完回 H4 签，**不自宣已签**。
+
+**另（A0 转）`lot_size` waiver 消解**：baseline sha 在 A11 写域、签字在 H2——A0 只能出 sha/oasdiff 证据。我协调：**A0 出新 baseline sha → A11 接收并挂门禁 → H2 签字 → A0 记 path+sha256**，四方各一段，到期 2026-12-15。

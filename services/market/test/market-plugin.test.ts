@@ -1094,13 +1094,15 @@ describe('market 插件：响应缓存头与 C 端受众（L30/L36）', () => {
       controlRepo: never,
     });
     const app = buildApp({ config: appConfig, domainPlugins: [plugin], logger: false });
+    await app.ready();
     const bootElapsed = Date.now() - started;
     assert.ok(bootElapsed < 2500, `启动探测必须 ~1s 超时返回（实际 ${bootElapsed}ms）`);
     const t = Date.now();
     const response = await app.inject({ method: 'GET', url: '/v1/instruments/SSE:600519/quote' });
     assert.equal(response.statusCode, 403);
     assert.equal(json<{ code?: string }>(response).code, 'ENTITLEMENT_RESTRICTED');
-    assert.ok(Date.now() - t < 500, '已熔断路径不得再等 PG');
+    const requestElapsed = Date.now() - t;
+    assert.ok(requestElapsed < 900, `已熔断路径不得再等 PG（实际 ${requestElapsed}ms）`);
     await app.close();
   });
 

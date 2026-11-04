@@ -22,7 +22,7 @@
 | `ENTITLEMENT_HOLD_TABLE` / `ENTITLEMENT_EVENTS_TABLE` | `services/market/src/adapters/pg-entitlement-*-repo.ts` | 改读/写表名 | 指错表 → control 读失败 → **fail-closed 403**（不是放行） | 不能放大权限 |
 | `MARKET_NOW` | `services/market/src/config.ts:180` | 固定时钟；可把 now 停在 expires_at 之前，等价于绕过时间盒 | **prod 下设置即拒绝启动**（L73/A3 自查） | 曾被低估的第二类“时间旁路”，已封 |
 | `EVENT_PAYLOADS_PATH` | A3 m02506 指出 | 指向事件 payload 契约 JSON，可被换成宽松契约绕过写入校验 | 运行期可设，prod 未限制 | **residual**：建议 prod 只读镜像内路径（owner A3/H4） |
-| `ENTITLEMENT_AUDIT=0` | `services/market/src/config.ts:226` | 关闭审计事件写入（gate 仍判定） | **允许**（少证据、不改 403/200） | **residual**：A11 建议同 HOLD_CHECK 锁死（owner H4 拍板） |
+| `ENTITLEMENT_AUDIT=0` | `services/market/src/config.ts:180` | 关闭审计事件写入（gate 仍判定）；审计链断=不可举证 | **prod 下设置即拒绝启动**（L73/H5 裁定，A3 已实现） | 已封，不再是 residual |
 | `DEPLOYMENT_UID` | `services/market/src/config.ts:184` | 审计归属/gap 去重键 | prod 缺失 → 拒绝启动 | 无授权语义 |
 
 ## 2. 固定身份/测试后门（prod 已被铁门拦截）
@@ -48,6 +48,7 @@
 ## 5. 结论（L73）
 
 - **唯一可关授权检查的开关：`ENTITLEMENT_HOLD_CHECK`**；prod 已由 A3 铁门拦截（`services/market/src/config.ts:173`），本次扫描未发现第二种。
-- 需要 H4 拍板的两项 residual：①`ENTITLEMENT_AUDIT=0` 在 prod 是否也要拒绝（关审计证据但不关 403）；②`EVENT_PAYLOADS_PATH` 是否限定只读镜像内路径。A11 建议两者按 fail-closed 处理，理由：“审计缺失=不可举证”“契约可替换=校验可绕过”。
+- residual（仅剩一项）：`EVENT_PAYLOADS_PATH` 是否限定只读镜像内路径（可指向宽松 payload 契约）。A11 建议按 fail-closed 处理，理由：“契约可替换=校验可绕过”。
+- 已闭合：`ENTITLEMENT_AUDIT=0` 经 L73/H5 裁定后已按 prod 拒启（`config.ts:180`），与 `HOLD_CHECK`、`MARKET_NOW` 合称三类硬开关。
 - `MARKET_NOW` 是 A3 在 L73 自查中补的第二类旁路（冻结时钟绕过 `expires_at`），已被 prod 铁门拦截；A3 单测 86/86 覆盖。
 - 扫描方式为静态 grep + 逐处读 config 解析与 prod 守卫；未做运行时枚举（没有把所有 env 全组合起服务）。

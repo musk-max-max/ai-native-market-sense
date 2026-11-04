@@ -65,7 +65,7 @@ describe('EntitlementGate：control 行判定（fail-closed）', () => {
     const started = Date.now();
     const decision = await gate.evaluate();
     const elapsed = Date.now() - started;
-    assert.equal(decision.blocked, true, '无证据必须阻断');
+    assert.equal(decision.resolution.blocked, true, '无证据必须阻断');
     assert.equal(decision.reason, 'control_unavailable');
     assert.ok(elapsed >= 900, `超时不能提前放行（实际 ${elapsed}ms）`);
     assert.ok(elapsed < 2000, `必须在 ~1s 返回而不是挂起（实际 ${elapsed}ms）`);

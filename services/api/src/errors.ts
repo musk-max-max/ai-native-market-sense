@@ -139,7 +139,7 @@ export function installErrorHandling(app: FastifyInstance): void {
         problemBody({
           status: 400,
           code: 'VALIDATION_ERROR',
-          title: '请求参数校验失败',
+          title: titleForStatus(400),
           detail: VALIDATION_FAILED_DETAIL,
           traceId,
         }),

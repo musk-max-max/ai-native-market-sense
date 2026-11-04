@@ -8,7 +8,7 @@
 |---|---|---|
 | 数据链路 | ODS → DWD → 质量门禁 → serving → API → H5 | 坏数据 quality 80/black，`load` 退出 3 且**不连库**；好数据 100/green |
 | 真栈 | 本机 Postgres 16 + API 8081 + Web 3000 | `/healthz` 200，`/v1/instruments/SSE:600519/quote` 200 |
-| E2E | **10 passed / 1 skipped**（5.2s） | 点自选 → 刷新 → 仍在；UI/API/DB 三处一致 |
+| E2E | **11 passed / 1 skipped**（P0-10 已转绿） | 真栈 19 条合成录制；唯一 skip=P0-11 hold；详见 `tests/e2e/E2E-RUN-2026-11-04-native.md`（path+sha256 为准） |
 | 单测 | `258 passed, 1 skipped`（根，Lead 2026-11-04 亲跑 13.7s）+ `133 passed`（ingest） | `pytest tests/contract tests/data warehouse/tests` |
 | 类型 | `pnpm -r typecheck` 5/5 Done | api / market / web-h5 / ingest / api-client |
 | 契约 | 4 域 OpenAPI + 生成客户端 | oasdiff 无破坏性变更，redocly 0 error |
@@ -50,6 +50,14 @@
 | L45 | 不自写 differ，用 oasdiff `--severity-levels`；两处门禁口径必须同一个文件 |
 | L46 | `APP_PROFILE` 缺省 prod，开发必须显式声明；`NODE_ENV` 退出安全判定 |
 | L47→L48→L49 | `reason` 最终单列 6 值；我改判两次，教训写在 L49 末尾 |
+| L65 | 降级原因唯一真源 = `docs/reference/entitlement-reasons.json`，代码从文件读，散文里并列两个真源谁先被读到谁赢 |
+| L68 | `002_audit_gap.sql` 补库级 CHECK（jsonb 漏字段不报错 = 检测侧 fail-open） |
+| L74 | 状态词表唯一 PASS/PARTIAL/FAIL/PENDING-H5；PASS 只由 A11 事实 + H5 签字产生 |
+| L75 | 引用文件前必须亲验（存在/size>0/sha256）；裁定材料不得出现未经亲验的量化数字 |
+| L76 | `MARKET_NOW` 冻结时钟 = 等价绕过时间盒 → prod 拒启；`ENTITLEMENT_AUDIT=0`/`EVENT_PAYLOADS_PATH` 同罪 |
+| L77 | #4 真实缺口是「没有超时」不是「造不出环境」——`plugin.ts:97` Pool 无超时，黑洞下 403 都到不了 |
+| L78 | H1 成本裁定：A 路直接过 / B 路 8–30 万要重签 / C 路范围降级须留痕；**git remote 缺失 = P0 记未发布** |
+| L79 | H2 纠正：L6 第三条不变式**已在**（非待办）；ci-gate 不得无条件打印「CI 通过」；P0-10 已转绿 |
 
 ## 六、唯一硬依赖（等决策）
 
