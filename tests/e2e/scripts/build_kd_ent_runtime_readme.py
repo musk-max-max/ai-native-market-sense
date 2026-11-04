@@ -77,11 +77,15 @@ def main() -> int:
     if f"HOLD_ID={hold_id}" not in transcript:
         fail("transcript missing HOLD_ID=<meta value> line")
     hold_lines = [ln for ln in transcript.splitlines() if hold_id in ln]
-    if not hold_lines or any(not ln.startswith("HOLD_ID=") for ln in hold_lines):
-        fail(
-            "hold_id may appear only on HOLD_ID= lines (raw raise_hold stdout is kept in "
-            f"raise_hold.out); offending: {hold_lines!r}"
-        )
+    # transcript 只允许两种出现：raise_hold 原始 stdout 行（与 raise_hold.out 逐字相同）与 HOLD_ID= 行。
+    if not hold_lines:
+        fail("transcript contains no occurrence of hold_id (raw raise_hold stdout missing)")
+    for ln in hold_lines:
+        if ln.startswith("HOLD_ID="):
+            if ln != f"HOLD_ID={hold_id}":
+                fail(f"HOLD_ID line disagrees with meta: {ln!r}")
+        elif ln != raise_out:
+            fail(f"hold_id appears on a non-raw/non-HOLD_ID line: {ln!r}")
 
     before = load_json(rd / "api-inspect-before.json")
     after = load_json(rd / "api-inspect-after.json")
@@ -111,6 +115,8 @@ def main() -> int:
     recovered_cc = header_value((rd / "quote-recovered-200.headers").read_text(encoding="utf-8"), "cache-control")
     default_cc = header_value((rd / "quote-default-403.headers").read_text(encoding="utf-8"), "cache-control")
 
+    repo_line = next((ln for ln in transcript.splitlines() if ln.startswith("repo: ")), "")
+    repo_hash = repo_line.rsplit("@", 1)[-1].strip() if "@" in repo_line else "n/a"
     tier = quote["meta"]["entitlement"]["tier"]
     entitled = quote["meta"]["entitlement"]["is_entitled"]
     instrument_tier = instrument["meta"]["entitlement"]["tier"]
@@ -183,7 +189,7 @@ def main() -> int:
 - run 窗口：{meta.get('STARTED_AT')} → {meta.get('FINISHED_AT')}
 - 执行人：A12 qa-e2e（ssh root@47.120.16.239）
 - 宿主/工具：`heyuan`（Alibaba Cloud ECS 47.120.16.239），Docker 29.9.3，Docker Compose v5.7.0
-- 仓库：ECS `/opt/market-sense` @ `{(transcript.split('repo: ')[1].split()[0] if 'repo: ' in transcript else 'n/a')}`；
+- 仓库：ECS `{(repo_line.split('@')[0].split(':', 1)[-1].strip() if repo_line else '/opt/market-sense')}` @ `{repo_hash}`；
   compose 规格来自 A12 commit `0a6beba`（`docker-compose.a12.yml` = `tests/e2e/docker-compose.yml`）
 - 隔离：project `e2e-ent-positive`，端口 api `127.0.0.1:8091` / web `127.0.0.1:3011` / replay `127.0.0.1:18091`；
   默认 project `market-sense-e2e` 只做只读 curl（8081），未改配置、未重启
@@ -200,7 +206,7 @@ def main() -> int:
 
 - `raise_hold` 返回 hold_id：`{hold_id}`（uuid，不是 ticket）；ticket `tc-e2e-kdent01` 由调用方给定
 - `raise_hold.out` 原文：`{raise_out}`
-- transcript 中 `HOLD_ID={hold_id}`（唯一一次出现）
+- transcript `raise_hold raw stdout` 段保留原始输出行 `{raise_out}`；`HOLD_ID={hold_id}` 行由同一 run 写入
 - `clear_hold` 原文见 `clear_hold.out`；恢复轮询见 transcript `poll recovery`
 
 ## 运行命令（原样，含 rc）
