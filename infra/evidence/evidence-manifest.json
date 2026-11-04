@@ -2,10 +2,16 @@
   "schema_version": "0.1",
   "owner": "A13",
   "generated_by": "a13-sre",
-  "generated_at": "2026-11-04T02:40:00Z",
+  "generated_at": "2026-11-04T05:56:00Z",
   "rule": "artifact 不内嵌自身哈希；哈希只进 manifest；内容改动必须换新文件名（UTC 时间戳），旧 artifact 保留；CI 独立复算每条 sha。",
-  "authority_values": ["authoritative", "historical"],
-  "phase_values": ["pre-fix", "post-fix"],
+  "authority_values": [
+    "authoritative",
+    "historical"
+  ],
+  "phase_values": [
+    "pre-fix",
+    "post-fix"
+  ],
   "artifacts": [
     {
       "path": "infra/evidence/slow-failure-tcp-sink-20261104T0234Z.md",
@@ -15,7 +21,9 @@
       "role": "evidence-artifact-v2",
       "authority": "authoritative",
       "phase": "post-fix",
-      "case_ids": ["L77"],
+      "case_ids": [
+        "L77"
+      ],
       "notes": "#4 TCP sink 复跑：#1/#2/#4 PASS，#3 熔断后 P95 1011ms FAIL；healthz reason 缺失 UNVERIFIED（待 A3）。"
     },
     {
@@ -26,7 +34,9 @@
       "role": "transcript",
       "authority": "authoritative",
       "phase": "post-fix",
-      "case_ids": ["L77"],
+      "case_ids": [
+        "L77"
+      ],
       "notes": "原始 transcript（未编辑）；#4 四证复算源。"
     },
     {
@@ -37,7 +47,10 @@
       "role": "evidence-artifact-v1",
       "authority": "historical",
       "phase": "pre-fix",
-      "case_ids": ["L74", "L77"],
+      "case_ids": [
+        "L74",
+        "L77"
+      ],
       "notes": "DROP 不可构造的失败记录；静态发现 Pool/DB 无超时、probeStartup 挂死；不计入 #4 PASS。"
     },
     {
@@ -48,8 +61,36 @@
       "role": "injection-tool",
       "authority": "authoritative",
       "phase": "post-fix",
-      "case_ids": ["L77"],
+      "case_ids": [
+        "L77"
+      ],
       "notes": "无 root TCP sink：drop=接受缓冲不转发；pass=splice 转发；模式文件热切换。"
+    },
+    {
+      "path": "infra/evidence/slow-failure-tcp-sink-20261104T0555Z.md",
+      "sha256": "e528e6c837cf629ef476f44dbc396a74ee73d1705cb3360ae4e70c8d16b3e10d",
+      "bytes": 3188,
+      "recompute": "sha256sum infra/evidence/slow-failure-tcp-sink-20261104T0555Z.md",
+      "role": "evidence-artifact-v3",
+      "authority": "authoritative",
+      "phase": "post-fix",
+      "case_ids": [
+        "L77"
+      ],
+      "notes": "A3 短路修复后复跑：#1/#2/#3/#4 全 PASS；healthz control_unavailable 可见；instrument 不计入 #3（H4 m02472）。"
+    },
+    {
+      "path": "infra/evidence/slow-failure-tcp-sink-transcript-20261104T0555Z.txt",
+      "sha256": "cebf4f22a3a2863f5f0030411cf76267b6ea4614bfdfbc18713735f3a52544a3",
+      "bytes": 4292,
+      "recompute": "sha256sum infra/evidence/slow-failure-tcp-sink-transcript-20261104T0555Z.txt",
+      "role": "transcript",
+      "authority": "authoritative",
+      "phase": "post-fix",
+      "case_ids": [
+        "L77"
+      ],
+      "notes": "v3 原始 transcript；白名单 quote/bars/fundamental-summary 30 样本 403 P95 1.0ms。"
     }
   ],
   "related_manifests": [
