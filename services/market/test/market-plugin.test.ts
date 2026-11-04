@@ -1082,6 +1082,28 @@ describe('market 插件：响应缓存头与 C 端受众（L30/L36）', () => {
     assert.equal(payload.meta.entitlement.is_entitled, false);
   });
 
+  it('L77 TCP 黑洞：启动探测与请求都在超时后 fail-closed 403，不挂死', async () => {
+    const never: import('../src/ports/entitlement.js').EntitlementControlRepo = {
+      fetchControl: () => new Promise(() => undefined),
+    };
+    const started = Date.now();
+    const plugin = createMarketPlugin({
+      config: marketConfig({ entitlementHoldCheck: true }),
+      servingRepo: new FakeServing(),
+      watchlistRepo: new FakeWatchlist(),
+      controlRepo: never,
+    });
+    const app = buildApp({ config: appConfig, domainPlugins: [plugin], logger: false });
+    const bootElapsed = Date.now() - started;
+    assert.ok(bootElapsed < 2500, `启动探测必须 ~1s 超时返回（实际 ${bootElapsed}ms）`);
+    const t = Date.now();
+    const response = await app.inject({ method: 'GET', url: '/v1/instruments/SSE:600519/quote' });
+    assert.equal(response.statusCode, 403);
+    assert.equal(json<{ code?: string }>(response).code, 'ENTITLEMENT_RESTRICTED');
+    assert.ok(Date.now() - t < 500, '已熔断路径不得再等 PG');
+    await app.close();
+  });
+
   it('control 行 hold=true：行情/财务 403、基础信息照常 internal_eval、/healthz 报 entitlement_degraded', async () => {
     const controlRepo = {
       fetchControl: async () => ({

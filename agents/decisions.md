@@ -1044,3 +1044,18 @@ A13 如实交了失败记录（本机无 iptables、pf 无权限），**没有�
 **git remote（比 R-1 更卡发布）**：技术形态不拍，**验收结论 H1 拍**——没有 remote 就没有 Dlv 证据，「CI 门禁通过」=不可验收，P0 记**未发布**，不许拿"本地全绿"顶。要么 11-12 前接上，要么用户明确「接受 P0 在 CI 未验证状态下交付」，**后者 H1 不签**。
 
 **R-1 排期**：排 11-12 门禁前，owner A3 1.0 + A13 0.5，**1.5 人日封顶**，关闭条件按 `docs/p0-acceptance.md §0.1` 三条证据。**注意②（不配 tier 返 403）现被 L77 卡住**：`plugin.ts:97` 无 `connectionTimeoutMillis`、黑洞下 promise 不 reject，403 到不了——**A3 先补超时，否则这条证据出不来，不得记成"R-1 已验"。**
+
+### L79 H2 入场三条纠正（2026-11-04，激活 H2 后首轮）
+
+**1) L6 第三条不变式不是待办，是已在**：`infra/ci/path-guard.mjs:208-213` 解析 `owns`、`:245-252` 输出 `[roster-owns-无覆盖]`；负样本 `infra/ci/test/path-guard.test.mjs:150-156`；`ci.yml:170` 每次 `--validate-registry` 都跑。H2 实跑 exit 0。**缺的是 S0-STATUS 没记它 = 记录漂移，不是代码缺口。**（我此前把 P1/P2 之争写进派单，是错的——该先查证再分优先级。）
+
+**2) ci-gate 否决「CI 通过」这个说法**：`ci.yml:505-513` 在 e2e 失败时仍打印 `✅ CI 通过（e2e 例外）`，这行绿字会被原样摘进 release note。三条条件：① e2e 未验证时汇总不得出现无条件「CI 通过」，写 `PASS(除 e2e 未验证)` 或整体 PARTIAL；②「连续 3 次绿」须落成**可机读台账**（run id + e2e result，artifact），不能靠周会记忆；③ S1/发布前转必绿，写进 `docs/release` 而非 workflow 注释。
+
+**3) 台账三数字先纠正再钉 owner**：
+- `lot_size` waiver（`tests/contract/waivers.yaml:21`）：owner A0（提 baseline 再冻结）+ A11（执行/复核），**截止 2026-12-15，到期不续**，消解证据 = 新 baseline sha + H2 签。
+- **E2E：P0-10 已转绿**（`tests/e2e/E2E-RUN-2026-11-04-native.md:4` 19 条合成录制后 11 passed/1 skipped；`:79`；当前唯一 skip 是 P0-11 hold `:82`；完整档 P0-12 profile skip `:104`）。**S0-STATUS:11 的「10 passed/1 skipped」是 08:45 旧快照，两份记录已打架——按 L75 以带 path+sha256 的为准，STATUS 必须更新。**
+- 合成 fixture：owner A1/A2 + A11 验收；非 11-12 授权件，截止与门禁解耦，但 path+sha256 进 BOARD。
+
+**H5-R20 同步（A19 域外一条）**：`infra/helm/market-sense/templates/ingress.yaml` 已收敛为只 `path: /v1`；`networkpolicy.yaml` 有 default-deny + ingress-controller + monitoring 三条，与 R10 五条不变式一致。**但这是清单层，证据仍须集群外 404 + Pod 内 200 + `helm template` 守卫三件，等 staging/PUBLIC_BASE_URL，H5 不拿 YAML 签。** 待办：allow-monitoring 放行整个 `http` 端口而非仅 `/metrics`，当前无风险，补 `/metrics` 时需独立端口或 A11 断言命名空间隔离。
+
+**A3 证据哈希仍不符**（申报 `730cddf5…` vs 实算 `f80562ca…`，未重发）→ 按「内容抽查合格、凭证待补」处理，不进签字范围。

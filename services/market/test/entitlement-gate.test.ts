@@ -57,6 +57,20 @@ function makeGate(
 }
 
 describe('EntitlementGate：control 行判定（fail-closed）', () => {
+  it('L77：control 读永不 resolve（TCP 黑洞）→ ~1s 内返回 fail-closed，不挂起', async () => {
+    const never: EntitlementControlRepo = {
+      fetchControl: () => new Promise<EntitlementControlRow | null>(() => undefined),
+    };
+    const gate = new EntitlementGate(gateConfig(), never, () => BASE, {});
+    const started = Date.now();
+    const decision = await gate.evaluate();
+    const elapsed = Date.now() - started;
+    assert.equal(decision.blocked, true, '无证据必须阻断');
+    assert.equal(decision.reason, 'control_unavailable');
+    assert.ok(elapsed >= 900, `超时不能提前放行（实际 ${elapsed}ms）`);
+    assert.ok(elapsed < 2000, `必须在 ~1s 返回而不是挂起（实际 ${elapsed}ms）`);
+  });
+
   it('fresh 行且无 hold → 放行 c_end_display，不降级', async () => {
     const { gate } = makeGate();
     const decision = await gate.evaluate();
