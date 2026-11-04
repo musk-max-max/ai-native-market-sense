@@ -100,12 +100,76 @@ function parseTrustProxy(raw: string | undefined): boolean | string[] {
   if (!value || value === 'false') return false;
   if (value === 'true') {
     throw new ConfigError(
-      'TRUST_PROXY=true 被禁止：只允许 ingress CIDR 列表（如 10.0.0.0/8,192.168.0.0/16），否则 IP 桶可被 X-Forwarded-For 伪造绕过',
+      'TRUST_PROXY=true 被禁止：只允许单个 ingress 窄网段（如 10.0.0.0/24 或 /32），否则 IP 桶可被 X-Forwarded-For 伪造绕过',
     );
   }
-  const cidrs = value.split(',').map((item) => item.trim()).filter(Boolean);
-  if (cidrs.length === 0) throw new ConfigError('TRUST_PROXY 必须是非空 CIDR 列表或 false');
-  return cidrs;
+  if (value.includes(',')) {
+    throw new ConfigError(
+      'TRUST_PROXY 只接受单个 ingress 窄网段（如 10.0.0.0/24 或 /32）；多段请在 ingress 层收敛后只信任其出口网段',
+    );
+  }
+  validateTrustProxyCidr(value);
+  return [value];
+}
+
+/**
+ * TRUST_PROXY 只允许「单个窄 ingress 网段」：IPv4 /24–/32，IPv6 /64–/128。
+ * 宽网段会让客户端伪造 X-Forwarded-For 换限流桶；回环地址会让同机直连也能伪造。
+ * 校验在 loadConfig 阶段完成，必须早于 buildApp/listen（Lead m01809 / A19 R4）。
+ */
+function validateTrustProxyCidr(cidr: string): void {
+  if (cidr.includes(':')) {
+    const match = /^([0-9a-fA-F:.]+)\/(\d{1,3})$/.exec(cidr);
+    if (!match || match[1] === undefined || match[2] === undefined) {
+      throw new ConfigError(`TRUST_PROXY 不是合法 CIDR: ${JSON.stringify(cidr)}`);
+    }
+    const address = match[1].toLowerCase();
+    const prefix = Number(match[2]);
+    if (!Number.isInteger(prefix) || prefix < 0 || prefix > 128) {
+      throw new ConfigError(`TRUST_PROXY 前缀长度非法: ${JSON.stringify(cidr)}`);
+    }
+    if (address === '::' || address === '::1' || address.startsWith('::ffff:127.')) {
+      throw new ConfigError(`TRUST_PROXY 不得包含未指定或回环地址: ${JSON.stringify(cidr)}`);
+    }
+    if (prefix < 64) {
+      throw new ConfigError(
+        `TRUST_PROXY 网段过宽（/${prefix}）：IPv6 只接受 /64–/128 的 ingress 网段，收到 ${JSON.stringify(cidr)}`,
+      );
+    }
+    return;
+  }
+
+  const match = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\/(\d{1,2})$/.exec(cidr);
+  if (!match) {
+    throw new ConfigError(`TRUST_PROXY 不是合法 CIDR: ${JSON.stringify(cidr)}`);
+  }
+  const octets = [match[1], match[2], match[3], match[4]].map((part) => Number(part));
+  const prefix = Number(match[5]);
+  if (octets.some((octet) => !Number.isInteger(octet) || octet < 0 || octet > 255)) {
+    throw new ConfigError(`TRUST_PROXY 不是合法 IPv4 地址: ${JSON.stringify(cidr)}`);
+  }
+  if (!Number.isInteger(prefix) || prefix < 0 || prefix > 32) {
+    throw new ConfigError(`TRUST_PROXY 前缀长度非法: ${JSON.stringify(cidr)}`);
+  }
+  if (prefix < 24) {
+    throw new ConfigError(
+      `TRUST_PROXY 网段过宽（/${prefix}）：只接受 /24–/32 的 ingress 网段（0.0.0.0/0、10.0.0.0/8、192.168.0.0/16 等一律拒绝），收到 ${JSON.stringify(cidr)}`,
+    );
+  }
+  const first = octets[0] as number;
+  const second = octets[1] as number;
+  if (first === 0) {
+    throw new ConfigError(`TRUST_PROXY 不得包含未指定地址: ${JSON.stringify(cidr)}`);
+  }
+  if (first === 127) {
+    throw new ConfigError(`TRUST_PROXY 不得包含回环地址: ${JSON.stringify(cidr)}`);
+  }
+  if (first === 169 && second === 254) {
+    throw new ConfigError(`TRUST_PROXY 不得包含链路本地地址: ${JSON.stringify(cidr)}`);
+  }
+  if (first >= 224) {
+    throw new ConfigError(`TRUST_PROXY 不得包含组播/保留地址: ${JSON.stringify(cidr)}`);
+  }
 }
 
 function parsePositiveInt(env: NodeJS.ProcessEnv, key: string, fallback: number, min = 1): number {

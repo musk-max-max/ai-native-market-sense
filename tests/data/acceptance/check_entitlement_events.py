@@ -33,7 +33,10 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-DDL_PATH = REPO_ROOT / "services" / "compliance" / "migrations" / "001_audit_entitlement_events.sql"
+DDL_PATHS = [
+    REPO_ROOT / "services" / "compliance" / "migrations" / "001_audit_entitlement_events.sql",
+    REPO_ROOT / "services" / "compliance" / "migrations" / "002_audit_gap.sql",
+]
 PSQL_BINARY = shutil.which("psql") or "/opt/homebrew/bin/psql"
 TABLE = os.environ.get("A11_EVENTS_TABLE", "audit.entitlement_events")
 ZERO_HASH = "0" * 64
@@ -42,7 +45,7 @@ ZERO_HASH = "0" * 64
 # 双源校验：DDL 是「实现」，这里的清单是「已批准口径」（lead L49 + H4 m01334/m01474）。
 # 只解析 DDL 会让门禁永远与 DDL 自洽——DDL 写错，门禁就跟着错；两源必须一致。
 # 批准口径：
-#   event_type 9 类（原 8 类 + clause_review，H4 m01334）
+#   event_type 10 类（9 类 + audit_gap，A5 002/H4 m01945；L70 键名 window_start/window_end）
 #   reason 单列 6 值，无 cause / internal_code 列（lead L49；L47/L48 作废）
 # ---------------------------------------------------------------------------
 APPROVED_EVENT_TYPES = frozenset({
@@ -55,6 +58,7 @@ APPROVED_EVENT_TYPES = frozenset({
     "hold_set",
     "hold_clear",
     "clause_review",
+    "audit_gap",
 })
 APPROVED_REASONS = frozenset({
     "env_change",
@@ -73,6 +77,7 @@ REQUIRED_EVENT_TYPES = (
     "hold_clear",
     "deploy",
     "clause_review",
+    "audit_gap",
 )
 
 AUTHORIZATION_EVENT_TYPES = {"deploy", "tier_switch", "hold_set", "hold_clear", "clause_review"}
@@ -98,22 +103,28 @@ def psql_text(dsn: str, sql: str) -> tuple[str, str]:
 
 def parse_ddl_sets() -> tuple[set[str], set[str], str]:
     """从 DDL 文本解析 event_type / reason 的 CHECK 集合（唯一真源）。"""
-    if not DDL_PATH.exists():
-        return set(), set(), f"DDL 不存在：{DDL_PATH}"
-    ddl = DDL_PATH.read_text(encoding="utf-8")
+    missing = [str(path) for path in DDL_PATHS if not path.exists()]
+    if missing:
+        return set(), set(), f"DDL 不存在：{missing}"
+    # 001 建表、002 放宽/扩展约束；后者覆盖前者，取最后一次出现的 CHECK。
+    ddl = "\n".join(path.read_text(encoding="utf-8") for path in DDL_PATHS)
 
-    def values_in(pattern: str) -> set[str]:
-        match = re.search(pattern, ddl, re.DOTALL)
-        if not match:
+    base_ddl = DDL_PATHS[0].read_text(encoding="utf-8")
+
+    def values_in(pattern: str, source: str = "all") -> set[str]:
+        haystack = ddl if source == "all" else base_ddl
+        matches = list(re.finditer(pattern, haystack, re.DOTALL))
+        if not matches:
             return set()
-        return set(re.findall(r"'([^']+)'", match.group(1)))
+        return set(re.findall(r"'([^']+)'", matches[-1].group(1)))
 
     event_types = values_in(r"event_type\s+IN\s*\((.*?)\)")
-    reasons = values_in(r"reason\s+IN\s*\((.*?)\)")
+    # 列级 reason 枚举只在 001 定义；002 里的 reason IN (...) 属于 audit_gap.new_value，不是列枚举。
+    reasons = values_in(r"reason\s+IN\s*\((.*?)\)", source="base")
     if not event_types:
-        return set(), set(), f"无法从 DDL 解析 event_type 集合：{DDL_PATH}"
+        return set(), set(), "无法从 DDL 解析 event_type 集合：" + " + ".join(str(p) for p in DDL_PATHS)
     if not reasons:
-        return event_types, set(), f"无法从 DDL 解析 reason 集合：{DDL_PATH}"
+        return event_types, set(), "无法从 DDL 解析 reason 集合：" + " + ".join(str(p) for p in DDL_PATHS)
     return event_types, reasons, ""
 
 
@@ -320,6 +331,31 @@ def check_event(row: dict, index: int, event_types: set[str], reasons: set[str])
             problems.append(f"第 {index} 条 hold_clear 缺少 hold_signer（签字人）")
         if not row.get("authorization_doc_sha256"):
             problems.append(f"第 {index} 条 hold_clear 缺少依据文件哈希")
+    elif event_type == "audit_gap":
+        # A5 002 + L70：payload 键 window_start/window_end；gap_from/gap_to 已作废。
+        for field in ("deployment_uid", "operator"):
+            if not (row.get(field) or "").strip():
+                problems.append(f"第 {index} 条 audit_gap 缺少 {field}")
+        if row.get("reason") is not None:
+            problems.append(f"第 {index} 条 audit_gap 的 reason 列必须为 NULL，实为 {row.get('reason')!r}")
+        new_value = row.get("new_value") or {}
+        if isinstance(new_value, str):
+            try:
+                new_value = json.loads(new_value)
+            except json.JSONDecodeError:
+                problems.append(f"第 {index} 条 audit_gap 的 new_value 不是合法 JSON")
+                new_value = {}
+        for key in ("window_start", "window_end", "lost_count", "reason", "owner"):
+            if key not in new_value:
+                problems.append(f"第 {index} 条 audit_gap 缺少 new_value.{key}")
+        if "gap_from" in new_value or "gap_to" in new_value:
+            problems.append(f"第 {index} 条 audit_gap 使用了作废键 gap_from/gap_to（L70）")
+        window_start = str(new_value.get("window_start", ""))
+        event_key = str(row.get("event_key") or "")
+        if window_start and not event_key.startswith(f"gap|{row.get('deployment_uid')}|{window_start}"):
+            problems.append(
+                f"第 {index} 条 audit_gap event_key 未绑定 gap|<deployment_uid>|<window_start>：{event_key!r}"
+            )
     elif event_type == "clause_review":
         # H4 m01334：reason ∈ {clause_change, manual_signoff}，带 operator + new_value.verdict。
         if reason not in {"clause_change", "manual_signoff"}:

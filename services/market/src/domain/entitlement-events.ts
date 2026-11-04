@@ -4,8 +4,16 @@
  *
  * 只写 A3 拥有的 4 类事件：tier_state_observed / entitlement_expired / entitlement_flip / unauthorized_config。
  * deploy/tier_switch/hold_set/hold_clear 由 A13/人工角色写，A3 不得写。
+ *
+ * 写入前按 `docs/reference/event-payloads.json`（L70 唯一真源）做 required 键 fail-closed 校验：
+ * 缺键直接拒绝 insert（不重试、不落库），避免"标准写在散文里"再次漂移。
  */
 
+import {
+  type EventPayloadContract,
+  EventPayloadContractError,
+  missingRequiredPayloadKeys,
+} from './event-payload-contract.js';
 import type { EntitlementEventRecord, EntitlementEventRepo } from '../ports/entitlement.js';
 
 export type EventWriteFailureReporter = (payload: { eventKey: string; eventType: string; attempts: number; error: unknown }) => void;
@@ -16,6 +24,8 @@ export interface EntitlementEventWriterOptions {
   /** audit_gap 去重键与必填归属（H4 m01784：service 与 reconciler 要算出同一个 key）。 */
   readonly deploymentUid?: string;
   readonly operator?: string;
+  /** L70：payload 键集唯一真源；缺省时不做键校验（仅测试/诊断构造可用）。 */
+  readonly payloadContract?: EventPayloadContract;
 }
 
 const DEFAULT_RETRY_DELAYS_MS = [100, 500, 2_000] as const;
@@ -49,10 +59,23 @@ export class EntitlementEventWriter {
 
   /**
    * 返回是否最终写入成功；失败不抛（调用方决定阻断/非阻断）。
-   * 若存在未补的写失败窗口，先写 audit_gap（event_key=`gap|<boot>|<gap_from ISO>`，幂等），
+   * 若存在未补的写失败窗口，先写 audit_gap（event_key=`gap|<deployment_uid>|<window_start ISO>`，幂等），
    * 再写下一条正常事件；不重放丢失事件本身。
    */
   async write(record: EntitlementEventRecord): Promise<boolean> {
+    // L70 fail-closed：required 键缺失是确定性错误，不重试、不落库。
+    if (this.options.payloadContract !== undefined) {
+      try {
+        const missing = missingRequiredPayloadKeys(this.options.payloadContract, record);
+        if (missing.length > 0) {
+          this.reportPayloadRejected(record, missing);
+          return false;
+        }
+      } catch (error) {
+        this.reportPayloadRejected(record, [error instanceof Error ? error.message : String(error)]);
+        return false;
+      }
+    }
     if (this.gap !== undefined && record.eventType !== 'audit_gap') {
       await this.flushGap(record.bootId);
     }
@@ -89,13 +112,13 @@ export class EntitlementEventWriter {
       stateVersion: 0,
       // reason 列置 NULL；失败原因放 new_value.reason（transient_write_failure）。
       newValue: {
+        // L70/event-payloads.json：audit_gap.new_value 恰好 5 键；deployment_uid/operator 只进列，
+        // 不进 new_value（同一事实不存两份，A11 exact-key 断言）。
         window_start: gap.from.toISOString(),
         window_end: windowEnd.toISOString(),
         lost_count: gap.lostCount,
         reason: 'transient_write_failure',
         owner: this.options.operator ?? 'market-app',
-        deployment_uid: deploymentUid,
-        operator: this.options.operator ?? 'market-app',
       },
     };
     if (await this.attempt(record)) {
@@ -111,6 +134,24 @@ export class EntitlementEventWriter {
       event: 'audit_gap_suppressed',
       reason: 'deployment_uid_missing',
       detail: '证据链键不完整，断口不可写；请注入 DEPLOYMENT_UID 后重启',
+    });
+    console.error(payload);
+    process.emitWarning(`[market] ${payload}`);
+  }
+
+  private reportPayloadRejected(record: EntitlementEventRecord, missing: readonly string[]): void {
+    const error = new EventPayloadContractError(`payload 缺 required 键：${missing.join(', ')}`);
+    this.lastFailure = {
+      error,
+      at: new Date(),
+      eventType: record.eventType,
+      eventKey: record.eventKey,
+    };
+    const payload = JSON.stringify({
+      event: 'audit_event_payload_rejected',
+      event_type: record.eventType,
+      event_key: record.eventKey,
+      missing,
     });
     console.error(payload);
     process.emitWarning(`[market] ${payload}`);

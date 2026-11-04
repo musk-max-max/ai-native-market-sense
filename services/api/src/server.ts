@@ -4,10 +4,24 @@
  */
 
 import { buildApp } from './app.js';
-import { loadConfig } from './config.js';
+import { loadConfig, type AppConfig } from './config.js';
 import { domainPlugins } from './domains.js';
 
-const config = loadConfig();
+/**
+ * 配置必须在创建 Fastify / listen 之前完成校验并快速失败：
+ * 非法 TRUST_PROXY 等配置不允许进入 buildApp（A19 R4 验收：退出 + 日志点名 + 从未监听）。
+ */
+function loadConfigOrExit(): AppConfig {
+  try {
+    return loadConfig();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[config] 拒绝启动：${message}`);
+    process.exit(1);
+  }
+}
+
+const config = loadConfigOrExit();
 const app = buildApp({ config, domainPlugins });
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {

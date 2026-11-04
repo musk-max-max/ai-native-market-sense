@@ -142,7 +142,7 @@ VALUES
    jsonb_build_object('hold', false, 'hold_id', :'hold_id', 'reason', 'manual_signoff'),
    'seed:trace-hold-clear');
 
--- A11 #6 抽样覆盖：events 9 类里至少 7 类可抽样；以下补齐 expired/flip/tier_switch/clause_review。
+-- A11 #6 抽样覆盖：10 类事件全部可抽样（含 audit_gap）；以下补齐 expired/flip/tier_switch/clause_review/observed/unauthorized/gap。
 -- 时间必须严格递增（触发器拒绝时钟倒退），随机量用于避开 event_key 唯一键（重跑不撞）。
 INSERT INTO audit.entitlement_events
   (event_type, occurred_at, deployment_uid, reason, configured_tier, effective_tier,
@@ -171,8 +171,8 @@ VALUES
    :'deploy_uid', 'manual_signoff',
    'seed-approval-switch-' || substr(md5(random()::text), 1, 16),
    'A13', 'H5',
-   '{"effective_tier": "internal_eval"}'::jsonb,
-   jsonb_build_object('effective_tier', :'target_tier'),
+   jsonb_build_object('from', 'internal_eval'),
+   jsonb_build_object('to', :'target_tier'),
    'seed:trace-tier-switch');
 
 INSERT INTO audit.entitlement_events
@@ -188,6 +188,33 @@ VALUES
    now() + interval '90 days',
    '{"verdict": "allow", "seed": true}'::jsonb,
    'seed:trace-clause-review');
+
+-- 补齐第 9/10 类：tier_state_observed、unauthorized_config（A11 #6 要求 10 类齐）。
+INSERT INTO audit.entitlement_events
+  (event_type, occurred_at, deployment_uid, boot_id, state_version,
+   configured_tier, effective_tier, expires_at, trace_id)
+VALUES
+  ('tier_state_observed', :'base_ts'::timestamptz + interval '7 seconds', :'deploy_uid',
+   gen_random_uuid(), 2, :'target_tier', :'target_tier',
+   now() + interval '90 days', 'seed:trace-observed');
+
+INSERT INTO audit.entitlement_events
+  (event_type, occurred_at, deployment_uid, boot_id, config_fingerprint, reason, trace_id)
+VALUES
+  ('unauthorized_config', :'base_ts'::timestamptz + interval '8 seconds', :'deploy_uid',
+   gen_random_uuid(), encode(sha256(convert_to('seed-config-mismatch', 'UTF8')), 'hex'),
+   'expected_fingerprint_mismatch', 'seed:trace-unauthorized-config');
+
+-- TEST audit_gap（恰好 1 条；new_value 键按冻结口径 window_start/window_end；reason 列必须 NULL）
+INSERT INTO audit.entitlement_events
+  (event_type, occurred_at, deployment_uid, operator, new_value, trace_id)
+VALUES
+  ('audit_gap', :'base_ts'::timestamptz + interval '9 seconds', :'deploy_uid', 'A13',
+   jsonb_build_object(
+     'window_start', to_char(now() - interval '5 minutes', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+     'window_end', to_char(now() - interval '4 minutes', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+     'lost_count', 2, 'reason', 'transient_write_failure', 'owner', 'A13'),
+   'seed:trace-audit-gap');
 COMMIT;
 SQL
 )
@@ -199,4 +226,4 @@ if [[ $DRY_RUN -eq 1 ]]; then
 fi
 
 echo "$SQL" | psql_q
-echo "✓ entitlement audit/control seed 完成（control.last_reconciled_at = now()-16min；events 7 类：deploy/hold_set/hold_clear/entitlement_expired/entitlement_flip/tier_switch/clause_review）"
+echo "✓ entitlement audit/control seed 完成（control.last_reconciled_at = now()-16min；events 10 类：deploy/hold_set/hold_clear/entitlement_expired/entitlement_flip/tier_switch/clause_review/tier_state_observed/unauthorized_config/audit_gap）"

@@ -241,11 +241,25 @@ DECLARE
   has_clear  boolean := to_regprocedure('audit.clear_hold(text,text,text)') IS NOT NULL;
   has_marks  boolean := to_regprocedure('audit.mark_reconciled(timestamptz)') IS NOT NULL;
   col        record;
+  c          record;
 BEGIN
   IF NOT has_events OR NOT has_hold THEN
     RAISE NOTICE 'audit 表尚未迁移，跳过 hold/事件授权断言（db-migrate 完成后会强制重跑）';
     RETURN;
   END IF;
+
+  -- 002 新增约束必须已验证（convalidated=true）。NOT VALID 的 CHECK 对旧行不生效，
+  -- 等于「规则写了但不拦历史」，越权/断口会被静默放过（A5 m01799）。
+  FOR c IN
+    SELECT conname FROM pg_constraint
+    WHERE conrelid = 'audit.entitlement_events'::regclass
+      AND conname IN ('entitlement_events_audit_gap_chk',
+                      'entitlement_events_tier_switch_from_to_chk',
+                      'entitlement_events_schema_version_chk')
+      AND convalidated IS NOT TRUE
+  LOOP
+    violations := array_append(violations, '002 约束未验证（NOT VALID）：' || c.conname);
+  END LOOP;
 
   -- market_app：hold 通过只读视图；基表无任何权限。
   IF has_state THEN

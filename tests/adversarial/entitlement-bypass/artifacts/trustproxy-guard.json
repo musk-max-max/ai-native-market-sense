@@ -1,0 +1,210 @@
+{
+  "meta": {
+    "startedAt": "2026-11-04T01:07:20.636Z",
+    "finishedAt": "2026-11-04T01:07:23.551Z",
+    "dbUrl": "postgresql://ms@localhost:55432/market_sense_a19",
+    "basePort": 18190,
+    "cidrs": [
+      "0.0.0.0/0",
+      "::/0",
+      "127.0.0.0/8",
+      "10.0.0.0/8"
+    ],
+    "node": "v23.11.0"
+  },
+  "summary": {
+    "total": 4,
+    "pass": 0,
+    "fail": 4,
+    "info": 0,
+    "verdict": "BYPASS_FOUND",
+    "failures": [
+      {
+        "id": "Q-0.0.0.0/0",
+        "title": "TRUST_PROXY=0.0.0.0/0 必须被配置层拒绝启动（不允许 warn 后继续、不接受依赖崩溃式拒启）",
+        "severity": "P2",
+        "observed": {
+          "cidr": "0.0.0.0/0",
+          "port": 18190,
+          "exited": true,
+          "exitCode": 1,
+          "healthStatus": null,
+          "healthy": false,
+          "mentionsTrustProxy": false,
+          "warnOnly": false,
+          "refusedByConfigGuard": false,
+          "incidentalCrash": true,
+          "logTail": "space/node_modules/.pnpm/fastify@5.12.8/node_modules/fastify/lib/request.js:107:19)\n    at Function.buildRequest (/Users/leiyu/Documents/deepseek-harness/default-workspace/node_modules/.pnpm/fastify@5.12.8/node_modules/fastify/lib/request.js:68:12)\n    at fastify (/Users/leiyu/Documents/deepseek-harness/default-workspace/node_modules/.pnpm/fastify@5.12.8/node_modules/fastify/fastify.js:189:25)\n    at buildApp (/Users/leiyu/Documents/deepseek-harness/default-workspace/services/api/src/app.ts:33:15)\n    at <anonymous> (/Users/leiyu/Documents/deepseek-harness/default-workspace/services/api/src/server.ts:11:13)\n    at ModuleJob.run (node:internal/modules/esm/module_job:274:25)\n\nNode.js v23.11.0\n"
+        }
+      },
+      {
+        "id": "Q-::/0",
+        "title": "TRUST_PROXY=::/0 必须被配置层拒绝启动（不允许 warn 后继续、不接受依赖崩溃式拒启）",
+        "severity": "P2",
+        "observed": {
+          "cidr": "::/0",
+          "port": 18191,
+          "exited": true,
+          "exitCode": 1,
+          "healthStatus": null,
+          "healthy": false,
+          "mentionsTrustProxy": false,
+          "warnOnly": false,
+          "refusedByConfigGuard": false,
+          "incidentalCrash": true,
+          "logTail": "space/node_modules/.pnpm/fastify@5.12.8/node_modules/fastify/lib/request.js:107:19)\n    at Function.buildRequest (/Users/leiyu/Documents/deepseek-harness/default-workspace/node_modules/.pnpm/fastify@5.12.8/node_modules/fastify/lib/request.js:68:12)\n    at fastify (/Users/leiyu/Documents/deepseek-harness/default-workspace/node_modules/.pnpm/fastify@5.12.8/node_modules/fastify/fastify.js:189:25)\n    at buildApp (/Users/leiyu/Documents/deepseek-harness/default-workspace/services/api/src/app.ts:33:15)\n    at <anonymous> (/Users/leiyu/Documents/deepseek-harness/default-workspace/services/api/src/server.ts:11:13)\n    at ModuleJob.run (node:internal/modules/esm/module_job:274:25)\n\nNode.js v23.11.0\n"
+        }
+      },
+      {
+        "id": "Q-127.0.0.0/8",
+        "title": "TRUST_PROXY=127.0.0.0/8 必须被配置层拒绝启动（不允许 warn 后继续、不接受依赖崩溃式拒启）",
+        "severity": "P2",
+        "observed": {
+          "cidr": "127.0.0.0/8",
+          "port": 18192,
+          "exited": false,
+          "exitCode": 0,
+          "healthStatus": 200,
+          "healthy": true,
+          "mentionsTrustProxy": false,
+          "warnOnly": false,
+          "refusedByConfigGuard": false,
+          "incidentalCrash": false,
+          "logTail": ""
+        }
+      },
+      {
+        "id": "Q-10.0.0.0/8",
+        "title": "TRUST_PROXY=10.0.0.0/8 必须被配置层拒绝启动（不允许 warn 后继续、不接受依赖崩溃式拒启）",
+        "severity": "P2",
+        "observed": {
+          "cidr": "10.0.0.0/8",
+          "port": 18193,
+          "exited": false,
+          "exitCode": 0,
+          "healthStatus": 200,
+          "healthy": true,
+          "mentionsTrustProxy": false,
+          "warnOnly": false,
+          "refusedByConfigGuard": false,
+          "incidentalCrash": false,
+          "logTail": ""
+        }
+      }
+    ]
+  },
+  "checks": [
+    {
+      "id": "Q-0.0.0.0/0",
+      "title": "TRUST_PROXY=0.0.0.0/0 必须被配置层拒绝启动（不允许 warn 后继续、不接受依赖崩溃式拒启）",
+      "clause": [
+        "lead R4 裁定-条件 1",
+        "decisions.md L28"
+      ],
+      "attempt": "APP_PROFILE=test TRUST_PROXY=0.0.0.0/0 node --import tsx src/server.ts (port 18190)",
+      "expectation": "进程拒绝启动且日志点名 TRUST_PROXY（启动校验）；healthz 200、仅 warn、或依赖库 TypeError 崩溃均 FAIL",
+      "observed": {
+        "cidr": "0.0.0.0/0",
+        "port": 18190,
+        "exited": true,
+        "exitCode": 1,
+        "healthStatus": null,
+        "healthy": false,
+        "mentionsTrustProxy": false,
+        "warnOnly": false,
+        "refusedByConfigGuard": false,
+        "incidentalCrash": true,
+        "logTail": "space/node_modules/.pnpm/fastify@5.12.8/node_modules/fastify/lib/request.js:107:19)\n    at Function.buildRequest (/Users/leiyu/Documents/deepseek-harness/default-workspace/node_modules/.pnpm/fastify@5.12.8/node_modules/fastify/lib/request.js:68:12)\n    at fastify (/Users/leiyu/Documents/deepseek-harness/default-workspace/node_modules/.pnpm/fastify@5.12.8/node_modules/fastify/fastify.js:189:25)\n    at buildApp (/Users/leiyu/Documents/deepseek-harness/default-workspace/services/api/src/app.ts:33:15)\n    at <anonymous> (/Users/leiyu/Documents/deepseek-harness/default-workspace/services/api/src/server.ts:11:13)\n    at ModuleJob.run (node:internal/modules/esm/module_job:274:25)\n\nNode.js v23.11.0\n"
+      },
+      "status": "FAIL",
+      "severity": "P2",
+      "evidence": {
+        "log": "tests/adversarial/entitlement-bypass/artifacts/logs/api-trustproxy-guard-0_0_0_0_0.log"
+      }
+    },
+    {
+      "id": "Q-::/0",
+      "title": "TRUST_PROXY=::/0 必须被配置层拒绝启动（不允许 warn 后继续、不接受依赖崩溃式拒启）",
+      "clause": [
+        "lead R4 裁定-条件 1",
+        "decisions.md L28"
+      ],
+      "attempt": "APP_PROFILE=test TRUST_PROXY=::/0 node --import tsx src/server.ts (port 18191)",
+      "expectation": "进程拒绝启动且日志点名 TRUST_PROXY（启动校验）；healthz 200、仅 warn、或依赖库 TypeError 崩溃均 FAIL",
+      "observed": {
+        "cidr": "::/0",
+        "port": 18191,
+        "exited": true,
+        "exitCode": 1,
+        "healthStatus": null,
+        "healthy": false,
+        "mentionsTrustProxy": false,
+        "warnOnly": false,
+        "refusedByConfigGuard": false,
+        "incidentalCrash": true,
+        "logTail": "space/node_modules/.pnpm/fastify@5.12.8/node_modules/fastify/lib/request.js:107:19)\n    at Function.buildRequest (/Users/leiyu/Documents/deepseek-harness/default-workspace/node_modules/.pnpm/fastify@5.12.8/node_modules/fastify/lib/request.js:68:12)\n    at fastify (/Users/leiyu/Documents/deepseek-harness/default-workspace/node_modules/.pnpm/fastify@5.12.8/node_modules/fastify/fastify.js:189:25)\n    at buildApp (/Users/leiyu/Documents/deepseek-harness/default-workspace/services/api/src/app.ts:33:15)\n    at <anonymous> (/Users/leiyu/Documents/deepseek-harness/default-workspace/services/api/src/server.ts:11:13)\n    at ModuleJob.run (node:internal/modules/esm/module_job:274:25)\n\nNode.js v23.11.0\n"
+      },
+      "status": "FAIL",
+      "severity": "P2",
+      "evidence": {
+        "log": "tests/adversarial/entitlement-bypass/artifacts/logs/api-trustproxy-guard-___0.log"
+      }
+    },
+    {
+      "id": "Q-127.0.0.0/8",
+      "title": "TRUST_PROXY=127.0.0.0/8 必须被配置层拒绝启动（不允许 warn 后继续、不接受依赖崩溃式拒启）",
+      "clause": [
+        "lead R4 裁定-条件 1",
+        "decisions.md L28"
+      ],
+      "attempt": "APP_PROFILE=test TRUST_PROXY=127.0.0.0/8 node --import tsx src/server.ts (port 18192)",
+      "expectation": "进程拒绝启动且日志点名 TRUST_PROXY（启动校验）；healthz 200、仅 warn、或依赖库 TypeError 崩溃均 FAIL",
+      "observed": {
+        "cidr": "127.0.0.0/8",
+        "port": 18192,
+        "exited": false,
+        "exitCode": 0,
+        "healthStatus": 200,
+        "healthy": true,
+        "mentionsTrustProxy": false,
+        "warnOnly": false,
+        "refusedByConfigGuard": false,
+        "incidentalCrash": false,
+        "logTail": ""
+      },
+      "status": "FAIL",
+      "severity": "P2",
+      "evidence": {
+        "log": "tests/adversarial/entitlement-bypass/artifacts/logs/api-trustproxy-guard-127_0_0_0_8.log"
+      }
+    },
+    {
+      "id": "Q-10.0.0.0/8",
+      "title": "TRUST_PROXY=10.0.0.0/8 必须被配置层拒绝启动（不允许 warn 后继续、不接受依赖崩溃式拒启）",
+      "clause": [
+        "lead R4 裁定-条件 1",
+        "decisions.md L28"
+      ],
+      "attempt": "APP_PROFILE=test TRUST_PROXY=10.0.0.0/8 node --import tsx src/server.ts (port 18193)",
+      "expectation": "进程拒绝启动且日志点名 TRUST_PROXY（启动校验）；healthz 200、仅 warn、或依赖库 TypeError 崩溃均 FAIL",
+      "observed": {
+        "cidr": "10.0.0.0/8",
+        "port": 18193,
+        "exited": false,
+        "exitCode": 0,
+        "healthStatus": 200,
+        "healthy": true,
+        "mentionsTrustProxy": false,
+        "warnOnly": false,
+        "refusedByConfigGuard": false,
+        "incidentalCrash": false,
+        "logTail": ""
+      },
+      "status": "FAIL",
+      "severity": "P2",
+      "evidence": {
+        "log": "tests/adversarial/entitlement-bypass/artifacts/logs/api-trustproxy-guard-10_0_0_0_8.log"
+      }
+    }
+  ]
+}

@@ -161,3 +161,24 @@ MarketConfigError: E2E 模式在生产不可用（L44/L46）：APP_PROFILE=""（
 - `artifacts/logs/`：各隔离实例启动/崩溃日志（含 G1/G2 拒绝启动日志）。
 - `artifacts/*.png`：`c1-restricted-baseline.png`、`c2-poisons.png`、`c5-interception.png`、`c7-valid.png`、`c9-expired-reload.png`。
 - 代码：`lib.mjs`、`run.mjs`、`cases/static.mjs`、`cases/api.mjs`、`cases/client.mjs`、`provision-db.sh`。
+
+## 10. 附：条件 1 黑盒守卫基线（修复前，2026-11-04 09:0x）
+
+lead 对 R4 的裁定要求「`TRUST_PROXY` 只允许 ingress 窄网段；`0.0.0.0/0`、`::/0`、回环、`10.0.0.0/8` 启动时拒启（不是 warn）」。该条件由外部观测，不由实现者自证。
+
+```bash
+node tests/adversarial/entitlement-bypass/trustproxy-guard.mjs   # 4 个独立实例，端口 18190-18193
+```
+
+当前（修复前）结果 **0/4 PASS**，`artifacts/trustproxy-guard.json`：
+
+| TRUST_PROXY | 外部观测 | 判定 |
+| --- | --- | --- |
+| `0.0.0.0/0` | 进程退出（exit 1），但原因是 `@fastify/proxy-addr` 抛 `TypeError: invalid range on address: 0.0.0.0/0`（`buildApp` 阶段），日志无 `TRUST_PROXY` 校验文案 | FAIL（依赖崩溃式拒启，非启动校验；换依赖/写法可能重新放行） |
+| `::/0` | 同上，`TypeError: invalid range on address: ::/0` | FAIL（同上） |
+| `127.0.0.0/8` | 启动成功，`/healthz` 200，无 warn | FAIL（回环未被拒） |
+| `10.0.0.0/8` | 启动成功，`/healthz` 200，无 warn | FAIL（宽网段未被拒） |
+
+- 即：条件 1 **尚未实现**；且四个里有两个只是依赖库在 `buildApp` 崩溃，不是 config 层校验——不能算"启动时校验通过"。
+- 修复后复跑同一命令：只有「进程退出 + 日志点名 TRUST_PROXY + 从未监听健康端口」才记 PASS；`healthz 200`、warn-only、依赖 TypeError 崩溃均记 FAIL。退出码 `0`=4/4 配置层拒启，`1`=仍有放行。
+- 日志：`artifacts/logs/api-trustproxy-guard-*.log`。

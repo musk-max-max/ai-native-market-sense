@@ -18,7 +18,7 @@
 --   2. event_type 增加第 10 类 audit_gap，并加其最小留痕完整性 CHECK；
 --   3. schema_version CHECK 由 =1 放宽为 IN (1,2)：历史行保留 1，A3 新写事件
 --      与 seed 均写 2（Lead L64：默认值应等于当前正确值）；
---   4. 触发器 event_key 增加 audit_gap 分支：gap|<deployment_uid>|<gap_from ISO>；
+--   4. 触发器 event_key 增加 audit_gap 分支：gap|<deployment_uid>|<window_start ISO>；
 --   5. 检测侧 fail-open 的结构约束（H5-R14 / L67 / L68）：
 --      - deploy 事件 new_value.target_tier 必填且限于 DataTier 枚举：reconciler 只在
 --        target_tier != internal_eval 且缺 tier_switch 时才判 gap，缺它会把首次
@@ -30,7 +30,10 @@
 --   6. 给 entitlement_expired 的 expires_at 建部分索引（H5-R14 / L67：
 --      "链上是否已存在绑定该 expires_at 的 expired" 必须可索引查询，不能藏 JSON）；
 --   7. 链（prev_hash/hash）与 append-only 触发器天然覆盖 audit_gap，不需改动：
---      audit_gap 是正常链环，prev_hash 指向前一条；UPDATE/DELETE 照旧拒绝。
+--      audit_gap 是正常链环，prev_hash 指向前一条；UPDATE/DELETE 照旧拒绝；
+--   8. payload 键集单一真源：docs/reference/event-payloads.json（Lead L70）。
+--      本文件 CHECK 实际强制的 required 键集（audit_gap/deploy/tier_switch/
+--      clause_review）必须与该文件逐字一致；A11 用 pg_get_constraintdef() 断言。
 --
 -- 刻意不做：
 --   - 不改 001（含不改其 hash canonical 字段列表）：recorded_at 是 DB 侧元数据，
@@ -108,11 +111,16 @@ ALTER TABLE audit.entitlement_events
 
 -- audit_gap 最小留痕完整性（缺字段 = 无法审计 = fail-closed 拒绝）：
 --   - deployment_uid、operator 必填；reason 必须 NULL（结构性断口不占 6 值业务枚举）；
---   - new_value 对象必须含 gap_from / gap_to / lost_count / reason / owner；
---     gap_from 的语义 = 链上最后一条成功事件的 occurred_at（由写入方计算；DDL 只校验
---     非空与 gap_to >= gap_from，不替写入方猜窗口）；
---   - gap_from/gap_to 必须是 UTC ISO-8601（Z 或 +00:00）；gap_to >= gap_from；
---   - lost_count：null（恢复时无法确知）或正整数；**0 拒绝**（写"丢了 0 条"是自欺）；
+--   - new_value 对象必须含 window_start / window_end / lost_count / reason / owner；
+--     window_start 的语义 = 链上最后一条任何类型事件的 occurred_at（含 audit_gap 自身；
+--     取"最后一条非 gap"会让连续两个断口算出同一 event_key）；由写入方计算，DDL 只校验
+--     非空与 window_end >= window_start，不替写入方猜窗口；
+--   - window_start/window_end 必须是 UTC ISO-8601（Z 或 +00:00）；window_end >= window_start；
+--   - lost_count 按 reason 分支（H4 m00762 裁定）：
+--       reason='transient_write_failure'（进程活着，A3 自己数）→ 整数 >= 1，null 拒；
+--       reason='process_restart'（进程在断口期间死了，计数随内存丢失）→ null 或整数 >= 1。
+--     null 的唯一出口是 process_restart：可审计的"至少一次断口、次数不可知"，
+--     避免重启后为过 CHECK 编一个假精确数或跳过 gap 吞掉断口；
 --   - reason 仅 transient_write_failure / process_restart；owner 非空。
 ALTER TABLE audit.entitlement_events
     DROP CONSTRAINT IF EXISTS entitlement_events_audit_gap_chk;
@@ -123,15 +131,23 @@ ALTER TABLE audit.entitlement_events
         AND operator IS NOT NULL AND btrim(operator) <> ''
         AND reason IS NULL
         AND new_value IS NOT NULL AND jsonb_typeof(new_value) = 'object'
-        AND new_value ? 'gap_from' AND new_value ? 'gap_to'
+        AND new_value ? 'window_start' AND new_value ? 'window_end'
         AND new_value ? 'lost_count' AND new_value ? 'reason' AND new_value ? 'owner'
-        AND coalesce(new_value->>'gap_from', '') ~ '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|\+00:00)$'
-        AND coalesce(new_value->>'gap_to', '') ~ '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|\+00:00)$'
-        AND (new_value->>'gap_to')::timestamptz >= (new_value->>'gap_from')::timestamptz
-        AND (jsonb_typeof(new_value->'lost_count') = 'null'
-             OR (jsonb_typeof(new_value->'lost_count') = 'number'
-                 AND (new_value->>'lost_count') ~ '^[0-9]+$'
-                 AND (new_value->>'lost_count')::numeric > 0))
+        AND coalesce(new_value->>'window_start', '') ~ '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|\+00:00)$'
+        AND coalesce(new_value->>'window_end', '') ~ '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|\+00:00)$'
+        AND (new_value->>'window_end')::timestamptz >= (new_value->>'window_start')::timestamptz
+        AND (
+            ((new_value->>'reason') = 'transient_write_failure'
+             AND jsonb_typeof(new_value->'lost_count') = 'number'
+             AND (new_value->>'lost_count') ~ '^[0-9]+$'
+             AND (new_value->>'lost_count')::numeric >= 1)
+            OR
+            ((new_value->>'reason') = 'process_restart'
+             AND (jsonb_typeof(new_value->'lost_count') = 'null'
+                  OR (jsonb_typeof(new_value->'lost_count') = 'number'
+                      AND (new_value->>'lost_count') ~ '^[0-9]+$'
+                      AND (new_value->>'lost_count')::numeric >= 1)))
+        )
         AND (new_value->>'reason') IN ('transient_write_failure', 'process_restart')
         AND btrim(coalesce(new_value->>'owner', '')) <> ''
     ));
@@ -222,7 +238,7 @@ CREATE INDEX IF NOT EXISTS entitlement_events_expired_expires_at_idx
 
 -- ---------------------------------------------------------------------------
 -- 4. event_key：新增 audit_gap 分支
---    权威公式：gap|<deployment_uid>|<gap_from UTC 毫秒 ISO>
+--    权威公式：gap|<deployment_uid>|<window_start UTC 毫秒 ISO>
 --    用 deployment_uid（不用 boot_id）：service 与 reconciler 都能算出同一个键
 --    （H4 m00567 第 2 条）。
 --    其余 9 类分支与 001 逐字一致；本文件替换函数是因为 001 不允许改，
@@ -289,17 +305,19 @@ BEGIN
                    || e.clause_locator || '|'
                    || to_char(e.occurred_at AT TIME ZONE 'UTC', 'YYYY-MM-DD');
         WHEN 'audit_gap' THEN
-            IF e.deployment_uid IS NULL OR btrim(e.deployment_uid) = '' THEN
-                RAISE EXCEPTION 'event_key(audit_gap) 需要 deployment_uid';
-            END IF;
-            IF e.new_value IS NULL OR jsonb_typeof(e.new_value) <> 'object'
-               OR (e.new_value->>'gap_from') IS NULL
-               OR btrim(e.new_value->>'gap_from') = '' THEN
-                RAISE EXCEPTION 'event_key(audit_gap) 需要 new_value.gap_from';
+            -- 缺 deployment_uid/window_start 时不在这里抛 P0001：交由
+            -- entitlement_events_audit_gap_chk 抛 23514（A11/Lead 要求负向样本是
+            -- CHECK 拒绝，便于证明「DB 结构约束」而非「函数碰巧报错」）。
+            -- 占位键不会落库：CHECK 在 BEFORE 触发器之后求值并拒绝整行。
+            IF e.deployment_uid IS NULL OR btrim(e.deployment_uid) = ''
+               OR e.new_value IS NULL OR jsonb_typeof(e.new_value) <> 'object'
+               OR (e.new_value->>'window_start') IS NULL
+               OR btrim(e.new_value->>'window_start') = '' THEN
+                RETURN 'gap|invalid|invalid-window-start';
             END IF;
             -- 与 A3 的 JS Date.toISOString() 口径一致：UTC 毫秒 + Z。
             RETURN 'gap|' || btrim(e.deployment_uid) || '|'
-                   || to_char((e.new_value->>'gap_from')::timestamptz AT TIME ZONE 'UTC',
+                   || to_char((e.new_value->>'window_start')::timestamptz AT TIME ZONE 'UTC',
                               'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"');
         ELSE
             RAISE EXCEPTION '未知 event_type：%', e.event_type;
@@ -319,8 +337,8 @@ REVOKE ALL ON FUNCTION audit.entitlement_event_key(audit.entitlement_events) FRO
 COMMENT ON COLUMN audit.entitlement_events.recorded_at IS
     'DB 写入时间（触发器强制 now()，调用方不可指定；列级 INSERT 不授权；append-only 禁 UPDATE）。occurred_at 仍是服务侧事件发生时间。001 既有行回填为 occurred_at（真实写入时间不可考，仅最佳近似）。不参与 hash canonical，因此旧行 hash 仍可验证。';
 COMMENT ON COLUMN audit.entitlement_events.event_type IS
-    '事件类型（10 类）：entitlement_expired / entitlement_flip / tier_state_observed / unauthorized_config / deploy / tier_switch / hold_set / hold_clear / clause_review / audit_gap。audit_gap 记录写审计失败恢复后的断口（reason 必须 NULL；new_value 含 gap_from/gap_to/lost_count/reason/owner；event_key=gap|<deployment_uid>|<gap_from UTC 毫秒>）。clause_review 由 A13 运维按工单用迁移角色 psql 插入。';
+    '事件类型（10 类）：entitlement_expired / entitlement_flip / tier_state_observed / unauthorized_config / deploy / tier_switch / hold_set / hold_clear / clause_review / audit_gap。audit_gap 记录写审计失败恢复后的断口（reason 必须 NULL；new_value 含 window_start/window_end/lost_count/reason/owner；lost_count 按 reason 分支（transient>=1，process_restart 可 null）；event_key=gap|<deployment_uid>|<window_start UTC 毫秒>）。payload 键集单一真源：docs/reference/event-payloads.json。clause_review 由 A13 运维按工单用迁移角色 psql 插入。';
 COMMENT ON COLUMN audit.entitlement_events.event_key IS
-    '幂等键，触发器权威计算并覆盖应用值：obs|<boot_id>、flip|<boot_id>|<state_version>、unauth|<fp>|<boot_id>、exp|<tier>|<expires_at UTC 毫秒>|<reason>、deploy|<deployment_uid>、switch|<deployment_uid>、hold|<hold_id>|set|clear、clause|<authorization_doc_sha256>|<clause_locator>|<occurred_at UTC 日期 YYYY-MM-DD>、gap|<deployment_uid>|<gap_from UTC 毫秒 ISO>。写入方幂等：捕获 entitlement_events_event_key_uq 的 unique_violation（其他唯一冲突必须失败）；因应用仅列级 INSERT，带目标列的 ON CONFLICT (event_key) 会报 permission denied，可用裸 ON CONFLICT DO NOTHING。';
+    '幂等键，触发器权威计算并覆盖应用值：obs|<boot_id>、flip|<boot_id>|<state_version>、unauth|<fp>|<boot_id>、exp|<tier>|<expires_at UTC 毫秒>|<reason>、deploy|<deployment_uid>、switch|<deployment_uid>、hold|<hold_id>|set|clear、clause|<authorization_doc_sha256>|<clause_locator>|<occurred_at UTC 日期 YYYY-MM-DD>、gap|<deployment_uid>|<window_start UTC 毫秒 ISO>。写入方幂等：捕获 entitlement_events_event_key_uq 的 unique_violation（其他唯一冲突必须失败）；因应用仅列级 INSERT，带目标列的 ON CONFLICT (event_key) 会报 permission denied，可用裸 ON CONFLICT DO NOTHING。';
 COMMENT ON COLUMN audit.entitlement_events.schema_version IS
-    '事件 schema 版本（1/2 共存）：1 = 001 历史行与 A13 seed；2 = 002 之后 A3 runtime 新写事件（默认值 2）。历史行不升级。';
+    '事件 schema 版本（1/2 共存）：1 = 001 历史行；2 = 002 之后所有新写事件（A3 runtime、A13 seed、运维插入，默认值 2，Lead L64）。历史行不升级。';

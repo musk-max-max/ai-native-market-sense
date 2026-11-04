@@ -531,6 +531,21 @@ if (auditGap) {
     'audit_gap: 不修改 001（canonical hash 不变）',
     !/UPDATE audit\.entitlement_events SET hash/i.test(auditGap),
   );
+  check(
+    'audit_gap: gap 最小留痕 CHECK 含 window_start/window_end/lost_count/reason/owner（冻结口径）',
+    /window_start/.test(auditGap) &&
+      /window_end/.test(auditGap) &&
+      /lost_count/.test(auditGap) &&
+      /owner/.test(auditGap),
+  );
+  check(
+    'audit_gap: tier_switch 强制 old_value.from / new_value.to（否则 gap 规则静默失效）',
+    /entitlement_events_tier_switch_from_to_chk/.test(auditGap) &&
+      /old_value->'from'/.test(auditGap) &&
+      /new_value->'to'/.test(auditGap),
+  );
+  check('audit_gap: schema_version 默认 2', /schema_version SET DEFAULT 2/i.test(auditGap));
+  check('audit_gap: 新增 CHECK 均 validated（本文件无 NOT VALID）', !/NOT VALID/i.test(auditGap));
 }
 
 // ---- 输出 ---// ---- 输出 -------------------------------------------------------------------

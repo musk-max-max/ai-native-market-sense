@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "canonical_source_of_truth": "docs/reference/event-payloads.json",
+  "updated": "2026-11-04",
+  "authored_by": "A5 backend-compliance",
+  "authorization": "Lead L70 m00688：docs/reference/ 不在任何 agent 写域，单独授权 A5 只写本文件",
+  "purpose": "按 event_type 声明 old_value/new_value 的必填与可选 JSON 键集。A3 写入前按本文件做 fail-closed 校验；A11 读同一文件断言库侧约束与键集相等，并做负向插入。",
+  "derived_from": {
+    "ddl": [
+      "services/compliance/migrations/001_audit_entitlement_events.sql",
+      "services/compliance/migrations/002_audit_gap.sql"
+    ],
+    "event_key_function": "audit.entitlement_event_key(e audit.entitlement_events)",
+    "method": "required 键集 = 001/002 的 CHECK 约束实际强制的 new_value/old_value 键；optional 键集 = 现有写入方（A3 runtime、A13 seed、hold 函数）实际会写、但 DB 未强制的键。event_key 分支只消费列字段，不额外强制 JSON 键（audit_gap 的 window_start 除外：event_key 分支本身 RAISE）。",
+    "related_canonical": [
+      "docs/reference/entitlement-reasons.json"
+    ]
+  },
+  "validation_contract": {
+    "required": "键必须存在（值可为 null；具体类型/枚举由 DDL CHECK 约束，见各 event_type 的 ddl_constraints）。缺失即 fail-closed 拒绝。",
+    "optional": "键允许出现但不得作为缺失判定条件；写入方可省略。",
+    "unknown_keys": "当前 DDL 不拒绝额外的 new_value 键（audit_gap 的 A3 旧实现会多写 deployment_uid/operator）；A3 校验只要求 required 全部存在，不做 exact-key 拒绝。",
+    "ddl_equality_test": "A11 断言方式：读取 pg_get_constraintdef() 中对应 CHECK，确认每个 required 键以 `new_value ? 'key'` / `old_value ? 'key'` 形式出现；键集必须与本文件逐字一致（人眼对键名已错两次，见 L70）。"
+  },
+  "event_types": {
+    "tier_state_observed": {
+      "new_value": { "required": [], "optional": ["effective_tier", "configured_tier", "expires_at"] },
+      "old_value": { "required": [], "optional": ["effective_tier", "configured_tier", "expires_at"] },
+      "ddl_constraints": ["entitlement_events_observed_required_chk（列级：deployment_uid/configured_tier/expires_at，非 JSON 键）"],
+      "note": "A3 plugin.ts:129-134 写 {effective_tier,configured_tier,expires_at} 到 old/new；expires_at 可为 null 但键存在。"
+    },
+    "entitlement_flip": {
+      "new_value": { "required": [], "optional": [] },
+      "old_value": { "required": [], "optional": [] },
+      "ddl_constraints": [],
+      "note": "当前无写入方（A3 只写 4 类）；键集未由 DDL 强制，保持空集避免发明契约。"
+    },
+    "unauthorized_config": {
+      "new_value": { "required": [], "optional": ["effective_tier", "configured_tier", "expires_at"] },
+      "old_value": { "required": [], "optional": ["effective_tier", "configured_tier", "expires_at"] },
+      "ddl_constraints": ["reason 列固定 expected_fingerprint_mismatch（001 reason CHECK）"],
+      "note": "A3 plugin.ts:160-166 写 entitlementPayload。"
+    },
+    "entitlement_expired": {
+      "new_value": { "required": [], "optional": ["effective_tier", "configured_tier", "expires_at"] },
+      "old_value": { "required": [], "optional": ["effective_tier", "configured_tier", "expires_at"] },
+      "ddl_constraints": [
+        "001 expired 必填列：effective_tier+expires_at+reason",
+        "entitlement_events_expired_expires_at_idx（按 expires_at 部分索引，H5-R14）"
+      ],
+      "note": "A3 plugin.ts:178-189 写 entitlementPayload；expires_at 列与 JSON 内 expires_at 同时存在。"
+    },
+    "deploy": {
+      "new_value": { "required": ["target_tier"], "optional": [] },
+      "old_value": { "required": [], "optional": [] },
+      "ddl_constraints": [
+        "entitlement_events_require_deploy_tier_chk：new_value.target_tier ∈ {internal_eval,c_end_display,research_only,platform_user_data}"
+      ],
+      "note": "H5-R14/L67/H4 m00579：reconciler 靠 target_tier 判断是否需要 tier_switch；A13 从发布参数/审批记录取，不许手填。"
+    },
+    "tier_switch": {
+      "new_value": { "required": ["to"], "optional": [] },
+      "old_value": { "required": ["from"], "optional": [] },
+      "ddl_constraints": [
+        "entitlement_events_tier_switch_from_to_chk：old_value.from 与 new_value.to 为非空 string"
+      ],
+      "note": "H4 m00599/Lead L68。"
+    },
+    "hold_set": {
+      "new_value": { "required": [], "optional": ["hold", "hold_id", "reason"] },
+      "old_value": { "required": [], "optional": [] },
+      "ddl_constraints": ["001：hold_id 列必填；event_key=hold|<hold_id>|set"],
+      "note": "由 001 audit.raise_hold() 生成 new_value={hold:true,hold_id,reason}；reason 列固定 hold_active。"
+    },
+    "hold_clear": {
+      "new_value": { "required": [], "optional": ["hold", "hold_id", "reason"] },
+      "old_value": { "required": [], "optional": [] },
+      "ddl_constraints": [
+        "001：hold_id+hold_ticket+hold_signer+authorization_doc_sha256 列必填；event_key=hold|<hold_id>|clear"
+      ],
+      "note": "由 001 audit.clear_hold() 生成；reason 列固定 manual_signoff。"
+    },
+    "clause_review": {
+      "new_value": { "required": ["verdict"], "optional": ["notes"] },
+      "old_value": { "required": [], "optional": [] },
+      "ddl_constraints": [
+        "001 entitlement_events_clause_review_chk：new_value.verdict ∈ {allow,deny,pending}；另需 authorization_doc_sha256/clause_locator/operator/authorization_valid_until"
+      ],
+      "note": "A13 运维按工单 psql 插入；reason ∈ {clause_change,manual_signoff}。"
+    },
+    "audit_gap": {
+      "new_value": {
+        "required": ["window_start", "window_end", "lost_count", "reason", "owner"],
+        "optional": []
+      },
+      "old_value": { "required": [], "optional": [] },
+      "ddl_constraints": [
+        "entitlement_events_audit_gap_chk：deployment_uid/operator 列非空；reason 列必须 NULL；new_value.window_start/window_end 为 UTC ISO-8601 且 window_end >= window_start；lost_count 为整数 >= 1（canonical lost_count_min）；new_value.reason ∈ {transient_write_failure,process_restart}；owner 非空",
+        "event_key 触发器分支：gap|<deployment_uid>|<window_start UTC 毫秒 ISO>"
+      ],
+      "note": "键名以 L70 为准（window_start/window_end）；window_start 语义=链上最后一条任何类型事件的 occurred_at（含 audit_gap 自身），见 entitlement-reasons.json 的 gap_window_start_definition。A3 当前 new_value 还会多写 deployment_uid/operator 两键——不在本契约的 required/optional 内，A3 需删除（列已有该信息），否则 A11 exact-key 断言会红。"
+    }
+  }
+}

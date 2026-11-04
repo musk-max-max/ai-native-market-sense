@@ -848,8 +848,9 @@ fail-closed 是对的，但**现象具有欺骗性**：部署突然失败，报�
 **1. `recorded_at` 回填**：001 已有 `occurred_at`（业务时间，服务侧 UTC），**没有 `created_at`**（那是 A13 已删除的旧 infra 版列，L62 引用有误，以本条为准）。002 只加 `recorded_at timestamptz`，顺序为：加列（可空）→ 回填 `recorded_at = occurred_at` → `SET NOT NULL DEFAULT now()` + 触发器强制 `now()`、`REVOKE UPDATE`。
 既有行的 `recorded_at` 是**近似值**，必须在列注释与 README 写明「历史行 recorded_at 由 occurred_at 近似，非真实写入时刻」。**宁可承认近似，也不要让后来的人以为是精确值。**
 
-**2. gap 的 JSON 键名以 `gap_from` / `gap_to` 为准**（取代 L62 的 `window_start` / `window_end`）。配套：`lost_count` / `reason` / `owner`；`event_key = gap|<boot_id>|<gap_from ISO8601 UTC>`。
-理由：`event_key` 必须能从键名直接派生，且 `gap_from` 与 L63 的"失败前最后一条成功事件的 `occurred_at`"是同一个概念——**同一个东西用两个名字，是今天已经犯过一次的错**（L60/L61 名单）。
+**2. ~~gap 的 JSON 键名以 `gap_from` / `gap_to` 为准~~ —— 已作废，见 `L70`。**
+现行口径：键名 `window_start` / `window_end`，`event_key = gap|<deployment_uid>|<window_start ISO8601 UTC>`，配套 `lost_count` / `reason` / `owner`；键集以 `docs/reference/event-payloads.json` 为唯一真源。
+**作废原因**：本条与 L70 及 A3 已在写的代码冲突，而 `gap_from` 被 A5 照抄进了 002（`gap_from` 残留 15 处），导致 CHECK 会让合法 gap 插入永久失败、服务被打进阻断降级。**散文里并列两个真源，谁先被读到谁赢——本条的原文之所以必须删掉而不是加一句"见 L70"，原因就在这里。**
 
 **3. `schema_version`：002 直接 `SET DEFAULT 2`，seed 也写 2。**
 仅**历史行**保留 1（回填时不动）。不要"默认 1、要求调用方显式传 2"——默认值应当等于**当前正确值**，靠调用方记得传，等于把一个必然会忘的事写进协议。`verify_entitlement_chain()` 兼容 1/2。
@@ -943,3 +944,14 @@ fail-closed 是对的，但**现象具有欺骗性**：部署突然失败，报�
 4. A13 暂停重放直到 A5 给新 sha。
 
 **通用教训**：**DDL 的约束/列名必须和写入方代码逐字对齐，否则约束不是保护，是绊索。**
+
+### L71 `lost_count` 条件可空：null 只在 process_restart（2026-11-04，最后一次 DDL delta）
+
+- `reason = transient_write_failure`（进程活着，能数）→ **整数 ≥1**，`null` 拒。
+- `reason = process_restart`（进程死在断口期间，次数随内存丢失）→ **允许 `null`**。
+
+**理由（A3 提，采纳）**：一律拒 null 会逼重启后写 gap 的一方二选一——**编一个数（伪造精确度）或跳过 gap（把断口吞掉）**。`null + reason=process_restart` 是可审计的"至少一次、次数不可知"，**比假数字诚实**。
+
+`event-payloads.json` 必须把这条写成机器可读的条件（而非散文）：`lost_count` 的 `nullable_when` = `reason == "process_restart"`，`minimum: 1`（非 null 时）。
+
+**这是 002 的最后一个 delta，之后封版。**
