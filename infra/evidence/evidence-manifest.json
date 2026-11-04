@@ -201,7 +201,7 @@
       ],
       "notes": "KD-ENT-01 运行时四观测完整证据包（单次干净 run；含 16 文件；默认栈 403 / positive 200 / hold 403+no-store / clear 后 200；ECS e2e-ent-positive 隔离 project，端口全 loopback）",
       "status": "rejected-before-sign",
-      "errata": "H5 m03163 复核：行为四观测 PASS，但证据包本身不签——README 的 hold_id(a530b88d-…) 在 transcript 中无对应记录，且 RestartCount=0/StartedAt 未变无 docker inspect 机器证据。v1 保留字节、不改名不删，标记 rejected-before-sign；v2 到件后新目录/新条目 authority=authoritative 并 supersedes 本 tar sha。",
+      "errata": "H5 m03174 复核：行为四观测 PASS，但证据包不签（pack 混合代际）。硬伤：(a) README.md hold_id=a530b88d-5d74-4323-8e22-507f961746b3，而 transcript.log:330 实际输出 hold_id=d784effe-69e2-41f1-b0f4-b45d6a73dd7f，至少两次 run 的材料被拼进同一包；(b) README 声称 api RestartCount=0、StartedAt 未变，但 transcript/README 均无 docker inspect 原始输出，属断言非证据。v1 目录冻结、字节不改、不删；本条标记 rejected-before-sign。v2 必须单次 run：transcript 同时含 hold_id 原始输出与 raise 前/clear 后 docker inspect（Id/RestartCount/StartedAt），README 由 transcript 生成；v2 新目录、新条目 authority=authoritative、supersedes v1 tar sha 0cfd1c4f3342c29f1fca065db0b5c1e8e54446f5da445ec35536391531ff5047。",
       "rejected_by": "H5",
       "rejected_at": "2026-11-04"
     },
@@ -218,7 +218,7 @@
       ],
       "notes": "四观测完整 stdout/rc/时间戳；run 窗口 2026-11-04T20:36:40→20:38:06+08:00；api RestartCount=0",
       "status": "rejected-before-sign",
-      "errata": "H5 m03163 复核：行为四观测 PASS，但证据包本身不签——README 的 hold_id(a530b88d-…) 在 transcript 中无对应记录，且 RestartCount=0/StartedAt 未变无 docker inspect 机器证据。v1 保留字节、不改名不删，标记 rejected-before-sign；v2 到件后新目录/新条目 authority=authoritative 并 supersedes 本 tar sha。",
+      "errata": "H5 m03174 复核：行为四观测 PASS，但证据包不签（pack 混合代际）。硬伤：(a) README.md hold_id=a530b88d-5d74-4323-8e22-507f961746b3，而 transcript.log:330 实际输出 hold_id=d784effe-69e2-41f1-b0f4-b45d6a73dd7f，至少两次 run 的材料被拼进同一包；(b) README 声称 api RestartCount=0、StartedAt 未变，但 transcript/README 均无 docker inspect 原始输出，属断言非证据。v1 目录冻结、字节不改、不删；本条标记 rejected-before-sign。v2 必须单次 run：transcript 同时含 hold_id 原始输出与 raise 前/clear 后 docker inspect（Id/RestartCount/StartedAt），README 由 transcript 生成；v2 新目录、新条目 authority=authoritative、supersedes v1 tar sha 0cfd1c4f3342c29f1fca065db0b5c1e8e54446f5da445ec35536391531ff5047。",
       "rejected_by": "H5",
       "rejected_at": "2026-11-04"
     },
@@ -235,7 +235,7 @@
       ],
       "notes": "执行人/命令/四观测/caveat：验证运行时配置与授权链，非镜像构建 provenance；ECS checkout 0c78433，compose 规格来自本地 7911a03+0a6beba；默认栈仍旧 api 镜像；合成 fixture 不作 DA 证据",
       "status": "rejected-before-sign",
-      "errata": "H5 m03163 复核：行为四观测 PASS，但证据包本身不签——README 的 hold_id(a530b88d-…) 在 transcript 中无对应记录，且 RestartCount=0/StartedAt 未变无 docker inspect 机器证据。v1 保留字节、不改名不删，标记 rejected-before-sign；v2 到件后新目录/新条目 authority=authoritative 并 supersedes 本 tar sha。",
+      "errata": "H5 m03174 复核：行为四观测 PASS，但证据包不签（pack 混合代际）。硬伤：(a) README.md hold_id=a530b88d-5d74-4323-8e22-507f961746b3，而 transcript.log:330 实际输出 hold_id=d784effe-69e2-41f1-b0f4-b45d6a73dd7f，至少两次 run 的材料被拼进同一包；(b) README 声称 api RestartCount=0、StartedAt 未变，但 transcript/README 均无 docker inspect 原始输出，属断言非证据。v1 目录冻结、字节不改、不删；本条标记 rejected-before-sign。v2 必须单次 run：transcript 同时含 hold_id 原始输出与 raise 前/clear 后 docker inspect（Id/RestartCount/StartedAt），README 由 transcript 生成；v2 新目录、新条目 authority=authoritative、supersedes v1 tar sha 0cfd1c4f3342c29f1fca065db0b5c1e8e54446f5da445ec35536391531ff5047。",
       "rejected_by": "H5",
       "rejected_at": "2026-11-04"
     }
