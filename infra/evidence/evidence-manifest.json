@@ -2,7 +2,7 @@
   "schema_version": "0.1",
   "owner": "A13",
   "generated_by": "a13-sre",
-  "generated_at": "2026-11-04T06:02:00Z",
+  "generated_at": "2026-11-04T06:04:00Z",
   "rule": "artifact 不内嵌自身哈希；哈希只进 manifest；内容改动必须换新文件名（UTC 时间戳），旧 artifact 保留；CI 独立复算每条 sha。",
   "authority_values": [
     "authoritative",
@@ -119,6 +119,20 @@
         "H5-R19"
       ],
       "notes": "H4 m02409 强制限定：test profile=c_end_display + ENTITLEMENT_AUDIT=0；internal_eval 档 gate 不读 control、黑洞在 healthz 不可见；不得推及 11-12 现网。"
+    },
+    {
+      "path": "infra/evidence/slow-failure-residuals-20261104T0604Z.md",
+      "sha256": "f72c16691bd7e24b744b551d7dd4ccb11a8f923cf849d5093fd246b6c41e2f55",
+      "bytes": 1477,
+      "recompute": "sha256sum infra/evidence/slow-failure-residuals-20261104T0604Z.md",
+      "role": "residuals",
+      "authority": "authoritative",
+      "phase": "post-fix",
+      "case_ids": [
+        "L77",
+        "H5-R19"
+      ],
+      "notes": "H5 签字 #4 PASS 的伴随 residual（connect 阶段黑洞未真验、首请求延迟未单测、范围仅 c_end_display test profile）；#3 不写 closed。"
     }
   ],
   "related_manifests": [
