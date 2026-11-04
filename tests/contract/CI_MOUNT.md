@@ -313,6 +313,14 @@ file-level 窄豁免且 H2 签，不给目录级）。扫描强度与全量数�
 
 **仓库卫生 2MB allowlist（Lead L91，2026-11-04 批准）**：仅 `tests/data/acceptance/artifacts/11-12-evidence-*.tar.gz`（证据包 tar 单类，不放 manifest/其它 artifact）；owner=A13 执行，A11 不改 `infra/`；`expires_at=2026-12-15`（与 lot_size waiver 同日盘点）；`reason=release 签名对象`——H5 签字对象是 tar 本身（四元组第一项），不入库无法独立复算。allowlist 到期自动失效、不自动续期；其它 >2MB 文件照旧 fail。v7 tar `75f89a2d…` 为当前唯一入库证据包；v6 `f1e6f8e4…` 作为 historical 亦在 pattern 内。
 
+### 7.13 authority 枚举：v7 冻结例外 + v8 两值（H5 m03641/m03672，2026-11-04）
+
+- 全局红线：`authority=drill` **永不进验收证据包**（drill 是演练记录，只走 `infra/evidence/` 演练 manifest）；`check_evidence_manifest.py` 命中即红并提示路径。
+- v7 冻结例外（grandfather，**按 manifest sha 精确匹配**，不按文件名/版本号）：仅当 manifest sha == `c2cc1de5823c1d480c2804b318c41fbc86b994d785f7716f64b26993c5e28d54` 时，允许 9 个细分值（evidence/post_fix_run_scoped_raw_log/index/historical/post_fix_authoritative/pre_fix_control/authoritative/pre_fix_baseline/receipt）通过；sha 一变即失效。
+- 更早冻结包（v4/v5/v6 两个 manifest）同样以**精确 sha 列表** grandfather（见 checker 的 `GRANDFATHERED_ACCEPTANCE_MANIFESTS`），不存在“旧包都放行”的规则。
+- v8 起格式：`authority ∈ {authoritative, historical}` + `authority_detail` 承载细分；映射规则只有两种归类：pre-fix/归档 → `historical`，其余 → `authoritative`；任何值不得映射到 `drill`。checker 遇 v8 包出现 9 值时红并提示迁移。
+- 生成器 `build_evidence_manifest.py` 已按 v8 归一（旧细分自动降为两值 + detail）；自证测试见 `test_evidence_manifest_v2.py` 的迁移两例与 `test_evidence_manifest.py` 的 drill 拒绝例。
+
 ### 7.12 KD-ENT-01 启动矩阵门禁（H5 m03570，2026-11-04）
 
 缺陷：`E2E_MODE=1` 默认关 hold/audit 且跳过 `ENTITLEMENT_CONFIG_EXPECTED_SHA256` 自检 → `e2e + c_end_display + raise_hold` 下 quote 返回 200 真实行情（H5 实测）。修复方向：`tier != internal_eval` 时**任何 profile** 必须 `ENTITLEMENT_HOLD_CHECK=1` + `ENTITLEMENT_AUDIT=1` + sha 非空，否则拒启；`E2E_MODE` 不再改默认值。

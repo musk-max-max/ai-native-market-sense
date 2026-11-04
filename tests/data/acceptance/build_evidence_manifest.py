@@ -24,6 +24,21 @@ from datetime import datetime
 from pathlib import Path
 
 PHASES = {"pre_fix", "post_fix", "not_applicable"}
+AUTHORITY_BASE = {"authoritative", "historical"}
+# H5 m03672：v8 起 authority 两值 + authority_detail 承载细分；旧细分值在此归一。
+AUTHORITY_MIGRATION = {
+    "pre_fix_baseline": ("historical", "pre_fix_baseline"),
+    "pre_fix_control": ("historical", "pre_fix_control"),
+    "historical": ("historical", "historical"),
+    "authoritative": ("authoritative", "authoritative"),
+    "post_fix_authoritative": ("authoritative", "post_fix_authoritative"),
+    "post_fix_control": ("authoritative", "post_fix_control"),
+    "post_fix_run_scoped_raw_log": ("authoritative", "post_fix_run_scoped_raw_log"),
+    "evidence": ("authoritative", "evidence"),
+    "index": ("authoritative", "index"),
+    "receipt": ("authoritative", "receipt"),
+    "meta": ("authoritative", "meta"),
+}
 AUTHORITIES = {
     "pre_fix_baseline",
     "pre_fix_control",
@@ -87,8 +102,10 @@ def main(argv: list[str] | None = None) -> int:
         authority = spec.get("authority")
         phase = spec.get("phase")
         case_ids = spec.get("case_ids")
-        if authority not in AUTHORITIES:
-            failures.append(f"{rel}: authority 非法 {authority!r}")
+        if authority not in AUTHORITY_MIGRATION and authority not in AUTHORITY_BASE:
+            failures.append(f"{rel}: authority 非法 {authority!r}（v8 只接受 authoritative|historical，细分写 authority_detail）")
+        if authority == "drill":
+            failures.append(f"{rel}: authority=drill 禁止进入验收证据包（演练走 infra/evidence）")
         if phase not in PHASES:
             failures.append(f"{rel}: phase 非法 {phase!r}")
         if not isinstance(case_ids, list) or not case_ids or any(not isinstance(c, str) or not c for c in case_ids):
@@ -101,7 +118,20 @@ def main(argv: list[str] | None = None) -> int:
                 "path": rel,
                 "sha256": sha256_file(path),
                 "bytes": path.stat().st_size,
-                "authority": authority,
+                "authority": (
+                    AUTHORITY_MIGRATION[authority][0]
+                    if authority in AUTHORITY_MIGRATION
+                    else authority
+                ),
+                **(
+                    {"authority_detail": AUTHORITY_MIGRATION[authority][1]}
+                    if authority in AUTHORITY_MIGRATION
+                    else (
+                        {"authority_detail": spec["authority_detail"]}
+                        if spec.get("authority_detail")
+                        else {}
+                    )
+                ),
                 "phase": phase,
                 "case_ids": case_ids,
                 **{k: spec[k] for k in ("source_path", "source_mtime", "received_at", "note") if k in spec},

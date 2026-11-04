@@ -125,3 +125,26 @@ def test_byte_drift_is_rejected(tmp_path: Path) -> None:
     result = _run_checker(manifest, archive)
     assert result.returncode == 1
     assert "sha256 不符" in result.stdout or "bytes 不符" in result.stdout
+
+
+def test_v8_detailed_authority_value_is_rejected_with_migration_hint(tmp_path: Path) -> None:
+    """H5 m03672：v8 起 authority 只两值；出现旧细分值必须红并提示 authority_detail。"""
+    manifest, archive = _make_package(tmp_path)
+    data = json.loads(manifest.read_text(encoding="utf-8"))
+    entry = next(e for e in data["entries"] if e["path"] == "a19-artifacts/results.json")
+    entry["authority"] = "post_fix_authoritative"  # 旧细分值直接写回
+    manifest.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    proc = _run_checker(manifest, archive)
+    assert proc.returncode == 1, proc.stdout + proc.stderr
+    assert "authority_detail" in proc.stdout
+
+
+def test_v8_two_value_authority_with_detail_passes(tmp_path: Path) -> None:
+    """H5 m03672：v8 格式 = authority(两值) + authority_detail(细分)。"""
+    manifest, archive = _make_package(tmp_path)
+    data = json.loads(manifest.read_text(encoding="utf-8"))
+    entry = next(e for e in data["entries"] if e["path"] == "a19-artifacts/results.json")
+    assert entry["authority"] == "authoritative"
+    assert entry["authority_detail"] == "post_fix_authoritative"
+    proc = _run_checker(manifest, archive)
+    assert proc.returncode == 0, proc.stdout + proc.stderr

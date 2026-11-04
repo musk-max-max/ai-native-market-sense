@@ -27,6 +27,33 @@ from pathlib import Path
 
 
 PHASES = {"pre_fix", "post_fix", "not_applicable"}
+AUTHORITY_BASE = {"authoritative", "historical"}
+# H5 m03672：v7 已签 manifest 的细分值 grandfather（仅当 manifest sha == V7_ACCEPTANCE_MANIFEST_SHA），
+# v8 起 authority 只允许 authoritative|historical，细分放 authority_detail。
+AUTHORITY_MIGRATION = {
+    "pre_fix_baseline": ("historical", "pre_fix_baseline"),
+    "pre_fix_control": ("historical", "pre_fix_control"),
+    "historical": ("historical", "historical"),
+    "authoritative": ("authoritative", "authoritative"),
+    "post_fix_authoritative": ("authoritative", "post_fix_authoritative"),
+    "post_fix_control": ("authoritative", "post_fix_control"),
+    "post_fix_run_scoped_raw_log": ("authoritative", "post_fix_run_scoped_raw_log"),
+    "evidence": ("authoritative", "evidence"),
+    "index": ("authoritative", "index"),
+    "receipt": ("authoritative", "receipt"),
+    "meta": ("authoritative", "meta"),
+}
+AUTHORITY_DETAILS = {detail for _, detail in AUTHORITY_MIGRATION.values()}
+V7_ACCEPTANCE_MANIFEST_SHA = "c2cc1de5823c1d480c2804b318c41fbc86b994d785f7716f64b26993c5e28d54"
+# 冻结签字包的 grandfather 列表：**sha 精确匹配**，不放行按文件名/版本号。（v4/v5/v6 早于本规则且已签字冻结）
+GRANDFATHERED_ACCEPTANCE_MANIFESTS = {
+    V7_ACCEPTANCE_MANIFEST_SHA,  # v7
+    "8ac7e62589b3f3548b517b4be8bfc28517717e34f1d6445c006b62335c463e50",  # v4
+    "b0e226262fa33077f6877bce0e84420bcc6f6b39552300d9be49c83b9c95d9eb",  # v5
+    "7d5488b3415dbd07c77576d2f7b38625fdf884916a9b9d7dce7d9ab2d970bd9f",  # v6 124 条
+    "35689bca81e9a0c9df6278ecfc0d3ae2dad7770f7807f2e2266b4ed87b576c72",  # v6 97 条
+}
+
 AUTHORITIES = {
     "pre_fix_baseline",
     "pre_fix_control",
@@ -103,8 +130,35 @@ def verify_manifest_schema(manifest: dict) -> list[Failure]:
         if int(manifest.get("schema_version", 1)) >= 2:
             # H5-R19：每条带 authority / phase / case_ids
             authority = entry.get("authority")
-            if authority not in AUTHORITIES:
-                failures.append(Failure(path, f"authority 非法或缺失：{authority!r}（允许 {sorted(AUTHORITIES)}）"))
+            manifest_sha = manifest.get("_manifest_sha256")
+            if authority == "drill":
+                # H5 m03641：drill 是演练记录，不是验收证据；只允许出现在 infra/evidence 的演练 manifest。
+                failures.append(
+                    Failure(
+                        path,
+                        "authority=drill 禁止进入验收证据包：drill 证据走 infra/evidence 的演练 manifest，"
+                        "签字包 authority 只接受 authoritative/historical（A11 包内细分标签见 AUTHORITIES）",
+                    )
+                )
+            elif manifest_sha in GRANDFATHERED_ACCEPTANCE_MANIFESTS:
+                # H5 m03672：v7 已签字节例外，仅凭 sha 命中；9 个细分值放行，其它仍非法。
+                if authority not in AUTHORITY_MIGRATION:
+                    failures.append(Failure(path, f"v7 例外范围内 authority 非法：{authority!r}"))
+            elif authority in AUTHORITY_BASE:
+                detail = entry.get("authority_detail")
+                if detail is not None and detail not in AUTHORITY_DETAILS:
+                    failures.append(Failure(path, f"authority_detail 非法：{detail!r}（允许 {sorted(AUTHORITY_DETAILS)}）"))
+            elif authority in AUTHORITY_MIGRATION:
+                mapped, _ = AUTHORITY_MIGRATION[authority]
+                failures.append(
+                    Failure(
+                        path,
+                        f"v8 起 authority 只接受 authoritative|historical，实际 {authority!r}；"
+                        f"请改为 authority={mapped!r} + authority_detail={authority!r}",
+                    )
+                )
+            else:
+                failures.append(Failure(path, f"authority 非法或缺失：{authority!r}（允许 authoritative|historical）"))
             phase = entry.get("phase")
             if phase not in PHASES:
                 failures.append(Failure(path, f"phase 非法或缺失：{phase!r}（允许 {sorted(PHASES)}）"))
@@ -304,8 +358,12 @@ def verify_receipts(manifest: dict) -> list[Failure]:
     for entry in receipt_like:
         if len(entry.get("sha256", "")) != 64:
             failures.append(Failure(entry["path"], "receipt 必须有独立 sha256"))
-        if int(manifest.get("schema_version", 1)) >= 2 and entry.get("authority") != "receipt":
-            failures.append(Failure(entry["path"], f"receipt 类 artifact 的 authority 应为 receipt，实际 {entry.get('authority')!r}"))
+        if int(manifest.get("schema_version", 1)) >= 2:
+            effective = entry.get("authority")
+            if manifest.get("_manifest_sha256") not in GRANDFATHERED_ACCEPTANCE_MANIFESTS and effective in AUTHORITY_BASE:
+                effective = entry.get("authority_detail") or effective
+            if effective != "receipt":
+                failures.append(Failure(entry["path"], f"receipt 类 artifact 的 authority 应为 receipt，实际 {effective!r}"))
     return failures
 
 
@@ -315,6 +373,16 @@ def verify_authority(manifest: dict) -> list[Failure]:
     by_path = {e["path"]: e for e in manifest["entries"]}
     if int(manifest.get("schema_version", 1)) < 2:
         return failures  # v3 冻结包（schema 1）按当时口径，不追溯改判
+    manifest_sha = manifest.get("_manifest_sha256")
+    if manifest_sha in GRANDFATHERED_ACCEPTANCE_MANIFESTS:
+        def detail_of(entry: dict) -> str | None:
+            return entry.get("authority")
+    else:
+        def detail_of(entry: dict) -> str | None:
+            if entry.get("authority") in AUTHORITY_BASE:
+                return entry.get("authority_detail") or entry.get("authority")
+            return entry.get("authority")
+
     expected = {
         # H5-R22：A19 新 run 后 results.json 为 post-fix 权威；修复前基线以新文件名保留。
         "a19-artifacts/results.json": "post_fix_authoritative",
@@ -328,8 +396,8 @@ def verify_authority(manifest: dict) -> list[Failure]:
             if required:
                 failures.append(Failure(path, "缺权威版本文件"))
             continue
-        if entry.get("authority") != authority:
-            failures.append(Failure(path, f"authority 应为 {authority}，实际 {entry.get('authority')!r}"))
+        if detail_of(entry) != authority:
+            failures.append(Failure(path, f"authority（detail）应为 {authority}，实际 {detail_of(entry)!r}"))
 
     # 以下 A19 专属断言只在声明了 a19_authority_required 的包上生效（合成自检包不误报）
     if not required:
@@ -340,11 +408,11 @@ def verify_authority(manifest: dict) -> list[Failure]:
         failures.append(Failure("a19-artifacts/results-prefix-g3-*", "缺 G3 修复前基线（不得覆盖/删除 pre-fix）"))
     else:
         for entry in prefix:
-            if entry.get("authority") != "pre_fix_baseline" or entry.get("phase") != "pre_fix":
+            if detail_of(entry) != "pre_fix_baseline" or entry.get("phase") != "pre_fix":
                 failures.append(Failure(entry["path"], "G3 修复前基线必须标 pre_fix_baseline/pre_fix"))
     for path in ("a19-artifacts/r4-before-fix.json", "a19-artifacts/trustproxy-guard-before-fix.json"):
         entry = by_path.get(path)
-        if entry is not None and (entry.get("authority") != "pre_fix_control" or entry.get("phase") != "pre_fix"):
+        if entry is not None and (detail_of(entry) != "pre_fix_control" or entry.get("phase") != "pre_fix"):
             failures.append(Failure(path, "修复前控制组必须标 pre_fix_control/pre_fix"))
     if not any(e["path"].startswith("a19-artifacts/http-attempts-") for e in manifest["entries"]):
         failures.append(Failure("a19-artifacts/http-attempts-*", "缺 raw HTTP 往返日志（run-scoped）"))
@@ -359,6 +427,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     manifest = load_manifest(args.manifest)
+    manifest["_manifest_sha256"] = hashlib.sha256(args.manifest.read_bytes()).hexdigest()
     if args.manifest_member is None:
         try:
             with tarfile.open(args.archive, "r:*") as tar:

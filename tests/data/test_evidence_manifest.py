@@ -231,3 +231,40 @@ def test_v7_archive_is_pinned_and_manifest_covers_it(tmp_path):
 def _sha256_bytes(data: bytes) -> str:
     import hashlib
     return hashlib.sha256(data).hexdigest()
+
+
+def test_drill_authority_is_rejected_from_acceptance_pack(tmp_path: Path) -> None:
+    """H5 m03641：drill 是演练记录，进验收包即红，并提示走 infra/evidence。"""
+    import json
+    import subprocess
+    import sys
+
+    tar = REPO_ROOT / "tests/data/acceptance/artifacts/11-12-evidence-20261104-v7-2523256.tar.gz"
+    work = tmp_path / "unpack"
+    work.mkdir()
+    with tarfile.open(tar) as tf:
+        tf.extractall(work)
+    manifest_path = work / "evidence-manifest-v7-20261104T0730Z.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert manifest["entries"], "v7 manifest 为空"
+    target = next(e for e in manifest["entries"] if e["authority"] != "receipt")
+    target["authority"] = "drill"
+    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+    with tarfile.open(tar) as tf:
+        passes = [m for m in tf.getmembers() if m.name != manifest_path.name]
+    bad_tar = tmp_path / "bad.tar.gz"
+    with tarfile.open(bad_tar, "w:gz") as tf:
+        for m in passes:
+            tf.addfile(m, tf.extractfile(m) if False else None)  # placeholder, replaced below
+    # 重新用磁盘文件打包（保持顺序无关）
+    with tarfile.open(bad_tar, "w:gz") as tf:
+        for path in sorted(p for p in work.rglob("*") if p.is_file()):
+            tf.add(path, arcname=path.relative_to(work).as_posix())
+    proc = subprocess.run(
+        [sys.executable, str(REPO_ROOT / "tests/data/acceptance/check_evidence_manifest.py"),
+         "--manifest", str(manifest_path), "--archive", str(bad_tar),
+         "--manifest-member", manifest_path.name],
+        capture_output=True, text=True,
+    )
+    assert proc.returncode == 1, proc.stdout + proc.stderr
+    assert "drill" in proc.stdout and "infra/evidence" in proc.stdout
