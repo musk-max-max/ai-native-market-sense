@@ -1,0 +1,78 @@
+# 11-12 门禁 #4 慢故障（L74）原始记录 —— A13
+# 结论先行：本机无法构造 iptables/pf DROP 黑洞；不提供伪造的 P95。
+# 同时记录一个阻塞性问题：服务当前没有配置 connect_timeout / statement_timeout，
+# 即使有 DROP 环境，"DB 在但慢" 也会挂住而不是快速失败。
+
+timestamp_utc: 2026-11-04T01:23:00Z
+host: Darwin 26.5.1 (macOS), arm64
+toolchain:
+  node: v23.11.0
+  psql: psql (PostgreSQL) 16.15 (Homebrew)
+  postgres_server: 16.15 @ 127.0.0.1:55432 (scratch a13_verify)
+  helm: v3.16.2 (+g13654a5)
+  oasdiff: 1.35.0
+runtime_under_test: services/api/src/server.ts + services/market (EntitlementGate)
+gate_config_defaults:
+  negative_cache_ms: 5000        (services/market/src/domain/entitlement-gate.ts:90)
+  breaker_threshold: 3           (:91)
+  breaker_ms: 30000              (:92)
+  control_cache_ms: 30000        (放行态缓存；hold 态不缓存)
+
+## 1) DROP 构造尝试（失败，如实记录）
+darwin 无 iptables: `command -v iptables` -> (empty)
+pfctl 需要 /dev/pf 写权限:
+  $ pfctl -a a13_drop -f /dev/stdin <<<'block drop quick on lo0 proto tcp from any to 127.0.0.1 port 55432'
+  pfctl: Use of -f option, could result in flushing of rules ... (warning)
+  $ pfctl -a a13_drop -sr
+  pfctl: /dev/pf: Permission denied      <- 规则并未加载
+  $ pfctl -s info
+  pfctl: /dev/pf: Permission denied
+sudo:
+  $ sudo -n true
+  sudo: a password is required           <- 非交互不可用；approval prompts 在本会话禁用
+连通性反证（证明当前未被 block）:
+  $ PGCONNECT_TIMEOUT=1 psql ... -c 'select 1'
+  1  (25ms)
+
+因此：
+- 本机无法构造 "DROP 后连接挂起" 的故障注入。
+- 不使用 ECONNREFUSED 顶替（无监听时 connect 立即失败，不经过"慢"维度；
+  已有 services/market/evidence/hold-unreachable-raw-20261104.txt 属该情形，不能作为本条证据）。
+
+## 2) 实际超时配置（可直接复核）
+services 内所有 Pool 构造（含 services/market/src/plugin.ts:97）均为:
+  new Pool({ connectionString: config.databaseUrl })
+即未传 connectionTimeoutMillis / query_timeout / statement_timeout。
+DB 端（a13_verify，默认库配置，角色无 rolconfig）:
+  SHOW statement_timeout                    -> 0        (无限制)
+  SHOW idle_in_transaction_session_timeout  -> 0
+  SHOW lock_timeout                         -> 0
+  select rolconfig from pg_roles where rolname in ('market_app','warehouse_loader','ci_deploy_writer')
+    -> 全部为空
+结论（配置事实，不是测量值）:
+- connect_timeout: 未配置。node-postgres 默认 connectionTimeoutMillis=0（不超时），
+  由 OS TCP 超时兜底（本机不可控，量级 ~75s），远超 #2 的 1500ms。
+- statement_timeout: 未配置（DB 0 + 客户端无 query_timeout），查询可无限挂起。
+
+## 3) 这对 #2/#3 的直接影响（推理，待 DROP 环境实测确认）
+EntitlementGate.evaluate() 只是 `await this.repo.fetchControl()`，没有 Promise.race/超时；
+failures/熔断只在 promise reject 时累加（entitlement-gate.ts:157-161）。
+黑hole 下 promise 不 reject -> 请求挂住：
+- 20 样本 P95 ≤1500ms：不可能成立（首个请求就会 >1500ms，甚至 > OS 超时）；
+- 熔断后 P95 ≤50ms：熔断根本不会被触发（没有 reject 可计数），该数字不存在。
+=> 必须先补超时（连接 + 查询 + 读 control 的请求级超时），否则 #4 即使有 DROP 也是红。
+
+## 4) 待办/建议（不改他人代码，交给 A3/H4 定）
+1. Pool: connectionTimeoutMillis=1000、query_timeout=1000（或 statement_timeout=1s 服务端），
+   并在 EntitlementGate 对 control 读加 AbortSignal/超时，超时即 reject 走 5s 负缓存/熔断。
+2. 有 DROP 能力的环境（Linux runner + iptables 或带 NET_ADMIN 的容器）上重跑：
+   iptables -I OUTPUT -p tcp -d 127.0.0.1 --dport 55432 -j DROP
+   记录 20 样本、熔断后 P95、撤规则恢复时间、/healthz reason 与响应体不含 DSN/主机/端口。
+3. 本文只作为"无法构造 + 阻塞性配置缺口"的证据，不计入 #4 PASS。
+
+## 2b) 更早的阻塞点：启动探测也会挂住（静态代码事实）
+services/market/src/plugin.ts:150  `await gate.probeStartup();`
+services/market/src/domain/entitlement-gate.ts:120 `probeStartup(): await this.evaluate()`
+-> 进程在 listen 之前就去读 control 行；黑hole 时该 await 永不返回（无超时），
+   服务根本到不了"quote -> 403 + no-store"的路径，更谈不上 20 样本 P95。
+   也就是说 #4 的 #1/#2 需要先修超时，否则在真 DROP 环境同样复现"启动挂死"。
