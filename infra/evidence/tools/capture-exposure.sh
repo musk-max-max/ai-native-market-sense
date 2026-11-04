@@ -1,10 +1,19 @@
 #!/bin/sh
 # infra/evidence/tools/capture-exposure.sh —— H5 #7 ④ 暴露面外部/内部证据采集
 #
-# WHY：入口到位后必须一次跑出可复核证据，不能现写命令。证据要求（H5 m02701/m02740）：
+# WHY：入口到位后必须一次跑出可复核证据，不能现写命令。证据要求（H5 m02701/m02740/m02829）四件套：
 #   * 集群外：https://<ingress-host>/healthz 与 /metrics 必须 404，且 body 不含 entitlement_degraded*/hold_reason；
 #   * Pod 内：localhost:8080/healthz 必须 200 且字段完整；
+#   * 静态：helm template 渲染断言（exposure-static-guard-*.txt，已有）；
+#   * NetworkPolicy 真集群验证（本脚本只打印命令，执行需权限，见下方授权边界）。
 #   * 记录命令原文 + 响应头 + 时间戳 + 执行人；YAML 本身不算证据。
+#
+# 授权边界（H5 m02829，硬约束）：
+#   NetworkPolicy 验证必须在真实集群**执行**：default 命名空间建 Pod 访问 API :8080 不通、
+#   ingress-nginx 命名空间可达、monitoring 命名空间仅允许范围可达。只读 kubeconfig 不够；
+#   「policy 存在 + kubectl describe 输出」不得替代执行结果，否则该项记 PARTIAL。
+#   只有两种合法路径：① 用户/运维授予建 Pod + exec 权限（default/ingress-nginx/monitoring）；
+#   ② 由有权限的一方执行、A13 只收原始输出。
 #
 # 用法：
 #   EXPOSURE_HOST=docs.example.com POD=market-sense-dev-xxxxx NS=market-sense-dev \
@@ -33,6 +42,14 @@ curl -sS --max-time ${TIMEOUT} -D /tmp/h-healthz.hdr -o /tmp/h-healthz.body -w '
 curl -sS --max-time ${TIMEOUT} -D /tmp/h-metrics.hdr -o /tmp/h-metrics.body -w 'external /metrics http=%{http_code} t=%{time_total}\\n' https://<EXPOSURE_HOST>/metrics
 kubectl -n ${NS} exec ${POD:-<pod>} -- curl -sS --max-time ${TIMEOUT} -o - -w '\\ninternal /healthz http=%{http_code}\\n' http://127.0.0.1:8080/healthz
 # 断言：external /healthz、/metrics = 404 且 body 不含 entitlement_degraded|hold_reason；internal /healthz = 200 且含 data_ready/entitlement_degraded 字段
+# ④ NetworkPolicy（需建 Pod/exec 权限；只读 kubeconfig 记 PARTIAL）：
+kubectl -n default run a13-np-probe --rm -i --restart=Never --image=curlimages/curl:8.10.1 -- \
+  curl -m 5 -sS -o /dev/null -w 'default->api http=%{http_code} exit=??\n' "http://<api-service>.<api-ns>:8080/healthz" || echo "default->api 不可达（预期：timeout/refused）"
+kubectl -n ingress-nginx run a13-np-probe --rm -i --restart=Never --image=curlimages/curl:8.10.1 -- \
+  curl -m 5 -sS -o /dev/null -w 'ingress-nginx->api http=%{http_code}\n' "http://<api-service>.<api-ns>:8080/healthz"   # 预期可达（200 或应用层状态）
+kubectl -n monitoring run a13-np-probe --rm -i --restart=Never --image=curlimages/curl:8.10.1 -- \
+  curl -m 5 -sS -o /dev/null -w 'monitoring->api http=%{http_code}\n' "http://<api-service>.<api-ns>:8080/healthz"  # 仅允许范围内可达（按 policy 断言）
+# 证据记录：namespace/pod 名 + 命令原文 + 实测输出；任一未执行 → NetworkPolicy 项记 PARTIAL，不冒充
 # 证据：${OUT}（path/bytes/sha256 入 infra/evidence/evidence-manifest.json，authority=authoritative phase=post-fix case_ids=H5-R10,H5-R19）
 EOF
   exit 0

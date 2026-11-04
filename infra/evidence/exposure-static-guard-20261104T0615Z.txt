@@ -1,0 +1,43 @@
+# H5 #7 ② CI 静态守卫证据：ingress 只 /v1 + NetworkPolicy 五条不变式
+# authority: authoritative  phase: post-fix  case_ids: H5-R10,H5-R19
+commit: e4981be7319cac8c248fde03ab6eabf0c97aa395
+command: HELM_BIN=/tmp/tools/helm node infra/ci/check-network-policy.mjs
+helm: v3.16.2+g13654a5
+runtime: Darwin 25.5.0 arm64
+executor: A13 (a13-sre)
+timestamp: 2026-11-04T06:15:46Z
+--- output ---
+✅ ingress 模板不路由 /healthz
+✅ ingress 模板不含 path: / 全放
+✅ networkpolicy 模板含 default-deny-ingress
+✅ networkpolicy 模板含 default-deny-egress
+✅ values-dev.yaml Ingress 仅暴露 /v1（实际 /v1）
+✅ values-dev.yaml Ingress 不暴露 /healthz
+✅ values-dev.yaml Ingress 不暴露 /metrics
+✅ values-dev.yaml Ingress 不暴露 /docs
+✅ values-dev.yaml Ingress 不暴露 /openapi.json
+✅ values-dev.yaml Ingress 不暴露 /readyz
+✅ values-dev.yaml Ingress 不暴露 /internal
+✅ values-dev.yaml 渲染出 5 个 NetworkPolicy（实际 5）
+✅ values-dev.yaml NetworkPolicy 含 default-deny ingress/egress + DNS + monitoring
+✅ values-dev.yaml allow-monitoring 限定 monitoring 命名空间（不得 namespaceSelector: {}）
+✅ values-dev.yaml allow-monitoring 只放行 http 端口（8080），不额外开 metrics 端口
+✅ values-dev.yaml Ingress 注解不含 metrics/healthz 路径放行
+✅ values-dev.yaml Service 未把 /metrics 暴露为独立公网端口（当前未实现）
+✅ values-preview.yaml Ingress 仅暴露 /v1（实际 /v1）
+✅ values-preview.yaml Ingress 不暴露 /healthz
+✅ values-preview.yaml Ingress 不暴露 /metrics
+✅ values-preview.yaml Ingress 不暴露 /docs
+✅ values-preview.yaml Ingress 不暴露 /openapi.json
+✅ values-preview.yaml Ingress 不暴露 /readyz
+✅ values-preview.yaml Ingress 不暴露 /internal
+✅ values-preview.yaml 渲染出 5 个 NetworkPolicy（实际 5）
+✅ values-preview.yaml NetworkPolicy 含 default-deny ingress/egress + DNS + monitoring
+✅ values-preview.yaml allow-monitoring 限定 monitoring 命名空间（不得 namespaceSelector: {}）
+✅ values-preview.yaml allow-monitoring 只放行 http 端口（8080），不额外开 metrics 端口
+✅ values-preview.yaml Ingress 注解不含 metrics/healthz 路径放行
+✅ values-preview.yaml Service 未把 /metrics 暴露为独立公网端口（当前未实现）
+⏭ 集群外 /healthz=404：未提供 PUBLIC_BASE_URL，未验证（release-gate 会在有入口时实测）
+
+✅ 网络边界断言通过（1 项未验证，已在输出标明）
+--- exit: 0 ---

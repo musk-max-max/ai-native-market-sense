@@ -150,8 +150,8 @@
     },
     {
       "path": "infra/evidence/tools/capture-exposure.sh",
-      "sha256": "a40249857847e6625c69ff5306e9eb9386c2781ccf4cb650b3df021cea2f0f60",
-      "bytes": 6038,
+      "sha256": "564dd79415a25e26b6521f61e727fe2801caa6736f1addc7deabca91a68d74e8",
+      "bytes": 7830,
       "recompute": "sha256sum infra/evidence/tools/capture-exposure.sh",
       "role": "evidence-tool",
       "authority": "authoritative",
@@ -160,7 +160,7 @@
         "H5-R10",
         "H5-R19"
       ],
-      "notes": "H5 #7 ④ 暴露面采集模板：外部 /healthz、/metrics 非 200 且 body 无内部状态；Pod 内 /healthz 200 字段完整；--dry-run 可预演。入口到位后按此取证。"
+      "notes": "H5 四件套采集模板；新增 NetworkPolicy 真集群执行命令与授权边界（只读 kubeconfig → PARTIAL）。"
     }
   ],
   "related_manifests": [

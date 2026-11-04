@@ -61,8 +61,12 @@ function loadAllowlist() {
     }
     if (!e.owner || typeof e.owner !== 'string') errors.push(`${where}: 缺 owner`);
     if (!e.reason || typeof e.reason !== 'string') errors.push(`${where}: 缺 reason`);
-    if (!APPROVERS.includes(String(e.approved_by || ''))) {
-      errors.push(`${where}: approved_by 必须是人类席位（${APPROVERS.join('/')}）`);
+    const approvedBy = String(e.approved_by || '')
+      .split('/')
+      .map((x) => x.trim())
+      .filter(Boolean);
+    if (approvedBy.length === 0 || approvedBy.some((who) => !APPROVERS.includes(who))) {
+      errors.push(`${where}: approved_by 必须是人类席位（${APPROVERS.join('/')}，多人用 / 分隔）`);
     }
     if (!e.approval_ref || typeof e.approval_ref !== 'string') errors.push(`${where}: 缺 approval_ref`);
     entries.push({ ...e });
