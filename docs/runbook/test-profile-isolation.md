@@ -45,7 +45,7 @@
    - ③ 安全组只放行指定 IP（或保持关闭）；
    - ④ Basic Auth 口令轮换且不复用。
 3. `ENTITLEMENT_TIER != internal_eval` 缺 hold/audit/sha：停实例并报 H5，按 KD-ENT-01 处置；不得用「补 env 后重启」掩盖，先查为何 bypass 被默认打开。
-4. 恢复后复核：`docker inspect` env、公网 404/401 行为、`/healthz` body 不含内部状态、access log 无第三方持证 2xx；证据落 `infra/evidence/`（authority=drill 或与场景匹配，不冒充 prod 证据）。
+4. 恢复后复核：`docker inspect` env、公网 404/401 行为、`/healthz` body 不含内部状态、access log 无第三方持证 2xx；证据落 `infra/evidence/drill/` 并登记 `infra/evidence/drill-manifest.json`（authority 只能是 `drill`，不进 H5 签字证据包；与场景匹配的 prod 证据才进 `evidence-manifest.json`）。
 
 ## 升级
 
