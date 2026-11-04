@@ -10,9 +10,10 @@ P0 唯一用户旅程的 E2E 证据链：**打开个股页 → 行情 → as_of 
 tests/e2e/
 ├── docker-compose.yml          # 真栈：postgres/redis/tushare-replay/api/web + seed 链（db-migrate/ingress/warehouse-load/ingest-report；app-net internal）
 ├── docker-compose.record.yml   # 本地录制 override（唯一允许出网 + 持 token，CI 拒用）
+├── docker-compose.entitlement-positive.yml  # 已授权/hold/audit 正向 override（独立 project + loopback-only；KD-ENT-01）
 ├── tushare-replay/             # tushare HTTP 边界录播代理（含 8 条自测）
 ├── scripts/
-│   ├── validate_compose.py     # 无需 docker 的结构断言（37 项）
+│   ├── validate_compose.py     # 无需 docker 的结构断言（80 项，含 KD-ENT-01 授权配置）
 │   ├── preflight.py            # 准入判定 READY/SKIP(78)/FAIL(1)，产出 .e2e-status.json
 │   ├── up.sh                   # 一条命令起真栈（含一次性 ingest 与 preflight）
 │   └── record-fixtures.sh      # 本地「录一次真实响应」（CI 拒绝执行）
@@ -147,20 +148,22 @@ seed 失败时 api/web
 ## hold（合规冻结，P0 纳入）
 
 hold 是控制面能力，依赖 A5 的 `services/compliance/migrations/001_audit_entitlement_events.sql` 与 A13 的 `infra/scripts/db-migrate.sh`；
-E2E 库必须走同一迁移路径，**禁止 compose 手写 DDL**。api 需 `ENTITLEMENT_HOLD_CHECK=1`（+ `ENTITLEMENT_AUDIT=1`）显式开，默认 0。
-`E2E_HOLD_ENABLED=1` 才跑 `E2E-P0-11`；未开启时 skip 并在报告里带原因，不冒充通过。
+E2E 库必须走同一迁移路径，**禁止 compose 手写 DDL**。db-migrate 已覆盖 compliance `001`/`002` + `20_grants`，
+因此 e2e 不再依赖「默认关 hold/audit」：默认栈与 positive override 都显式 `ENTITLEMENT_HOLD_CHECK=1` /
+`ENTITLEMENT_AUDIT=1`（KD-ENT-01）。`E2E_HOLD_ENABLED=1` 才跑 `E2E-P0-11`；未开启时 skip 并在报告里带原因，不冒充通过。
 
 ## 授权矩阵（A12 口径；契约 `Entitlement.tier` 已写死语义）
 
-- **normal（`E2E_ENTITLEMENT_MATRIX=normal`）**：**必须显式** `E2E_ENTITLEMENT_TIER=c_end_display`
-  （compose 默认是 `internal_eval`，fail-closed，见 A13/H5 2026-11-04；裸跑会以 `CONFIG_TIER_FAIL_CLOSED`
-  失败——这是配置提示，不是产品 bug）。A3 的 fail-closed 还要求非 `internal_eval` 档带到期时间盒，
-  compose 默认留空（默认栈不需要），normal 矩阵必须同时显式传
-  `E2E_ENTITLEMENT_EXPIRES_AT=2030-12-31T00:00:00Z`。
+- **normal（`E2E_ENTITLEMENT_MATRIX=normal`）**：必须加载已授权档 override
+  `docker-compose.entitlement-positive.yml`（**默认栈固定 `internal_eval`，不接受任何 tier 环境变量 override**，
+  H5 KD-ENT-01；裸跑默认栈会以 `CONFIG_TIER_FAIL_CLOSED` 失败——这是配置提示，不是产品 bug）。
+  override 显式配齐 `ENTITLEMENT_TIER=c_end_display`、`HOLD_CHECK=1`、`AUDIT=1`、
+  `ENTITLEMENT_CONFIG_EXPECTED_SHA256=sha256("c_end_display|2030-12-31T00:00:00.000Z")`、`ENTITLEMENT_EXPIRES_AT=2030-12-31T00:00:00Z`；
+  独立 compose project + 端口仅绑 127.0.0.1（禁止公网可达）。启动方式见 RUNBOOK §1。
   quote / bars / fundamental-summary / instrument 均为 `200 + tier=c_end_display + is_entitled=true`；watchlist 恒
   `200 + tier=platform_user_data + is_entitled=true`。P0-02 价格/涨跌幅断言必须真跑。
-- **restricted（F1 否决线，`E2E_ENTITLEMENT_MATRIX=restricted`）**：`E2E_ENTITLEMENT_TIER=internal_eval`
-  （或被时间盒判定为过期：`ENTITLEMENT_EXPIRES_AT` 在过去，同样落 403 分支）。
+- **restricted（F1 否决线，`E2E_ENTITLEMENT_MATRIX=restricted`）**：默认栈（固定 `internal_eval`）直接跑；
+  `expired` 场景用 positive override 但把 `ENTITLEMENT_EXPIRES_AT` 设成过去时间（同时重算 sha）。
   quote / bars / fundamental-summary 必须 `403 + Problem code=ENTITLEMENT_RESTRICTED`（Lead 2026-11-04 裁定 AC-5：
   **200+is_entitled=false 不得替代 403**，fail-closed）；`GET /v1/instruments/{id}` 基础信息 `200 + tier=internal_eval
   + is_entitled=false` 且不含行情数值（否则页面连证券名都显示不出）；watchlist 不受矩阵影响，恒
@@ -173,7 +176,7 @@ fail-closed，等价于 restricted（可用 `E2E_ENTITLEMENT_TIER=internal_eval`
 E2E 只断言 `entitlementNotice` 可见，不把文案当契约。
 
 preflight 的 `ENTITLEMENT` 检查在准入阶段逐接口比对「矩阵期望」与「API 实际返回」，配错直接 FAIL（配置缺陷 ≠ 产品 bug）。
-normal 矩阵撞到 fail-closed 默认档时带独立 reason `CONFIG_TIER_FAIL_CLOSED`，直接告诉你「设 `E2E_ENTITLEMENT_TIER=c_end_display`」，不用翻实现。
+normal 矩阵撞到 fail-closed 默认档时带独立 reason `CONFIG_TIER_FAIL_CLOSED`，直接告诉你「加载 `docker-compose.entitlement-positive.yml` 起 normal 栈」，不用翻实现。
 FAIL 会带独立 reason code，让红灯可归因、不用每天重查：
 - `CONTRACT_MISSING_403`：契约未声明 403（预期内红灯，**等待 A0/契约 bump，非实现缺陷**），指向具体接口路径；
 - `IMPL_WRONG_STATUS`：契约已声明 403，但实现返回了别的状态/缺 `code=ENTITLEMENT_RESTRICTED` → 找 A3；
@@ -191,7 +194,7 @@ FAIL 会带独立 reason code，让红灯可归因、不用每天重查：
 
 本机当前**没有 docker / pnpm / Playwright 浏览器**，因此本轮交付的验证边界是：
 
-- ✅ `validate_compose.py` 69/69 通过（真栈/录播/断网/token/授权矩阵/seed 链/`sh` 迁移脚本结构断言）
+- ✅ `validate_compose.py` 80/80 通过（真栈/录播/断网/token/授权矩阵/positive override/seed 链/`sh` 迁移脚本/loopback 端口）
 - ✅ `pytest tushare-replay/test_server.py tests/e2e/scripts/test_preflight.py` 42 passed
 - ✅ 合成录制 19 条 + `build_recordings.py --check` 通过；replay 冒烟：已录制 200（`SYNTHETIC-*` 值）、未录制 503 `FIXTURE_MISSING`
 - ✅ `preflight.py --offline` 正确输出 `SKIP(78)` 并落 `.e2e-status.json`

@@ -2,7 +2,7 @@
 
 状态：**未验证（Dlv-4 如实标注）**。本机没有 docker，远端未接，所以 `docker compose build` /
 `docker compose up` **一次都没跑过**。已做过的是等价命令验证（A0 多阶段命令、A1 CLI 冒烟、A12 compose 静态
-44/44 断言），但**没有任何一次真实 build**。在远端第一次跑通之前，禁止把它写成「真栈可用」。
+80/80 断言），但**没有任何一次真实 build**。在远端第一次跑通之前，禁止把它写成「真栈可用」。
 
 ## 1. 前置
 
@@ -17,10 +17,13 @@
 ```bash
 # 0) 纯静态：变量插值/服务图/端口/卷。不需要镜像。
 docker compose -f tests/e2e/docker-compose.yml config -q
+# 0b) 已授权档 override 也要能被 compose 解析（H5 KD-ENT-01；端口仍 loopback-only）
+docker compose -f tests/e2e/docker-compose.yml \
+  -f tests/e2e/docker-compose.entitlement-positive.yml config -q
 
 # 1) 逐镜像构建（哪个先炸就定位哪个，别一上来 build 全部）
 docker compose -f tests/e2e/docker-compose.yml build --pull tushare-replay
-docker compose -f tests/e2e/docker-compose.yml build --pull ingest-once
+docker compose -f tests/e2e/docker-compose.yml build --pull ingress
 docker compose -f tests/e2e/docker-compose.yml build --pull api
 docker compose -f tests/e2e/docker-compose.yml build --pull web
 

@@ -36,7 +36,20 @@ fi
 # 1) 先做 compose 静态断言：结构退化（断网/挂载/token/镜像职责）不该等到 up 之后才发现
 python3 scripts/validate_compose.py --quiet
 
+# 可选 override（H5 KD-ENT-01）：已授权/展示正向用例用
+# `E2E_COMPOSE_OVERRIDE=docker-compose.entitlement-positive.yml E2E_COMPOSE_PROJECT=e2e-ent-positive`。
+# 默认栈固定 internal_eval，不接受 E2E_ENTITLEMENT_TIER override。
 COMPOSE=(docker compose -f docker-compose.yml)
+if [ -n "${E2E_COMPOSE_OVERRIDE:-}" ]; then
+  if [ ! -f "${E2E_COMPOSE_OVERRIDE}" ]; then
+    echo "ERROR: E2E_COMPOSE_OVERRIDE 指向的文件不存在：${E2E_COMPOSE_OVERRIDE}" >&2
+    exit 2
+  fi
+  COMPOSE+=(-f "${E2E_COMPOSE_OVERRIDE}")
+fi
+if [ -n "${E2E_COMPOSE_PROJECT:-}" ]; then
+  COMPOSE+=(-p "${E2E_COMPOSE_PROJECT}")
+fi
 RUN=(run --rm)
 
 # /state 用 host bind（宿主 tests/e2e/.state，便于 preflight/报告可查）。容器内 uid 10001 需可写：

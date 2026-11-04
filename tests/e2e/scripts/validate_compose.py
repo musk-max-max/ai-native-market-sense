@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
 import sys
 from pathlib import Path
@@ -22,6 +23,7 @@ import yaml
 E2E_DIR = Path(__file__).resolve().parents[1]
 BASE = E2E_DIR / "docker-compose.yml"
 RECORD = E2E_DIR / "docker-compose.record.yml"
+POSITIVE = E2E_DIR / "docker-compose.entitlement-positive.yml"
 
 REQUIRED_SERVICES = ["postgres", "redis", "tushare-replay", "api", "web",
                     "db-migrate", "ingress", "warehouse-load", "ingest-report"]
@@ -132,19 +134,74 @@ def main(argv) -> int:
               f"实际 {env_of(api, 'DATA_SOURCE_MODE')!r}")
     rep.check(env_of(api, "ENTITLEMENT_TIER") not in (None, ""), "api 暴露 ENTITLEMENT_TIER（F1 未落地时降级）",
               "缺少 ENTITLEMENT_TIER，E2E-P0-06 无法验证「未授权不渲染价格」")
-    tier_expr = str(env_of(api, "ENTITLEMENT_TIER") or "")
-    tier_match = re.search(r"\$\{E2E_ENTITLEMENT_TIER:-([^}]*)\}", tier_expr)
-    tier_default = tier_match.group(1) if tier_match else tier_expr
-    rep.check(tier_default == "internal_eval",
-              "api ENTITLEMENT_TIER 默认 internal_eval（fail-closed，不得默认特权档）",
-              f"实际 {tier_default!r}；A13 会在 CI 拦「默认值回退成 c_end_display」（fail-open）")
-    rep.check("E2E_ENTITLEMENT_TIER" in tier_expr,
-              "api ENTITLEMENT_TIER 可由 E2E_ENTITLEMENT_TIER 显式覆盖（normal 矩阵入口）",
-              "缺变量插值，normal 矩阵无法切 c_end_display")
-    expires_expr = str(env_of(api, "ENTITLEMENT_EXPIRES_AT") or "")
-    rep.check("E2E_ENTITLEMENT_EXPIRES_AT" in expires_expr,
-              "api 透传 E2E_ENTITLEMENT_EXPIRES_AT（默认空；normal 矩阵显式传，A3 fail-closed）",
-              "未透传到期时间，normal 矩阵（c_end_display）api 会拒绝启动")
+    # H5 KD-ENT-01 / A13 m02124：默认栈固定 internal_eval，不允许任何 env override，
+    # 防止有人用 E2E_ENTITLEMENT_TIER 把默认栈拉成 c_end_display（fail-open）。
+    tier_literal = str(env_of(api, "ENTITLEMENT_TIER"))
+    rep.check(tier_literal == "internal_eval",
+              "默认栈 api ENTITLEMENT_TIER 固定 internal_eval（fail-closed，无 override 入口）",
+              f"实际 {tier_literal!r}；默认栈必须是字面量 internal_eval，"
+              f"已授权档走 docker-compose.entitlement-positive.yml（KD-ENT-01）")
+    rep.check("${" not in tier_literal,
+              "默认栈 ENTITLEMENT_TIER 不是变量插值（环境变量无法把默认栈拉成特权档）",
+              f"实际 {tier_literal!r}；插值形式会让 `E2E_ENTITLEMENT_TIER=c_end_display` 悄悄改默认栈")
+    # 默认 compose 的任何 service env 都不得出现 c_end_display（注释不算）。
+    privileged_default = [
+        f"{name}.{key}"
+        for name, svc in services.items()
+        for key, value in ((svc or {}).get("environment") or {}).items()
+        if "c_end_display" in str(value)
+    ]
+    rep.check(not privileged_default,
+              "默认栈任何 service env 都不含 c_end_display（特权档只在 positive override）",
+              f"出现于 {privileged_default}；已授权/展示用例必须用独立 positive 栈")
+    hold_expr = str(env_of(api, "ENTITLEMENT_HOLD_CHECK"))
+    audit_expr = str(env_of(api, "ENTITLEMENT_AUDIT"))
+    rep.check(hold_expr == "1", "默认栈 ENTITLEMENT_HOLD_CHECK=1（db-migrate 已跑 compliance 迁移，不靠默认关旁路）",
+              f"实际 {hold_expr!r}；H5 KD-ENT-01：e2e 不再依赖默认关 hold/audit")
+    rep.check(audit_expr == "1", "默认栈 ENTITLEMENT_AUDIT=1（同上，与发布语义一致）",
+              f"实际 {audit_expr!r}")
+    # 5aa. positive override（独立 project + loopback，禁止公网可达）
+    positive = load(POSITIVE)
+    pos_api = ((positive.get("services") or {}).get("api") or {})
+    pos_env = pos_api.get("environment") or {}
+    rep.check(str(pos_env.get("ENTITLEMENT_TIER")) == "c_end_display",
+              "positive override 显式 ENTITLEMENT_TIER=c_end_display",
+              f"实际 {pos_env.get('ENTITLEMENT_TIER')!r}")
+    rep.check(str(pos_env.get("ENTITLEMENT_HOLD_CHECK")) == "1"
+              and str(pos_env.get("ENTITLEMENT_AUDIT")) == "1",
+              "positive override 同时开 HOLD_CHECK=1 / AUDIT=1",
+              "缺一：正向 hold/audit 用例与发布语义不一致")
+    sha = str(pos_env.get("ENTITLEMENT_CONFIG_EXPECTED_SHA256") or "")
+    expires = str(pos_env.get("ENTITLEMENT_EXPIRES_AT") or "")
+    rep.check(bool(re.fullmatch(r"[0-9a-f]{64}", sha)),
+              "positive override ENTITLEMENT_CONFIG_EXPECTED_SHA256 为 64 位小写 hex",
+              f"实际 {sha!r}")
+    rep.check(bool(re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", expires)),
+              "positive override ENTITLEMENT_EXPIRES_AT 为 ISO UTC（秒级）",
+              f"实际 {expires!r}")
+    expected_sha = hashlib.sha256(("c_end_display|" + expires.replace("Z", ".000Z")).encode()).hexdigest()         if expires else ""
+    rep.check(bool(expires) and sha == expected_sha,
+              "positive override sha 与 expiresAt 成对（sha256('c_end_display|<ISO 毫秒>')）",
+              f"sha={sha!r} 与 expires={expires!r} 不匹配（A3 规范：sha256(utf8(tier|expiresAtNormalized))）")
+    rep.check(str(pos_env.get("APP_PROFILE")) == "e2e",
+              "positive override 保持 APP_PROFILE=e2e（仅隔离栈）",
+              f"实际 {pos_env.get('APP_PROFILE')!r}")
+    # 默认 compose 的所有发布端口必须绑 127.0.0.1（H5：E2E_MODE 只许隔离栈、禁公网可达；
+    # positive override 继承这些端口，因此默认端口 loopback 即覆盖 positive 栈）。
+    default_ports = [(name, str(item)) for name, svc in services.items()
+                     for item in (svc or {}).get("ports") or []]
+    rep.check(bool(default_ports), "compose 显式发布宿主端口（preflight/浏览器可达）",
+              "无 ports，宿主无法访问")
+    bad_default = [(n, p) for n, p in default_ports if not p.startswith("127.0.0.1:")]
+    rep.check(not bad_default,
+              "默认 compose 全部发布端口绑 127.0.0.1（E2E_MODE 禁公网可达，H5 m02905/m02964）",
+              f"未绑 loopback：{bad_default}；positive 栈继承这些端口，必须同样 loopback-only")
+    # positive override 若自己再加端口，也必须 loopback（防止未来有人加 0.0.0.0 端口）。
+    extra_ports = [(name, str(item)) for name, svc in (positive.get("services") or {}).items()
+                   for item in (svc or {}).get("ports") or []]
+    bad_extra = [(n, p) for n, p in extra_ports if not p.startswith("127.0.0.1:")]
+    rep.check(not bad_extra, "positive override 新增端口（若有）同样绑 127.0.0.1",
+              f"未绑 loopback：{bad_extra}；H5 m02905/m02964 硬规则")
     rep.check(env_of(api, "INGEST_REPORT_PATH") == "/state/ingest-report.json",
               "api INGEST_REPORT_PATH 指向 /state/ingest-report.json（ingest-once 契约 §4）",
               f"实际 {env_of(api, 'INGEST_REPORT_PATH')!r}，/healthz 无法给出 data_ready")

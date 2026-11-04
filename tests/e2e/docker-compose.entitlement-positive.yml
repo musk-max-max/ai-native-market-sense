@@ -1,0 +1,44 @@
+# market-sense-h5 · E2E 已授权档 override（A12 owns）
+#
+# 用途（H5 KD-ENT-01 / A13 m02124）：只给「已授权 + hold + audit + 到期时间」正向用例使用，
+# 常规 P0/e2e **不加载**本文件；默认栈固定 `internal_eval`、不接受 tier override。
+#
+# 硬规则（H5 m02905/m02964）：
+#   - `E2E_MODE=1` 只许跑在隔离栈上，**禁止公网可达**：本文件把所有发布端口绑死 127.0.0.1，
+#     且必须用独立 compose project（独立网络/卷），不要和默认栈共 project。
+#   - 不得把本文件的服务暴露到 0.0.0.0；新增端口一律 `127.0.0.1:<host>:<container>`。
+#   - positive profile 的 `ENTITLEMENT_CONFIG_EXPECTED_SHA256` / `ENTITLEMENT_EXPIRES_AT` 必须成对：
+#     sha = sha256(utf8("${tier}|${expiresAtNormalized ?? ''}"))，归一化为 UTC ISO 毫秒
+#     （例 `c_end_display|2030-12-31T00:00:00.000Z`）。
+#
+# 用法（与默认栈并存时用独立宿主端口；默认栈用 8081/3000/18081，这里用 8091/3011/18091）：
+#   E2E_API_PORT=8091 E2E_WEB_PORT=3011 E2E_REPLAY_PORT=18091 \
+#     docker compose -p e2e-ent-positive \
+#     -f tests/e2e/docker-compose.yml \
+#     -f tests/e2e/docker-compose.entitlement-positive.yml \
+#     --profile seed run --rm db-migrate
+#   E2E_API_PORT=8091 E2E_WEB_PORT=3011 E2E_REPLAY_PORT=18091 \
+#     docker compose -p e2e-ent-positive \
+#     -f tests/e2e/docker-compose.yml \
+#     -f tests/e2e/docker-compose.entitlement-positive.yml \
+#     up -d --wait postgres redis tushare-replay api web
+#   E2E_BASE_URL=http://127.0.0.1:3011 E2E_ENTITLEMENT_MATRIX=normal ... npx playwright test
+#
+# 端口不单独 override：默认 compose 的发布端口全部绑 127.0.0.1（validate_compose 断言），
+# 本文件继承即 loopback-only；宿主端口用上面的 E2E_*_PORT 与默认栈错开。
+#
+# 校验：`python3 tests/e2e/scripts/validate_compose.py`（会断言本文件的 tier/hold/audit/sha/expiry
+# 成对出现、且所有发布端口都绑 127.0.0.1；缺一 FAIL）。
+
+services:
+
+  api:
+    environment:
+      ENTITLEMENT_TIER: "c_end_display"
+      # 授权链与发布语义一致：hold/audit 显式开；不再靠默认关旁路（KD-ENT-01）。
+      ENTITLEMENT_HOLD_CHECK: "1"
+      ENTITLEMENT_AUDIT: "1"
+      # A3 规范：sha256("c_end_display|2030-12-31T00:00:00.000Z")
+      ENTITLEMENT_CONFIG_EXPECTED_SHA256: "b0d185b9af0eb2a228dd4195967d02bfe987a92979da2980188b5942bb15cef9"
+      ENTITLEMENT_EXPIRES_AT: "2030-12-31T00:00:00Z"
+      APP_PROFILE: "e2e"

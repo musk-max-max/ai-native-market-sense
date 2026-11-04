@@ -7,7 +7,7 @@ Owner: A12 qa-e2e。目标：让首跑失败 = 5 分钟内定位到「哪一跳�
 
 `docker compose build` / `docker compose up` **一次都没在真实 docker 上跑过**：本机没有容器运行时（且只剩 5.9GiB
 磁盘，装 colima + 拉镜像会压到临界），仓库也还没接远端。已做的是**等价命令**验证（A0 多阶段构建命令、A1 CLI
-冒烟、A12 的 compose 静态 45/45 断言）——**不等于镜像能构建、能起**。
+冒烟、A12 的 compose 静态 80/80 断言）——**不等于镜像能构建、能起**。
 
 所以：看到「10 passed / 1 skipped」时不要理解为「真栈可用」；首跑（远端接上后）第一条请跑
 `tests/e2e/ci/BUILD-SMOKE.md` 的 `docker compose build` 冒烟，预期失败点与归属清单都在那里。**一条 skip 的
@@ -18,17 +18,23 @@ Owner: A12 qa-e2e。目标：让首跑失败 = 5 分钟内定位到「哪一跳�
 在有 docker 的机器上，从仓库根目录：
 
 ```bash
-# normal 矩阵（P0 主旅程）：默认栈是 fail-closed 的 internal_eval，必须显式切已授权档
-E2E_ENTITLEMENT_TIER=c_end_display \
-E2E_ENTITLEMENT_EXPIRES_AT=2030-12-31T00:00:00Z \
-bash tests/e2e/scripts/up.sh
-# restricted 矩阵（F1 否决线）：保持默认 internal_eval
+# restricted 矩阵（F1 否决线，默认栈）：默认栈固定 internal_eval，没有任何 tier 环境变量 override
 E2E_ENTITLEMENT_MATRIX=restricted bash tests/e2e/scripts/up.sh
+
+# normal 矩阵（P0 主旅程）：加载已授权档 override，独立 project + 独立宿主端口（仅 127.0.0.1）
+E2E_COMPOSE_OVERRIDE=docker-compose.entitlement-positive.yml \
+E2E_COMPOSE_PROJECT=e2e-ent-positive \
+E2E_API_PORT=8091 E2E_WEB_PORT=3011 E2E_REPLAY_PORT=18091 \
+E2E_ENTITLEMENT_MATRIX=normal \
+bash tests/e2e/scripts/up.sh
+# 已授权档 override 配齐 c_end_display / HOLD_CHECK=1 / AUDIT=1 /
+# ENTITLEMENT_CONFIG_EXPECTED_SHA256 / ENTITLEMENT_EXPIRES_AT=2030-12-31T00:00:00Z；
+# 见 docker-compose.entitlement-positive.yml 与 README §授权矩阵。
 ```
 
 预期输出（按顺序）：
 
-1. （静默）`validate_compose.py --quiet` 退出 0 —— 44 项 compose 静态断言全过；失败会打印断言 ID、期望值与实际值。
+1. （静默）`validate_compose.py --quiet` 退出 0 —— 80 项 compose 静态断言全过；失败会打印断言 ID、期望值与实际值。
 2. `==> 启动基础设施（postgres / redis / tushare-replay）`
 3. `==> 一次性 ingest（真实 adapter + 录播回放 → PG）`（`--no-seed` 可跳过；将扩为 ingest → load →
    质量报告三步，seed 失败时 api/web 仍会启动但 `/healthz` 报 `data_ready=false`，契约见 `docs/INGEST-ONCE-CONTRACT.md`）
@@ -113,7 +119,7 @@ npx playwright test --grep 'E2E-P0-00' --reporter=line   # 看真实命中的 lo
 | 退出 78 + `DATA_NOT_READY:INGEST_FAILED:ingest:QUOTA/UPSTREAM` | 第一步 ingest 失败且可细分原因（配额/限流 vs 网络/上游 5xx） | 实现缺陷 | A1（adapter/CLI）；看 `ingest-report.json` 的 `failed_reason`，`UNKNOWN` 表示 A1 未给子码 |
 | 退出 1 + `FAIL:ENTITLEMENT:CONTRACT_MISSING_403` | 契约该接口未声明 403（预期内红灯） | 实现缺陷 | A0 契约 bump；修好重跑，别改断言 |
 | 退出 1 + `FAIL:ENTITLEMENT:IMPL_WRONG_STATUS` | 契约已声明 403，实现返回错状态/缺 `ENTITLEMENT_RESTRICTED` | E2E 问题 | A3（quote/bars/fundamental-summary 的 403 分支） |
-| 退出 1 + `CONFIG_TIER_FAIL_CLOSED` | compose 默认 `internal_eval`（fail-closed），但矩阵按 normal 校验 | 实现缺陷 | 不是 bug：显式 `E2E_ENTITLEMENT_TIER=c_end_display`（+ 到期时间）重启栈；这是 A13/H5 防 fail-open 的刻意设计 |
+| 退出 1 + `CONFIG_TIER_FAIL_CLOSED` | 默认栈固定 `internal_eval`（fail-closed），但矩阵按 normal 校验 | 实现缺陷 | 不是 bug：按上面 normal 命令加载 `docker-compose.entitlement-positive.yml` 重起 normal 栈；默认栈刻意禁止 tier override（A13/H5 防 fail-open） |
 | 退出 1 + `FAIL:ENTITLEMENT:IMPL_LEAKS_F1_NUMBERS` | restricted 下基础信息响应含行情数值字段 | 展示格式问题 | A3（名字可显示、数字不可显示） |
 | 退出 1 + `COMPOSE_STATIC`/`SCENARIO`/`TESTIDS`/`QUARANTINE`/`FIXTURES_CORRUPT`/`FIXTURES_MISSING` | E2E 资产或配置真缺陷：结构退化、引用不存在的 id、flaky 超 24h、录制损坏、栈就绪还缺 fixture | 产品 bug、可选项 | A12；flaky 条目必须 24h 内修或删，禁止「先放放」 |
 | 页面/接口 503 `FIXTURE_MISSING`（replay 日志 `FIXTURE_MISSING api_name=... key=...`，error-banner 也可能带 code） | adapter 发出了一次**未录制**的 tushare 调用（api_name 或 params 与录制时不同） | 网络故障、tushare 挂了、E2E 环境坏 | A12 与 A1 比对实际请求参数；响应含 `key`/`api_name`/`available_api_names`。**不要录真实报文**（L32）：改合成生成器补齐对应调用，或让 A1 对齐参数 |

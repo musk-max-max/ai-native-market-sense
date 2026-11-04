@@ -71,7 +71,7 @@ services:
       retries: 30
     # preflight 在宿主机读 /__livez 与 /__health（fixtures 完整性），因此需要发布端口。
     ports:
-      - "${E2E_REPLAY_PORT:-18081}:18080"
+      - "127.0.0.1:${E2E_REPLAY_PORT:-18081}:18080"
     networks: [app-net]
 
   api:
@@ -86,13 +86,13 @@ services:
       DATA_SOURCE_MODE: replay            # replay | live；默认/replay 时禁止外呼
       TUSHARE_API_URL: http://tushare-replay:18080
       FIXTURES_DIR: /fixtures/tushare
-      # 授权层级：默认 internal_eval（fail-closed）——测试栈不得默认给 C 端展示特权（A13/H5 2026-11-04）。
-      # normal 矩阵必须显式 E2E_ENTITLEMENT_TIER=c_end_display；restricted 矩阵保持 internal_eval。
-      ENTITLEMENT_TIER: ${E2E_ENTITLEMENT_TIER:-internal_eval}
-      # A3 fail-closed：tier != internal_eval 时必须显式给到期时间，否则 api 拒绝启动。
-      # 默认栈（internal_eval）不需要时间盒，因此默认空；normal 矩阵必须同时传
-      # E2E_ENTITLEMENT_TIER=c_end_display 与 E2E_ENTITLEMENT_EXPIRES_AT（例如 2030-12-31T00:00:00Z）。
-      ENTITLEMENT_EXPIRES_AT: ${E2E_ENTITLEMENT_EXPIRES_AT:-}
+      # 授权层级：**固定 internal_eval**（fail-closed，H5 KD-ENT-01）——默认 e2e 栈不接受任何
+      # 环境变量 override，防止有人用 E2E_ENTITLEMENT_TIER 把默认栈拉成 c_end_display。
+      # 已授权/展示/hold 正向用例走 docker-compose.entitlement-positive.yml（独立 project + 仅 loopback）。
+      ENTITLEMENT_TIER: "internal_eval"
+      # internal_eval 不需要时间盒；到期时间只由 positive override 显式给（A3 fail-closed：
+      # tier != internal_eval 且无到期时间时 api 拒绝启动）。
+      ENTITLEMENT_EXPIRES_AT: ""
       # ingest-once 契约：api 的 /healthz 读该报告给 data_ready；报告缺失 → data_ready=false（SKIP DATA_NOT_READY）。
       INGEST_REPORT_PATH: /state/ingest-report.json
       DISCLAIMER_VERSION: ${E2E_DISCLAIMER_VERSION:-2026.11.1}
@@ -105,9 +105,10 @@ services:
       RATE_LIMIT_IP_PER_MIN: ${E2E_RATE_LIMIT_IP_PER_MIN:-600}
       RATE_LIMIT_IP_BURST: ${E2E_RATE_LIMIT_IP_BURST:-120}
       E2E_WATCHLIST_TABLE: ${E2E_WATCHLIST_TABLE:-watchlist_items}
-      # A3 hold/audit 闸门：默认关（未迁移库上硬开会 500/拒启）；hold 场景联调时显式置 1。
-      ENTITLEMENT_HOLD_CHECK: ${E2E_ENTITLEMENT_HOLD_CHECK:-0}
-      ENTITLEMENT_AUDIT: ${E2E_ENTITLEMENT_AUDIT:-0}
+      # A3 hold/audit 闸门：db-migrate 已在 e2e 栈内跑完 compliance/001+002 + 20_grants，
+      # e2e 不再依赖「默认关」旁路；显式开 1 与发布配置语义一致（H5 KD-ENT-01/A13 m02124）。
+      ENTITLEMENT_HOLD_CHECK: "1"
+      ENTITLEMENT_AUDIT: "1"
     volumes:
       - ../fixtures/tushare:/fixtures/tushare:ro
       - ./.state:/state:ro             # ingest-once 契约 §4：只读读 ingest-report.json（宿主 tests/e2e/.state）
@@ -125,7 +126,7 @@ services:
       timeout: 3s
       retries: 40
     ports:
-      - "${E2E_API_PORT:-8081}:8080"
+      - "127.0.0.1:${E2E_API_PORT:-8081}:8080"
     networks: [app-net]
 
   web:
@@ -147,7 +148,7 @@ services:
       timeout: 3s
       retries: 40
     ports:
-      - "${E2E_WEB_PORT:-3000}:3000"
+      - "127.0.0.1:${E2E_WEB_PORT:-3000}:3000"
     networks: [app-net]
 
   # ---- seed 流水线（契约 §1；Lead m01015 裁定：单职责镜像，不往 ingest 镜像塞 warehouse） ----

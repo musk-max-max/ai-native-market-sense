@@ -7,8 +7,9 @@
 #   * 失败时上传 playwright-report / test-results / .e2e-status.json 与栈日志，否则排查只能靠猜
 #
 # 授权矩阵（A12 口径，A3 按 tier 映射实现）：
-#   normal     = E2E_ENTITLEMENT_TIER=c_end_display + E2E_ENTITLEMENT_EXPIRES_AT=2030-12-31T00:00:00Z
-#                （必须显式；compose 默认 internal_eval 是 fail-closed，裸跑会 FAIL:CONFIG_TIER_FAIL_CLOSED。
+#   normal     = 加载 docker-compose.entitlement-positive.yml（独立 project + loopback 端口）
+#                （默认 compose 固定 internal_eval、不接受 tier override；裸跑会 FAIL:CONFIG_TIER_FAIL_CLOSED。
+#                positive override 内含 c_end_display/HOLD_CHECK=1/AUDIT=1/EXPECTED_SHA256/EXPIRES_AT。
 #                 数据接口 200+true，P0-02 价格断言必须真跑）
 #   restricted = E2E_ENTITLEMENT_TIER=internal_eval（quote/bars/fundamental 必须 403 ENTITLEMENT_RESTRICTED，
 #                instrument 基础信息 200+false，watchlist 恒 200+true；只跑 P0-06 F1 否决线）
@@ -88,7 +89,7 @@ jobs:
   #   env:
   #     E2E_ENTITLEMENT_MATRIX: restricted
   #     E2E_ENTITLEMENT_TIER: internal_eval   # quote/bars/fundamental → 403 ENTITLEMENT_RESTRICTED（F1 否决线）
-  #     # normal job 必须显式 E2E_ENTITLEMENT_TIER=c_end_display + E2E_ENTITLEMENT_EXPIRES_AT（A3 无到期时间拒启动）
+  #     # normal job 必须加载 docker-compose.entitlement-positive.yml（默认栈固定 internal_eval，禁止 tier override）
   #   # 只跑否决线：npx playwright test --grep "E2E-P0-06"
   #   steps:
   #     - ... 同 e2e，但断言 E2E-P0-06 走 is_entitled=false 分支

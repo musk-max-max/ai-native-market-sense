@@ -102,15 +102,17 @@ def test_entitlement_normal_matrix_wants_entitled():
 def test_entitlement_normal_matrix_rejects_restricted_stack():
     level, detail = preflight.entitlement_verdict(
         "normal", 200, {"meta": {"entitlement": {"tier": "internal_eval", "is_entitled": False}}}, "quote")
-    assert level == preflight.FAIL and "c_end_display" in detail
+    assert level == preflight.FAIL and "entitlement-positive.yml" in detail
 
 
 def test_entitlement_normal_fail_closed_default_is_attributed():
-    # A13/H5：compose 默认 internal_eval（fail-closed）。normal 矩阵裸跑应给出配置归因，不赖实现。
+    # A13/H5：默认 compose 固定 internal_eval（fail-closed，KD-ENT-01）。
+    # normal 矩阵裸跑应给出配置归因（指向 positive override），不赖实现。
     level, detail = preflight.entitlement_verdict(
         "normal", 200, {"meta": {"entitlement": {"tier": "internal_eval", "is_entitled": False}}}, "quote")
     assert level == preflight.FAIL
-    assert "CONFIG_TIER_FAIL_CLOSED" in detail and "E2E_ENTITLEMENT_TIER=c_end_display" in detail
+    assert "CONFIG_TIER_FAIL_CLOSED" in detail
+    assert "docker-compose.entitlement-positive.yml" in detail and "E2E_COMPOSE_PROJECT" in detail
 
 
 def test_entitlement_restricted_accepts_403_problem():
@@ -220,7 +222,7 @@ def test_entitlement_watchlist_not_checked_as_market_tier():
 def test_entitlement_normal_rejects_restricted_stack_any_endpoint():
     level, detail = preflight.entitlement_verdict(
         "normal", 200, {"meta": {"entitlement": {"tier": "internal_eval", "is_entitled": False}}}, "bars")
-    assert level == preflight.FAIL and "c_end_display" in detail
+    assert level == preflight.FAIL and "entitlement-positive.yml" in detail
 
 
 def test_entitlement_matrix_typo_is_fail():

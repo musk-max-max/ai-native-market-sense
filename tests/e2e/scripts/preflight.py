@@ -553,7 +553,7 @@ def entitlement_verdict(matrix: str, status, body: dict, endpoint: str = "quote"
                           f"is_entitled={entitled} code={code}")
         return FAIL, (f"IMPL_WRONG_STATUS: restricted/{endpoint} 必须 403 + code=ENTITLEMENT_RESTRICTED"
                       f"（契约已声明 403，Lead AC-5 裁定；200+is_entitled=false 不接受），实际 status={status} "
-                      f"tier={tier} is_entitled={entitled} code={code}；栈应为 E2E_ENTITLEMENT_TIER=internal_eval")
+                      f"tier={tier} is_entitled={entitled} code={code}；restricted 场景请直接用默认栈（固定 internal_eval）")
     expected_tier = ("platform_user_data" if endpoint == "watchlist"
                      else ("c_end_display" if matrix == "normal" else "internal_eval"))
     expected_entitled = endpoint == "watchlist" or matrix == "normal"
@@ -568,13 +568,14 @@ def entitlement_verdict(matrix: str, status, body: dict, endpoint: str = "quote"
     if (matrix == "normal" and status == 200 and tier == "internal_eval" and entitled is False):
         # A13/H5 2026-11-04：compose 默认 internal_eval 是 fail-closed 的故意行为，
         # 配错矩阵不等于实现缺陷；给独立 reason code，避免下次排障去翻 A3 的代码。
-        return FAIL, (f"CONFIG_TIER_FAIL_CLOSED: normal/{endpoint} 看到 internal_eval（compose 的 fail-closed "
-                      f"默认档）；normal 矩阵请显式 E2E_ENTITLEMENT_TIER=c_end_display + "
-                      f"E2E_ENTITLEMENT_EXPIRES_AT 重启栈（配置问题，非实现缺陷）；实际 tier={tier} "
+        return FAIL, (f"CONFIG_TIER_FAIL_CLOSED: normal/{endpoint} 看到 internal_eval（默认栈的 fail-closed "
+                      f"档，H5 KD-ENT-01：默认 compose 已固定 internal_eval、不接受 tier override）；"
+                      f"normal 矩阵请用 E2E_COMPOSE_OVERRIDE=docker-compose.entitlement-positive.yml "
+                      f"+ E2E_COMPOSE_PROJECT 起独立 positive 栈（配置问题，非实现缺陷）；实际 tier={tier} "
                       f"is_entitled={entitled} code={code}")
     return FAIL, (f"{matrix}/{endpoint} 要求 200 + tier={expected_tier} + is_entitled={expected_entitled}"
                   f"（实际 status={status} tier={tier} is_entitled={entitled} code={code}）；"
-                  f"检查栈 E2E_ENTITLEMENT_TIER")
+                  f"检查栈授权配置（默认栈固定 internal_eval；normal 用 positive override）")
 
 
 def check_entitlement(checks: Checks, scenario):
