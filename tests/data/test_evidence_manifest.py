@@ -147,3 +147,50 @@ def test_v4_registers_run_scoped_logs_and_pointers(tmp_path: Path) -> None:
     assert run_scoped, "缺 run-scoped http-attempts 原始往返日志"
     excluded = {entry["path"] for entry in manifest.get("excluded", [])}
     assert any(path.endswith("/http-attempts.jsonl") for path in excluded), "0 字节旧占位必须在 excluded 中显式登记"
+
+
+# ---- v5（H4 m03103 / H5 m03115：A19 rev4 引用版、rev3 历史、DOM v2 哈希绑定）----------------
+
+ARCHIVE_V5 = ARTIFACTS / "11-12-evidence-20261104-v5.tar.gz"
+MANIFEST_V5 = "evidence-manifest-v5-20261104T0630Z.json"
+
+
+def test_v5_manifest_passes_mechanical_check(tmp_path: Path) -> None:
+    manifest = _extract_member(ARCHIVE_V5, MANIFEST_V5, tmp_path)
+    result = subprocess.run(
+        [sys.executable, str(CHECKER), "--manifest", str(manifest), "--archive", str(ARCHIVE_V5),
+         "--manifest-member", MANIFEST_V5],
+        cwd=REPO_ROOT, capture_output=True, text=True, timeout=120,
+    )
+    assert result.returncode == 0, f"v5 manifest 校验红灯：\nstdout={result.stdout}\nstderr={result.stderr}"
+    assert "PASS 证据包 manifest 校验通过" in result.stdout
+
+
+def test_v5_archive_hash_is_pinned_in_sums_file() -> None:
+    sums = ARTIFACTS / "SHA256SUMS-v5"
+    assert sums.exists(), f"缺 SHA256SUMS-v5：{sums}"
+    expected = None
+    for line in sums.read_text(encoding="utf-8").splitlines():
+        parts = line.split()
+        if len(parts) == 2 and parts[1] == ARCHIVE_V5.name:
+            expected = parts[0]
+            break
+    assert expected is not None, f"SHA256SUMS-v5 未登记 {ARCHIVE_V5.name}"
+    actual = hashlib.sha256(ARCHIVE_V5.read_bytes()).hexdigest()
+    assert actual == expected, f"v5 sha256 不符：登记={expected} 实算={actual}"
+
+
+def test_v5_binds_a19_rev4_and_keeps_rev3_historical(tmp_path: Path) -> None:
+    manifest = json.loads(_extract_member(ARCHIVE_V5, MANIFEST_V5, tmp_path).read_text(encoding="utf-8"))
+    by_path = {entry["path"]: entry for entry in manifest["entries"]}
+    rev4 = by_path.get("a19-artifacts/evidence-manifest-20261104T023750101Z-rev4.json")
+    assert rev4 is not None, "v5 必须绑定 A19 rev4 引用版 manifest"
+    assert rev4["sha256"] == "bd6b551ef157235c41c243204e4fea116baec473aef2e7447f662059aa8c5c4b"
+    assert rev4["bytes"] == 18021
+    assert rev4["authority"] == "authoritative"
+    rev3 = by_path.get("a19-artifacts/evidence-manifest-20261104T023750101Z.json")
+    assert rev3 is not None and rev3["authority"] == "historical", "rev3 必须作为 historical 保留"
+    notes = manifest.get("authority_notes", {})
+    assert "5f866116" in notes.get("dom_v2_binding", "") and "885f2aa0" in notes.get("dom_v2_binding", ""), (
+        "authority_notes 必须引用 A12 #5 DOM v2 的 tar/manifest 哈希"
+    )

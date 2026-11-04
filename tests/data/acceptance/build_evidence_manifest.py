@@ -28,6 +28,9 @@ AUTHORITIES = {
     "pre_fix_baseline",
     "pre_fix_control",
     "post_fix_authoritative",
+    # H5 m03115：引用版 manifest 用字面 authoritative；H4 m03103：被取代的旧快照用 historical
+    "authoritative",
+    "historical",
     "post_fix_control",
     "post_fix_run_scoped_raw_log",
     "evidence",

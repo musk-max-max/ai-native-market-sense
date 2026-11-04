@@ -31,6 +31,10 @@ AUTHORITIES = {
     "pre_fix_baseline",
     "pre_fix_control",
     "post_fix_authoritative",
+    # H5 m03115：引用版 manifest 用字面 authoritative；等价 post_fix_authoritative
+    "authoritative",
+    # H4 m03103：被取代但保留历史快照的旧 manifest/证据
+    "historical",
     "post_fix_control",
     "post_fix_run_scoped_raw_log",
     "evidence",
