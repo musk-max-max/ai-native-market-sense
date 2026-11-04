@@ -18,6 +18,7 @@ import type { AppConfig } from '../../api/src/config.js';
 import { MARKET_COPY } from '../../api/src/copy.js';
 import { DEFAULT_DISCLAIMER_TEXT, loadMarketConfig, MarketConfigError } from '../src/config.js';
 import { assertInstrumentWhitelist } from '../src/domain/build.js';
+import { configFingerprint } from '../src/domain/entitlement.js';
 import type { MarketConfig } from '../src/config.js';
 import { createMarketPlugin } from '../src/plugin.js';
 import type {
@@ -197,10 +198,13 @@ class FakeWatchlist implements WatchlistRepo {
 }
 
 function marketConfig(overrides: Partial<MarketConfig> = {}): MarketConfig {
-  return {
+  const merged: MarketConfig = {
     entitlementTier: 'c_end_display',
     deploymentUid: 'deploy-test-1',
     entitlementExpiresAt: '2099-12-31T23:59:59+08:00',
+    // H5 R1/R2：非最小授权档必须显式开 hold/audit；默认值是 fail-closed（不是 E2E 豁免）。
+    entitlementHoldCheck: true,
+    entitlementAuditEnabled: true,
     disclaimer: { text: '本页面数据仅供参考，不构成任何投资建议或买卖依据。', version: '2026.11.1' },
     watchlistLimit: 2,
     watchlistTable: 'watchlist_items',
@@ -212,6 +216,14 @@ function marketConfig(overrides: Partial<MarketConfig> = {}): MarketConfig {
     now: () => NOW,
     ...overrides,
   };
+  return merged.entitlementTier === 'internal_eval'
+    ? merged
+    : {
+        ...merged,
+        entitlementExpectedSha256:
+          merged.entitlementExpectedSha256 ??
+          configFingerprint(merged.entitlementTier, merged.entitlementExpiresAt),
+      };
 }
 
 const appConfig: AppConfig = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent' } as NodeJS.ProcessEnv);
@@ -618,6 +630,9 @@ describe('market 插件：fail-open 默认值（H5 P0 卡点）', () => {
       () =>
         loadMarketConfig({
           ENTITLEMENT_TIER: 'c_end_display',
+          ENTITLEMENT_HOLD_CHECK: '1',
+          ENTITLEMENT_AUDIT: '1',
+          ENTITLEMENT_CONFIG_EXPECTED_SHA256: '0'.repeat(64),
           DEPLOYMENT_UID: 'deploy-test-1',
         } as NodeJS.ProcessEnv),
       (error: unknown) => error instanceof MarketConfigError && /ENTITLEMENT_EXPIRES_AT/.test(error.message),
@@ -842,6 +857,9 @@ describe('market 插件：fail-open 默认值（H5 P0 卡点）', () => {
     const expired = loadMarketConfig({
       ENTITLEMENT_TIER: 'c_end_display',
       ENTITLEMENT_EXPIRES_AT: '2026-11-01T00:00:00+08:00',
+      ENTITLEMENT_HOLD_CHECK: '1',
+      ENTITLEMENT_AUDIT: '1',
+      ENTITLEMENT_CONFIG_EXPECTED_SHA256: configFingerprint('c_end_display', '2026-10-31T16:00:00.000Z'),
       APP_PROFILE: 'test',
       E2E_MODE: '1',
       MARKET_NOW: '2026-11-04T10:00:00+08:00',
@@ -859,17 +877,32 @@ describe('market 插件：fail-open 默认值（H5 P0 卡点）', () => {
         loadMarketConfig({
           ENTITLEMENT_TIER: 'c_end_display',
           ENTITLEMENT_EXPIRES_AT: '2099-12-31T23:59:59+08:00',
+          ENTITLEMENT_HOLD_CHECK: '1',
+          ENTITLEMENT_AUDIT: '1',
           DEPLOYMENT_UID: 'deploy-test-1',
         } as NodeJS.ProcessEnv),
       (error: unknown) => error instanceof MarketConfigError && /ENTITLEMENT_CONFIG_EXPECTED_SHA256/.test(error.message),
     );
-    // E2E 允许豁免（真栈不注入流水线指纹）；internal_eval 不需豁免。
+    // H5 R3：E2E 不再豁免指纹自检；显式配齐三项才允许启动。
+    assert.throws(
+      () =>
+        loadMarketConfig({
+          APP_PROFILE: 'test',
+          ENTITLEMENT_TIER: 'c_end_display',
+          ENTITLEMENT_EXPIRES_AT: '2099-12-31T23:59:59+08:00',
+          E2E_MODE: '1',
+        } as NodeJS.ProcessEnv),
+      (error: unknown) => error instanceof MarketConfigError && /ENTITLEMENT_CONFIG_EXPECTED_SHA256/.test(error.message),
+    );
     assert.doesNotThrow(() =>
       loadMarketConfig({
         APP_PROFILE: 'test',
         ENTITLEMENT_TIER: 'c_end_display',
         ENTITLEMENT_EXPIRES_AT: '2099-12-31T23:59:59+08:00',
         E2E_MODE: '1',
+        ENTITLEMENT_HOLD_CHECK: '1',
+        ENTITLEMENT_AUDIT: '1',
+        ENTITLEMENT_CONFIG_EXPECTED_SHA256: configFingerprint('c_end_display', '2099-12-31T15:59:59.000Z'),
       } as NodeJS.ProcessEnv),
     );
   });
@@ -906,13 +939,24 @@ describe('market 插件：H3 红线与降级边界', () => {
 describe('market 插件：授权到期 fail-closed（H3 时间盒，ADR-004）', () => {
   // 关键：配置必须走 loadMarketConfig 真实解析（不是硬编码 bool），证明"配置里的 expires_at"生效。
   function loadedConfig(env: Record<string, string>): MarketConfig {
-    return loadMarketConfig({
+    const merged = {
       ENTITLEMENT_TIER: 'c_end_display',
       ENTITLEMENT_EXPIRES_AT: '2099-12-31T23:59:59+08:00',
       APP_PROFILE: 'test',
       E2E_MODE: '1',
       MARKET_NOW: '2026-11-04T10:00:00+08:00',
       ...env,
+    };
+    const expiresAt = merged.ENTITLEMENT_EXPIRES_AT;
+    const normalized = Number.isFinite(Date.parse(expiresAt)) ? new Date(expiresAt).toISOString() : undefined;
+    return loadMarketConfig({
+      ...merged,
+      ENTITLEMENT_HOLD_CHECK: '1',
+      ENTITLEMENT_AUDIT: '1',
+      ENTITLEMENT_CONFIG_EXPECTED_SHA256:
+        normalized === undefined
+          ? '0'.repeat(64)
+          : configFingerprint('c_end_display', normalized),
     } as NodeJS.ProcessEnv);
   }
 
@@ -1096,6 +1140,8 @@ describe('market 插件：响应缓存头与 C 端受众（L30/L36）', () => {
     const config = loadMarketConfig({
       ENTITLEMENT_TIER: 'c_end_display',
       ENTITLEMENT_EXPIRES_AT: '2099-12-31T23:59:59+08:00',
+      ENTITLEMENT_HOLD_CHECK: '1',
+      ENTITLEMENT_AUDIT: '1',
       ENTITLEMENT_CONFIG_EXPECTED_SHA256: '0'.repeat(64),
       APP_PROFILE: 'test',
       E2E_MODE: '1',

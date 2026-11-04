@@ -26,7 +26,7 @@ import { marketPlugin } from '../../market/src/plugin.js';
 export const domainPlugins = [marketPlugin];
 ```
 
-`marketPlugin` 已带 `Object.assign(..., { domain: 'market', contractVersion: '0.2.0' })`；插件自建 `pg.Pool`（`DATABASE_URL`）并在 `onClose` 中 `pool.end()`。单测用 `createMarketPlugin({ config, servingRepo, watchlistRepo, authenticate })` 注入假实现。
+`marketPlugin` 已带 `Object.assign(..., { domain: 'market', contractVersion: '0.3.0' })`；插件自建 `pg.Pool`（`DATABASE_URL`）并在 `onClose` 中 `pool.end()`。单测用 `createMarketPlugin({ config, servingRepo, watchlistRepo, authenticate })` 注入假实现。
 
 ## 配置（env，仅本域）
 
@@ -43,9 +43,9 @@ export const domainPlugins = [marketPlugin];
 | `E2E_MODE=1` | — | 开启 dev bearer token（`E2E_AUTH_TOKEN`）与启动兜底建表（幂等） |
 | `E2E_AUTH_TOKEN` / `E2E_AUTH_USER_ID` | — / `e2e-user` | 仅 E2E/本地；生产无此入口（401） |
 | `MARKET_NOW` | — | 固定时钟（测试/演练用）；**L73：prod 设置即拒启**（可让时间盒提前到期判定失效），仅显式 dev/test/e2e 允许 |
-| `ENTITLEMENT_CONFIG_EXPECTED_SHA256` | — | 流水线注入的配置指纹（64 位小写 hex，`sha256("${tier}|${expiresAt ?? ''}")`，expires 取 `toISOString()`）。**tier≠internal_eval 时生产必填，缺失=拒绝启动**；仅 `E2E_MODE=1` 可豁免；不一致时 effective=internal_eval + 写 `unauthorized_config` 事件 |
-| `ENTITLEMENT_HOLD_CHECK` | E2E 默认关 / 生产默认开 | 读 `audit.entitlement_hold_state` control 行（`market_app` 仅视图 SELECT）；**L73：prod 设 `0` 直接拒启**（放行 flag），仅显式 dev/test/e2e 可关 |
-| `ENTITLEMENT_AUDIT` | E2E 默认关 / 生产默认开 | 写 `audit.entitlement_events`（A3 只 INSERT 4 类事件）；**L73：prod 设 `0` 直接拒启**（等于关掉整条审计链），仅显式 dev/test/e2e 可关 |
+| `ENTITLEMENT_CONFIG_EXPECTED_SHA256` | — | 流水线注入的配置指纹（64 位小写 hex，`sha256("${tier}|${expiresAt ?? ''}")`，expires 取 `toISOString()`）。**tier≠internal_eval 时任何 profile 都必填，缺失=拒绝启动（H5 R1/R3，E2E 不再豁免）**；不一致时 effective=internal_eval + 写 `unauthorized_config` 事件 |
+| `ENTITLEMENT_HOLD_CHECK` | **默认开（含 E2E）** | 读 `audit.entitlement_hold_state` control 行（`market_app` 仅视图 SELECT）；**L73：prod 设 `0` 直接拒启**；H5 R2：`E2E_MODE` 不再改变默认值，显式 `0` 仅允许 `tier=internal_eval` 且非 prod |
+| `ENTITLEMENT_AUDIT` | **默认开（含 E2E）** | 写 `audit.entitlement_events`（A3 只 INSERT 4 类事件）；**L73：prod 设 `0` 直接拒启**；H5 R2：显式 `0` 仅允许 `tier=internal_eval` 且非 prod |
 | `INGEST_REPORT_PATH` | `/state/ingest-report.json` | ingest-once 报告路径（`/healthz` 数据就绪字段来源，只读） |
 | `EVENT_PAYLOADS_PATH` | 仓库 `docs/reference/event-payloads.json`（镜像内 `/app/docs/reference/event-payloads.json`） | L70 事件 payload 键集唯一真源；prod 缺文件/坏 JSON 拒启，非 prod 告警跳过校验 |
 
@@ -121,7 +121,7 @@ export const domainPlugins = [marketPlugin];
 
 ```bash
 pnpm --filter @market-sense/market typecheck   # tsc --noEmit（依赖 A0 修 packages/api-client/src/index.ts 的 SharedComponents 编译错误）
-pnpm --filter @market-sense/market test        # node:test + fastify.inject，86 条，无需 PG
+pnpm --filter @market-sense/market test        # node:test + fastify.inject，124 条，无需 PG
 ```
 
 测试覆盖：F1 三接口 403 / instrument 200+internal_eval / watchlist platform_user_data、blocked 时 403 先于 serving 读（正常档位存在性 404 保留）、
@@ -129,7 +129,8 @@ quote 停牌三态、bars 口径回显与参数校验、404 语义、来源词�
 降级快照与无快照 500、自选鉴权/幂等/上限、H3 红线字段扫描、授权到期 fail-closed、**fail-open 默认值（缺省
 tier=internal_eval、非 internal 缺 expires/期望指纹拒绝启动、effective tier）**、ingest-report → data_ready 解析、
 getInstrument 白名单、**no-store、display_safe 受众过滤、control hold/stale/缺失/瞬态降级/熔断、指纹不一致、
-事件重试与上报、copy.ts 中性文案**。
+事件重试与上报、copy.ts 中性文案**、**KD-ENT-01 启动矩阵（`test/startup-matrix.test.ts`，18 组合：tier×profile×
+HOLD_CHECK×AUDIT×EXPECTED_SHA256 + L44/L46/L73 守卫；证明 fail-closed 四条同时生效）**。
 
 ## 真栈验证脚本（task-8 / A11 复跑）
 

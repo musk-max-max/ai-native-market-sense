@@ -94,8 +94,9 @@ describe('H5 m02614：E2E profile 无 token 旁路回归', () => {
     assert.equal(config.devAuthToken, undefined); // …但空 token 不产生可用凭据
     assert.equal(config.entitlementTier, 'internal_eval');
     // 关键 gated 行为：e2eMode 默认**关闭** hold 检查与审计（见下方 hold 生效旁路用例）
-    assert.equal(config.entitlementHoldCheck, false);
-    assert.equal(config.entitlementAuditEnabled, false);
+    // H5 R2：E2E_MODE 不再改变 hold/audit 默认值——默认仍是开启。
+    assert.equal(config.entitlementHoldCheck, true);
+    assert.equal(config.entitlementAuditEnabled, true);
     assert.equal(config.autoMigrate, true);
   });
 
@@ -178,25 +179,52 @@ describe('L73 生产守卫：APP_PROFILE 缺省/空/拼错 = prod', () => {
   });
 });
 
-describe('H5 m02614：E2E_MODE=1 的授权旁路（非 token 维度）', () => {
-  it('E2E_MODE=1 默认关闭 hold 检查：c_end_display 且无 expected sha 仍返回行情（hold 不会被读）', async () => {
+describe('H5 m02614 / R1-R3：E2E_MODE 不再豁免 hold/audit/指纹', () => {
+  it('R1：e2e + c_end_display 缺 hold/audit/expected sha 任一 → 拒绝启动', () => {
+    const base = {
+      APP_PROFILE: 'e2e',
+      E2E_MODE: '1',
+      E2E_AUTH_TOKEN: '',
+      ENTITLEMENT_TIER: 'c_end_display',
+      ENTITLEMENT_EXPIRES_AT: '2030-12-31T00:00:00Z',
+    };
+    assert.throws(() => loadMarketConfig({ ...base }), /ENTITLEMENT_HOLD_CHECK=1/);
+    assert.throws(() => loadMarketConfig({ ...base, ENTITLEMENT_HOLD_CHECK: '1' }), /ENTITLEMENT_AUDIT=1/);
+    assert.throws(
+      () => loadMarketConfig({ ...base, ENTITLEMENT_HOLD_CHECK: '1', ENTITLEMENT_AUDIT: '1' }),
+      /ENTITLEMENT_CONFIG_EXPECTED_SHA256/,
+    );
+  });
+
+  it('R1/R2：缺省值不再是"关"——显式配齐后 e2e + c_end_display 正常返回行情', async () => {
     const config = loadMarketConfig({
       APP_PROFILE: 'e2e',
       E2E_MODE: '1',
       E2E_AUTH_TOKEN: '',
       ENTITLEMENT_TIER: 'c_end_display',
       ENTITLEMENT_EXPIRES_AT: '2030-12-31T00:00:00Z',
-      // 没有 ENTITLEMENT_CONFIG_EXPECTED_SHA256：e2eMode 跳过指纹自检（config.ts:123）
+      ENTITLEMENT_HOLD_CHECK: '1',
+      ENTITLEMENT_AUDIT: '1',
+      ENTITLEMENT_CONFIG_EXPECTED_SHA256: 'b0d185b9af0eb2a228dd4195967d02bfe987a92979da2980188b5942bb15cef9',
     });
-    assert.equal(config.entitlementHoldCheck, false);
-    assert.equal(config.entitlementAuditEnabled, false);
-    assert.equal(config.entitlementExpectedSha256, undefined);
+    assert.equal(config.entitlementHoldCheck, true);
+    assert.equal(config.entitlementAuditEnabled, true);
+    assert.equal(config.entitlementExpectedSha256, 'b0d185b9af0eb2a228dd4195967d02bfe987a92979da2980188b5942bb15cef9');
 
-    const calls: string[] = [];
     const app = buildApp({
       config: appConfig,
       domainPlugins: [
-        createMarketPlugin({ config, servingRepo: guardedServing(calls), watchlistRepo: watchlistStub() }),
+        createMarketPlugin({
+          config,
+          servingRepo: guardedServing([]),
+          watchlistRepo: watchlistStub(),
+          controlRepo: {
+            async fetchControl() {
+              return { hold: false, holdId: null, reason: null, lastReconciledAt: new Date() };
+            },
+          },
+          eventRepo: { async insert() {} },
+        }),
       ],
       logger: false,
     });
@@ -209,7 +237,7 @@ describe('H5 m02614：E2E_MODE=1 的授权旁路（非 token 维度）', () => {
     await app.close();
   });
 
-  it('同一 e2e 配置若显式 HOLD_CHECK=1 + control hold=true → 403（证明旁路来自开关默认值，不是 entitlement 自身）', async () => {
+  it('R2：显式 HOLD_CHECK=1 时 hold=true → 403（hold 真正生效）', async () => {
     const config = loadMarketConfig({
       APP_PROFILE: 'e2e',
       E2E_MODE: '1',
@@ -217,8 +245,9 @@ describe('H5 m02614：E2E_MODE=1 的授权旁路（非 token 维度）', () => {
       ENTITLEMENT_TIER: 'c_end_display',
       ENTITLEMENT_EXPIRES_AT: '2030-12-31T00:00:00Z',
       ENTITLEMENT_HOLD_CHECK: '1',
+      ENTITLEMENT_AUDIT: '1',
+      ENTITLEMENT_CONFIG_EXPECTED_SHA256: 'b0d185b9af0eb2a228dd4195967d02bfe987a92979da2980188b5942bb15cef9',
     });
-    assert.equal(config.entitlementHoldCheck, true);
     const app = buildApp({
       config: appConfig,
       domainPlugins: [
@@ -231,6 +260,7 @@ describe('H5 m02614：E2E_MODE=1 的授权旁路（非 token 维度）', () => {
               return { hold: true, holdId: 'h1', reason: 'hold_active', lastReconciledAt: new Date() };
             },
           },
+          eventRepo: { async insert() {} },
         }),
       ],
       logger: false,
@@ -241,15 +271,14 @@ describe('H5 m02614：E2E_MODE=1 的授权旁路（非 token 维度）', () => {
     await app.close();
   });
 
-  it('非 e2e（APP_PROFILE=test）同配置缺 expected sha → 拒启；E2E_MODE 是唯一豁免源', () => {
+  it('R3：指纹自检不再因 e2eMode 跳过——非 e2e 同配置缺 sha 也拒启', () => {
     const base = {
       ENTITLEMENT_TIER: 'c_end_display',
       ENTITLEMENT_EXPIRES_AT: '2030-12-31T00:00:00Z',
+      ENTITLEMENT_HOLD_CHECK: '1',
+      ENTITLEMENT_AUDIT: '1',
     };
-    assert.throws(
-      () => loadMarketConfig({ ...base, APP_PROFILE: 'test' }),
-      /ENTITLEMENT_CONFIG_EXPECTED_SHA256/,
-    );
-    assert.doesNotThrow(() => loadMarketConfig({ ...base, APP_PROFILE: 'e2e', E2E_MODE: '1' }));
+    assert.throws(() => loadMarketConfig({ ...base, APP_PROFILE: 'test' }), /ENTITLEMENT_CONFIG_EXPECTED_SHA256/);
+    assert.throws(() => loadMarketConfig({ ...base, APP_PROFILE: 'e2e', E2E_MODE: '1' }), /ENTITLEMENT_CONFIG_EXPECTED_SHA256/);
   });
 });

@@ -60,14 +60,14 @@ export interface MarketConfig {
   readonly entitlementExpiresAt?: string;
   /** 流水线注入的配置指纹（sha256(tier|expires_at)，小写 hex）；tier!=internal_eval 时必填。 */
   readonly entitlementExpectedSha256?: string;
-  /** control 行（audit.entitlement_hold）检查；E2E 默认关闭（审计 schema 由 A13/A5 在真栈落地后打开）。 */
+  /** control 行（audit.entitlement_hold）检查；默认开启（H5 R2：E2E_MODE 不再关它）。 */
   readonly entitlementHoldCheck?: boolean;
-  /** 审计事件写入（audit.entitlement_events）；E2E 默认关闭。 */
+  /** 审计事件写入（audit.entitlement_events）；默认开启（H5 R2：E2E_MODE 不再关它）。 */
   readonly entitlementAuditEnabled?: boolean;
   /** 流水线部署标识（审计事件的 deployment_uid）。 */
   readonly deploymentUid?: string;
   readonly releaseId?: string;
-  /** E2E/单测模式：仅此模式允许 c_end_display 缺省期望指纹（生产缺省即拒绝启动）。 */
+  /** E2E/单测模式：仅用于 dev-auth/自动迁移；不再豁免 hold/audit/指纹自检（H5 R1/R3）。 */
   readonly e2eMode?: boolean;
 
 }
@@ -119,8 +119,20 @@ export function assertEntitlementTimebox(config: MarketConfig): void {
         '未配置到期时间视为 fail-open，服务拒绝启动。internal_eval 档可不配置（本来就恒 403）。',
     );
   }
-  // H4 m00813：tier!=internal_eval 时期望指纹必填（由流水线注入，不可手填），缺失→启动失败。
-  if (config.entitlementExpectedSha256 === undefined && config.e2eMode !== true) {
+  // H5 R1：非最小授权档必须三项授权控制全开且显式（hold/audit 由调用方在 config 上给 true）。
+  if (config.entitlementHoldCheck !== true) {
+    throw new MarketConfigError(
+      `ENTITLEMENT_TIER=${config.entitlementTier} 必须显式开启 ENTITLEMENT_HOLD_CHECK=1（H5 R1：默认值不得关掉 hold 检查）`,
+    );
+  }
+  if (config.entitlementAuditEnabled !== true) {
+    throw new MarketConfigError(
+      `ENTITLEMENT_TIER=${config.entitlementTier} 必须显式开启 ENTITLEMENT_AUDIT=1（H5 R1：默认值不得关掉审计）`,
+    );
+  }
+  // H4 m00813 / H5 R1+R3：tier!=internal_eval 时期望指纹必填（由流水线注入，不可手填），缺失→启动失败；
+  // 不再允许 e2eMode 豁免（H5 m02707：E2E_MODE 不得默认关掉授权控制）。
+  if (config.entitlementExpectedSha256 === undefined) {
     throw new MarketConfigError(
       `ENTITLEMENT_TIER=${config.entitlementTier} 必须配置 ENTITLEMENT_CONFIG_EXPECTED_SHA256` +
         '（流水线按 sha256("${tier}|${expiresAt}") 注入）；缺失视为期望指纹不可信，服务拒绝启动。',
@@ -217,6 +229,30 @@ export function loadMarketConfig(env: NodeJS.ProcessEnv = process.env): MarketCo
   }
 
   const e2eMode = env.E2E_MODE === '1';
+  const tier = parseTier(readTrimmed(env, 'ENTITLEMENT_TIER'));
+  // H5 R1：非最小授权档，任何 profile 都要显式三项授权控制；不靠 e2eMode/默认值豁免。
+  if (tier !== 'internal_eval') {
+    const missing: string[] = [];
+    if (env.ENTITLEMENT_HOLD_CHECK?.trim() !== '1') missing.push('ENTITLEMENT_HOLD_CHECK=1');
+    if (env.ENTITLEMENT_AUDIT?.trim() !== '1') missing.push('ENTITLEMENT_AUDIT=1');
+    if (readTrimmed(env, 'ENTITLEMENT_CONFIG_EXPECTED_SHA256') === undefined) {
+      missing.push('ENTITLEMENT_CONFIG_EXPECTED_SHA256=<sha256(tier|expires_at)>');
+    }
+    if (missing.length > 0) {
+      throw new MarketConfigError(
+        `ENTITLEMENT_TIER=${tier} 必须显式配置 ${missing.join('、')}（H5 R1：E2E_MODE 不再豁免 hold/审计/指纹）`,
+      );
+    }
+  }
+  // R2：E2E_MODE 不再改变 hold/audit 默认值；显式 0 仅允许「非 prod 且 tier=internal_eval」。
+  for (const key of ['ENTITLEMENT_HOLD_CHECK', 'ENTITLEMENT_AUDIT']) {
+    if (env[key]?.trim() === '0' && (tier !== 'internal_eval' || isProductionProfile(env))) {
+      throw new MarketConfigError(
+        `${key}=0 仅允许在非生产且 ENTITLEMENT_TIER=internal_eval 时使用（H5 R2）；` +
+          `当前 tier=${tier}、APP_PROFILE=${JSON.stringify(env.APP_PROFILE ?? '')}`,
+      );
+    }
+  }
   const devAuthToken = readTrimmed(env, 'E2E_AUTH_TOKEN');
   const devAuthUserId = readTrimmed(env, 'E2E_AUTH_USER_ID') ?? 'e2e-user';
   const databaseUrl = readTrimmed(env, 'DATABASE_URL');
@@ -226,7 +262,7 @@ export function loadMarketConfig(env: NodeJS.ProcessEnv = process.env): MarketCo
   const releaseId = readTrimmed(env, 'RELEASE_ID');
 
   const config: MarketConfig = {
-    entitlementTier: parseTier(readTrimmed(env, 'ENTITLEMENT_TIER')),
+    entitlementTier: tier,
     disclaimer: {
       text: readTrimmed(env, 'DISCLAIMER_TEXT') ?? DEFAULT_DISCLAIMER_TEXT,
       version,
@@ -234,10 +270,10 @@ export function loadMarketConfig(env: NodeJS.ProcessEnv = process.env): MarketCo
     watchlistLimit: parsePositiveInt(readTrimmed(env, 'WATCHLIST_LIMIT'), 'WATCHLIST_LIMIT', DEFAULT_WATCHLIST_LIMIT),
     watchlistTable: table,
     allowDevAuth: e2eMode || env.WATCHLIST_DEV_AUTH === '1',
-    // 审计/control 读默认开启（fail-closed）；E2E 默认关闭，因为 A5 的 audit schema 尚未进入真栈，
-    // 默认开启会让无表环境按 L27 crashloop。A5 DDL + A13 迁移落地后，A13 在发布流水线去掉 E2E 例外。
-    entitlementHoldCheck: env.ENTITLEMENT_HOLD_CHECK === '1' || (env.ENTITLEMENT_HOLD_CHECK !== '0' && !e2eMode),
-    entitlementAuditEnabled: env.ENTITLEMENT_AUDIT === '1' || (env.ENTITLEMENT_AUDIT !== '0' && !e2eMode),
+    // H5 R2（KD-ENT-01）：hold/audit 默认开启（fail-closed）；E2E_MODE 不再影响默认值。
+    // 显式 =0 的合法性由上面的守卫判定（仅非生产 + internal_eval），prod 设 0 走 L73 拒启。
+    entitlementHoldCheck: env.ENTITLEMENT_HOLD_CHECK === '1' || env.ENTITLEMENT_HOLD_CHECK !== '0',
+    entitlementAuditEnabled: env.ENTITLEMENT_AUDIT === '1' || env.ENTITLEMENT_AUDIT !== '0',
     devAuthUserId,
     autoMigrate: e2eMode || env.WATCHLIST_AUTO_MIGRATE === '1',
     ...(entitlementExpiresAt !== undefined ? { entitlementExpiresAt } : {}),
