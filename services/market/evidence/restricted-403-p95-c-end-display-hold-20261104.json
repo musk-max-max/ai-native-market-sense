@@ -1,0 +1,520 @@
+{
+  "base_url_redacted": "http://127.0.0.1:18102",
+  "entitlement_tier": "c_end_display",
+  "authority_note": "c_end_display + hold_active: restricted path equivalent to A13 #3 baseline; gate blocked, no serving read",
+  "profile": {
+    "APP_PROFILE": "test",
+    "ENTITLEMENT_HOLD_CHECK": "1",
+    "ENTITLEMENT_AUDIT": "0",
+    "RATE_LIMIT_IP_PER_MIN": "10000",
+    "RATE_LIMIT_IP_BURST": "10000"
+  },
+  "n_per_path": 20,
+  "generated_at": "2026-11-04T06:02:56.481Z",
+  "node": "v23.11.0",
+  "all_403_no_store": true,
+  "p95_ms": 2.374,
+  "max_ms": 24.706,
+  "by_path": [
+    {
+      "path": "/v1/instruments/SSE:600519/quote",
+      "n": 20,
+      "p95_ms": 3.578,
+      "max_ms": 24.706
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/bars?limit=1",
+      "n": 20,
+      "p95_ms": 1.477,
+      "max_ms": 1.666
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/fundamental-summary",
+      "n": 20,
+      "p95_ms": 0.739,
+      "max_ms": 1.55
+    }
+  ],
+  "samples": [
+    {
+      "path": "/v1/instruments/SSE:600519/quote",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 24.706,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/quote",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 2.685,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/quote",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 1.414,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/quote",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 1.323,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/quote",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 1.948,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/quote",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 1.963,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/quote",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 2.374,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/quote",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 1.867,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/quote",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 3.578,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/quote",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 1.409,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/quote",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.815,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/quote",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.714,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/quote",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.63,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/quote",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.744,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/quote",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.697,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/quote",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.829,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/quote",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.83,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/quote",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.968,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/quote",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 1.157,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/quote",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 1.26,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/bars?limit=1",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 1.249,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/bars?limit=1",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 1.477,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/bars?limit=1",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 1.387,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/bars?limit=1",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.759,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/bars?limit=1",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.8,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/bars?limit=1",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.534,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/bars?limit=1",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.627,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/bars?limit=1",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.584,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/bars?limit=1",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.595,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/bars?limit=1",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.693,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/bars?limit=1",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 1.666,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/bars?limit=1",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.942,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/bars?limit=1",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.82,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/bars?limit=1",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.769,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/bars?limit=1",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.749,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/bars?limit=1",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.687,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/bars?limit=1",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 1.317,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/bars?limit=1",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.892,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/bars?limit=1",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.637,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/bars?limit=1",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.728,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/fundamental-summary",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 1.55,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/fundamental-summary",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.739,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/fundamental-summary",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.546,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/fundamental-summary",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.468,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/fundamental-summary",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.469,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/fundamental-summary",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.4,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/fundamental-summary",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.459,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/fundamental-summary",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.614,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/fundamental-summary",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.647,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/fundamental-summary",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.658,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/fundamental-summary",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.738,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/fundamental-summary",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.687,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/fundamental-summary",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.545,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/fundamental-summary",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.458,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/fundamental-summary",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.426,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/fundamental-summary",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.452,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/fundamental-summary",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.586,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/fundamental-summary",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.58,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/fundamental-summary",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.494,
+      "ok": true
+    },
+    {
+      "path": "/v1/instruments/SSE:600519/fundamental-summary",
+      "status": 403,
+      "code": "ENTITLEMENT_RESTRICTED",
+      "cache_control": "no-store",
+      "ms": 0.448,
+      "ok": true
+    }
+  ]
+}

@@ -34,7 +34,43 @@
       "derivation": "sed '$d' <v3> 后前置两行 provenance；仅去掉陈旧末行自指哈希，数据行不变",
       "recompute": "shasum -a 256 services/market/evidence/hold-unreachable-raw-20261104-v4.txt",
       "note": "v4 为入包 artifact；无自指哈希行；因前置 provenance 头，sha 与 730cddf5 前缀值刻意不同，避免与 v3 rejected 值混淆。"
+    },
+    {
+      "path": "services/market/evidence/restricted-403-p95-20261104.json",
+      "role": "evidence-artifact",
+      "phase": "S0 #3 受限 403 P95",
+      "authority": "A3 #3 internal_eval gate short-circuit（gate 由 tier 判 blocked；HOLD_CHECK=0/AUDIT=0，无 control/audit IO）",
+      "sha256": "e1232a62e30103c93882e66cb17c1c846d7928267ba3fa47ce9635c73e532a6a",
+      "bytes": 13102,
+      "profile": "APP_PROFILE=test",
+      "frozen": true,
+      "recompute": "shasum -a 256 services/market/evidence/restricted-403-p95-20261104.json",
+      "note": "internal_eval 受限档采样：quote/bars/fundamental 各 20 次，全部 403 + no-store + ENTITLEMENT_RESTRICTED。此档只证 gate 短路路径，不代表 c_end_display 受限路径。"
+    },
+    {
+      "path": "services/market/evidence/restricted-403-p95-c-end-display-hold-20261104.json",
+      "role": "evidence-artifact",
+      "phase": "S0 #3 受限 403 P95",
+      "authority": "A13 #3 restricted baseline：ENTITLEMENT_TIER=c_end_display + audit.raise_hold(hold_active)",
+      "sha256": "aba65a0fca8d0147f2d2f90776a071ec5739ca198fca3afcc1cc9c9e8c62ff2b",
+      "bytes": 13099,
+      "profile": "APP_PROFILE=test",
+      "frozen": true,
+      "recompute": "shasum -a 256 services/market/evidence/restricted-403-p95-c-end-display-hold-20261104.json",
+      "note": "c_end_display + hold_active 采样：三种接口各 20 次全 403 + no-store + ENTITLEMENT_RESTRICTED；/healthz reason=hold_active。与 A13 的 c_end_display 受限路径同档。"
+    },
+    {
+      "path": "services/market/scripts/sample-restricted-403-p95.mjs",
+      "role": "sampling-script",
+      "phase": "S0 #3 受限 403 P95",
+      "authority": "A3 #3 采样脚本（tier/note 由 env 注入；断言 403+code+no-store，输出 nearest-rank P95）",
+      "sha256": "d2dec2692e6d9843cb5e95e60fbf039332a14f9831446233ebe6dead9fe3184c",
+      "bytes": 2975,
+      "profile": "APP_PROFILE=test",
+      "frozen": true,
+      "recompute": "shasum -a 256 services/market/scripts/sample-restricted-403-p95.mjs",
+      "note": "脚本本身也是 artifact：同 commit 下可复跑；采样前提写进 env profile。"
     }
   ],
-  "updated_at": "2026-11-04T10:38+08:00"
+  "updated_at": "2026-11-04T14:03+0800"
 }

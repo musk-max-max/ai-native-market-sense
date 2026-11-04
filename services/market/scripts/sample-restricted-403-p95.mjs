@@ -44,7 +44,8 @@ const byPath = paths.map((path) => {
 });
 const report = {
   base_url_redacted: base.replace(/\/\/[^/]*@/, '//<redacted>@'),
-  entitlement_tier: 'internal_eval',
+  entitlement_tier: process.env.ENTITLEMENT_TIER ?? 'internal_eval',
+  authority_note: process.env.SAMPLE_NOTE ?? null,
   // 采样前提：internal_eval（gate blocked → 403 短路），且 test profile 下关闭 hold/audit 读库，
   // 否则采样会掺入 control 读的 1s 超时/事件写入，不是 #3 要测的受限 403 路径。
   profile: {
