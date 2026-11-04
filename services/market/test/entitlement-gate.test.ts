@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import type { EntitlementControlRepo, EntitlementControlRow } from '../src/ports/entitlement.js';
-import { EntitlementGate } from '../src/domain/entitlement-gate.js';
+import { BLOCKING_REASONS, EntitlementGate } from '../src/domain/entitlement-gate.js';
 
 const BASE = new Date('2026-11-04T10:00:00+08:00');
 
@@ -185,5 +185,27 @@ describe('EntitlementGate：瞬态故障 / 确定性错误 / 缓存（L27）', (
     const restored = await gate.evaluate();
     assert.equal(restored.resolution.blocked, false);
     assert.equal(restored.resolution.effectiveTier, 'c_end_display');
+  });
+
+  it('H5 m02456：确定性审计写失败 = 阻断，blocked reason 必须是阻断原因（不是 audit_write_failed）', async () => {
+    const warnings: string[] = [];
+    const { gate } = makeGate(gateConfig(), { warn: (m) => warnings.push(m) });
+    gate.markWriteBlocked('audit_write_misconfigured');
+    const decision = await gate.evaluate();
+    assert.equal(decision.resolution.blocked, true);
+    assert.equal(decision.reason, 'audit_write_misconfigured');
+    assert.ok(BLOCKING_REASONS.has(decision.reason!));
+    assert.ok(warnings.some((w) => w.includes('blocking":true') && w.includes('已阻断为 internal_eval')));
+  });
+
+  it('H5 m02456：非阻断审计写失败（audit_write_failed）日志明确“非阻断、仅降级”', async () => {
+    const warnings: string[] = [];
+    const repo = new FakeControl();
+    const { gate } = makeGate(gateConfig(), { repo, warn: (m) => warnings.push(m) });
+    gate.markDegraded('audit_write_failed');
+    const decision = await gate.evaluate();
+    // reconciler 已停摆时非阻断会升级为阻断（L60）；本用例给出 fresh 行，确认保持放行但 degraded。
+    assert.equal(decision.resolution.blocked, false);
+    assert.ok(warnings.some((w) => w.includes('blocking":false') && w.includes('非阻断')));
   });
 });

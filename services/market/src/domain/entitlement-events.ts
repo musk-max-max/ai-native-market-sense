@@ -1,6 +1,6 @@
 /**
  * 审计事件写入（H4 m00813 口径）：event_key 幂等、3 次重试（100/500/2000ms 指数退避）、
- * 最终失败写结构化 stderr + process.emitWarning，不阻塞授权翻转。
+ * 最终失败写结构化 stderr + process.emitWarning；是否阻断授权由调用方按 classifyWriteError 决定。
  *
  * 只写 A3 拥有的 4 类事件：tier_state_observed / entitlement_expired / entitlement_flip / unauthorized_config。
  * deploy/tier_switch/hold_set/hold_clear 由 A13/人工角色写，A3 不得写。
@@ -196,7 +196,7 @@ export class EntitlementEventWriter {
         error: messageOf(error),
       }),
     );
-    process.emitWarning(`[market] entitlement 事件写入失败（${record.eventType}/${record.eventKey}），不阻塞授权翻转`);
+    process.emitWarning(`[market] entitlement 事件写入失败（${record.eventType}/${record.eventKey}）；阻断/非阻断由调用方按 classifyWriteError 判定，见后续 PAGE/degraded 日志`);
   }
 }
 

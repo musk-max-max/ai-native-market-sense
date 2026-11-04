@@ -307,6 +307,20 @@ describe('market 插件：授权矩阵（F1）', () => {
     await app.close();
   });
 
+  it('H4 m02334：受限/降级档 403 body 对已存在与未收录逐字节相同（仅 trace_id 可异）', async () => {
+    const { app, serving } = createHarness({ entitlementTier: 'internal_eval' });
+    const existing = await app.inject({ method: 'GET', url: '/v1/instruments/SSE:600519/quote' });
+    serving.instrument = null;
+    const unlisted = await app.inject({ method: 'GET', url: '/v1/instruments/SZSE:999999/quote' });
+    assert.equal(existing.statusCode, 403);
+    assert.equal(unlisted.statusCode, 403);
+    const strip = (body: string): string => body.replace(/"trace_id":"[^"]*"/, '"trace_id":"<tid>"');
+    assert.equal(strip(existing.body), strip(unlisted.body));
+    assert.ok(!existing.body.includes('INSTRUMENT_NOT_FOUND'));
+    assert.ok(!unlisted.body.includes('INSTRUMENT_NOT_FOUND'));
+    await app.close();
+  });
+
   it('正常档位（未 blocked）：未收录标的仍返回 404 INSTRUMENT_NOT_FOUND（存在性检查保留）', async () => {
     const { app, serving } = createHarness();
     serving.instrument = null;
@@ -408,7 +422,7 @@ describe('market 插件：quote / bars / fundamental 契约', () => {
     assert.equal(json<{ code: string }>(badAdjustment).code, 'VALIDATION_ERROR');
     const badLimit = await app.inject({ method: 'GET', url: '/v1/instruments/SSE:600519/bars?limit=501' });
     assert.equal(badLimit.statusCode, 400);
-    const badId = await app.inject({ method: 'GET', url: '/v1/instruments/600519.SH/quote' });
+    const badId = await app.inject({ method: 'GET', url: '/v1/instruments/not-an-instrument-id/quote' });
     assert.equal(badId.statusCode, 400);
     await app.close();
   });
@@ -575,7 +589,7 @@ describe('market 插件：watchlist（平台自有数据）', () => {
       method: 'POST',
       url: '/v1/watchlist',
       headers: { authorization: 'Bearer e2e-token' },
-      payload: { instrument_id: '600519.SH' },
+      payload: { instrument_id: 'not-an-instrument-id' },
     });
     assert.equal(response.statusCode, 400);
     await app.close();

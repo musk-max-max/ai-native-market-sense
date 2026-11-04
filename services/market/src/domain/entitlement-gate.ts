@@ -220,7 +220,7 @@ export class EntitlementGate {
   private fromRow(base: EntitlementResolution, row: EntitlementControlRow | null, now: Date): GateDecision {
     // Lead L60：非阻断的前提是 reconciler 还活着（它负责 observed 缺失兜底）。
     // 心跳缺失/过期 = 补偿控制停摆 → audit 写失败自动升级为阻断，保持原 reason 以便告警定位。
-    if (this.auditWriteBlocked) return this.blockAudit(base, 'audit_write_failed');
+    if (this.auditWriteBlocked) return this.blockAudit(base, 'audit_write_misconfigured');
     if (this.auditFailure !== undefined && !this.reconcilerAlive(row, now)) {
       return this.blockAudit(base, this.auditFailure);
     }
@@ -285,12 +285,20 @@ export class EntitlementGate {
   private page(reason: DegradedReason): void {
     if (this.warnedReasons.has(reason)) return;
     this.warnedReasons.add(reason);
+    // H5 m02456：写入失败必须能区分「阻断并寻呼」与「非阻断、仅降级」，
+    // 不能让值班按一条中性日志误判；blocked 时 reason 也必须是阻断集合内的原因。
+    const blocking = this.auditWriteBlocked;
     const payload = JSON.stringify({
       event: 'entitlement_audit_write_failed',
       severity: 'page',
+      blocking,
+      effect: blocking ? 'blocked_internal_eval' : 'degraded_only',
       reason,
     });
-    (this.options.warn ?? ((message: string) => process.emitWarning(message)))(`[PAGE] ${payload}`);
+    const text = blocking
+      ? `[market] 审计写入确定性失败（reason=${reason}）：已阻断为 internal_eval 并寻呼`
+      : `[market] 审计写入瞬态失败（reason=${reason}）：非阻断，仅降级+寻呼`;
+    (this.options.warn ?? ((message: string) => process.emitWarning(message)))(`[PAGE] ${text} ${payload}`);
     process.stderr.write(`${payload}\n`);
   }
 
