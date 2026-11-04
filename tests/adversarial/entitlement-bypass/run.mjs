@@ -14,13 +14,14 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { createRequire } from 'node:module';
 import {
   WORKSPACE, ARTIFACTS_DIR, ensureDir, portInUse, spawnService, waitFor,
-  http, addCheck, summarize, chromium, isoNow, rel,
+  http, addCheck, summarize, chromium, isoNow, rel, initRawLog, getHttpCount,
 } from './lib.mjs';
 import { runStaticAudit } from './cases/static.mjs';
-import { runRestrictedApiMatrix, runValidPhaseApi, runExpiredApiMatrix, runRateLimitAttack, runTrustProxyCidrCheck, runBackdoorGuardChecks, initRawLog } from './cases/api.mjs';
+import { runRestrictedApiMatrix, runValidPhaseApi, runExpiredApiMatrix, runRateLimitAttack, runTrustProxyCidrCheck, runBackdoorGuardChecks } from './cases/api.mjs';
 import { runRestrictedClient, startTransition } from './cases/client.mjs';
 
 const requireMarket = createRequire(path.join(WORKSPACE, 'services', 'market', 'package.json'));
@@ -105,16 +106,51 @@ async function startWeb(name, port, apiPort, logDir) {
   return { handle, base };
 }
 
+// 原始 HTTP transcript 自检：存在、非空、行数等于 http() 调用数、每行含 method/url/status/headers。
+function rawLogEvidence(file) {
+  const bytes = fs.statSync(file).size;
+  const content = fs.readFileSync(file, 'utf8');
+  const lines = content.split('\n').filter(Boolean);
+  const httpCalls = getHttpCount();
+  const sha256 = crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+  const required = ['method', 'url', 'status', 'headers'];
+  let missingFields = 0;
+  for (const line of lines) {
+    let obj;
+    try { obj = JSON.parse(line); } catch { missingFields += 1; continue; }
+    if (required.some((k) => !(k in obj))) missingFields += 1;
+  }
+  const evidence = { path: rel(file), bytes, lines: lines.length, httpCalls, sha256, missingFields };
+  if (!(bytes > 0 && lines.length > 0 && missingFields === 0)) {
+    throw new Error(`原始 HTTP transcript 自检失败：${JSON.stringify(evidence)}`);
+  }
+  if (lines.length !== httpCalls) {
+    throw new Error(`原始 HTTP transcript 行数(${lines.length}) ≠ http() 调用数(${httpCalls})：${rel(file)}`);
+  }
+  return evidence;
+}
+
 async function main() {
   ensureDir(ARTIFACTS_DIR);
   ensureDir(path.join(ARTIFACTS_DIR, 'logs'));
   const logDir = path.join(ARTIFACTS_DIR, 'logs');
-  const rawLog = initRawLog(path.join(ARTIFACTS_DIR, 'http-attempts.jsonl'));
+
+  // 单条复跑（lead 裁定后：修完只用同一 case 复跑 R4，不用全量）
+  const onlyArg = process.argv.find((a) => a.startsWith('--only='));
+  const only = onlyArg ? onlyArg.slice('--only='.length).split(',').map((x) => x.trim().toUpperCase()).filter(Boolean) : null;
+  if (only && !(only.length === 1 && only[0] === 'R4')) {
+    console.error(`仅支持 --only=R4，收到：${only.join(',')}`);
+    process.exit(2);
+  }
+
   const startedAt = isoNow();
+  const runId = startedAt.replace(/[^0-9TZ]/g, '');
+  const rawLog = initRawLog(path.join(ARTIFACTS_DIR, `http-attempts-${runId}${only ? '-r4' : ''}.jsonl`));
   const results = [];
   const handles = [];
   const meta = {
     startedAt,
+    runId,
     node: process.version,
     platform: process.platform,
     dbUrl: cfg.dbUrl,
@@ -124,14 +160,6 @@ async function main() {
     rawHttpLog: rel(rawLog),
     distMtime: fs.existsSync(path.join(cfg.webDist, 'index.html')) ? fs.statSync(path.join(cfg.webDist, 'index.html')).mtime.toISOString() : null,
   };
-
-  // 单条复跑（lead 裁定后：修完只用同一 case 复跑 R4，不用全量）
-  const onlyArg = process.argv.find((a) => a.startsWith('--only='));
-  const only = onlyArg ? onlyArg.slice('--only='.length).split(',').map((x) => x.trim().toUpperCase()).filter(Boolean) : null;
-  if (only && !(only.length === 1 && only[0] === 'R4')) {
-    console.error(`仅支持 --only=R4，收到：${only.join(',')}`);
-    process.exit(2);
-  }
   if (only) meta.mode = `only:${only.join(',')}`;
 
   let browser;
@@ -142,11 +170,13 @@ async function main() {
       console.log(`隔离目标：DB=${cfg.dbUrl}  API=${cfg.ports.trustProxyCidrApi}（R4 单条复跑）`);
       await runTrustProxyCidrCheck({ results, cfg, spawnLogDir: logDir, tag: 'R4' });
       const summary = summarize(results);
+      meta.rawHttpLogEvidence = rawLogEvidence(rawLog);
       meta.finishedAt = isoNow();
       const outFile = path.join(ARTIFACTS_DIR, 'results-r4.json');
       fs.writeFileSync(outFile, JSON.stringify({ meta, summary, checks: results }, null, 2));
       console.log('\n=== R4 复跑摘要 ===');
       console.log(JSON.stringify(summary, null, 2));
+      console.log(`\n原始 HTTP transcript 自检：${JSON.stringify(meta.rawHttpLogEvidence)}`);
       console.log(`\n证据：${rel(outFile)}；原始 HTTP：${rel(rawLog)}；实例日志：${rel(path.join(logDir, 'api-trustproxy-cidr.log'))}`);
       if (summary.fail > 0) {
         console.log('\nR4 仍为 FAIL：换桶仍成立（见上表 / results-r4.json）。');
@@ -266,11 +296,13 @@ async function main() {
 
     // 9) 输出
     const summary = summarize(results);
+    meta.rawHttpLogEvidence = rawLogEvidence(rawLog);
     meta.finishedAt = isoNow();
     const out = { meta, summary, checks: results };
     fs.writeFileSync(path.join(ARTIFACTS_DIR, 'results.json'), JSON.stringify(out, null, 2));
     console.log('\n=== 结果摘要 ===');
     console.log(JSON.stringify(summary, null, 2));
+    console.log(`\n原始 HTTP transcript 自检：${JSON.stringify(meta.rawHttpLogEvidence)}`);
     console.log(`\n证据：${rel(path.join(ARTIFACTS_DIR, 'results.json'))}；原始 HTTP：${rel(rawLog)}；截图/日志：${rel(ARTIFACTS_DIR)}/`);
     if (summary.fail > 0) {
       console.log('\n存在 FAIL：见上表与 results.json（按 lead 要求分档：BYPASS/LEAK/BLOCKED）');

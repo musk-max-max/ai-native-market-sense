@@ -673,6 +673,28 @@ describe('market 插件：fail-open 默认值（H5 P0 卡点）', () => {
     );
   });
 
+  it('L73 同类洞：prod 禁止 ENTITLEMENT_AUDIT=0（整条审计链关掉）；显式 test profile 允许', () => {
+    for (const profile of [undefined, 'prod', 'prodd', '']) {
+      assert.throws(
+        () =>
+          loadMarketConfig({
+            ...(profile === undefined ? {} : { APP_PROFILE: profile }),
+            ENTITLEMENT_AUDIT: '0',
+            DEPLOYMENT_UID: 'deploy-test-1',
+          } as NodeJS.ProcessEnv),
+        (error: unknown) => error instanceof MarketConfigError && /ENTITLEMENT_AUDIT=0/.test(error.message),
+        `APP_PROFILE=${JSON.stringify(profile ?? '<unset>')} 必须拒启`,
+      );
+    }
+    assert.doesNotThrow(() =>
+      loadMarketConfig({
+        APP_PROFILE: 'test',
+        ENTITLEMENT_AUDIT: '0',
+        DEPLOYMENT_UID: 'deploy-test-1',
+      } as NodeJS.ProcessEnv),
+    );
+  });
+
   it('L73 同类洞：prod 禁止 MARKET_NOW 固定时钟（可绕过时间盒）；显式 test profile 允许', () => {
     assert.throws(
       () =>

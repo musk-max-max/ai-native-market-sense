@@ -94,7 +94,19 @@ async function installMarketPlugin(
   assertEntitlementTimebox(config);
 
   const needsDatabase = options.servingRepo === undefined || options.watchlistRepo === undefined;
-  const pool = options.pool ?? (config.databaseUrl !== undefined ? new Pool({ connectionString: config.databaseUrl }) : null);
+  // L77：DB 故障的常态是"慢慢不回"，不是"快速报错"。没有超时的熔断是装饰：
+  // 连接/查询/服务端语句都必须有硬超时，否则 probeStartup→evaluate 会在 TCP 黑洞下挂死。
+  const pool =
+    options.pool ??
+    (config.databaseUrl !== undefined
+      ? new Pool({
+          connectionString: config.databaseUrl,
+          connectionTimeoutMillis: 1000,
+          query_timeout: 1000,
+          statement_timeout: 1000,
+          options: '-c statement_timeout=1000',
+        })
+      : null);
   if (pool === null && needsDatabase) {
     throw new Error(
       'services/market 启动失败：缺少 DATABASE_URL（或通过 MarketPluginOptions 注入 servingRepo/watchlistRepo）',

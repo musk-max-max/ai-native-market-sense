@@ -75,6 +75,8 @@ export interface GateStatus {
 }
 
 export interface EntitlementGateOptions {
+  /** L77：control 读的独立超时；不依赖 pg 驱动默认（默认 1000ms）。 */
+  controlTimeoutMs?: number;
   /** control 行成功缓存（H4：30s，避免每请求都打 PG）。 */
   readonly controlCacheMs?: number;
   /** 读失败负缓存（H4：5s）。 */
@@ -93,6 +95,25 @@ const DEFAULT_BREAKER_MS = 30_000;
 const DEFAULT_STALENESS_MS = 15 * 60_000;
 
 type GateConfig = Pick<MarketConfig, 'entitlementTier' | 'entitlementExpiresAt' | 'entitlementExpectedSha256'>;
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`${label} after ${timeoutMs}ms`));
+    }, timeoutMs);
+    timer.unref?.();
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
 
 export class EntitlementGate {
   private row: EntitlementControlRow | null | undefined;
@@ -142,7 +163,8 @@ export class EntitlementGate {
     }
 
     try {
-      const row = await this.repo.fetchControl();
+      // L77：control 读必须有自己的超时；TCP 黑洞下 promise 可能永不 reject。
+      const row = await withTimeout(this.repo.fetchControl(), this.controlTimeoutMs(), 'control_fetch_timeout');
       this.failures = 0;
       this.breakerUntilMs = 0;
       this.negativeUntilMs = 0;
@@ -292,6 +314,10 @@ export class EntitlementGate {
     });
     warn(`[PAGE] ${payload}`);
     process.stderr.write(`${payload}\n`);
+  }
+
+  private controlTimeoutMs(): number {
+    return this.options.controlTimeoutMs ?? 1000;
   }
 
   private cacheMs(): number {

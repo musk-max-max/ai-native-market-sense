@@ -45,7 +45,7 @@ export const domainPlugins = [marketPlugin];
 | `MARKET_NOW` | — | 固定时钟（测试/演练用）；**L73：prod 设置即拒启**（可让时间盒提前到期判定失效），仅显式 dev/test/e2e 允许 |
 | `ENTITLEMENT_CONFIG_EXPECTED_SHA256` | — | 流水线注入的配置指纹（64 位小写 hex，`sha256("${tier}|${expiresAt ?? ''}")`，expires 取 `toISOString()`）。**tier≠internal_eval 时生产必填，缺失=拒绝启动**；仅 `E2E_MODE=1` 可豁免；不一致时 effective=internal_eval + 写 `unauthorized_config` 事件 |
 | `ENTITLEMENT_HOLD_CHECK` | E2E 默认关 / 生产默认开 | 读 `audit.entitlement_hold_state` control 行（`market_app` 仅视图 SELECT）；**L73：prod 设 `0` 直接拒启**（放行 flag），仅显式 dev/test/e2e 可关 |
-| `ENTITLEMENT_AUDIT` | E2E 默认关 / 生产默认开 | 写 `audit.entitlement_events`（A3 只 INSERT 4 类事件）；A5 DDL + A13 GRANT 落地后才打开，写入失败仅告警/降级，不阻塞翻转 |
+| `ENTITLEMENT_AUDIT` | E2E 默认关 / 生产默认开 | 写 `audit.entitlement_events`（A3 只 INSERT 4 类事件）；**L73：prod 设 `0` 直接拒启**（等于关掉整条审计链），仅显式 dev/test/e2e 可关 |
 | `INGEST_REPORT_PATH` | `/state/ingest-report.json` | ingest-once 报告路径（`/healthz` 数据就绪字段来源，只读） |
 | `EVENT_PAYLOADS_PATH` | 仓库 `docs/reference/event-payloads.json`（镜像内 `/app/docs/reference/event-payloads.json`） | L70 事件 payload 键集唯一真源；prod 缺文件/坏 JSON 拒启，非 prod 告警跳过校验 |
 

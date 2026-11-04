@@ -176,6 +176,13 @@ export function assertNoE2EBackdoorInProduction(env: NodeJS.ProcessEnv): void {
         'ENTITLEMENT_HOLD_CHECK=0 会被视为放行 flag，服务拒绝启动。',
     );
   }
+  // 同类洞（H5 m02117）：ENTITLEMENT_AUDIT=0 在 prod 会整条关掉审计链，必须拒启。
+  if (env.ENTITLEMENT_AUDIT?.trim() === '0') {
+    throw new MarketConfigError(
+      `生产禁止关闭审计链（L73）：APP_PROFILE=${JSON.stringify(rawProfile)}（缺省=prod）下 ` +
+        'ENTITLEMENT_AUDIT=0 会被视为放行 flag，服务拒绝启动。',
+    );
+  }
   // 同类洞：MARKET_NOW 可冻结时钟于 expires_at 之前，等价于绕过时间盒（A3 L73 自查）。
   if (readTrimmed(env, 'MARKET_NOW') !== undefined) {
     throw new MarketConfigError(

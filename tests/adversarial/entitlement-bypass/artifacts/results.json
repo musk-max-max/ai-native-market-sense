@@ -1,6 +1,7 @@
 {
   "meta": {
-    "startedAt": "2026-11-04T01:00:54.170Z",
+    "startedAt": "2026-11-04T01:23:50.680Z",
+    "runId": "20261104T012350680Z",
     "node": "v23.11.0",
     "platform": "darwin",
     "dbUrl": "postgresql://ms@localhost:55432/market_sense_a19",
@@ -16,14 +17,22 @@
       "expiringWeb": 3201
     },
     "expiryLeadMs": 120000,
-    "rawHttpLog": "tests/adversarial/entitlement-bypass/artifacts/http-attempts.jsonl",
+    "rawHttpLog": "tests/adversarial/entitlement-bypass/artifacts/http-attempts-20261104T012350680Z.jsonl",
     "distMtime": "2026-11-04T01:00:21.048Z",
     "browser": "156.0.8078.4",
-    "expiresAt": "2026-11-04T01:03:00.874Z",
-    "transitionStartedAt": "2026-11-04T01:01:02.643Z",
-    "expiredObservedAt": "2026-11-04T01:03:02.520Z",
-    "expiryWaitMs": 118493,
-    "finishedAt": "2026-11-04T01:03:04.510Z"
+    "expiresAt": "2026-11-04T01:27:06.318Z",
+    "transitionStartedAt": "2026-11-04T01:25:08.187Z",
+    "expiredObservedAt": "2026-11-04T01:27:07.816Z",
+    "expiryWaitMs": 118244,
+    "rawHttpLogEvidence": {
+      "path": "tests/adversarial/entitlement-bypass/artifacts/http-attempts-20261104T012350680Z.jsonl",
+      "bytes": 135630,
+      "lines": 175,
+      "httpCalls": 175,
+      "sha256": "9ed2b522a2afeac0b2875dbe33cc772e4fea8c24156aa0d4869ed895dbc86160",
+      "missingFields": 0
+    },
+    "finishedAt": "2026-11-04T01:27:09.679Z"
   },
   "summary": {
     "total": 46,
@@ -33,13 +42,13 @@
     "verdict": "BYPASS_FOUND",
     "failures": [
       {
-        "id": "R4",
-        "title": "TRUST_PROXY 覆盖直连网段时：伪造 X-Forwarded-For 可换限流桶（条件性）",
-        "severity": "P2",
+        "id": "G3",
+        "title": "生产 profile 实例正常启动，但 dev-token 不被接受（固定身份入口关闭）",
+        "severity": "P1",
         "observed": {
-          "beforeSpoof": 429,
-          "afterSpoof": 403,
-          "afterSpoofCode": "ENTITLEMENT_RESTRICTED"
+          "started": false,
+          "watchlistStatus": null,
+          "watchlistBody": null
         }
       }
     ]
@@ -784,7 +793,7 @@
               "is_entitled": false
             },
             "forbidden": [],
-            "body": "{\"data\":{\"instrument_id\":\"SSE:600519\",\"exchange\":\"SSE\",\"name\":\"贵州茅台\",\"board\":\"main\",\"security_type\":\"stock\",\"list_status\":\"listed\",\"listed_at\":\"2001-08-27\"},\"meta\":{\"source\":{\"source\":\"platform_eod\",\"as_of\":\"2026-11-04T08:23:59+08:00\",\"staleness_ms\":2215882,\"source_id\":\"tushare\"},\"entitlement\":{\"tier\":\"internal_eval\",\"is_entitled\":false}}}"
+            "body": "{\"data\":{\"instrument_id\":\"SSE:600519\",\"exchange\":\"SSE\",\"name\":\"贵州茅台\",\"board\":\"main\",\"security_type\":\"stock\",\"list_status\":\"listed\",\"listed_at\":\"2001-08-27\"},\"meta\":{\"source\":{\"source\":\"platform_eod\",\"as_of\":\"2026-11-04T08:23:59+08:00\",\"staleness_ms\":3593241,\"source_id\":\"tushare\"},\"entitlement\":{\"tier\":\"internal_eval\",\"is_entitled\":false}}}"
           },
           {
             "instrument": "SZSE:000001",
@@ -803,7 +812,7 @@
               "is_entitled": false
             },
             "forbidden": [],
-            "body": "{\"data\":{\"instrument_id\":\"SZSE:000001\",\"exchange\":\"SZSE\",\"name\":\"平安银行\",\"board\":\"main\",\"security_type\":\"stock\",\"list_status\":\"listed\",\"listed_at\":\"1991-04-03\"},\"meta\":{\"source\":{\"source\":\"platform_eod\",\"as_of\":\"2026-11-04T08:23:59+08:00\",\"staleness_ms\":2215883,\"source_id\":\"tushare\"},\"entitlement\":{\"tier\":\"internal_eval\",\"is_entitled\":false}}}"
+            "body": "{\"data\":{\"instrument_id\":\"SZSE:000001\",\"exchange\":\"SZSE\",\"name\":\"平安银行\",\"board\":\"main\",\"security_type\":\"stock\",\"list_status\":\"listed\",\"listed_at\":\"1991-04-03\"},\"meta\":{\"source\":{\"source\":\"platform_eod\",\"as_of\":\"2026-11-04T08:23:59+08:00\",\"staleness_ms\":3593243,\"source_id\":\"tushare\"},\"entitlement\":{\"tier\":\"internal_eval\",\"is_entitled\":false}}}"
           }
         ]
       }
@@ -825,7 +834,7 @@
         "devMeta": {
           "source": {
             "source": "platform_watchlist",
-            "as_of": "2026-11-04T09:00:55+08:00",
+            "as_of": "2026-11-04T09:23:52+08:00",
             "staleness_ms": 0
           },
           "entitlement": {
@@ -887,7 +896,7 @@
         {
           "path": "/healthz",
           "status": 200,
-          "body": "{\"status\":\"ok\",\"service\":\"market-sense-api\",\"version\":\"0.1.0\",\"uptime_s\":1,\"domains\":[\"market\"],\"data_ready\":false,\"data_ready_reason\":\"INGEST_REPORT_MISSING\",\""
+          "body": "{\"status\":\"ok\",\"service\":\"market-sense-api\",\"version\":\"0.1.0\",\"uptime_s\":2,\"domains\":[\"market\"],\"data_ready\":false,\"data_ready_reason\":\"INGEST_REPORT_MISSING\",\""
         },
         {
           "path": "/v1/healthz",
@@ -1046,7 +1055,7 @@
             "connection": "keep-alive",
             "content-length": "172",
             "content-type": "application/problem+json; charset=utf-8",
-            "date": "Wed, 04 Nov 2026 01:00:55 GMT",
+            "date": "Wed, 04 Nov 2026 01:23:52 GMT",
             "keep-alive": "timeout=72",
             "retry-after": "1"
           },
@@ -1101,7 +1110,7 @@
       "expectation": "进程启动失败，日志含 TRUST_PROXY 被禁说明",
       "observed": {
         "exited": true,
-        "log": "/Users/leiyu/Documents/deepseek-harness/default-workspace/services/api/src/config.ts:102\n    throw new ConfigError(\n          ^\n\n\nConfigError: TRUST_PROXY=true 被禁止：只允许 ingress CIDR 列表（如 10.0.0.0/8,192.168.0.0/16），否则 IP 桶可被 X-Forwarded-For 伪造绕过\n    at parseTrustProxy (/Users/leiyu/Documents/deepseek-harness/default-workspace/services/api/src/config.ts:102:11)\n    at loadConfig (/Users/leiyu/Documents/deepseek-harness/default-workspace/services/api/src/config.ts:83:22)\n    at <anonymous> (/Users/l"
+        "log": "[config] 拒绝启动：TRUST_PROXY=true 被禁止：只允许单个 ingress 窄网段（如 10.0.0.0/24 或 /32），否则 IP 桶可被 X-Forwarded-For 伪造绕过\n"
       },
       "status": "PASS",
       "severity": null,
@@ -1111,21 +1120,23 @@
     },
     {
       "id": "R4",
-      "title": "TRUST_PROXY 覆盖直连网段时：伪造 X-Forwarded-For 可换限流桶（条件性）",
+      "title": "TRUST_PROXY 覆盖直连网段时：loopback CIDR 被配置层拒绝启动（XFF 换桶不可达）",
       "clause": [
         "decisions.md L28"
       ],
-      "attempt": "实例 TRUST_PROXY=127.0.0.0/8；耗尽桶后带 X-Forwarded-For: 8.8.8.8",
-      "expectation": "条件性 LEAK 记录：若 429→403 则证明按 XFF 换桶；仅当客户端可直连 pod 且网段被信任时成立",
+      "attempt": "TRUST_PROXY=127.0.0.0/8 node --import tsx src/server.ts",
+      "expectation": "进程退出 + 日志点名 TRUST_PROXY + 从未监听端口（宽/回环网段守卫）；启动成功则继续换桶探测",
       "observed": {
-        "beforeSpoof": 429,
-        "afterSpoof": 403,
-        "afterSpoofCode": "ENTITLEMENT_RESTRICTED"
+        "refused": true,
+        "exitCode": 1,
+        "listenedPort": false,
+        "exitFirstLine": "[config] 拒绝启动：TRUST_PROXY 网段过宽（/8）：只接受 /24–/32 的 ingress 网段（0.0.0.0/0、10.0.0.0/8、192.168.0.0/16 等一律拒绝），收到 \"127.0.0.0/8\"",
+        "log": "[config] 拒绝启动：TRUST_PROXY 网段过宽（/8）：只接受 /24–/32 的 ingress 网段（0.0.0.0/0、10.0.0.0/8、192.168.0.0/16 等一律拒绝），收到 \"127.0.0.0/8\"\n"
       },
-      "status": "FAIL",
-      "severity": "P2",
+      "status": "PASS",
+      "severity": null,
       "evidence": {
-        "note": "部署必须保证只有 ingress 能连 pod，且 TRUST_PROXY 只列 ingress 网段"
+        "log": "tests/adversarial/entitlement-bypass/artifacts/logs/api-trustproxy-cidr.log"
       }
     },
     {
@@ -1139,7 +1150,7 @@
       "expectation": "进程退出，日志含「E2E 模式在生产不可用」与 APP_PROFILE",
       "observed": {
         "exited": true,
-        "log": "{\"level\":50,\"time\":1793754056760,\"pid\":65431,\"hostname\":\"ly-2.local\",\"err\":{\"type\":\"MarketConfigError\",\"message\":\"E2E 模式在生产不可用（L44/L46）：APP_PROFILE=\\\"\\\"（缺省=prod）下禁止 E2E_MODE=1、E2E_AUTH_TOKEN\",\"stack\":\"MarketConfigError: E2E 模式在生产不可用（L44/L46）：APP_PROFILE=\\\"\\\"（缺省=prod）下禁止 E2E_MODE=1、E2E_AUTH_TOKEN\\n    at assertNoE2EBackdoorInProduction (/Users/leiyu/Documents/deepseek-harness/default-workspace/serv"
+        "log": "{\"level\":50,\"time\":1793755464945,\"pid\":83327,\"hostname\":\"ly-2.local\",\"err\":{\"type\":\"MarketConfigError\",\"message\":\"E2E 模式在生产不可用（L44/L46）：APP_PROFILE=\\\"\\\"（缺省=prod）下禁止 E2E_MODE=1、E2E_AUTH_TOKEN\",\"stack\":\"MarketConfigError: E2E 模式在生产不可用（L44/L46）：APP_PROFILE=\\\"\\\"（缺省=prod）下禁止 E2E_MODE=1、E2E_AUTH_TOKEN\\n    at assertNoE2EBackdoorInProduction (/Users/leiyu/Documents/deepseek-harness/default-workspace/serv"
       },
       "status": "PASS",
       "severity": null,
@@ -1158,7 +1169,7 @@
       "expectation": "进程退出，日志点名 E2E_AUTH_TOKEN",
       "observed": {
         "exited": true,
-        "log": "{\"level\":50,\"time\":1793754057168,\"pid\":65434,\"hostname\":\"ly-2.local\",\"err\":{\"type\":\"MarketConfigError\",\"message\":\"E2E 模式在生产不可用（L44/L46）：APP_PROFILE=\\\"\\\"（缺省=prod）下禁止 E2E_AUTH_TOKEN\",\"stack\":\"MarketConfigError: E2E 模式在生产不可用（L44/L46）：APP_PROFILE=\\\"\\\"（缺省=prod）下禁止 E2E_AUTH_TOKEN\\n    at assertNoE2EBackdoorInProduction (/Users/leiyu/Documents/deepseek-harness/default-workspace/services/market/src/config"
+        "log": "{\"level\":50,\"time\":1793755465383,\"pid\":83332,\"hostname\":\"ly-2.local\",\"err\":{\"type\":\"MarketConfigError\",\"message\":\"E2E 模式在生产不可用（L44/L46）：APP_PROFILE=\\\"\\\"（缺省=prod）下禁止 E2E_AUTH_TOKEN\",\"stack\":\"MarketConfigError: E2E 模式在生产不可用（L44/L46）：APP_PROFILE=\\\"\\\"（缺省=prod）下禁止 E2E_AUTH_TOKEN\\n    at assertNoE2EBackdoorInProduction (/Users/leiyu/Documents/deepseek-harness/default-workspace/services/market/src/config"
       },
       "status": "PASS",
       "severity": null,
@@ -1176,12 +1187,12 @@
       "attempt": "APP_PROFILE 缺省（=prod）、无 E2E env 启动；用 Authorization: Bearer dev-token 访问 /v1/watchlist",
       "expectation": "实例健康，watchlist 返回 401（无 dev 身份）",
       "observed": {
-        "started": true,
-        "watchlistStatus": 401,
-        "watchlistBody": "{\"type\":\"https://errors.market-sense.invalid/unauthenticated\",\"title\":\"未认证\",\"status\":401,\"code\":\"UNAUTHENTICATED\",\"trace_id\":\"req-2\",\"detail\":\"自选为私有数据，需要有效的 Bearer 凭据。\"}"
+        "started": false,
+        "watchlistStatus": null,
+        "watchlistBody": null
       },
-      "status": "PASS",
-      "severity": null,
+      "status": "FAIL",
+      "severity": "P1",
       "evidence": {
         "log": "tests/adversarial/entitlement-bypass/artifacts/logs/api-prod-profile.log"
       }
@@ -1300,7 +1311,7 @@
         "priceVisible": true,
         "priceText": "10.30 元",
         "disclaimerVisible": true,
-        "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n最新行情\n\n最新价 · 收盘快照\n\n10.30 元\n-1.90%\n-0.20 元\n\n数据截止（北京时间）\n2024-01-04T15:00:00+08:00\n数据来源\n平台行情（收盘）\n价格口径\n不复权（快照）\n交易日\n2024-01-04\n\n延时数据 · 非实时（滞后约 24834.0小时）\n\n☆\n加入自选\n登录后可加自选\n免责声明\n\n本页面数据仅供参考，不构成任何投资建议或买卖依据。数据可能存在延迟，请"
+        "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n最新行情\n\n最新价 · 收盘快照\n\n10.30 元\n-1.90%\n-0.20 元\n\n数据截止（北京时间）\n2024-01-04T15:00:00+08:00\n数据来源\n平台行情（收盘）\n价格口径\n不复权（快照）\n交易日\n2024-01-04\n\n延时数据 · 非实时（滞后约 24834.4小时）\n\n☆\n加入自选\n登录后可加自选\n免责声明\n\n本页面数据仅供参考，不构成任何投资建议或买卖依据。数据可能存在延迟，请"
       },
       "status": "PASS",
       "severity": null,
