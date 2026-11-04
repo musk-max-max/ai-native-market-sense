@@ -1,0 +1,24 @@
+# 公网临时层安全核查（H5 m02905 未审批公网暴露处置的核查部分）
+# executor: A13 (a13-sre)   time_utc: 2026-11-04T12:11:37Z
+# host: 47.120.16.239:80 (临时 nginx 层 / Docker / cn-hechi)
+# authority: drill（仅演练记录，不进签字证据包 authoritative 列，不计 PASS）
+# 边界: 未改 nginx.conf、未改安全组、未改口令；改配置/口令归 Lead。
+
+## 1. 公网实例 backdoor probe（无 Basic Auth，nginx 先拦）
+GET /v1/watchlist  Authorization: Bearer dev-token -> 401
+GET /v1/watchlist  Authorization: Bearer internal_dev -> 401
+
+## 2. API 容器 env（只读 docker inspect，值原样）
+ENTITLEMENT_TIER=internal_eval
+E2E_MODE=1
+E2E_AUTH_TOKEN=
+APP_PROFILE=e2e
+
+## 3. 绕过 nginx 直连容器 :8080（只读探测）
+direct /v1/watchlist Bearer dev-token -> 401
+direct /v1/watchlist Bearer internal_dev -> 401
+
+## 4. 判定（按 H5 m02905 规则）
+FAIL: APP_PROFILE=e2e（要求 prod）且 E2E_MODE=1（要求不存在）→ 公网可达的栈处于 e2e 测试 profile。
+NOTE: 两个 bearer 令牌当前均 401（E2E_AUTH_TOKEN 为空，后门未生效），但 profile 违规本身触发「立即停机并报 H5」。
+ACTION: 已 docker stop ms-nginx（仅停公网层，可逆：docker start ms-nginx），未动 /opt/ms-nginx/nginx.conf、未动安全组、未动口令。
