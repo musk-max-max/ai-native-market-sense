@@ -6,7 +6,8 @@
   "rule": "artifact 不内嵌自身哈希；哈希只进 manifest；内容改动必须换新文件名（UTC 时间戳），旧 artifact 保留；CI 独立复算每条 sha。",
   "authority_values": [
     "authoritative",
-    "historical"
+    "historical",
+    "drill"
   ],
   "phase_values": [
     "pre-fix",
@@ -161,6 +162,58 @@
         "H5-R19"
       ],
       "notes": "H5 四件套采集模板；新增 NetworkPolicy 真集群执行命令与授权边界（只读 kubeconfig → PARTIAL）。"
+    },
+    {
+      "path": "infra/evidence/exposure-temp-nginx-20261104T1210Z.txt",
+      "sha256": "8ec5bc8e65146edeb7e2f80f9601a598935bc8a7fcbca6f661575fc2477edb1f",
+      "bytes": 6345,
+      "recompute": "sha256sum infra/evidence/exposure-temp-nginx-20261104T1210Z.txt",
+      "role": "drill-evidence",
+      "authority": "drill",
+      "phase": "post-fix",
+      "case_ids": [
+        "H5-R10"
+      ],
+      "notes": "Lead 临时 nginx 层公网 404/内部 healthz 采集；H5 m02905 判不认作 ④ 证据，仅演练记录"
+    },
+    {
+      "path": "infra/evidence/exposure-internal-dev-probe-20261104T1211Z.txt",
+      "sha256": "ea100ca783ed986af0269b330c25030cb22211d32154c3cebc2d976eb8337421",
+      "bytes": 1341,
+      "recompute": "sha256sum infra/evidence/exposure-internal-dev-probe-20261104T1211Z.txt",
+      "role": "drill-evidence",
+      "authority": "drill",
+      "phase": "post-fix",
+      "case_ids": [
+        "H5-R10"
+      ],
+      "notes": "公网临时层 APP_PROFILE=e2e/E2E_MODE=1 核查 + bearer 401；触发 containment（停 ms-nginx）"
+    },
+    {
+      "path": "infra/evidence/nginx-access-review-20261104T1212Z.txt",
+      "sha256": "dab2c01f1169a5f39a1f5c60b13231ab9f9e69880e6ad5630ed8097346e3e16d",
+      "bytes": 8091,
+      "recompute": "sha256sum infra/evidence/nginx-access-review-20261104T1212Z.txt",
+      "role": "drill-evidence",
+      "authority": "drill",
+      "phase": "post-fix",
+      "case_ids": [
+        "H5-R10"
+      ],
+      "notes": "临时层暴露窗口 access log 复盘：无第三方持证 /v1 2xx"
+    },
+    {
+      "path": "infra/evidence/entitlement-env-audit-20261104T1216Z.txt",
+      "sha256": "5df72430320709dc812eb62319868a1b8dec1f66d31af83db974afbe9f83f09a",
+      "bytes": 2703,
+      "recompute": "sha256sum infra/evidence/entitlement-env-audit-20261104T1216Z.txt",
+      "role": "drill-evidence",
+      "authority": "drill",
+      "phase": "post-fix",
+      "case_ids": [
+        "KD-ENT-01"
+      ],
+      "notes": "运行实例授权 env 审计：唯一行情实例 tier=internal_eval；E2E_MODE=1 待 A3 修"
     }
   ],
   "related_manifests": [

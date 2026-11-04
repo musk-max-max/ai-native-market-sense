@@ -1,0 +1,41 @@
+# 授权相关 env 审计（H5 m02964 / KD-ENT-01，A13 执行）
+# executor: A13 (a13-sre)   time_utc: 2026-11-04T12:16:37Z
+# scope: ECS 47.120.16.239 上所有 running 容器（docker inspect；只列授权相关 key，不含密钥明文；sha 只写 empty/set+len）
+# 判定规则（H5）：ENTITLEMENT_TIER != internal_eval 且（HOLD_CHECK!=1 或 AUDIT!=1 或 EXPECTED_SHA 为空）→ 数据面旁路，立即停并报 H5。
+
+## 1. 容器清单（含端口发布）
+xenodochial_payne	nginx:1.27-alpine	Up About a minute	80/tcp
+market-sense-e2e-web-1	market-sense-e2e-web	Up 6 hours (healthy)	127.0.0.1:3000->3000/tcp
+market-sense-e2e-api-1	market-sense-e2e-api	Up 6 hours (healthy)	127.0.0.1:8081->8080/tcp
+market-sense-e2e-postgres-1	postgres:16-alpine	Up 6 hours (healthy)	5432/tcp
+market-sense-e2e-redis-1	redis:7-alpine	Up 6 hours (healthy)	6379/tcp
+market-sense-e2e-tushare-replay-1	market-sense-e2e-tushare-replay	Up 6 hours (healthy)	127.0.0.1:18081->18080/tcp
+
+## 2. 每容器授权 env（缺失/空值显式标注；sha 不落明文）
+--- xenodochial_payne
+--- market-sense-e2e-web-1
+E2E_MODE=1
+--- market-sense-e2e-api-1
+ENTITLEMENT_TIER=internal_eval
+E2E_MODE=1
+APP_PROFILE=e2e
+ENTITLEMENT_AUDIT=0
+ENTITLEMENT_HOLD_CHECK=0
+--- market-sense-e2e-postgres-1
+--- market-sense-e2e-redis-1
+--- market-sense-e2e-tushare-replay-1
+
+## 3. 判定（按 H5 规则逐实例）
+xenodochial_payne: SKIP（无 ENTITLEMENT_TIER，非行情服务；ports=80/tcp）
+market-sense-e2e-web-1: SKIP（无 ENTITLEMENT_TIER，非行情服务；ports=127.0.0.1:3000->3000/tcp）
+market-sense-e2e-api-1: OK（tier=internal_eval）
+market-sense-e2e-postgres-1: SKIP（无 ENTITLEMENT_TIER，非行情服务；ports=5432/tcp）
+market-sense-e2e-redis-1: SKIP（无 ENTITLEMENT_TIER，非行情服务；ports=6379/tcp）
+market-sense-e2e-tushare-replay-1: SKIP（无 ENTITLEMENT_TIER，非行情服务；ports=127.0.0.1:18081->18080/tcp）
+
+## 4. 结论与备注
+- 唯一行情服务实例：market-sense-e2e-api-1。APP_PROFILE=e2e、E2E_MODE=1、ENTITLEMENT_TIER=internal_eval、ENTITLEMENT_HOLD_CHECK=0、ENTITLEMENT_AUDIT=0、EXPECTED_SHA=EMPTY。
+  按 H5 本条规则：tier=internal_eval → **不触发立即停机**；但 E2E_MODE=1 时 hold/audit 默认关（KD-ENT-01）属待修 P1，代码修复 A3 11-08，compose 改造交 A12。
+- 临时 nginx 层 ms-nginx 已 stopped（不在 running）；其公网暴露已按 H5 m02905 处置，P2。
+- 观察到一个一次性 nginx selftest 容器（随机名，entrypoint=sh，cmd 为 htpasswd 自测；PortBindings={}，无端口发布，非服务、不可公网访问），不纳入行情实例判定。
+- 未改任何容器/配置；本审计为只读。

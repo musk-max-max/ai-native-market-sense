@@ -5,7 +5,7 @@
  * 校验 infra/evidence/evidence-manifest.json：
  *  1. 每条 artifact 存在、size>0、bytes/sha256 由本脚本独立复算并一致；
  *  2. manifest 覆盖 infra/evidence/ 下 100% 的待提交文件（不扫内容里的十六进制串）；
- *  3. 每条带 authority(authoritative|historical)/phase(pre-fix|post-fix)/非空 case_ids；
+ *  3. 每条带 authority(authoritative|historical|drill；drill 不计入签字证据包)/phase(pre-fix|post-fix)/非空 case_ids；
  *  4. 若给 --tarball <path>：tar 内文件集合与 manifest 条目一一对应。
  *
  * 用法：node infra/ci/check-evidence-manifest.mjs [--tarball evidence.tar.gz] [--json]
@@ -20,7 +20,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const EVIDENCE_DIR = join(ROOT, 'infra/evidence');
 const MANIFEST = join(EVIDENCE_DIR, 'evidence-manifest.json');
 const IGNORED = new Set(['evidence-manifest.json']);
-const AUTHORITY = new Set(['authoritative', 'historical']);
+const AUTHORITY = new Set(['authoritative', 'historical', 'drill']);
 const PHASE = new Set(['pre-fix', 'post-fix']);
 
 const argv = process.argv.slice(2);
