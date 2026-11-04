@@ -14,7 +14,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {
-  WORKSPACE, ARTIFACTS_DIR, ensureDir, spawnService, waitFor, http,
+  WORKSPACE, ARTIFACTS_DIR, ensureDir, spawnService, waitFor, http, portInUse,
   addCheck, summarize, isoNow, rel, sleep,
 } from './lib.mjs';
 
@@ -56,12 +56,19 @@ async function probeCidr({ cidr, port, results, logDir }) {
   let exited = false;
   let healthy = false;
   let healthStatus = null;
+  let listenedPort = false;
   try {
     // 等"退出"或"健康"先到；宽网段若被正确拒绝，进程应在监听前退出。
     const outcome = await waitFor(
       `TRUST_PROXY=${cidr} 启动结果`,
       async () => {
         if (handle.child.exitCode !== null) return 'exited';
+        // "是否监听端口"的外部观测：每轮主动 connect 一次；只要曾连上就记 listenedPort。
+        try {
+          if (await portInUse(port)) listenedPort = true;
+        } catch {
+          // connect 失败 = 未监听
+        }
         try {
           const res = await http(`http://127.0.0.1:${port}/healthz`);
           healthStatus = res.status;
@@ -75,6 +82,7 @@ async function probeCidr({ cidr, port, results, logDir }) {
     ).catch(() => null);
     exited = handle.child.exitCode !== null;
     healthy = outcome === 'healthy' || healthStatus === 200;
+    if (!listenedPort && await portInUse(port).catch(() => false)) listenedPort = true;
     if (exited && !healthy) {
       // 给进程退出日志一点落盘时间
       await sleep(200);
@@ -83,18 +91,19 @@ async function probeCidr({ cidr, port, results, logDir }) {
     const log = fs.existsSync(logFile) ? fs.readFileSync(logFile, 'utf8') : '';
     await handle.cleanup().catch(() => {});
     const mentionsTrustProxy = /TRUST_PROXY/i.test(log);
+    const exitFirstLine = log.split('\n').map((line) => line.trim()).find(Boolean) ?? null;
     const warnOnly = /(?:warn|warning)[^\n]*TRUST_PROXY|TRUST_PROXY[^\n]*warn/i.test(log);
     // 只把"配置层校验拒绝"记为 PASS：进程退出 + 日志点名 TRUST_PROXY + 从未监听。
     // 依赖库崩溃（如 @fastify/proxy-addr 对 0.0.0.0/0 抛 TypeError）虽然也退出，
     // 但不是启动校验，换个写法/依赖版本就可能重新放行——按 FAIL 记，避免自欺。
-    const refusedByConfigGuard = exited && !healthy && mentionsTrustProxy && !warnOnly;
+    const refusedByConfigGuard = exited && !healthy && !listenedPort && mentionsTrustProxy && !warnOnly;
     const incidentalCrash = exited && !healthy && !mentionsTrustProxy;
     addCheck(results, {
       id: `Q-${cidr}`,
       title: `TRUST_PROXY=${cidr} 必须被配置层拒绝启动（不允许 warn 后继续、不接受依赖崩溃式拒启）`,
       clause: ['lead R4 裁定-条件 1', 'decisions.md L28'],
       attempt: `APP_PROFILE=test TRUST_PROXY=${cidr} node --import tsx src/server.ts (port ${port})`,
-      expectation: '进程拒绝启动且日志点名 TRUST_PROXY（启动校验）；healthz 200、仅 warn、或依赖库 TypeError 崩溃均 FAIL',
+      expectation: '进程退出 + 日志点名 TRUST_PROXY + 从未监听健康端口，三条同时成立；healthz 200、曾监听、仅 warn、依赖库 TypeError 崩溃均 FAIL',
       observed: {
         cidr,
         port,
@@ -102,10 +111,12 @@ async function probeCidr({ cidr, port, results, logDir }) {
         exitCode: handle.child.exitCode,
         healthStatus,
         healthy,
+        listenedPort,
         mentionsTrustProxy,
         warnOnly,
         refusedByConfigGuard,
         incidentalCrash,
+        exitFirstLine,
         logTail: log.slice(-700),
       },
       status: refusedByConfigGuard ? 'PASS' : 'FAIL',

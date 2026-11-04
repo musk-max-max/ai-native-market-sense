@@ -182,3 +182,36 @@ node tests/adversarial/entitlement-bypass/trustproxy-guard.mjs   # 4 个独立�
 - 即：条件 1 **尚未实现**；且四个里有两个只是依赖库在 `buildApp` 崩溃，不是 config 层校验——不能算"启动时校验通过"。
 - 修复后复跑同一命令：只有「进程退出 + 日志点名 TRUST_PROXY + 从未监听健康端口」才记 PASS；`healthz 200`、warn-only、依赖 TypeError 崩溃均记 FAIL。退出码 `0`=4/4 配置层拒启，`1`=仍有放行。
 - 日志：`artifacts/logs/api-trustproxy-guard-*.log`。
+
+## 11. 附：A0 修复后复跑（2026-11-04 09:14，外部观测）
+
+同一命令、同一隔离库 `market_sense_a19`、同一端口；唯一变化是 A0 的 fix（services/api/src/config.ts，mtime 09:09）。
+
+### 11.1 条件 1：`node trustproxy-guard.mjs`（修前 → 修后）
+
+| TRUST_PROXY | 修前（09:07） | 修后（09:14） |
+| --- | --- | --- |
+| `0.0.0.0/0` | 退出 1，但为 `@fastify/proxy-addr` 的 `TypeError: invalid range`（`buildApp`），日志无 TRUST_PROXY 校验文案 → FAIL | 退出 1，`listenedPort=false`，`/healthz` 从未 200；stderr 首行 `[config] 拒绝启动：TRUST_PROXY 网段过宽（/0）：只接受 /24–/32 的 ingress 网段…收到 "0.0.0.0/0"` → **PASS** |
+| `::/0` | 同上，`TypeError: invalid range on address: ::/0` → FAIL | 退出 1，`listenedPort=false`；stderr 首行 `[config] 拒绝启动：TRUST_PROXY 不得包含未指定或回环地址: "::/0"` → **PASS** |
+| `127.0.0.0/8` | 启动成功，`/healthz` 200，无 warn → FAIL | 退出 1，`listenedPort=false`；stderr 首行 `[config] 拒绝启动：TRUST_PROXY 网段过宽（/8）…收到 "127.0.0.0/8"` → **PASS** |
+| `10.0.0.0/8` | 启动成功，`/healthz` 200，无 warn → FAIL | 退出 1，`listenedPort=false`；stderr 首行 `[config] 拒绝启动：TRUST_PROXY 网段过宽（/8）…收到 "10.0.0.0/8"` → **PASS** |
+
+修后合计 **4/4 PASS**（`GUARD_EXIT=0`），`verdict=NO_BYPASS`；证据 `artifacts/trustproxy-guard.json`，修前基线 `artifacts/trustproxy-guard-before-fix.json`。
+
+### 11.2 R4：`node run.mjs --only=R4`（修前 → 修后）
+
+| 观测 | 修前（09:05） | 修后（09:14） |
+| --- | --- | --- |
+| 实例启动 | 正常启动、监听、`/healthz` 200 | 拒绝启动，exit 1，`listenedPort=false`，`/healthz` 从未 200 |
+| 换桶结果 | 桶耗尽后 `beforeSpoof=429`；带 `X-Forwarded-For: 8.8.8.8` → `afterSpoof=403 ENTITLEMENT_RESTRICTED`（换桶成立） | 换桶路径不可达（无 HTTP 响应可发） |
+| stderr 首行 | 无（正常服务） | `[config] 拒绝启动：TRUST_PROXY 网段过宽（/8）：只接受 /24–/32 的 ingress 网段（…），收到 "127.0.0.0/8"` |
+| 判定 | FAIL / P2 | **PASS**（`R4_EXIT=0`） |
+
+证据：修前 `artifacts/r4-before-fix.json`（429→403）；修后 `artifacts/results-r4.json`（refused=true、exitCode=1、listenedPort=false）；原始日志 `artifacts/logs/api-trustproxy-cidr.log`。
+
+### 11.3 「是否监听端口」的观测方法
+
+- 进程退出：`spawn` 返回的 `child.exitCode !== null`（外部观测，不读实现内部状态）。
+- 从未监听：在启动窗口内每 250ms 用 TCP `connect` 探测端口（`portInUse`）并请求 `/healthz`；只要任一轮 `connect` 成功或 `/healthz` 返回 200 即记 `listenedPort=true`，该条不能 PASS。
+- 拒启归因：stderr 首行必须出现 `TRUST_PROXY` 配置校验文案、且不能是 warn-only；依赖库 `TypeError` 崩溃（修前 `0.0.0.0/0`/`::/0` 的情况）不算配置层拒启。
+- 条件 2/3 仍记「未覆盖」：条件 2 需 staging（本机无 ingress），条件 3 不在攻击环境。

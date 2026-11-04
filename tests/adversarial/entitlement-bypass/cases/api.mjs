@@ -4,7 +4,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawnService, waitFor, http, addCheck, sleep, rel } from '../lib.mjs';
+import { spawnService, waitFor, http, addCheck, sleep, rel, portInUse } from '../lib.mjs';
 
 const INSTRUMENTS = ['SSE:600519', 'SZSE:000001'];
 const FORBIDDEN_KEYS = new Set([
@@ -660,21 +660,29 @@ export async function runTrustProxyCidrCheck({ results, cfg, spawnLogDir, tag = 
   });
   try {
     const cidrBase = `http://127.0.0.1:${cfg.ports.trustProxyCidrApi}`;
-    const healthy = await waitFor('trustProxyCidr 健康', async () => (await fetch(`${cidrBase}/healthz`)).ok, { timeoutMs: 30_000 })
+    let listenedPort = false;
+    const healthy = await waitFor('trustProxyCidr 健康', async () => {
+      if (await portInUse(cfg.ports.trustProxyCidrApi).catch(() => false)) listenedPort = true;
+      return (await fetch(`${cidrBase}/healthz`)).ok;
+    }, { timeoutMs: 30_000 })
       .then(() => true)
       .catch(() => false);
+    if (!listenedPort && await portInUse(cfg.ports.trustProxyCidrApi).catch(() => false)) listenedPort = true;
+    await sleep(150);
     const log = fs.readFileSync(logFile, 'utf8');
 
     if (!healthy) {
       // 修复后的配置守卫：loopback CIDR 被拒绝启动
-      const refused = handle.child.exitCode !== null && /TRUST_PROXY/i.test(log);
+      const mentionsTrustProxy = /TRUST_PROXY/i.test(log);
+      const exitFirstLine = log.split('\n').map((line) => line.trim()).find(Boolean) ?? null;
+      const refused = handle.child.exitCode !== null && !listenedPort && mentionsTrustProxy;
       addCheck(results, {
         id: tag,
         title: 'TRUST_PROXY 覆盖直连网段时：loopback CIDR 被配置层拒绝启动（XFF 换桶不可达）',
         clause: ['decisions.md L28'],
         attempt: 'TRUST_PROXY=127.0.0.0/8 node --import tsx src/server.ts',
-        expectation: '进程拒绝启动且日志点名 TRUST_PROXY（宽/回环网段守卫）；启动成功则继续换桶探测',
-        observed: { refused, exitCode: handle.child.exitCode, log: log.slice(0, 800) },
+        expectation: '进程退出 + 日志点名 TRUST_PROXY + 从未监听端口（宽/回环网段守卫）；启动成功则继续换桶探测',
+        observed: { refused, exitCode: handle.child.exitCode, listenedPort, exitFirstLine, log: log.slice(0, 800) },
         status: refused ? 'PASS' : 'INFO',
         severity: null,
         evidence: { log: rel(logFile) },

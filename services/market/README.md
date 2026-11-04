@@ -47,6 +47,7 @@ export const domainPlugins = [marketPlugin];
 | `ENTITLEMENT_HOLD_CHECK` | E2E 默认关 / 生产默认开 | 读 `audit.entitlement_hold` control 行（`market_app` 仅 SELECT）；`0` 关闭，`1` 强制开启 |
 | `ENTITLEMENT_AUDIT` | E2E 默认关 / 生产默认开 | 写 `audit.entitlement_events`（A3 只 INSERT 4 类事件）；A5 DDL + A13 GRANT 落地后才打开，写入失败仅告警/降级，不阻塞翻转 |
 | `INGEST_REPORT_PATH` | `/state/ingest-report.json` | ingest-once 报告路径（`/healthz` 数据就绪字段来源，只读） |
+| `EVENT_PAYLOADS_PATH` | 仓库 `docs/reference/event-payloads.json`（镜像内 `/app/docs/reference/event-payloads.json`） | L70 事件 payload 键集唯一真源；prod 缺文件/坏 JSON 拒启，非 prod 告警跳过校验 |
 
 ## 数据就绪（/healthz 贡献，A12 INGEST-ONCE-CONTRACT §4）
 

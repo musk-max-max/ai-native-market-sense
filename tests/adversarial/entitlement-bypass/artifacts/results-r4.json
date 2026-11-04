@@ -1,6 +1,6 @@
 {
   "meta": {
-    "startedAt": "2026-11-04T01:05:58.018Z",
+    "startedAt": "2026-11-04T01:14:51.572Z",
     "node": "v23.11.0",
     "platform": "darwin",
     "dbUrl": "postgresql://ms@localhost:55432/market_sense_a19",
@@ -19,45 +19,36 @@
     "rawHttpLog": "tests/adversarial/entitlement-bypass/artifacts/http-attempts.jsonl",
     "distMtime": "2026-11-04T01:00:21.048Z",
     "mode": "only:R4",
-    "finishedAt": "2026-11-04T01:05:58.803Z"
+    "finishedAt": "2026-11-04T01:15:22.009Z"
   },
   "summary": {
     "total": 1,
-    "pass": 0,
-    "fail": 1,
+    "pass": 1,
+    "fail": 0,
     "info": 0,
-    "verdict": "BYPASS_FOUND",
-    "failures": [
-      {
-        "id": "R4",
-        "title": "TRUST_PROXY 覆盖直连网段时：伪造 X-Forwarded-For 可换限流桶（条件性）",
-        "severity": "P2",
-        "observed": {
-          "beforeSpoof": 429,
-          "afterSpoof": 403,
-          "afterSpoofCode": "ENTITLEMENT_RESTRICTED"
-        }
-      }
-    ]
+    "verdict": "NO_BYPASS",
+    "failures": []
   },
   "checks": [
     {
       "id": "R4",
-      "title": "TRUST_PROXY 覆盖直连网段时：伪造 X-Forwarded-For 可换限流桶（条件性）",
+      "title": "TRUST_PROXY 覆盖直连网段时：loopback CIDR 被配置层拒绝启动（XFF 换桶不可达）",
       "clause": [
         "decisions.md L28"
       ],
-      "attempt": "实例 TRUST_PROXY=127.0.0.0/8；耗尽桶后带 X-Forwarded-For: 8.8.8.8",
-      "expectation": "条件性 LEAK 记录：若 429→403 则证明按 XFF 换桶；仅当客户端可直连 pod 且网段被信任时成立",
+      "attempt": "TRUST_PROXY=127.0.0.0/8 node --import tsx src/server.ts",
+      "expectation": "进程退出 + 日志点名 TRUST_PROXY + 从未监听端口（宽/回环网段守卫）；启动成功则继续换桶探测",
       "observed": {
-        "beforeSpoof": 429,
-        "afterSpoof": 403,
-        "afterSpoofCode": "ENTITLEMENT_RESTRICTED"
+        "refused": true,
+        "exitCode": 1,
+        "listenedPort": false,
+        "exitFirstLine": "[config] 拒绝启动：TRUST_PROXY 网段过宽（/8）：只接受 /24–/32 的 ingress 网段（0.0.0.0/0、10.0.0.0/8、192.168.0.0/16 等一律拒绝），收到 \"127.0.0.0/8\"",
+        "log": "[config] 拒绝启动：TRUST_PROXY 网段过宽（/8）：只接受 /24–/32 的 ingress 网段（0.0.0.0/0、10.0.0.0/8、192.168.0.0/16 等一律拒绝），收到 \"127.0.0.0/8\"\n"
       },
-      "status": "FAIL",
-      "severity": "P2",
+      "status": "PASS",
+      "severity": null,
       "evidence": {
-        "note": "部署必须保证只有 ingress 能连 pod，且 TRUST_PROXY 只列 ingress 网段"
+        "log": "tests/adversarial/entitlement-bypass/artifacts/logs/api-trustproxy-cidr.log"
       }
     }
   ]

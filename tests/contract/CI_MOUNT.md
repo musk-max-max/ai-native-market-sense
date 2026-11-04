@@ -177,7 +177,7 @@ G-IMPL 本体现在对 stub 自证通过；对真实实现的首跑等 A3/A7 服
 | 工作区 | `/Users/leiyu/Documents/deepseek-harness/default-workspace`（git 工作树；截至 2026-11-04 09:06 HEAD=`8661f4d`，含未提交改动 → 以文件 sha256 为准） |
 | 首提交（H4 可引用） | `eb10d21`（485 文件，main，无 remote）；A13 本轮 `912d4fb` |
 | 契约版本 | market **0.3.0** / shared **0.1.2**（lot_size 已删，waiver W-2026-11-04-lot-size-d5） |
-| DDL | `001_audit_entitlement_events.sql` sha256 `c8116e4fa5bb0d88da5cbfb643cdebbcfcec6d24853544425ec59cfa8c5ffd5e`（720 行）；`002_audit_gap.sql` sha256 `b93a55987c41ff9ac40f51a9f24f5c697ac1bdf1e5d94aae6e1c4a09e1e21a7f`（window_start/window_end 定稿，L70） |
+| DDL | `001_audit_entitlement_events.sql` sha256 `c8116e4fa5bb0d88da5cbfb643cdebbcfcec6d24853544425ec59cfa8c5ffd5e`（720 行）；`002_audit_gap.sql` 终版 sha256 `c118eeb3950149564c06f73a04d4e2e5561a6a6201abae101502635c30e999da`（344 行；window_start/window_end + lost_count 按 reason 分支，L70/L71）；`docs/reference/event-payloads.json` sha256 `9ed8b246aaeb26d59b356d8fe89485396dca434c64d7f20310876ab2566500e9` |
 | seed | `infra/db/seed-entitlement-audit.sh` `febc9f77a239a9e290ef4b4359d9b42a93b54d18a685cf6ff698b95c04f35168`；`infra/db/seed-serving-fixture.sh` `72692a628e5f68fd47cf0b4fc1bcdb990ca3fad414d9b7e1cb829eaf59d1ac3c` |
 | 基线清单 | `tests/contract/baselines/v1/baseline_manifest.json` `0740ea4e1c1cbf0343774c34d2271539928af6e20340e7b73fa69e9ba96d287e` |
 | 工具链 | node v23.11.0；Python 3.12.2（pytest 7.4.4）；oasdiff 1.35.0；PostgreSQL 16.15 |
@@ -214,11 +214,11 @@ G-IMPL 本体现在对 stub 自证通过；对真实实现的首跑等 A3/A7 服
 | # | 断言 | 自测结果 |
 |---|------|---------|
 | G1 | 002 使用 `window_start`/`window_end`，不得残留 `gap_from`/`gap_to`；event_key 分支 `gap|<uid>|<window_start>`（L70） | PASS（新 sha b93a5598；旧 sha e7a598 会红，属正确结果） |
-| G2 | 负向插入 DB 拒绝：deploy 缺 `target_tier`、tier_switch 缺 from/to、observed 缺 `deployment_uid`、非 internal_eval 缺 `expires_at`、gap 缺 `window_end`、`lost_count=0` | PASS（均 SQLSTATE 23514） |
-| G3 | 错键 `gap_from`/`gap_to` 且无 `window_start` 必须被 DB 拒绝 | PASS（DB 层拒绝：event_key 触发器先抛 P0001 并点名 `new_value.window_start`；CHECK 23514 在此顺序下不可达，已向 A5/Lead 说明） |
-| G4 | 合法 gap（window_start/window_end/lost_count/reason/owner）可插入，event_key 与 payload.window_start 同源（事务内插入后 rollback，不污染链） | PASS |
-| G5 | 否定断言：`gap|unknown|%` 行数=0；库中无 `gap_from/gap_to` 的 audit_gap 残留 | PASS |
-| G6 | 事件表 10 类齐（含 audit_gap），`verify_entitlement_chain()`=0 | **BLOCKED**：等 A13 重建 a13_verify + seed 含 1 条 TEST gap；脚本 `check_entitlement_events.py` 已加 audit_gap 分支与 10 类抽样 |
+| G2 | 负向插入 DB 拒绝：deploy 缺 `target_tier`、tier_switch 缺 from/to、observed 缺 `deployment_uid`、非 internal_eval 缺 `expires_at`、gap 缺 `window_start`/`window_end`、错键、`lost_count=0/null/-1`、`window_end<window_start` | PASS（均 SQLSTATE 23514；断言取自 psql 输出 SQLSTATE，不依赖 shell exit code） |
+| G3 | 错键 `gap_from`/`gap_to` 且无 `window_start` 必须被 DB 拒绝 | PASS（A5 已改为 23514 终版；旧版 P0001 顺序问题已消除） |
+| G4 | 合法 gap 可插入且 event_key 与 payload.window_start 同源（事务内 rollback）；另测 `process_restart + lost_count=null` 可插入（L71）、`process_restart + 0` 拒 | PASS（scratch 库 test_a11_gap4，2026-11-04 09:12） |
+| G5 | 否定断言：`gap|unknown|%` 行数=0；库中无 `gap_from/gap_to` 的 audit_gap 残留；负向插入被拒后本脚本测试键（`dep-a11-gap*`）行数不变 | PASS |
+| G6 | 事件表 10 类齐（含 audit_gap），`verify_entitlement_chain()`=0 | **BLOCKED**：a13_verify 仍是旧 002（无 process_restart null 分支），等 A13 按 c118eeb3 重放；`check_entitlement_events.py` 已加 audit_gap 分支、10 类抽样、audit_gap exact-key 5 键、双源（DDL vs event-payloads.json）比对 |
 
 ### 7.5 审计写失败分层（H4 m01875/m01904；脚本 `check_entitlement_write_failure.py`）
 

@@ -59,5 +59,6 @@
 ## 门禁 #7 红队（2026-11-04）
 
 - 结果：46 checks → 44 BLOCKED / 1 LEAK（R4，条件性）/ 1 INFO；**无 BYPASS**。
-- **状态：#7 = `PENDING-H5`**，不记 PASS。R4（`TRUST_PROXY` 覆盖直连 IP 时 XFF 可换桶，429→403，不产出行情数值）须 H5 判风险接受或按 `L69` 三条件修完复跑后方可转 PASS。
+- **状态：#7 = `PASS（R4 已修复复跑）`**，2026-11-04 09:14 A19 用同一条命令复跑：条件 1 从 0/4 → **4/4 PASS**（四条均为 config 层拒启、`listenedPort=false`、stderr 点名 `TRUST_PROXY`）；R4 从 FAIL(P2) → **PASS**（`TRUST_PROXY=127.0.0.0/8` 现在拒启，无监听、无换桶）。
+- **仍未覆盖**：条件 2（ingress 覆写而非追加 XFF）需 staging；条件 3（helm 静态守卫）不在攻击环境，已由 A0/A13 单测+helm 4.3.1 交叉验证替代，**不记为攻击侧证据**。
 - 证据口径：受限态判定只认隔离栈（18182–18187/3200–3201）+ 独立库 `market_sense_a19`；本机 8081 为有效态 demo，不得作未授权证据。

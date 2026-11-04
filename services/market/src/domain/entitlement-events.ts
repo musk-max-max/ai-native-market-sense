@@ -52,7 +52,7 @@ export class EntitlementEventWriter {
   lastFailure: EventWriteFailure | undefined;
   private gap: GapWindow | undefined;
   private gapSuppressedReported = false;
-  /** 失败前最后一条成功事件的 occurred_at（L63/H4：服务与 reconciler 能重算出同一个 gap_from）。 */
+  /** 失败前最后一条成功事件的 occurred_at（L63/H4：服务与 reconciler 能重算出同一个 window_start）。 */
   private lastSuccessAt: Date | undefined;
 
   constructor(private readonly repo: EntitlementEventRepo, private readonly options: EntitlementEventWriterOptions = {}) {}
@@ -83,7 +83,7 @@ export class EntitlementEventWriter {
     if (ok) {
       this.lastSuccessAt = record.occurredAt;
     } else {
-      // gap_from = 最后一条成功事件的 occurred_at（没有成功记录时退回本事件 occurred_at）。
+      // window_start = 最后一条成功事件的 occurred_at（没有成功记录时退回本事件 occurred_at）。
       this.gap ??= { from: this.lastSuccessAt ?? record.occurredAt, lostCount: 0 };
       this.gap.lostCount += 1;
     }

@@ -1,7 +1,7 @@
 {
   "meta": {
-    "startedAt": "2026-11-04T01:07:20.636Z",
-    "finishedAt": "2026-11-04T01:07:23.551Z",
+    "startedAt": "2026-11-04T01:14:01.474Z",
+    "finishedAt": "2026-11-04T01:14:04.599Z",
     "dbUrl": "postgresql://ms@localhost:55432/market_sense_a19",
     "basePort": 18190,
     "cidrs": [
@@ -14,84 +14,11 @@
   },
   "summary": {
     "total": 4,
-    "pass": 0,
-    "fail": 4,
+    "pass": 4,
+    "fail": 0,
     "info": 0,
-    "verdict": "BYPASS_FOUND",
-    "failures": [
-      {
-        "id": "Q-0.0.0.0/0",
-        "title": "TRUST_PROXY=0.0.0.0/0 必须被配置层拒绝启动（不允许 warn 后继续、不接受依赖崩溃式拒启）",
-        "severity": "P2",
-        "observed": {
-          "cidr": "0.0.0.0/0",
-          "port": 18190,
-          "exited": true,
-          "exitCode": 1,
-          "healthStatus": null,
-          "healthy": false,
-          "mentionsTrustProxy": false,
-          "warnOnly": false,
-          "refusedByConfigGuard": false,
-          "incidentalCrash": true,
-          "logTail": "space/node_modules/.pnpm/fastify@5.12.8/node_modules/fastify/lib/request.js:107:19)\n    at Function.buildRequest (/Users/leiyu/Documents/deepseek-harness/default-workspace/node_modules/.pnpm/fastify@5.12.8/node_modules/fastify/lib/request.js:68:12)\n    at fastify (/Users/leiyu/Documents/deepseek-harness/default-workspace/node_modules/.pnpm/fastify@5.12.8/node_modules/fastify/fastify.js:189:25)\n    at buildApp (/Users/leiyu/Documents/deepseek-harness/default-workspace/services/api/src/app.ts:33:15)\n    at <anonymous> (/Users/leiyu/Documents/deepseek-harness/default-workspace/services/api/src/server.ts:11:13)\n    at ModuleJob.run (node:internal/modules/esm/module_job:274:25)\n\nNode.js v23.11.0\n"
-        }
-      },
-      {
-        "id": "Q-::/0",
-        "title": "TRUST_PROXY=::/0 必须被配置层拒绝启动（不允许 warn 后继续、不接受依赖崩溃式拒启）",
-        "severity": "P2",
-        "observed": {
-          "cidr": "::/0",
-          "port": 18191,
-          "exited": true,
-          "exitCode": 1,
-          "healthStatus": null,
-          "healthy": false,
-          "mentionsTrustProxy": false,
-          "warnOnly": false,
-          "refusedByConfigGuard": false,
-          "incidentalCrash": true,
-          "logTail": "space/node_modules/.pnpm/fastify@5.12.8/node_modules/fastify/lib/request.js:107:19)\n    at Function.buildRequest (/Users/leiyu/Documents/deepseek-harness/default-workspace/node_modules/.pnpm/fastify@5.12.8/node_modules/fastify/lib/request.js:68:12)\n    at fastify (/Users/leiyu/Documents/deepseek-harness/default-workspace/node_modules/.pnpm/fastify@5.12.8/node_modules/fastify/fastify.js:189:25)\n    at buildApp (/Users/leiyu/Documents/deepseek-harness/default-workspace/services/api/src/app.ts:33:15)\n    at <anonymous> (/Users/leiyu/Documents/deepseek-harness/default-workspace/services/api/src/server.ts:11:13)\n    at ModuleJob.run (node:internal/modules/esm/module_job:274:25)\n\nNode.js v23.11.0\n"
-        }
-      },
-      {
-        "id": "Q-127.0.0.0/8",
-        "title": "TRUST_PROXY=127.0.0.0/8 必须被配置层拒绝启动（不允许 warn 后继续、不接受依赖崩溃式拒启）",
-        "severity": "P2",
-        "observed": {
-          "cidr": "127.0.0.0/8",
-          "port": 18192,
-          "exited": false,
-          "exitCode": 0,
-          "healthStatus": 200,
-          "healthy": true,
-          "mentionsTrustProxy": false,
-          "warnOnly": false,
-          "refusedByConfigGuard": false,
-          "incidentalCrash": false,
-          "logTail": ""
-        }
-      },
-      {
-        "id": "Q-10.0.0.0/8",
-        "title": "TRUST_PROXY=10.0.0.0/8 必须被配置层拒绝启动（不允许 warn 后继续、不接受依赖崩溃式拒启）",
-        "severity": "P2",
-        "observed": {
-          "cidr": "10.0.0.0/8",
-          "port": 18193,
-          "exited": false,
-          "exitCode": 0,
-          "healthStatus": 200,
-          "healthy": true,
-          "mentionsTrustProxy": false,
-          "warnOnly": false,
-          "refusedByConfigGuard": false,
-          "incidentalCrash": false,
-          "logTail": ""
-        }
-      }
-    ]
+    "verdict": "NO_BYPASS",
+    "failures": []
   },
   "checks": [
     {
@@ -102,7 +29,7 @@
         "decisions.md L28"
       ],
       "attempt": "APP_PROFILE=test TRUST_PROXY=0.0.0.0/0 node --import tsx src/server.ts (port 18190)",
-      "expectation": "进程拒绝启动且日志点名 TRUST_PROXY（启动校验）；healthz 200、仅 warn、或依赖库 TypeError 崩溃均 FAIL",
+      "expectation": "进程退出 + 日志点名 TRUST_PROXY + 从未监听健康端口，三条同时成立；healthz 200、曾监听、仅 warn、依赖库 TypeError 崩溃均 FAIL",
       "observed": {
         "cidr": "0.0.0.0/0",
         "port": 18190,
@@ -110,14 +37,16 @@
         "exitCode": 1,
         "healthStatus": null,
         "healthy": false,
-        "mentionsTrustProxy": false,
+        "listenedPort": false,
+        "mentionsTrustProxy": true,
         "warnOnly": false,
-        "refusedByConfigGuard": false,
-        "incidentalCrash": true,
-        "logTail": "space/node_modules/.pnpm/fastify@5.12.8/node_modules/fastify/lib/request.js:107:19)\n    at Function.buildRequest (/Users/leiyu/Documents/deepseek-harness/default-workspace/node_modules/.pnpm/fastify@5.12.8/node_modules/fastify/lib/request.js:68:12)\n    at fastify (/Users/leiyu/Documents/deepseek-harness/default-workspace/node_modules/.pnpm/fastify@5.12.8/node_modules/fastify/fastify.js:189:25)\n    at buildApp (/Users/leiyu/Documents/deepseek-harness/default-workspace/services/api/src/app.ts:33:15)\n    at <anonymous> (/Users/leiyu/Documents/deepseek-harness/default-workspace/services/api/src/server.ts:11:13)\n    at ModuleJob.run (node:internal/modules/esm/module_job:274:25)\n\nNode.js v23.11.0\n"
+        "refusedByConfigGuard": true,
+        "incidentalCrash": false,
+        "exitFirstLine": "[config] 拒绝启动：TRUST_PROXY 网段过宽（/0）：只接受 /24–/32 的 ingress 网段（0.0.0.0/0、10.0.0.0/8、192.168.0.0/16 等一律拒绝），收到 \"0.0.0.0/0\"",
+        "logTail": "[config] 拒绝启动：TRUST_PROXY 网段过宽（/0）：只接受 /24–/32 的 ingress 网段（0.0.0.0/0、10.0.0.0/8、192.168.0.0/16 等一律拒绝），收到 \"0.0.0.0/0\"\n"
       },
-      "status": "FAIL",
-      "severity": "P2",
+      "status": "PASS",
+      "severity": null,
       "evidence": {
         "log": "tests/adversarial/entitlement-bypass/artifacts/logs/api-trustproxy-guard-0_0_0_0_0.log"
       }
@@ -130,7 +59,7 @@
         "decisions.md L28"
       ],
       "attempt": "APP_PROFILE=test TRUST_PROXY=::/0 node --import tsx src/server.ts (port 18191)",
-      "expectation": "进程拒绝启动且日志点名 TRUST_PROXY（启动校验）；healthz 200、仅 warn、或依赖库 TypeError 崩溃均 FAIL",
+      "expectation": "进程退出 + 日志点名 TRUST_PROXY + 从未监听健康端口，三条同时成立；healthz 200、曾监听、仅 warn、依赖库 TypeError 崩溃均 FAIL",
       "observed": {
         "cidr": "::/0",
         "port": 18191,
@@ -138,14 +67,16 @@
         "exitCode": 1,
         "healthStatus": null,
         "healthy": false,
-        "mentionsTrustProxy": false,
+        "listenedPort": false,
+        "mentionsTrustProxy": true,
         "warnOnly": false,
-        "refusedByConfigGuard": false,
-        "incidentalCrash": true,
-        "logTail": "space/node_modules/.pnpm/fastify@5.12.8/node_modules/fastify/lib/request.js:107:19)\n    at Function.buildRequest (/Users/leiyu/Documents/deepseek-harness/default-workspace/node_modules/.pnpm/fastify@5.12.8/node_modules/fastify/lib/request.js:68:12)\n    at fastify (/Users/leiyu/Documents/deepseek-harness/default-workspace/node_modules/.pnpm/fastify@5.12.8/node_modules/fastify/fastify.js:189:25)\n    at buildApp (/Users/leiyu/Documents/deepseek-harness/default-workspace/services/api/src/app.ts:33:15)\n    at <anonymous> (/Users/leiyu/Documents/deepseek-harness/default-workspace/services/api/src/server.ts:11:13)\n    at ModuleJob.run (node:internal/modules/esm/module_job:274:25)\n\nNode.js v23.11.0\n"
+        "refusedByConfigGuard": true,
+        "incidentalCrash": false,
+        "exitFirstLine": "[config] 拒绝启动：TRUST_PROXY 不得包含未指定或回环地址: \"::/0\"",
+        "logTail": "[config] 拒绝启动：TRUST_PROXY 不得包含未指定或回环地址: \"::/0\"\n"
       },
-      "status": "FAIL",
-      "severity": "P2",
+      "status": "PASS",
+      "severity": null,
       "evidence": {
         "log": "tests/adversarial/entitlement-bypass/artifacts/logs/api-trustproxy-guard-___0.log"
       }
@@ -158,22 +89,24 @@
         "decisions.md L28"
       ],
       "attempt": "APP_PROFILE=test TRUST_PROXY=127.0.0.0/8 node --import tsx src/server.ts (port 18192)",
-      "expectation": "进程拒绝启动且日志点名 TRUST_PROXY（启动校验）；healthz 200、仅 warn、或依赖库 TypeError 崩溃均 FAIL",
+      "expectation": "进程退出 + 日志点名 TRUST_PROXY + 从未监听健康端口，三条同时成立；healthz 200、曾监听、仅 warn、依赖库 TypeError 崩溃均 FAIL",
       "observed": {
         "cidr": "127.0.0.0/8",
         "port": 18192,
-        "exited": false,
-        "exitCode": 0,
-        "healthStatus": 200,
-        "healthy": true,
-        "mentionsTrustProxy": false,
+        "exited": true,
+        "exitCode": 1,
+        "healthStatus": null,
+        "healthy": false,
+        "listenedPort": false,
+        "mentionsTrustProxy": true,
         "warnOnly": false,
-        "refusedByConfigGuard": false,
+        "refusedByConfigGuard": true,
         "incidentalCrash": false,
-        "logTail": ""
+        "exitFirstLine": "[config] 拒绝启动：TRUST_PROXY 网段过宽（/8）：只接受 /24–/32 的 ingress 网段（0.0.0.0/0、10.0.0.0/8、192.168.0.0/16 等一律拒绝），收到 \"127.0.0.0/8\"",
+        "logTail": "[config] 拒绝启动：TRUST_PROXY 网段过宽（/8）：只接受 /24–/32 的 ingress 网段（0.0.0.0/0、10.0.0.0/8、192.168.0.0/16 等一律拒绝），收到 \"127.0.0.0/8\"\n"
       },
-      "status": "FAIL",
-      "severity": "P2",
+      "status": "PASS",
+      "severity": null,
       "evidence": {
         "log": "tests/adversarial/entitlement-bypass/artifacts/logs/api-trustproxy-guard-127_0_0_0_8.log"
       }
@@ -186,22 +119,24 @@
         "decisions.md L28"
       ],
       "attempt": "APP_PROFILE=test TRUST_PROXY=10.0.0.0/8 node --import tsx src/server.ts (port 18193)",
-      "expectation": "进程拒绝启动且日志点名 TRUST_PROXY（启动校验）；healthz 200、仅 warn、或依赖库 TypeError 崩溃均 FAIL",
+      "expectation": "进程退出 + 日志点名 TRUST_PROXY + 从未监听健康端口，三条同时成立；healthz 200、曾监听、仅 warn、依赖库 TypeError 崩溃均 FAIL",
       "observed": {
         "cidr": "10.0.0.0/8",
         "port": 18193,
-        "exited": false,
-        "exitCode": 0,
-        "healthStatus": 200,
-        "healthy": true,
-        "mentionsTrustProxy": false,
+        "exited": true,
+        "exitCode": 1,
+        "healthStatus": null,
+        "healthy": false,
+        "listenedPort": false,
+        "mentionsTrustProxy": true,
         "warnOnly": false,
-        "refusedByConfigGuard": false,
+        "refusedByConfigGuard": true,
         "incidentalCrash": false,
-        "logTail": ""
+        "exitFirstLine": "[config] 拒绝启动：TRUST_PROXY 网段过宽（/8）：只接受 /24–/32 的 ingress 网段（0.0.0.0/0、10.0.0.0/8、192.168.0.0/16 等一律拒绝），收到 \"10.0.0.0/8\"",
+        "logTail": "[config] 拒绝启动：TRUST_PROXY 网段过宽（/8）：只接受 /24–/32 的 ingress 网段（0.0.0.0/0、10.0.0.0/8、192.168.0.0/16 等一律拒绝），收到 \"10.0.0.0/8\"\n"
       },
-      "status": "FAIL",
-      "severity": "P2",
+      "status": "PASS",
+      "severity": null,
       "evidence": {
         "log": "tests/adversarial/entitlement-bypass/artifacts/logs/api-trustproxy-guard-10_0_0_0_8.log"
       }

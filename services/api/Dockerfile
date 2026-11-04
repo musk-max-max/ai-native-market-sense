@@ -14,6 +14,10 @@ WORKDIR /app
 # ---- build：完整安装 + tsc 构建 + 生产依赖部署（pnpm deploy 会生成独立 node_modules）----
 FROM base AS build
 COPY . .
+# L70：prod 的 entitlement 事件写入前按 docs/reference/event-payloads.json 做键集 fail-closed 校验。
+# 该文件不在 pnpm deploy 产物里，必须在构建期断言存在且可解析——镜像里缺文件/坏 JSON
+# 应当是 docker build 失败，而不是容器起来后进程拒启（Lead m01809 / A3 m01900）。
+RUN node -e "const fs=require('fs');const p='docs/reference/event-payloads.json';if(!fs.existsSync(p))throw new Error('missing '+p);const j=JSON.parse(fs.readFileSync(p,'utf8'));if(j.schema_version!==1||typeof j.event_types!=='object'||j.event_types===null)throw new Error('invalid '+p);console.log('event-payloads contract OK')"
 RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @market-sense/api build
 RUN pnpm --filter @market-sense/api deploy --prod /app/deploy
@@ -22,12 +26,16 @@ RUN pnpm --filter @market-sense/api deploy --prod /app/deploy
 FROM node:22-alpine AS runtime
 ENV NODE_ENV=production \
     PORT=8080 \
-    HOST=0.0.0.0
+    HOST=0.0.0.0 \
+    EVENT_PAYLOADS_PATH=/app/docs/reference/event-payloads.json
 WORKDIR /app
 
 COPY --from=build --chown=node:node /app/deploy ./
 # deploy 会带上源码/测试/tsconfig（package 内容），运行时只需要 dist + package.json + node_modules。
 RUN rm -rf src test scripts tsconfig.json tsconfig.build.json README.md
+# 契约是运行时 fail-closed 依赖，不是文档：固定路径 + 镜像内构建期断言。
+COPY --from=build --chown=node:node /app/docs/reference/event-payloads.json /app/docs/reference/event-payloads.json
+RUN node -e "const fs=require('fs');const p='/app/docs/reference/event-payloads.json';if(!fs.existsSync(p))throw new Error('missing '+p);const j=JSON.parse(fs.readFileSync(p,'utf8'));if(j.schema_version!==1||typeof j.event_types!=='object'||j.event_types===null)throw new Error('invalid '+p);console.log('event-payloads contract present')"
 
 USER node
 EXPOSE 8080
