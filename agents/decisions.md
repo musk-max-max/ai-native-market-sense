@@ -989,3 +989,9 @@ fail-closed 是对的，但**现象具有欺骗性**：部署突然失败，报�
 **#7 现为 `PARTIAL`**，收口两项：① A19 的 `artifacts/http-attempts.jsonl`、`results.json`、`REPORT.md` **收进证据包并记 path+sha256**（缺在"包内"，不在"有没有"）；② H5 签字。公开 ingress 为 residual（owner A13，需 staging）。
 
 **我此前的错误**：我把"`BLOCKED` ≠ 未跑"这一条语义纠正，直接推成了"所以 #7 = PASS"。**语义对，不等于程序对**——PASS 还要走签字。**纠正一个误读，不等于给一个结论。**
+
+**L74 执行口径（H5 补，2026-11-04）**
+
+1. **PARTIAL 收口清单固定四列**：`缺什么 | owner | 截止时间 | 证据存放 path+sha256`。第四列是硬要求——**没有存放位置的"待补"等于没收口**，到期会变成"说好补但找不到了"。
+2. **H5 对 #7 的签字含义限定**：签的是"五组攻击 transcript 与 REPORT 已入包、我核过"，**不等于"攻击面已验证安全"**；公网 ingress 仍以 residual 列在放行说明，**不得扩大解释**。
+3. **#4 收口归 A13**：黑hole（iptables DROP）下出证据——`connect_timeout`≤1s 配置项、20 样本 P95、熔断后 ≤50ms、撤 DROP ≤30s 自愈、healthz reason 不含 DSN/主机名 → A11 打包 → H5 验收。
