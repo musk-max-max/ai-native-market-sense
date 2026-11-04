@@ -165,7 +165,7 @@ G-IMPL 本体现在对 stub 自证通过；对真实实现的首跑等 A3/A7 服
 | 3 | 伪造 `X-Forwarded-For` 不换桶 | 同上 | **PASS**（换 XFF 仍 429） |
 | 4 | 429 文案不露内部码/阈值/桶 key | 同上 | **PASS** |
 
-**当前汇总（2026-11-04 09:16 最终复跑）**：数据侧第 1–6、8 条 **PASS**（#1 expired 事件 exact 1 条+重启幂等；#6 10 类含 audit_gap、链 verify=0、双源一致、audit_gap 库级约束负向插入全 23514、`process_restart+null` 放行）；#7 静态 PASS + A19 动态 **PASS（修复后）**，仅公网 ingress 未验证/H5 签字 → 不单独记整条绿；#5 DOM 归 A12。限流桶 4/4 **PASS**；写失败分层 5/5 **PASS**（§7.5）；display_safe 三条 **PASS**（独立桶）。日常回归 `pytest tests/contract tests/data` = 136 passed/1 warning。证据包 `tests/data/acceptance/artifacts/11-12-evidence-20261104.tar.gz` sha256 `ea10e5fc…`。**A11 数据侧已全绿；11-12 是否放行由 H4/H5 决定**（门禁全绿 ≠ 有授权，F1 未出前 C 端仍 403）。
+**当前汇总（2026-11-04 09:16 最终复跑）**：数据侧第 1–6、8 条 **PASS**（#1 expired 事件 exact 1 条+重启幂等；#6 10 类含 audit_gap、链 verify=0、双源一致、audit_gap 库级约束负向插入全 23514、`process_restart+null` 放行）；#7 静态 PASS + A19 动态 **PASS（修复后）**，仅公网 ingress 未验证/H5 签字 → 不单独记整条绿；#5 DOM 归 A12。限流桶 4/4 **PASS**；写失败分层 5/5 **PASS**（§7.5）；display_safe 三条 **PASS**（独立桶）。日常回归 `pytest tests/contract tests/data` = 136 passed/1 warning。证据包 `tests/data/acceptance/artifacts/11-12-evidence-20261104.tar.gz`（sha256 见同目录 `SHA256SUMS`）。**A11 数据侧已全绿；11-12 是否放行由 H4/H5 决定**（门禁全绿 ≠ 有授权，F1 未出前 C 端仍 403）。
 ### 7.4 证据钉版本（2026-11-04 09:16 最终复跑）
 
 **版本锚点**：仓库已有 git（Lead 首提交 `eb10d21`，之后 A13/L 提交继续推进；本表引用时的 HEAD 见下表）。
@@ -183,7 +183,7 @@ G-IMPL 本体现在对 stub 自证通过；对真实实现的首跑等 A3/A7 服
 | 工具链 | node v23.11.0；Python 3.12.2（pytest 7.4.4）；oasdiff 1.35.0；PostgreSQL 16.15 |
 | 数据库 | `postgresql://ms@127.0.0.1:55432/a13_verify`（本机 PG16；35 条 / 10 类；跑完 `seed-entitlement-audit.sh --restore-fresh`，`audit.entitlement_hold.hold=f`） |
 | 验收脚本 sha256（全量） | audit_gap `bf399b973ead2187…`；base_info `b68d9c4022168a29…`；display_safe `3b1110919370f464…`；copy `92e82e80fd81fb07…`；events `3257ac8a612cd932…`；expiry `cc35e739ec793d4e…`；hold `b9adadefd6a736af…`；killswitch `0161ec4de4febe38…`；write_failure `51c4b9bcd94d9f0c…`；frontend `efb9895eb49ceec0…`；no_store `6286b83cbff427cb…`；rate_limit `5ac35c9228e2c967…`；probe `28a1c4779b4eef1c…`（完整值见 `sha256sum tests/data/acceptance/*`） |
-| 证据包 | `tests/data/acceptance/artifacts/11-12-evidence-20261104.tar.gz` sha256 `ea10e5fcd85bead8e7e6febe5a530601196776f99db9a93639061bfd6c05d2ea`（22 项：001/002 DDL、event-payloads.json、entitlement-reasons.json、13 个验收脚本、CI_MOUNT、quality_policy、3 个 seed/测试脚本；seed 事件均 TEST、库跑完 drop） |
+| 证据包 | `tests/data/acceptance/artifacts/11-12-evidence-20261104.tar.gz`（22 项：001/002 DDL、event-payloads.json、entitlement-reasons.json、13 个验收脚本、CI_MOUNT、quality_policy、3 个 seed/测试脚本；seed 事件均 TEST、库跑完 drop）。tar 内不放自身哈希（避免自引用）；sha256 见同目录 `SHA256SUMS` 或 A11 回执 |
 | 日常门禁 | `pytest tests/contract tests/data` → **136 passed, 1 warning**（waiver 提示；2026-11-04 09:16） |
 
 **8+4 复核路径表**（每条 = 命令 → 断言 → 本次结果 → 证据位置）：

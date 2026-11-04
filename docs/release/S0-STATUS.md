@@ -65,7 +65,7 @@
 
 ## 11-12 门禁回执（2026-11-04 09:16，A11）
 
-**entitlement 8 + 限流 4 = 12/12 有证据**（a13_verify @ 002 `c118eeb3`，API :18095–18099）。证据包 `tests/data/acceptance/artifacts/11-12-evidence-20261104.tar.gz` sha256 `ea10e5fc…`，明细 `tests/contract/CI_MOUNT.md §7.7`。日常门禁 `pytest tests/contract tests/data` = **136 passed / 1 warning**。
+**entitlement 8 + 限流 4 = 12/12 有证据**（a13_verify @ 002 `c118eeb3`，API :18095–18099）。证据包 `tests/data/acceptance/artifacts/11-12-evidence-20261104.tar.gz` sha256 `feda377a0d31ce6076241b2153618033560a9c6b79c13b3db924a6ce928391d0`（同目录 `SHA256SUMS`；原 `ea10e5fc…` 作废——tar 先建、后改 CI_MOUNT），明细 `tests/contract/CI_MOUNT.md §7.7`。日常门禁 `pytest tests/contract tests/data` = **136 passed / 1 warning**。
 
 **本次未取证 3 条（不得计入 PASS）：**
 1. #5 的 DOM/渲染层数值泄漏断言 —— 属 A12 `tests/e2e` 域，A11 未执行。
