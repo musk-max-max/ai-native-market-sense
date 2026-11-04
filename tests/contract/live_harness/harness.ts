@@ -17,6 +17,8 @@ import { createMarketPlugin } from '../../../services/market/src/plugin.ts';
 import type {
   EntitlementControlRepo,
   EntitlementControlRow,
+  EntitlementEventRecord,
+  EntitlementEventRepo,
 } from '../../../services/market/src/ports/entitlement.ts';
 import type {
   BarRow,
@@ -226,6 +228,27 @@ if (marketNowEnv !== undefined && Number.isNaN(Date.parse(marketNowEnv))) {
 // 测试注入的 control 行（A11_CONTROL=hold|stale|missing|unavailable），
 // 用真实 A3 EntitlementGate 验证 hold/stale/不可达三条 fail-closed 路径，不需要真 PG。
 const controlMode = process.env.A11_CONTROL?.trim();
+/** A11 写失败注入：transient=连接断（非阻断）/ deterministic=权限错误（阻断，启动拒绝）。 */
+function fakeEventRepo(mode: string): EntitlementEventRepo | undefined {
+  if (mode === 'transient') {
+    return {
+      async insert(_record: EntitlementEventRecord): Promise<void> {
+        throw new Error('connection terminated unexpectedly');
+      },
+    };
+  }
+  if (mode === 'deterministic') {
+    return {
+      async insert(_record: EntitlementEventRecord): Promise<void> {
+        const error = new Error('permission denied for table entitlement_events') as Error & { code?: string };
+        error.code = '42501';
+        throw error;
+      },
+    };
+  }
+  return undefined;
+}
+
 function fakeControlRepo(clock: () => Date): EntitlementControlRepo | null {
   if (!controlMode) return null;
   return {
@@ -269,8 +292,9 @@ const config: MarketConfig = {
 async function main(): Promise<void> {
   const app = Fastify({ logger: false });
   installErrorHandling(app);
-  await app.register(
-    createMarketPlugin({
+  const eventWriteMode = process.env.A11_EVENT_WRITE ?? '';
+  const eventRepo = fakeEventRepo(eventWriteMode);
+  const market = createMarketPlugin({
       config,
       servingRepo: new FakeServingRepo(),
       watchlistRepo: new FakeWatchlistRepo(),
@@ -282,9 +306,11 @@ async function main(): Promise<void> {
             )!,
           }
         : {}),
-    }),
-    { prefix: '/v1' },
-  );
+      ...(eventRepo !== undefined ? { eventRepo } : {}),
+  });
+  await app.register(market, { prefix: '/v1' });
+  // 只暴露 A3 域贡献（data_ready + entitlement_degraded），与外壳 /healthz 合并语义一致。
+  app.get('/healthz', async () => ({ ...(await market.health()) }));
   const address = await app.listen({ port: 0, host: '127.0.0.1' });
   process.stdout.write(`${JSON.stringify({ baseUrl: address })}\n`);
   const close = async (): Promise<void> => {

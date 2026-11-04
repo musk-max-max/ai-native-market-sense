@@ -20,9 +20,8 @@ import {
 import { resolveEntitlement, type EntitlementResolution } from './entitlement.js';
 
 export type DegradedReason =
-  | 'control_unreachable'
+  | 'control_unavailable'
   | 'control_stale'
-  | 'reconciler_stalled'
   | 'hold_active'
   | 'control_missing'
   | 'config_mismatch'
@@ -38,13 +37,13 @@ export type DegradedReason =
  *    安全由 reconciler 的 observed 缺失兜底（H3「写失败不阻止翻转，先安全后告警」）。
  */
 export const BLOCKING_REASONS = new Set<DegradedReason>([
-  'control_unreachable',
+  'control_unavailable',
   'control_stale',
   'control_missing',
   'hold_active',
   'config_mismatch',
   'expired',
-  'reconciler_stalled',
+  'control_stale',
   // H4 m01784/M01741：确定性写错误（INSERT 权限/表/列/类型/schema 配错）单独成阻断原因，
   // 与"记账抖动"区分；语义上属于"我们不知道能否记账"，不是"记账没写成"。
   'audit_write_misconfigured',
@@ -133,8 +132,8 @@ export class EntitlementGate {
     if (this.repo === null) return { resolution: base, degraded: false };
 
     const nowMs = now.getTime();
-    if (nowMs < this.breakerUntilMs) return this.degrade(base, 'control_unreachable');
-    if (nowMs < this.negativeUntilMs) return this.degrade(base, 'control_unreachable');
+    if (nowMs < this.breakerUntilMs) return this.degrade(base, 'control_unavailable');
+    if (nowMs < this.negativeUntilMs) return this.degrade(base, 'control_unavailable');
 
     // 正常放行态缓存 30s（H4，避免每请求打 PG）；但 hold 生效态不缓存：
     // 清 hold 必须"立即恢复"（task-8 验收），且 403 路径流量低，多一次读可接受。
@@ -159,7 +158,7 @@ export class EntitlementGate {
       this.failures += 1;
       this.negativeUntilMs = nowMs + this.negativeCacheMs();
       if (this.failures >= this.breakerThreshold()) this.breakerUntilMs = nowMs + this.breakerMs();
-      return this.degrade(base, 'control_unreachable');
+      return this.degrade(base, 'control_unavailable');
     }
   }
 
@@ -210,7 +209,7 @@ export class EntitlementGate {
     }
     const last = row.lastReconciledAt;
     if (last === null || Number.isNaN(last.getTime()) || now.getTime() - last.getTime() > this.stalenessLimitMs()) {
-      return this.degrade(base, 'reconciler_stalled');
+      return this.degrade(base, 'control_stale');
     }
     if (row.hold) return this.degrade(base, 'hold_active');
     this.degraded = false;

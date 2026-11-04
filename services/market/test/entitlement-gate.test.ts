@@ -81,7 +81,7 @@ describe('EntitlementGate：control 行判定（fail-closed）', () => {
     const { gate } = makeGate(gateConfig(), { repo });
     const decision = await gate.evaluate();
     assert.equal(decision.resolution.blocked, true);
-    assert.equal(decision.reason, 'reconciler_stalled');
+    assert.equal(decision.reason, 'control_stale');
   });
 
   it('control 行不存在（null）→ 按 hold=true 处理（control_missing），不 crash', async () => {
@@ -104,13 +104,13 @@ describe('EntitlementGate：control 行判定（fail-closed）', () => {
 });
 
 describe('EntitlementGate：瞬态故障 / 确定性错误 / 缓存（L27）', () => {
-  it('瞬态故障 → degraded（control_unreachable），5s 负缓存内不重复打 PG', async () => {
+  it('瞬态故障 → degraded（control_unavailable），5s 负缓存内不重复打 PG', async () => {
     const repo = new FakeControl();
     repo.error = Object.assign(new Error('connection refused'), { code: '08006' });
     const { gate, clockRef } = makeGate(gateConfig(), { repo });
     const first = await gate.evaluate();
     assert.equal(first.resolution.blocked, true);
-    assert.equal(first.reason, 'control_unreachable');
+    assert.equal(first.reason, 'control_unavailable');
     assert.equal(repo.calls, 1);
     // 5s 内第二次请求命中负缓存，不新增查询。
     clockRef.now = new Date(BASE.getTime() + 1_000);
@@ -133,7 +133,7 @@ describe('EntitlementGate：瞬态故障 / 确定性错误 / 缓存（L27）', (
     const callsAfterFailures = repo.calls;
     clockRef.now = new Date(BASE.getTime() + 3 * 6_000 + 5_000);
     const decision = await gate.evaluate();
-    assert.equal(decision.reason, 'control_unreachable');
+    assert.equal(decision.reason, 'control_unavailable');
     assert.equal(repo.calls, callsAfterFailures, '熔断窗口内不得再查询');
   });
 

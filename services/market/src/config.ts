@@ -170,8 +170,18 @@ export function assertNoE2EBackdoorInProduction(env: NodeJS.ProcessEnv): void {
   }
 }
 
+function isProductionProfile(env: NodeJS.ProcessEnv): boolean {
+  const profile = env.APP_PROFILE?.trim() ?? '';
+  return !(profile !== '' && EXPLICIT_DEV_PROFILES.has(profile));
+}
+
 export function loadMarketConfig(env: NodeJS.ProcessEnv = process.env): MarketConfig {
   assertNoE2EBackdoorInProduction(env);
+  // L65/H4 m01784：prod 缺 DEPLOYMENT_UID 启动失败（audit_gap 去重键挂在它上面）。
+  const deploymentUid = readTrimmed(env, 'DEPLOYMENT_UID');
+  if (isProductionProfile(env) && deploymentUid === undefined) {
+    throw new MarketConfigError('生产必须配置 DEPLOYMENT_UID（audit_gap 去重键与审计归属，L65）');
+  }
   const version = readTrimmed(env, 'DISCLAIMER_VERSION') ?? DEFAULT_DISCLAIMER_VERSION;
   if (!DISCLAIMER_VERSION_PATTERN.test(version)) {
     throw new MarketConfigError(
@@ -191,7 +201,6 @@ export function loadMarketConfig(env: NodeJS.ProcessEnv = process.env): MarketCo
   const now = env.MARKET_NOW?.trim();
   const entitlementExpiresAt = parseExpiresAt(readTrimmed(env, 'ENTITLEMENT_EXPIRES_AT'));
   const entitlementExpectedSha256 = parseSha256(env, 'ENTITLEMENT_CONFIG_EXPECTED_SHA256');
-  const deploymentUid = readTrimmed(env, 'DEPLOYMENT_UID');
   const releaseId = readTrimmed(env, 'RELEASE_ID');
 
   const config: MarketConfig = {
