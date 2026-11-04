@@ -166,7 +166,7 @@ G-IMPL 本体现在对 stub 自证通过；对真实实现的首跑等 A3/A7 服
 | 3 | 伪造 `X-Forwarded-For` 不换桶 | 同上 | **PASS**（换 XFF 仍 429） |
 | 4 | 429 文案不露内部码/阈值/桶 key | 同上 | **PASS** |
 
-**当前汇总（2026-11-04 15:32，证据包 v7；shared 0.2.2 `0732adf` + A3 `7c177c6`，contract 61 passed，日常 170 passed）**：数据侧第 1–6、8 条 **PASS**（#1 expired 事件 exact 1 条+重启幂等；#4 行为层 PASS + 真实网络不可达 residual 归 H5；#6 10 类/41 条、链 verify=0、双源一致、audit_gap 负向 23514）；**#7 = 行为层 PASS（H5 按 v7 四元组终签，见 §7.11；residual 仅④公网 ingress，A13）**，不写「五组完整 transcript」；#5 DOM 归 A12。限流桶 4/4 **PASS**；写失败分层 5/5 **PASS**；display_safe 三条 **PASS**；L73 授权开关清单见 §7.8；L74 红队产物索引见 §7.9。日常 **170 passed / 0 failed / 1 warning**（2026-11-04 15:24；C01 已通过 A3 改成 canonical `SSE:600519` 转绿——**未使用测试宿主豁免**，H4 m03103 明确不默认豁免；`pytest tests/contract` 单跑 61 passed）。证据包 **v7**（A19 rev4 `bd6b551e…` authoritative + rev3 `40fb117d…` historical + A3 L77 四件 + A2 fixture + v4/v5 链式留存）：`11-12-evidence-20261104-v7-2523256.tar.gz`，tar sha `75f89a2dc92f64c7995edfc7a33696efbd245bb081cc782006f0400b78bc7d8f`（4,138,568B），manifest `evidence-manifest-v7-20261104T0730Z.json` sha `c2cc1de5823c1d480c2804b318c41fbc86b994d785f7716f64b26993c5e28d54`（124 条 / 4,929,516B / excluded=1），`packed_from_commit=2523256`、commit D=`17853c6`，`SHA256SUMS-v7` 两行；v5/v6 标 historical（v5 rejected-before-sign）、v4/v3 冻结不动。**A11 数据侧：7 PASS + #7 行为层 PASS（H5 四元组终签）；唯 residual=④公网 ingress（A13）；11-12 是否放行由 H4/H5 决定**。
+**当前汇总（2026-11-04 15:32，证据包 v7；shared 0.2.2 `0732adf` + A3 `7c177c6`，contract 61 passed，日常 170 passed）**：数据侧第 1–6、8 条 **PASS**（#1 expired 事件 exact 1 条+重启幂等；#4 行为层 PASS + 真实网络不可达 residual 归 H5；#6 10 类/41 条、链 verify=0、双源一致、audit_gap 负向 23514）；**#7 = 行为层 PASS（H5 按 v7 四元组终签，见 §7.11；residual 仅④公网 ingress，A13）**，不写「五组完整 transcript」；#5 DOM 归 A12。限流桶 4/4 **PASS**；写失败分层 5/5 **PASS**；display_safe 三条 **PASS**；L73 授权开关清单见 §7.8；L74 红队产物索引见 §7.9。日常 **187 passed / 0 failed / 1 warning**（2026-11-04 20:20；含 KD-ENT-01 矩阵 17 项；C01 已通过 A3 改成 canonical `SSE:600519` 转绿——**未使用测试宿主豁免**，H4 m03103 明确不默认豁免；`pytest tests/contract` 单跑 61 passed）。证据包 **v7**（A19 rev4 `bd6b551e…` authoritative + rev3 `40fb117d…` historical + A3 L77 四件 + A2 fixture + v4/v5 链式留存）：`11-12-evidence-20261104-v7-2523256.tar.gz`，tar sha `75f89a2dc92f64c7995edfc7a33696efbd245bb081cc782006f0400b78bc7d8f`（4,138,568B），manifest `evidence-manifest-v7-20261104T0730Z.json` sha `c2cc1de5823c1d480c2804b318c41fbc86b994d785f7716f64b26993c5e28d54`（124 条 / 4,929,516B / excluded=1），`packed_from_commit=2523256`、commit D=`17853c6`，`SHA256SUMS-v7` 两行；v5/v6 标 historical（v5 rejected-before-sign）、v4/v3 冻结不动。**A11 数据侧：7 PASS + #7 行为层 PASS（H5 四元组终签）；唯 residual=④公网 ingress（A13）；11-12 是否放行由 H4/H5 决定**。
 ### 7.4 证据钉版本（2026-11-04 14:10 / 证据包 v4）
 
 **版本锚点**：仓库已有 git（Lead 首提交 `eb10d21`，之后 A13/L 提交继续推进；本表引用时的 HEAD 见下表）。
@@ -312,3 +312,13 @@ file-level 窄豁免且 H2 签，不给目录级）。扫描强度与全量数�
 `http-attempts.jsonl`（**待 A19 重放**）、`results.json`、`results-r4.json`、`trustproxy-guard.json` 及两份 before-fix 对照、`REPORT.md`。
 
 **仓库卫生 2MB allowlist（Lead L91，2026-11-04 批准）**：仅 `tests/data/acceptance/artifacts/11-12-evidence-*.tar.gz`（证据包 tar 单类，不放 manifest/其它 artifact）；owner=A13 执行，A11 不改 `infra/`；`expires_at=2026-12-15`（与 lot_size waiver 同日盘点）；`reason=release 签名对象`——H5 签字对象是 tar 本身（四元组第一项），不入库无法独立复算。allowlist 到期自动失效、不自动续期；其它 >2MB 文件照旧 fail。v7 tar `75f89a2d…` 为当前唯一入库证据包；v6 `f1e6f8e4…` 作为 historical 亦在 pattern 内。
+
+### 7.12 KD-ENT-01 启动矩阵门禁（H5 m03570，2026-11-04）
+
+缺陷：`E2E_MODE=1` 默认关 hold/audit 且跳过 `ENTITLEMENT_CONFIG_EXPECTED_SHA256` 自检 → `e2e + c_end_display + raise_hold` 下 quote 返回 200 真实行情（H5 实测）。修复方向：`tier != internal_eval` 时**任何 profile** 必须 `ENTITLEMENT_HOLD_CHECK=1` + `ENTITLEMENT_AUDIT=1` + sha 非空，否则拒启；`E2E_MODE` 不再改默认值。
+
+- 脚本：`tests/data/test_startup_matrix.py`（pytest）+ `tests/data/acceptance/startup_matrix_runner.ts`（tsx 黑盒：真实 `loadMarketConfig` + `createMarketPlugin` + listen 127.0.0.1:0）。
+- 矩阵：profile∈{prod,e2e,test} × tier∈{internal_eval,c_end_display} × 授权控制状态∈{missing, 显式 0, 配齐} = **15 组合**；另两条全局断言（无 fail-open 组合、维度覆盖）。
+- 判据：①`tier!=internal_eval` 且 flags 缺失/0 → 拒启（不 listen）；②放行组合必须真实监听且 hold/audit/sha 三者 true；③拒启原因必须 ∈ `BLOCKING_REASONS`（`config_mismatch`），不允许静默放行；④`internal_eval` + 缺失时默认 hold/audit=true（E2E_MODE 不改默认值），显式 0 仅 internal 档允许。
+- 证据：`tests/data/acceptance/artifacts/kd-ent-01-startup-matrix-20261104T1220Z.md` sha256 `bf4a87df9eabe492435e25d953570c2e901aea20e99f3115169b877128d99f44`（15 条 tsx 输出逐条表 + 判据 + 对应关系）。
+- 状态（2026-11-04T12:20Z）：对 A3 修复后的 working tree **17 passed**；A3 的 `services/market/src/config.ts` 修复当时**未提交**（`git status` 显示 `M`），因此在当前 HEAD 上本门禁会红，A3 提交后转绿——这是 KD-ENT-01 的回归钉。CI 不以 env 关 audit 绕过矩阵（H5 明确）。
