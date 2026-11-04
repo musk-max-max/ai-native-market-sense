@@ -15,6 +15,8 @@ const steps = [
   ['告警 / runbook 绑定', ['infra/ci/check-runbooks.mjs']],
   ['DB bootstrap 静态校验', ['infra/ci/check-db-bootstrap.mjs']],
   ['授权配置 fail-closed', ['infra/ci/check-entitlement-config.mjs']],
+  ['网络边界 / ingress 暴露面', ['infra/ci/check-network-policy.mjs']],
+  ['仓库卫生（秘密/状态/超大文件）', ['infra/ci/check-repo-hygiene.mjs']],
   ['契约词表（厂商标识）', ['infra/ci/check-source-vocabulary.mjs']],
   ['契约 lint + 破坏性 diff', ['infra/ci/contract-diff.mjs']],
 ];

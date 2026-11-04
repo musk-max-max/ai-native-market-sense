@@ -115,6 +115,19 @@ config:
   ENTITLEMENT_TIER: "internal_eval"
   ENTITLEMENT_EXPIRES_AT: ""
 
+# H5-R10：网络边界默认拒绝；externalEgress 必须按环境显式声明（AI provider / tushare 等），
+# 空列表 = 默认拒绝外部出站（fail-closed）。dev/preview 的本地栈不经过 K8s，不受此限。
+networkPolicy:
+  enabled: true
+  ingressNamespace: ingress-nginx
+  monitoringNamespace: kube-prometheus-stack
+  dnsNamespace: kube-system
+  allowEgress:
+    dns: true
+    postgres: true
+    redis: true
+  externalEgress: []
+
 monitoring:
   serviceMonitor:
     enabled: true

@@ -412,6 +412,11 @@ jobs:
           helm template market-sense-pr-1 infra/helm/market-sense \
             -n market-sense-preview-pr-1 -f infra/helm/market-sense/values-preview.yaml \
             --set preview.prNumber=1 > /dev/null
+      - name: 网络边界 / ingress 暴露面（H5-R10 五条）
+        if: needs.detect.outputs.has_helm == 'true'
+        run: node infra/ci/check-network-policy.mjs
+      - name: 仓库卫生（.env/.tfstate/kubeconfig/.log/超大文件）
+        run: node infra/ci/check-repo-hygiene.mjs
       - name: 授权配置 fail-closed 门禁（H5 卡点）
         if: needs.detect.outputs.has_helm == 'true'
         run: node infra/ci/check-entitlement-config.mjs

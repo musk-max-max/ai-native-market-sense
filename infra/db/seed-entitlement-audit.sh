@@ -42,6 +42,20 @@ fi
 
 psql_q() { psql -X -q -v ON_ERROR_STOP=1 "$DSN" "$@"; }
 
+# H4 m01558：seed 事件只允许进一次性验收库；禁止 preload 到长期环境。
+# 审计表里出现「看起来像真实复核」的假事件比空表更坏（H3 会当成已复核）。
+DB_NAME=$(psql_q -At -c 'select current_database()' | head -1)
+case "$DB_NAME" in
+  a13_verify|a5_l49_final|a13_*|*_e2e*|*_test*) ;;
+  *)
+    if [[ "${SEED_ALLOW_NON_SCRATCH:-0}" != "1" ]]; then
+      echo "✗ 拒绝 seed 非一次性库：$DB_NAME" >&2
+      echo "  只允许 a13_verify/a5_l49_final/…_e2e/…_test；确需覆盖请显式 SEED_ALLOW_NON_SCRATCH=1（需 H4/Lead 批准）。" >&2
+      exit 4
+    fi
+    ;;
+esac
+
 HAS_EVENTS=$(psql -X -q -t -A "$DSN" -c "SELECT to_regclass('audit.entitlement_events') IS NOT NULL")
 HAS_CONTROL=$(psql -X -q -t -A "$DSN" -c "SELECT to_regclass('audit.entitlement_hold') IS NOT NULL")
 
@@ -96,7 +110,7 @@ INSERT INTO audit.entitlement_events
 VALUES
   ('deploy', :'base_ts'::timestamptz + interval '0 seconds', :'deploy_uid', 'seed-release', repeat('a', 64),
    'A13', 'H5', 'seed-approval-ref-' || substr(md5(random()::text), 1, 8),
-   now() - interval '21 minutes', 'ci:seed', repeat('b', 64), 'seed-trace-deploy');
+   now() - interval '21 minutes', 'ci:seed', repeat('b', 64), 'seed:trace-deploy');
 
 INSERT INTO audit.entitlement_events
   (event_type, occurred_at, deployment_uid, reason, hold_id, old_value, new_value, trace_id)
@@ -104,7 +118,7 @@ VALUES
   ('hold_set', :'base_ts'::timestamptz + interval '1 second', :'deploy_uid', 'hold_active', :'hold_id'::uuid,
    '{"hold": false}'::jsonb,
    jsonb_build_object('hold', true, 'hold_id', :'hold_id', 'reason', 'seed'),
-   'seed-trace-hold-set');
+   'seed:trace-hold-set');
 
 INSERT INTO audit.entitlement_events
   (event_type, occurred_at, deployment_uid, reason, hold_id, hold_ticket, hold_signer,
@@ -116,7 +130,7 @@ VALUES
    now() + interval '30 days',
    '{"hold": true}'::jsonb,
    jsonb_build_object('hold', false, 'hold_id', :'hold_id', 'reason', 'manual_signoff'),
-   'seed-trace-hold-clear');
+   'seed:trace-hold-clear');
 
 -- A11 #6 抽样覆盖：events 9 类里至少 7 类可抽样；以下补齐 expired/flip/tier_switch/clause_review。
 -- 时间必须严格递增（触发器拒绝时钟倒退），随机量用于避开 event_key 唯一键（重跑不撞）。
@@ -127,7 +141,7 @@ VALUES
   ('entitlement_expired', :'base_ts'::timestamptz + interval '3 seconds', :'deploy_uid', 'expires_at_passed',
    'c_end_display', 'internal_eval',
    now() - interval '2 days' - (floor(random() * 3600) || ' seconds')::interval,
-   'seed-trace-expired');
+   'seed:trace-expired');
 
 INSERT INTO audit.entitlement_events
   (event_type, occurred_at, deployment_uid, boot_id, state_version, reason,
@@ -137,7 +151,7 @@ VALUES
    'env_change',
    '{"effective_tier": "c_end_display"}'::jsonb,
    '{"effective_tier": "internal_eval"}'::jsonb,
-   'seed-trace-flip');
+   'seed:trace-flip');
 
 INSERT INTO audit.entitlement_events
   (event_type, occurred_at, deployment_uid, reason, approval_ref, executor, approver,
@@ -149,7 +163,7 @@ VALUES
    'A13', 'H5',
    '{"effective_tier": "internal_eval"}'::jsonb,
    '{"effective_tier": "c_end_display"}'::jsonb,
-   'seed-trace-tier-switch');
+   'seed:trace-tier-switch');
 
 INSERT INTO audit.entitlement_events
   (event_type, occurred_at, deployment_uid, reason, authorization_doc_sha256,
@@ -163,7 +177,7 @@ VALUES
    'A16',
    now() + interval '90 days',
    '{"verdict": "allow", "seed": true}'::jsonb,
-   'seed-trace-clause-review');
+   'seed:trace-clause-review');
 COMMIT;
 SQL
 )

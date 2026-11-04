@@ -40,6 +40,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: 记录代码锚点（commit sha；无 commit 引用的证据两周后无法回答「哪版」）
+        run: |
+          git rev-parse HEAD | tee commit-sha.txt
+          echo "- commit: \`$(cat commit-sha.txt)\`" >> "$GITHUB_STEP_SUMMARY"
+
       - uses: pnpm/action-setup@v4
         with:
           version: ${{ env.PNPM_VERSION }}
@@ -152,11 +157,37 @@ jobs:
         with:
           name: release-gate-evidence
           path: |
+            commit-sha.txt
             .e2e-status.json
             tests/e2e/.e2e-status.json
             tests/e2e/stack.log
           if-no-files-found: warn
           retention-days: 30
+
+      - name: 集群外 /healthz 等内部端点必须 404（H4 m01553；无入口则显式未验证）
+        if: vars.PUBLIC_BASE_URL != ''
+        env:
+          PUBLIC_BASE_URL: ${{ vars.PUBLIC_BASE_URL }}
+        run: |
+          set -e
+          for p in /healthz /metrics /docs /openapi.json /readyz; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "${PUBLIC_BASE_URL}${p}")
+            echo "$p -> $code"
+            if [ "$code" != "404" ]; then
+              echo "::error::${p} 集群外返回 $code（必须 404）"
+              exit 1
+            fi
+          done
+          {
+            echo "## 集群外暴露面 Probe"
+            echo "- 五个内部端点均 404（/healthz /metrics /docs /openapi.json /readyz）"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 集群外暴露面未验证（没有 PUBLIC_BASE_URL）
+        if: vars.PUBLIC_BASE_URL == ''
+        run: |
+          echo "::warning::无 PUBLIC_BASE_URL，/healthz 等端点集群外 404 未实测；YAML 对不等于证据"
+          echo "- ⚠️ 集群外暴露面：未验证（无入口）" >> "$GITHUB_STEP_SUMMARY"
 
       - name: 收栈
         if: always()

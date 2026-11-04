@@ -6,8 +6,9 @@ on:
   workflow_dispatch:
     inputs:
       image_tag:
-        description: "镜像 tag（必须是已构建并推送的不可变 tag）"
-        required: true
+        description: "镜像 tag（空则用当前 commit sha；必须是已构建并推送的不可变 tag）"
+        required: false
+        default: ""
         type: string
       stage:
         description: "灰度档位（dev 通常 100）"
@@ -50,7 +51,9 @@ jobs:
       - name: 部署 dev（灰度停留闸门在 deploy.sh 内强制）
         if: env.KUBE_CONFIG != ''
         env:
-          IMAGE_TAG: ${{ inputs.image_tag }}
+          # 没有 commit 引用的镜像，两周后无法回答「这个镜像是哪版代码」（Lead m01563）。
+          IMAGE_TAG: ${{ inputs.image_tag || github.sha }}
+          COMMIT_SHA: ${{ github.sha }}
           STAGE: ${{ inputs.stage }}
         run: |
           bash infra/scripts/deploy.sh dev "$IMAGE_TAG" --stage "$STAGE"
@@ -58,6 +61,7 @@ jobs:
             echo '### deploy dev 完成'
             echo ''
             echo "- image tag：\`$IMAGE_TAG\`"
+            echo "- commit：\`$COMMIT_SHA\`"
             echo "- 灰度档位：$STAGE（每档 ≥30min 由 deploy.sh 校验，ALLOW_FAST_PROMOTE 仅本地演练）"
             echo '- 回滚：run workflow `rollback`（dev）'
           } >> "$GITHUB_STEP_SUMMARY"
