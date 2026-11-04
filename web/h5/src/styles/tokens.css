@@ -1,0 +1,82 @@
+/**
+ * 设计 token（临时 fallback）。
+ *
+ * A10（packages/design-tokens）尚未交付；这里先落一套移动端最小 token 作为接入位。
+ * A10 交付后：用其 token 数值替换本文件，组件类名与 DOM 结构不变。
+ * 硬约束：免责声明与数据口径的对比度不得降低；深浅色都必须满足正文 4.5:1。
+ */
+:root {
+  color-scheme: light dark;
+
+  --bg: #f4f6f8;
+  --surface: #ffffff;
+  --surface-2: #eef1f5;
+  --text: #14171c;
+  --text-muted: #4a5563;
+  --text-subtle: #5c6876;
+  --border: #d7dde5;
+  --border-strong: #aab6c4;
+
+  --accent: #0b6357;
+  --accent-weak: #e3f1ee;
+  --accent-contrast: #ffffff;
+
+  --up: #b3261e;
+  --up-weak: #fdecea;
+  --down: #0f6b3d;
+  --down-weak: #e8f5ed;
+
+  --warning-bg: #fff4e0;
+  --warning-border: #b45309;
+  --warning-text: #7a2c0b;
+
+  --danger-bg: #fff1f0;
+  --danger-border: #b3261e;
+  --danger-text: #7f1d1d;
+
+  --focus: #1d4ed8;
+  --shadow: 0 1px 2px rgb(16 24 40 / 6%), 0 2px 8px rgb(16 24 40 / 6%);
+
+  --radius: 14px;
+  --radius-sm: 10px;
+  --radius-pill: 999px;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+
+  --max-width: 640px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b0f14;
+    --surface: #131a22;
+    --surface-2: #1b2430;
+    --text: #e8edf4;
+    --text-muted: #b3bdc9;
+    --text-subtle: #9aa6b4;
+    --border: #2a3542;
+    --border-strong: #465463;
+
+    --accent: #7fd6c4;
+    --accent-weak: #12312c;
+    --accent-contrast: #06201b;
+
+    --up: #ff8b82;
+    --up-weak: #3a1c1a;
+    --down: #6fd39b;
+    --down-weak: #102e20;
+
+    --warning-bg: #33240c;
+    --warning-border: #d9a13b;
+    --warning-text: #ffd693;
+
+    --danger-bg: #351717;
+    --danger-border: #ff8b82;
+    --danger-text: #ffc9c4;
+
+    --focus: #8ab4ff;
+    --shadow: 0 1px 2px rgb(0 0 0 / 35%), 0 2px 10px rgb(0 0 0 / 30%);
+  }
+}

@@ -1,0 +1,43 @@
+# market-sense-h5 · 根 .gitignore（A0 初始 → A13 扩展，2026-11-04）
+# 硬规则：生产状态文件、密钥、Kubeconfig 永不入仓（H5 安全基线：密钥三不入 / 只走 IaC）。
+node_modules/
+.pnpm-store/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+.DS_Store
+*.log
+.env
+.env.*
+!.env.example
+
+# IaC（Terraform state 只允许在远端后端；本地 state 一律忽略）
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# K8s / Helm 本地渲染物
+infra/helm/**/charts/
+kubeconfig*
+*.kubeconfig
+
+# 本地运行态（Lead 2026-11-04 补：PGDATA/录播/测试产物绝不入仓）
+.state/
+.pytest_cache/
+.ruff_cache/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+htmlcov/
+.coverage
+test-results/
+playwright-report/
+blob-report/

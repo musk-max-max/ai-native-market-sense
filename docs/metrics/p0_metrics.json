@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "owner": "A2",
+  "reviewer": "H4",
+  "sign_off": {
+    "status": "pending_h4_signature",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "metrics": [
+    {
+      "metric_id": "M01",
+      "name": "行情主口径（不复权）",
+      "status": "executable",
+      "sql_file": "warehouse/metrics/m01_bars_none.sql",
+      "depends_on": ["dwd_stock_bar_daily"],
+      "decision_ref": "H4-D6"
+    },
+    {
+      "metric_id": "M02",
+      "name": "区间收益率（后复权 hfq）",
+      "status": "executable",
+      "sql_file": "warehouse/metrics/m02_return_hfq.sql",
+      "depends_on": ["dwd_stock_bar_daily", "dwd_adj_factor"],
+      "decision_ref": "H4-D6"
+    },
+    {
+      "metric_id": "M03",
+      "name": "资金流（主力净流入，不含大宗）",
+      "status": "pending-data",
+      "sql_file": null,
+      "depends_on": ["dwd_moneyflow_daily"],
+      "decision_ref": "H4-D6"
+    },
+    {
+      "metric_id": "M04",
+      "name": "涨跌停状态（按板块）",
+      "status": "executable",
+      "sql_file": "warehouse/metrics/m04_limit_status.sql",
+      "depends_on": ["dwd_stock_bar_daily", "dim_instrument"],
+      "decision_ref": "H4-D6"
+    },
+    {
+      "metric_id": "M05",
+      "name": "龙虎榜（保留上榜原因）",
+      "status": "pending-data",
+      "sql_file": null,
+      "depends_on": ["dwd_dragon_tiger"],
+      "decision_ref": "H4-D6"
+    },
+    {
+      "metric_id": "M06",
+      "name": "财务（reported + restated 两套）",
+      "status": "pending-data",
+      "sql_file": null,
+      "depends_on": ["dwd_fundamental_report"],
+      "decision_ref": "H4-D6"
+    },
+    {
+      "metric_id": "M07",
+      "name": "指数/概念成分（按日快照）",
+      "status": "pending-data",
+      "sql_file": null,
+      "depends_on": ["dwd_index_member_daily"],
+      "decision_ref": "H4-D6"
+    },
+    {
+      "metric_id": "M08",
+      "name": "涨跌幅（基准=前收盘价/除权参考价）",
+      "status": "executable",
+      "sql_file": "warehouse/metrics/m08_change_pct.sql",
+      "depends_on": ["dwd_stock_bar_daily"],
+      "decision_ref": "H4-D6"
+    }
+  ],
+  "quality": {
+    "config": "warehouse/quality/quality_config.json",
+    "weights": {"struct": 0.2, "business": 0.3, "completeness": 0.3, "consistency": 0.2},
+    "thresholds": {"green": 95, "yellow": 90, "red": 85},
+    "blocker_blocks_downstream": true,
+    "sign_off": {"status": "pending_h4_signature", "approved_by": null}
+  },
+  "change_process": "先改 docs/metrics/P0-metrics.md → H4 签字 → 再改 SQL/代码；docs 与 SQL 由 warehouse/tests/test_docs_sql_sync.py 强制一致"
+}

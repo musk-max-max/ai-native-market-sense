@@ -1,0 +1,59 @@
+{
+  "batch_id": "ing-20261103T150000-2824dfe5-instrument",
+  "endpoint": "instrument",
+  "rows": [
+    {
+      "board": "bse",
+      "exchange": "BSE",
+      "instrument_id": "BSE:830799",
+      "list_status": "listed",
+      "listed_at": "2021-11-15",
+      "name": "贝特瑞",
+      "security_type": "stock"
+    },
+    {
+      "board": "main",
+      "exchange": "SSE",
+      "instrument_id": "SSE:600519",
+      "list_status": "listed",
+      "listed_at": "2001-08-27",
+      "name": "贵州茅台",
+      "security_type": "stock"
+    },
+    {
+      "board": "star",
+      "exchange": "SSE",
+      "instrument_id": "SSE:688981",
+      "list_status": "listed",
+      "listed_at": "2020-07-16",
+      "name": "中芯国际",
+      "security_type": "stock"
+    },
+    {
+      "board": "main",
+      "exchange": "SZSE",
+      "instrument_id": "SZSE:000001",
+      "list_status": "listed",
+      "listed_at": "1991-04-03",
+      "name": "平安银行",
+      "security_type": "stock"
+    },
+    {
+      "board": "gem",
+      "exchange": "SZSE",
+      "instrument_id": "SZSE:300750",
+      "list_status": "listed",
+      "listed_at": "2018-06-11",
+      "name": "宁德时代",
+      "security_type": "stock"
+    }
+  ],
+  "rows_rejected": 0,
+  "rows_total": 5,
+  "schema": "instrument.v1",
+  "source": {
+    "as_of": "2026-11-03T15:00:00+08:00",
+    "fetched_at": "2026-11-03T15:00:00+08:00",
+    "source": "exchange_master"
+  }
+}

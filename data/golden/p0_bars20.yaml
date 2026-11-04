@@ -1,0 +1,1218 @@
+meta:
+  version: 1
+  owner: A2
+  description: P0 竖切片 golden dataset：21 条正例（含 ST/停牌/除权除息/涨跌停/新股首日/ST 恰好 5% 边界）+ 9 条负例；由 warehouse.golden_runner 走 ODS→DWD→质量 全链路回归。
+  ods_format: warehouse/README.md §ODS 交换格式 v1
+  decision_refs:
+  - H4-D6
+  - H4-D7
+  - H4-D8
+  - H4-D9
+  - ADR-002
+cases:
+- id: G01
+  title: 主板正常日线：不复权主口径，3 个交易日连续
+  instrument:
+    instrument_id: SSE:600519
+    exchange: SSE
+    code: '600519'
+    name: 贵州茅台
+    board: main
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '2001-08-27'
+  as_of: '2026-09-30T20:05:00+08:00'
+  fetched_at: '2026-09-30T20:06:00+08:00'
+  bars:
+  - trade_date: '2026-09-28'
+    open: '10.30'
+    high: '10.35'
+    low: '10.25'
+    close: '10.30'
+    volume: '1000000'
+    amount: '10300000.00'
+    prev_close: '10.00'
+  - trade_date: '2026-09-29'
+    open: '10.45'
+    high: '10.50'
+    low: '10.40'
+    close: '10.45'
+    volume: '1000000'
+    amount: '10450000.00'
+    prev_close: '10.30'
+  - trade_date: '2026-09-30'
+    open: '10.20'
+    high: '10.25'
+    low: '10.15'
+    close: '10.20'
+    volume: '1000000'
+    amount: '10200000.00'
+    prev_close: '10.45'
+  expect:
+    grade: green
+    blocked: false
+    violations: []
+- id: G02
+  title: 创业板 +15%：20% 幅度内合法
+  instrument:
+    instrument_id: SZSE:300750
+    exchange: SZSE
+    code: '300750'
+    name: 宁德时代
+    board: gem
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '2018-06-11'
+  as_of: '2026-09-30T20:05:00+08:00'
+  fetched_at: '2026-09-30T20:06:00+08:00'
+  bars:
+  - trade_date: '2026-09-28'
+    open: '11.50'
+    high: '11.55'
+    low: '11.45'
+    close: '11.50'
+    volume: '1000000'
+    amount: '11500000.00'
+    prev_close: '10.00'
+  - trade_date: '2026-09-29'
+    open: '12.00'
+    high: '12.05'
+    low: '11.95'
+    close: '12.00'
+    volume: '1000000'
+    amount: '12000000.00'
+    prev_close: '11.50'
+  - trade_date: '2026-09-30'
+    open: '11.80'
+    high: '11.85'
+    low: '11.75'
+    close: '11.80'
+    volume: '1000000'
+    amount: '11800000.00'
+    prev_close: '12.00'
+  expect:
+    grade: green
+    blocked: false
+    violations: []
+- id: G03
+  title: 科创板 +18%：20% 幅度内合法（不按主板 10% 误判）
+  instrument:
+    instrument_id: SSE:688981
+    exchange: SSE
+    code: '688981'
+    name: 中芯国际
+    board: star
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '2020-07-16'
+  as_of: '2026-09-30T20:05:00+08:00'
+  fetched_at: '2026-09-30T20:06:00+08:00'
+  bars:
+  - trade_date: '2026-09-28'
+    open: '23.60'
+    high: '23.65'
+    low: '23.55'
+    close: '23.60'
+    volume: '1000000'
+    amount: '23600000.00'
+    prev_close: '20.00'
+  - trade_date: '2026-09-29'
+    open: '24.00'
+    high: '24.05'
+    low: '23.95'
+    close: '24.00'
+    volume: '1000000'
+    amount: '24000000.00'
+    prev_close: '23.60'
+  - trade_date: '2026-09-30'
+    open: '23.00'
+    high: '23.05'
+    low: '22.95'
+    close: '23.00'
+    volume: '1000000'
+    amount: '23000000.00'
+    prev_close: '24.00'
+  expect:
+    grade: green
+    blocked: false
+    violations: []
+- id: G04
+  title: 北交所 +25%：30% 幅度内合法
+  instrument:
+    instrument_id: BSE:832000
+    exchange: BSE
+    code: '832000'
+    name: 安徽凤凰
+    board: bse
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '2020-01-02'
+  as_of: '2026-09-30T20:05:00+08:00'
+  fetched_at: '2026-09-30T20:06:00+08:00'
+  bars:
+  - trade_date: '2026-09-28'
+    open: '12.50'
+    high: '12.55'
+    low: '12.45'
+    close: '12.50'
+    volume: '1000000'
+    amount: '12500000.00'
+    prev_close: '10.00'
+  - trade_date: '2026-09-29'
+    open: '13.00'
+    high: '13.05'
+    low: '12.95'
+    close: '13.00'
+    volume: '1000000'
+    amount: '13000000.00'
+    prev_close: '12.50'
+  - trade_date: '2026-09-30'
+    open: '12.00'
+    high: '12.05'
+    low: '11.95'
+    close: '12.00'
+    volume: '1000000'
+    amount: '12000000.00'
+    prev_close: '13.00'
+  expect:
+    grade: green
+    blocked: false
+    violations: []
+- id: G05
+  title: 主板 ST：5% 幅度内（+4.5%）
+  instrument:
+    instrument_id: SSE:600702
+    exchange: SSE
+    code: '600702'
+    name: ST舍得
+    board: main
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '1996-05-28'
+  as_of: '2026-09-30T20:05:00+08:00'
+  fetched_at: '2026-09-30T20:06:00+08:00'
+  bars:
+  - trade_date: '2026-09-28'
+    open: '10.45'
+    high: '10.50'
+    low: '10.40'
+    close: '10.45'
+    volume: '1000000'
+    amount: '10450000.00'
+    prev_close: '10.00'
+  - trade_date: '2026-09-29'
+    open: '10.50'
+    high: '10.55'
+    low: '10.45'
+    close: '10.50'
+    volume: '1000000'
+    amount: '10500000.00'
+    prev_close: '10.45'
+  - trade_date: '2026-09-30'
+    open: '10.40'
+    high: '10.45'
+    low: '10.35'
+    close: '10.40'
+    volume: '1000000'
+    amount: '10400000.00'
+    prev_close: '10.50'
+  expect:
+    grade: green
+    blocked: false
+    violations: []
+- id: G06
+  title: 主板 *ST：5% 幅度内（+4.9%），is_st 由 name 派生
+  instrument:
+    instrument_id: SZSE:000004
+    exchange: SZSE
+    code: '000004'
+    name: '*ST国华'
+    board: main
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '1991-01-14'
+  as_of: '2026-09-30T20:05:00+08:00'
+  fetched_at: '2026-09-30T20:06:00+08:00'
+  bars:
+  - trade_date: '2026-09-28'
+    open: '10.49'
+    high: '10.54'
+    low: '10.44'
+    close: '10.49'
+    volume: '1000000'
+    amount: '10490000.00'
+    prev_close: '10.00'
+  - trade_date: '2026-09-29'
+    open: '10.55'
+    high: '10.60'
+    low: '10.50'
+    close: '10.55'
+    volume: '1000000'
+    amount: '10550000.00'
+    prev_close: '10.49'
+  - trade_date: '2026-09-30'
+    open: '10.40'
+    high: '10.45'
+    low: '10.35'
+    close: '10.40'
+    volume: '1000000'
+    amount: '10400000.00'
+    prev_close: '10.55'
+  expect:
+    grade: green
+    blocked: false
+    violations: []
+- id: G07
+  title: 主板涨停：前收 10.47 → 涨停价 11.52（+10.03%，2 位小数舍入）
+  instrument:
+    instrument_id: SSE:600000
+    exchange: SSE
+    code: '600000'
+    name: 浦发银行
+    board: main
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '1999-11-10'
+  as_of: '2026-09-30T20:05:00+08:00'
+  fetched_at: '2026-09-30T20:06:00+08:00'
+  bars:
+  - trade_date: '2026-09-28'
+    open: '11.52'
+    high: '11.57'
+    low: '11.47'
+    close: '11.52'
+    volume: '1000000'
+    amount: '11520000.00'
+    prev_close: '10.47'
+  - trade_date: '2026-09-29'
+    open: '11.60'
+    high: '11.65'
+    low: '11.55'
+    close: '11.60'
+    volume: '1000000'
+    amount: '11600000.00'
+    prev_close: '11.52'
+  - trade_date: '2026-09-30'
+    open: '11.55'
+    high: '11.60'
+    low: '11.50'
+    close: '11.55'
+    volume: '1000000'
+    amount: '11550000.00'
+    prev_close: '11.60'
+  expect:
+    grade: green
+    blocked: false
+    violations: []
+- id: G08
+  title: 主板跌停：-10% 恰好触及下限
+  instrument:
+    instrument_id: SSE:600036
+    exchange: SSE
+    code: '600036'
+    name: 招商银行
+    board: main
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '2002-04-09'
+  as_of: '2026-09-30T20:05:00+08:00'
+  fetched_at: '2026-09-30T20:06:00+08:00'
+  bars:
+  - trade_date: '2026-09-28'
+    open: '9.00'
+    high: '9.05'
+    low: '8.95'
+    close: '9.00'
+    volume: '1000000'
+    amount: '9000000.00'
+    prev_close: '10.00'
+  - trade_date: '2026-09-29'
+    open: '9.10'
+    high: '9.15'
+    low: '9.05'
+    close: '9.10'
+    volume: '1000000'
+    amount: '9100000.00'
+    prev_close: '9.00'
+  - trade_date: '2026-09-30'
+    open: '9.05'
+    high: '9.10'
+    low: '9.00'
+    close: '9.05'
+    volume: '1000000'
+    amount: '9050000.00'
+    prev_close: '9.10'
+  expect:
+    grade: green
+    blocked: false
+    violations: []
+- id: G09
+  title: 创业板涨停：+20% 恰好触及上限
+  instrument:
+    instrument_id: SZSE:300059
+    exchange: SZSE
+    code: '300059'
+    name: 东方财富
+    board: gem
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '2010-03-19'
+  as_of: '2026-09-30T20:05:00+08:00'
+  fetched_at: '2026-09-30T20:06:00+08:00'
+  bars:
+  - trade_date: '2026-09-28'
+    open: '24.00'
+    high: '24.05'
+    low: '23.95'
+    close: '24.00'
+    volume: '1000000'
+    amount: '24000000.00'
+    prev_close: '20.00'
+  - trade_date: '2026-09-29'
+    open: '24.50'
+    high: '24.55'
+    low: '24.45'
+    close: '24.50'
+    volume: '1000000'
+    amount: '24500000.00'
+    prev_close: '24.00'
+  - trade_date: '2026-09-30'
+    open: '24.00'
+    high: '24.05'
+    low: '23.95'
+    close: '24.00'
+    volume: '1000000'
+    amount: '24000000.00'
+    prev_close: '24.50'
+  expect:
+    grade: green
+    blocked: false
+    violations: []
+- id: G10
+  title: 北交所涨停：+30% 恰好触及上限
+  instrument:
+    instrument_id: BSE:430047
+    exchange: BSE
+    code: '430047'
+    name: 诺思兰德
+    board: bse
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '2020-01-02'
+  as_of: '2026-09-30T20:05:00+08:00'
+  fetched_at: '2026-09-30T20:06:00+08:00'
+  bars:
+  - trade_date: '2026-09-28'
+    open: '13.00'
+    high: '13.05'
+    low: '12.95'
+    close: '13.00'
+    volume: '1000000'
+    amount: '13000000.00'
+    prev_close: '10.00'
+  - trade_date: '2026-09-29'
+    open: '13.20'
+    high: '13.25'
+    low: '13.15'
+    close: '13.20'
+    volume: '1000000'
+    amount: '13200000.00'
+    prev_close: '13.00'
+  - trade_date: '2026-09-30'
+    open: '12.90'
+    high: '12.95'
+    low: '12.85'
+    close: '12.90'
+    volume: '1000000'
+    amount: '12900000.00'
+    prev_close: '13.20'
+  expect:
+    grade: green
+    blocked: false
+    violations: []
+- id: G11
+  title: 除权除息日：prev_close=除权参考价 10.00，CONS-01 因因子变化豁免，hfq 连续
+  instrument:
+    instrument_id: SSE:600887
+    exchange: SSE
+    code: '600887'
+    name: 伊利股份
+    board: main
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '1996-03-12'
+  as_of: '2026-09-30T20:05:00+08:00'
+  fetched_at: '2026-09-30T20:06:00+08:00'
+  bars:
+  - trade_date: '2026-09-28'
+    open: '19.80'
+    high: '20.10'
+    low: '19.60'
+    close: '20.00'
+    volume: '1000000'
+    amount: '20000000.00'
+    prev_close: '19.60'
+  - trade_date: '2026-09-29'
+    open: '10.00'
+    high: '10.60'
+    low: '9.95'
+    close: '10.50'
+    volume: '1000000'
+    amount: '10500000.00'
+    prev_close: '10.00'
+  - trade_date: '2026-09-30'
+    open: '10.50'
+    high: '10.65'
+    low: '10.45'
+    close: '10.60'
+    volume: '1000000'
+    amount: '10600000.00'
+    prev_close: '10.50'
+  factors:
+  - trade_date: '2026-09-28'
+    factor: '1.0'
+  - trade_date: '2026-09-29'
+    factor: '2.0'
+  - trade_date: '2026-09-30'
+    factor: '2.0'
+  expect:
+    grade: green
+    blocked: false
+    violations: []
+    hfq:
+      first: '20.0000'
+      last: '21.2000'
+- id: G12
+  title: 停牌日：无 bar，但有 suspended 证据，COMP-03 不报缺日
+  instrument:
+    instrument_id: SZSE:000002
+    exchange: SZSE
+    code: '000002'
+    name: 万科A
+    board: main
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '1991-01-29'
+  as_of: '2026-09-30T20:05:00+08:00'
+  fetched_at: '2026-09-30T20:06:00+08:00'
+  bars:
+  - trade_date: '2026-09-28'
+    open: '9.90'
+    high: '10.10'
+    low: '9.85'
+    close: '10.00'
+    volume: '1000000'
+    amount: '10000000.00'
+    prev_close: '9.90'
+  - trade_date: '2026-09-30'
+    open: '10.10'
+    high: '10.30'
+    low: '10.00'
+    close: '10.20'
+    volume: '1000000'
+    amount: '10200000.00'
+    prev_close: '10.00'
+  suspended:
+  - '2026-09-29'
+  expect:
+    grade: green
+    blocked: false
+    violations: []
+- id: G13
+  title: 新股首日：listed_at=trade_date，无 prev_close 豁免 BIZ-02/CONS-01
+  instrument:
+    instrument_id: SSE:688111
+    exchange: SSE
+    code: '688111'
+    name: 金山办公
+    board: star
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '2026-09-28'
+  as_of: '2026-09-29T20:05:00+08:00'
+  fetched_at: '2026-09-29T20:06:00+08:00'
+  bars:
+  - trade_date: '2026-09-28'
+    open: '10.00'
+    high: '10.60'
+    low: '9.80'
+    close: '10.50'
+    volume: '1000000'
+    amount: '10500000.00'
+  - trade_date: '2026-09-29'
+    open: '10.60'
+    high: '10.80'
+    low: '10.40'
+    close: '10.70'
+    volume: '1000000'
+    amount: '10700000.00'
+    prev_close: '10.50'
+  expect:
+    grade: green
+    blocked: false
+    violations: []
+- id: G14
+  title: 低价股 ¥1.00 涨停：+10% → 1.10，边界价格不得被 0.01 舍入吃掉
+  instrument:
+    instrument_id: SZSE:000725
+    exchange: SZSE
+    code: '000725'
+    name: 京东方A
+    board: main
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '2001-01-12'
+  as_of: '2026-09-30T20:05:00+08:00'
+  fetched_at: '2026-09-30T20:06:00+08:00'
+  bars:
+  - trade_date: '2026-09-28'
+    open: '1.10'
+    high: '1.15'
+    low: '1.05'
+    close: '1.10'
+    volume: '1000000'
+    amount: '1100000.00'
+    prev_close: '1.00'
+  - trade_date: '2026-09-29'
+    open: '1.00'
+    high: '1.05'
+    low: '0.95'
+    close: '1.00'
+    volume: '1000000'
+    amount: '1000000.00'
+    prev_close: '1.10'
+  - trade_date: '2026-09-30'
+    open: '1.05'
+    high: '1.10'
+    low: '1.00'
+    close: '1.05'
+    volume: '1000000'
+    amount: '1050000.00'
+    prev_close: '1.00'
+  expect:
+    grade: green
+    blocked: false
+    violations: []
+- id: G15
+  title: 跨周末连续：周五 + 周一，周末不算缺日
+  instrument:
+    instrument_id: SSE:601398
+    exchange: SSE
+    code: '601398'
+    name: 工商银行
+    board: main
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '2006-10-27'
+  as_of: '2026-09-28T20:05:00+08:00'
+  fetched_at: '2026-09-28T20:06:00+08:00'
+  bars:
+  - trade_date: '2026-09-25'
+    open: '5.00'
+    high: '5.05'
+    low: '4.95'
+    close: '5.00'
+    volume: '1000000'
+    amount: '5000000.00'
+    prev_close: '4.95'
+  - trade_date: '2026-09-28'
+    open: '5.10'
+    high: '5.15'
+    low: '5.05'
+    close: '5.10'
+    volume: '1000000'
+    amount: '5100000.00'
+    prev_close: '5.00'
+  expect:
+    grade: green
+    blocked: false
+    violations: []
+- id: G16
+  title: 退市证券历史 bar：list_status=delisted 仍可回放，as_of 用历史日期
+  instrument:
+    instrument_id: SSE:600001
+    exchange: SSE
+    code: '600001'
+    name: 邯郸钢铁
+    board: main
+    security_type: stock
+    list_status: delisted
+    lot_size: 100
+    listed_at: '1998-01-22'
+  as_of: '2020-06-03T20:05:00+08:00'
+  fetched_at: '2020-06-03T20:06:00+08:00'
+  bars:
+  - trade_date: '2020-06-01'
+    open: '3.00'
+    high: '3.05'
+    low: '2.95'
+    close: '3.00'
+    volume: '1000000'
+    amount: '3000000.00'
+    prev_close: '2.98'
+  - trade_date: '2020-06-02'
+    open: '3.05'
+    high: '3.10'
+    low: '3.00'
+    close: '3.05'
+    volume: '1000000'
+    amount: '3050000.00'
+    prev_close: '3.00'
+  - trade_date: '2020-06-03'
+    open: '2.95'
+    high: '3.00'
+    low: '2.90'
+    close: '2.95'
+    volume: '1000000'
+    amount: '2950000.00'
+    prev_close: '3.05'
+  expect:
+    grade: green
+    blocked: false
+    violations: []
+- id: G17
+  title: 复权因子连续性：hfq 全程一致，qfq 首价按最新因子归一（仅画图）
+  instrument:
+    instrument_id: SSE:600900
+    exchange: SSE
+    code: '600900'
+    name: 长江电力
+    board: main
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '2003-11-18'
+  as_of: '2026-09-30T20:05:00+08:00'
+  fetched_at: '2026-09-30T20:06:00+08:00'
+  bars:
+  - trade_date: '2026-09-28'
+    open: '9.90'
+    high: '10.05'
+    low: '9.85'
+    close: '10.00'
+    volume: '1000000'
+    amount: '10000000.00'
+    prev_close: '9.90'
+  - trade_date: '2026-09-29'
+    open: '10.00'
+    high: '10.30'
+    low: '9.98'
+    close: '10.20'
+    volume: '1000000'
+    amount: '10200000.00'
+    prev_close: '10.00'
+  - trade_date: '2026-09-30'
+    open: '10.20'
+    high: '10.45'
+    low: '10.15'
+    close: '10.40'
+    volume: '1000000'
+    amount: '10400000.00'
+    prev_close: '10.20'
+  factors:
+  - trade_date: '2026-09-28'
+    factor: '1.0'
+  - trade_date: '2026-09-29'
+    factor: '1.2'
+  - trade_date: '2026-09-30'
+    factor: '1.2'
+  expect:
+    grade: green
+    blocked: false
+    violations: []
+    hfq:
+      first: '10.0000'
+      last: '12.4800'
+    qfq_first: '8.3333'
+- id: G18
+  title: 多批次幂等：相同数据重复投递（as_of 更晚）不产生修订
+  instrument:
+    instrument_id: SZSE:002415
+    exchange: SZSE
+    code: '002415'
+    name: 海康威视
+    board: main
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '2010-05-28'
+  batches:
+  - as_of: '2026-09-30T20:05:00+08:00'
+    bars: &id001
+    - trade_date: '2026-09-28'
+      open: '10.00'
+      high: '10.05'
+      low: '9.95'
+      close: '10.00'
+      volume: '1000000'
+      amount: '10000000.00'
+      prev_close: '9.90'
+    - trade_date: '2026-09-29'
+      open: '10.10'
+      high: '10.15'
+      low: '10.05'
+      close: '10.10'
+      volume: '1000000'
+      amount: '10100000.00'
+      prev_close: '10.00'
+    - trade_date: '2026-09-30'
+      open: '10.20'
+      high: '10.25'
+      low: '10.15'
+      close: '10.20'
+      volume: '1000000'
+      amount: '10200000.00'
+      prev_close: '10.10'
+  - as_of: '2026-09-30T20:30:00+08:00'
+    bars: *id001
+  expect:
+    grade: green
+    blocked: false
+    violations: []
+    revisions: []
+- id: G19
+  title: 历史数据修正：第二批把 D2 close 10.30 改为 10.35，留 revision=1
+  instrument:
+    instrument_id: SSE:600276
+    exchange: SSE
+    code: '600276'
+    name: 恒瑞医药
+    board: main
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '2000-10-18'
+  batches:
+  - as_of: '2026-09-29T20:05:00+08:00'
+    bars:
+    - trade_date: '2026-09-28'
+      open: '10.00'
+      high: '10.10'
+      low: '9.90'
+      close: '10.00'
+      volume: '1000000'
+      amount: '10000000.00'
+      prev_close: '9.90'
+    - trade_date: '2026-09-29'
+      open: '10.20'
+      high: '10.40'
+      low: '10.10'
+      close: '10.30'
+      volume: '1000000'
+      amount: '10300000.00'
+      prev_close: '10.00'
+  - as_of: '2026-09-29T21:00:00+08:00'
+    bars:
+    - trade_date: '2026-09-28'
+      open: '10.00'
+      high: '10.10'
+      low: '9.90'
+      close: '10.00'
+      volume: '1000000'
+      amount: '10000000.00'
+      prev_close: '9.90'
+    - trade_date: '2026-09-29'
+      open: '10.20'
+      high: '10.40'
+      low: '10.10'
+      close: '10.35'
+      volume: '1000000'
+      amount: '10350000.00'
+      prev_close: '10.00'
+  expect:
+    grade: green
+    blocked: false
+    violations: []
+    revisions:
+    - field: amount
+      revision: 1
+      old_value: '10300000.00'
+      new_value: '10350000.00'
+    - field: close
+      revision: 1
+      old_value: '10.30'
+      new_value: '10.35'
+- id: G20
+  title: 未涨停：+9.98%（主板 10% 以内），不得误判涨停
+  instrument:
+    instrument_id: SZSE:000858
+    exchange: SZSE
+    code: 000858
+    name: 五粮液
+    board: main
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '1998-04-27'
+  as_of: '2026-09-30T20:05:00+08:00'
+  fetched_at: '2026-09-30T20:06:00+08:00'
+  bars:
+  - trade_date: '2026-09-28'
+    open: '11.02'
+    high: '11.07'
+    low: '10.97'
+    close: '11.02'
+    volume: '1000000'
+    amount: '11020000.00'
+    prev_close: '10.02'
+  - trade_date: '2026-09-29'
+    open: '11.10'
+    high: '11.15'
+    low: '11.05'
+    close: '11.10'
+    volume: '1000000'
+    amount: '11100000.00'
+    prev_close: '11.02'
+  - trade_date: '2026-09-30'
+    open: '10.95'
+    high: '11.00'
+    low: '10.90'
+    close: '10.95'
+    volume: '1000000'
+    amount: '10950000.00'
+    prev_close: '11.10'
+  expect:
+    grade: green
+    blocked: false
+    violations: []
+- id: G21
+  title: 主板 ST 恰好 +5.00%（涨停价边界）：不得误杀，也不得把恰好 5% 当违规
+  instrument:
+    instrument_id: SSE:600703
+    exchange: SSE
+    code: '600703'
+    name: ST三安
+    board: main
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '1996-05-28'
+  as_of: '2026-09-30T20:05:00+08:00'
+  fetched_at: '2026-09-30T20:06:00+08:00'
+  bars:
+  - trade_date: '2026-09-28'
+    open: '10.18'
+    high: '10.22'
+    low: '10.16'
+    close: '10.20'
+    volume: '1000000'
+    amount: '10200000.00'
+    prev_close: '10.00'
+  - trade_date: '2026-09-29'
+    open: '10.38'
+    high: '10.42'
+    low: '10.36'
+    close: '10.40'
+    volume: '1000000'
+    amount: '10400000.00'
+    prev_close: '10.20'
+  - trade_date: '2026-09-30'
+    open: '10.91'
+    high: '10.92'
+    low: '10.90'
+    close: '10.92'
+    volume: '1000000'
+    amount: '10920000.00'
+    prev_close: '10.40'
+  expect:
+    grade: green
+    blocked: false
+    violations: []
+- id: N01
+  title: high < low：STRUCT-03
+  instrument:
+    instrument_id: SSE:600010
+    exchange: SSE
+    code: '600010'
+    name: 包钢股份
+    board: main
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '2001-03-09'
+  as_of: '2026-09-28T20:05:00+08:00'
+  fetched_at: '2026-09-28T20:06:00+08:00'
+  bars:
+  - trade_date: '2026-09-28'
+    open: '3.00'
+    high: '2.90'
+    low: '3.10'
+    close: '3.00'
+    volume: '1000000'
+    amount: '3000000.00'
+    prev_close: '3.00'
+  expect:
+    grade: black
+    blocked: true
+    violations:
+    - STRUCT-03
+- id: N02
+  title: high < max(open,close)：STRUCT-03
+  instrument:
+    instrument_id: SSE:600019
+    exchange: SSE
+    code: '600019'
+    name: 宝钢股份
+    board: main
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '2000-12-12'
+  as_of: '2026-09-28T20:05:00+08:00'
+  fetched_at: '2026-09-28T20:06:00+08:00'
+  bars:
+  - trade_date: '2026-09-28'
+    open: '10.00'
+    high: '10.20'
+    low: '9.90'
+    close: '10.50'
+    volume: '1000000'
+    amount: '10500000.00'
+    prev_close: '10.00'
+  expect:
+    grade: black
+    blocked: true
+    violations:
+    - STRUCT-03
+- id: N03
+  title: volume 为负：STRUCT-04
+  instrument:
+    instrument_id: SSE:600028
+    exchange: SSE
+    code: '600028'
+    name: 中国石化
+    board: main
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '2001-08-08'
+  as_of: '2026-09-28T20:05:00+08:00'
+  fetched_at: '2026-09-28T20:06:00+08:00'
+  bars:
+  - trade_date: '2026-09-28'
+    open: '6.00'
+    high: '6.10'
+    low: '5.90'
+    close: '6.00'
+    volume: '-100'
+    amount: '1000.00'
+    prev_close: '6.00'
+  expect:
+    grade: black
+    blocked: true
+    violations:
+    - STRUCT-04
+- id: N04
+  title: 主板 +11% 超过 10%：BIZ-01
+  instrument:
+    instrument_id: SSE:600030
+    exchange: SSE
+    code: '600030'
+    name: 中信证券
+    board: main
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '2003-01-06'
+  as_of: '2026-09-28T20:05:00+08:00'
+  fetched_at: '2026-09-28T20:06:00+08:00'
+  bars:
+  - trade_date: '2026-09-28'
+    open: '10.20'
+    high: '11.10'
+    low: '10.10'
+    close: '11.10'
+    volume: '1000000'
+    amount: '11100000.00'
+    prev_close: '10.00'
+  expect:
+    grade: black
+    blocked: true
+    violations:
+    - BIZ-01
+- id: N05
+  title: 主板 ST +6% 超过 5%：BIZ-01（不能按主板 10% 放行）
+  instrument:
+    instrument_id: SZSE:000005
+    exchange: SZSE
+    code: '000005'
+    name: ST星源
+    board: main
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '1991-01-14'
+  as_of: '2026-09-28T20:05:00+08:00'
+  fetched_at: '2026-09-28T20:06:00+08:00'
+  bars:
+  - trade_date: '2026-09-28'
+    open: '10.20'
+    high: '10.60'
+    low: '10.10'
+    close: '10.60'
+    volume: '1000000'
+    amount: '10600000.00'
+    prev_close: '10.00'
+  expect:
+    grade: black
+    blocked: true
+    violations:
+    - BIZ-01
+- id: N06
+  title: 复权因子为 0：STRUCT-06（因子必须 > 0）
+  instrument:
+    instrument_id: SSE:600048
+    exchange: SSE
+    code: '600048'
+    name: 保利发展
+    board: main
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '2006-07-31'
+  as_of: '2026-09-28T20:05:00+08:00'
+  fetched_at: '2026-09-28T20:06:00+08:00'
+  bars:
+  - trade_date: '2026-09-28'
+    open: '9.90'
+    high: '10.10'
+    low: '9.80'
+    close: '10.00'
+    volume: '1000000'
+    amount: '10000000.00'
+    prev_close: '9.90'
+  factors:
+  - trade_date: '2026-09-28'
+    factor: '0'
+  expect:
+    grade: black
+    blocked: true
+    violations:
+    - STRUCT-06
+- id: N07
+  title: 缺涨跌幅基准 prev_close（非首日）：BIZ-02 告警，不阻断
+  instrument:
+    instrument_id: SSE:600050
+    exchange: SSE
+    code: '600050'
+    name: 中国联通
+    board: main
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '2002-10-09'
+  as_of: '2026-09-29T20:05:00+08:00'
+  fetched_at: '2026-09-29T20:06:00+08:00'
+  bars:
+  - trade_date: '2026-09-28'
+    open: '9.90'
+    high: '10.10'
+    low: '9.85'
+    close: '10.00'
+    volume: '1000000'
+    amount: '10000000.00'
+    prev_close: '9.90'
+  - trade_date: '2026-09-29'
+    open: '10.00'
+    high: '10.20'
+    low: '9.95'
+    close: '10.10'
+    volume: '1000000'
+    amount: '10100000.00'
+  expect:
+    grade: green
+    blocked: false
+    violations:
+    - BIZ-02
+- id: N08
+  title: 除权日未给除权参考价：-50% 被误判，BIZ-01 拦截
+  instrument:
+    instrument_id: SSE:600104
+    exchange: SSE
+    code: '600104'
+    name: 上汽集团
+    board: main
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '1997-11-07'
+  as_of: '2026-09-29T20:05:00+08:00'
+  fetched_at: '2026-09-29T20:06:00+08:00'
+  bars:
+  - trade_date: '2026-09-28'
+    open: '19.60'
+    high: '20.10'
+    low: '19.50'
+    close: '20.00'
+    volume: '1000000'
+    amount: '20000000.00'
+    prev_close: '19.60'
+  - trade_date: '2026-09-29'
+    open: '10.00'
+    high: '10.10'
+    low: '9.90'
+    close: '10.00'
+    volume: '1000000'
+    amount: '10000000.00'
+    prev_close: '20.00'
+  factors:
+  - trade_date: '2026-09-28'
+    factor: '1.0'
+  - trade_date: '2026-09-29'
+    factor: '2.0'
+  expect:
+    grade: black
+    blocked: true
+    violations:
+    - BIZ-01
+- id: N09
+  title: 内部缺交易日且无停牌证据：COMP-03
+  instrument:
+    instrument_id: SSE:601988
+    exchange: SSE
+    code: '601988'
+    name: 中国银行
+    board: main
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '2006-07-05'
+  as_of: '2026-09-30T20:05:00+08:00'
+  fetched_at: '2026-09-30T20:06:00+08:00'
+  bars:
+  - trade_date: '2026-09-28'
+    open: '3.00'
+    high: '3.05'
+    low: '2.98'
+    close: '3.00'
+    volume: '1000000'
+    amount: '3000000.00'
+    prev_close: '2.98'
+  - trade_date: '2026-09-30'
+    open: '3.05'
+    high: '3.10'
+    low: '3.00'
+    close: '3.08'
+    volume: '1000000'
+    amount: '3080000.00'
+    prev_close: '3.00'
+  expect:
+    grade: black
+    blocked: true
+    violations:
+    - COMP-03

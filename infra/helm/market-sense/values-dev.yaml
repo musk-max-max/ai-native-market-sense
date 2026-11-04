@@ -1,0 +1,36 @@
+# dev 环境覆盖值（infra/terraform/envs/dev 创建 namespace；本文件由 deploy.sh 使用）
+global:
+  environment: dev
+  imageRegistry: ghcr.io/market-sense-h5
+
+image:
+  api:
+    tag: dev
+  worker:
+    tag: dev
+
+api:
+  replicaCount: 2
+worker:
+  replicaCount: 1
+
+ingress:
+  enabled: true
+  host: dev.market-sense.invalid
+
+config:
+  APP_PROFILE: "prod"
+  LOG_LEVEL: debug
+  # dev 也保持 C2=A 语义，避免 dev/生产行为漂移
+  DATA_FRESHNESS_MAX_AGE_SECONDS: "900"
+  RELEASE_GRAY_STAGE: "100"
+  # dev 也不默认给 C 端展示行情权限；需要展示的演练显式覆盖 tier + expires。
+  ENTITLEMENT_TIER: "internal_eval"
+  ENTITLEMENT_EXPIRES_AT: ""
+
+monitoring:
+  serviceMonitor:
+    enabled: true
+
+autoscaling:
+  enabled: false

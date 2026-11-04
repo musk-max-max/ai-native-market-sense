@@ -1,0 +1,52 @@
+{
+  "operation_id": "removeWatchlistItem",
+  "origin": "synthetic",
+  "recorded_at": "2026-11-04T08:40:00+08:00",
+  "note": "provider 侧录播（合成样本）。覆盖 204 幂等与 400/401。；补 403 授权降级样本（L10）",
+  "cases": [
+    {
+      "name": "移除成功",
+      "status": 204
+    },
+    {
+      "name": "幂等删除不存在条目",
+      "status": 204,
+      "note": "幂等：不存在同样 204"
+    },
+    {
+      "name": "标识格式非法",
+      "status": 400,
+      "body": {
+        "type": "https://errors.market-sense.invalid/validation-error",
+        "title": "参数校验失败",
+        "status": 400,
+        "code": "VALIDATION_ERROR",
+        "trace_id": "trace-synthetic-0001"
+      }
+    },
+    {
+      "name": "未认证",
+      "status": 401,
+      "body": {
+        "type": "https://errors.market-sense.invalid/unauthenticated",
+        "title": "缺少或过期的凭据",
+        "status": 401,
+        "code": "UNAUTHENTICATED",
+        "trace_id": "trace-synthetic-0001"
+      }
+    },
+    {
+      "name": "授权不足（403 降级）",
+      "status": 403,
+      "body": {
+        "type": "https://errors.market-sense.invalid/forbidden",
+        "title": "无权访问该资源",
+        "status": 403,
+        "code": "FORBIDDEN",
+        "detail": "合成样本：已认证但无权访问他人自选",
+        "trace_id": "trace-synthetic-0403"
+      },
+      "note": "已认证但无权删除他人自选"
+    }
+  ]
+}

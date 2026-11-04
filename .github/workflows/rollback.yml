@@ -1,0 +1,118 @@
+name: rollback
+
+# 手动回滚（A13 执行，不能自批）。生产回滚必须提供 H5 批准链接（APPROVAL_REF），
+# 且仓库 production environment 应配置 required reviewers；rollback.sh 会再次校验。
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "目标环境"
+        required: true
+        default: "dev"
+        type: choice
+        options: ["dev", "preview", "production"]
+      release:
+        description: "Helm release 名（如 market-sense-dev）"
+        required: true
+        type: string
+      pr_number:
+        description: "environment=preview 时必填：PR 编号"
+        required: false
+        type: string
+      target_revision:
+        description: "回滚到指定 revision（留空 = 上一个 deployed revision）"
+        required: false
+        type: string
+      approval_ref:
+        description: "environment=production 时必填：H5 人类批准链接/工单号"
+        required: false
+        type: string
+      confirm:
+        description: "输入 ROLLBACK 确认执行"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rollback-${{ inputs.environment }}
+  cancel-in-progress: false
+
+env:
+  HELM_VERSION: "v3.16.2"
+
+jobs:
+  preflight:
+    name: 回滚前置校验
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: 确认字串
+        run: |
+          if [[ "${{ inputs.confirm }}" != "ROLLBACK" ]]; then
+            echo "::error::confirm 必须输入 ROLLBACK" >&2
+            exit 1
+          fi
+      - name: 生产必须有批准链接（A13 只执行不自批）
+        if: inputs.environment == 'production'
+        run: |
+          if [[ -z "${{ inputs.approval_ref }}" ]]; then
+            echo "::error::production 回滚缺少 approval_ref（H5 人类批准链接/工单号）" >&2
+            exit 1
+          fi
+      - name: preview 必须有 PR 编号
+        if: inputs.environment == 'preview'
+        run: |
+          if [[ -z "${{ inputs.pr_number }}" ]]; then
+            echo "::error::environment=preview 时必须填 pr_number" >&2
+            exit 1
+          fi
+
+  rollback:
+    name: rollback ${{ inputs.environment }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    needs: preflight
+    environment: ${{ inputs.environment }}
+    env:
+      KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+      APPROVAL_REF: ${{ inputs.approval_ref }}
+      PR_NUMBER: ${{ inputs.pr_number }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        if: env.KUBE_CONFIG != ''
+        with:
+          version: ${{ env.HELM_VERSION }}
+      - name: 写入 kubeconfig
+        if: env.KUBE_CONFIG != ''
+        run: |
+          install -d -m 0700 "$RUNNER_TEMP/kube"
+          printf '%s' "$KUBE_CONFIG" > "$RUNNER_TEMP/kube/config"
+          chmod 0600 "$RUNNER_TEMP/kube/config"
+          echo "KUBECONFIG=$RUNNER_TEMP/kube/config" >> "$GITHUB_ENV"
+      - name: 执行回滚（rollback.sh：helm rollback --wait --timeout 5m --atomic）
+        if: env.KUBE_CONFIG != ''
+        env:
+          TARGET_REVISION: ${{ inputs.target_revision }}
+        run: |
+          args=( "${{ inputs.environment }}" "${{ inputs.release }}" )
+          if [[ -n "${TARGET_REVISION:-}" ]]; then args+=( --to "$TARGET_REVISION" ); fi
+          started="$(date +%s)"
+          bash infra/scripts/rollback.sh "${args[@]}"
+          elapsed=$(( $(date +%s) - started ))
+          {
+            echo '### rollback 完成'
+            echo ''
+            echo "- 环境：${{ inputs.environment }}"
+            echo "- release：${{ inputs.release }}"
+            echo "- 目标 revision：${TARGET_REVISION:-上一个 deployed}"
+            echo "- 耗时：${elapsed}s（SLO：≤300s；超时会触发 RollbackExceededFiveMinutes）"
+            echo '- 执行人：A13；批准人：H5（production 必须有 approval_ref）'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: 未配置 KUBE_CONFIG：显式 skip
+        if: env.KUBE_CONFIG == ''
+        run: |
+          echo "::notice::回滚未执行：仓库未配置 KUBE_CONFIG secret" >&2
+          echo '### rollback SKIPPED：无 KUBE_CONFIG（未执行任何变更）' >> "$GITHUB_STEP_SUMMARY"

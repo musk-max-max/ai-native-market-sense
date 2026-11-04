@@ -1,0 +1,189 @@
+# ServingRepo 读取端口契约 v1（A2 → A1/A3，2026-11-04）
+#
+# 定位：给读侧（services/market，A3）提供「行情 + 因子 + 基本面」的只读取数端口。
+# 数据流向（ADR-002 D2/D3，不可逆）：
+#   A1 tushare → ODS canonical 批次（bar.v1 / adj_factor.v1 / instrument.v1）
+#              → A2 DWD（不复权 OHLC + 因子；口径归一、修订留痕、质量门禁）
+#              → serving 只读 view（本契约）
+#              → A3 通过 ServingRepo 端口消费。
+#
+# 三条硬规则：
+#   1. 读侧消费 **DWD 派生 view**，不消费 ODS 行（ODS 是 A1 的 ingest 边界，不是 serving 契约）。
+#   2. ingest 不产出复权价；serving 内部按因子固化三口径，读侧不得再算第二套（ADR-002 D2）。
+#   3. 端口只提供「单标的读取 + 区间读取」，不提供按 instrument 聚合/排序/排名（聚合属 DWS，P1）。
+
+version: 1
+owner: A2
+reviewers: [H4, A0, A3]
+status: draft_for_review   # A1 确认 ODS 形状 / A3 确认端口 / H4 确认口径后置为 signed
+
+consumers:
+  - a3-backend-market      # services/market，唯一代码消费方
+producers:
+  - a2-data-warehouse      # DWD + serving views
+upstream:
+  - a1-data-ingest         # 只写 ODS canonical 批次；不读 serving，不产出复权价
+execution_order:
+  - warehouse/dwd/schema.sql
+  - warehouse/serving/schema.sql
+granularity: 单标的、单交易日；区间读取返回按 trade_date 升序的切片，无聚合
+
+views:
+  - name: serving_instrument
+    schema: serving
+    method: getInstrument
+  - name: serving_quote_latest
+    schema: serving
+    method: getQuote
+  - name: serving_bar_daily
+    schema: serving
+    method: getBars
+  - name: serving_factor_latest
+    schema: serving
+    method: getLatestFactor
+  - name: serving_fundamental_summary
+    schema: serving
+    method: getFundamentalSummary
+
+semantics:
+  instrument_id: "EXCH:CODE，正则 ^(SSE|SZSE|BSE):[0-9]{6}$（契约 InstrumentId）"
+  decimal: "价格/金额/比率一律以十进制字符串出端口（避免 JS float 丢精度）；A3 在 HTTP 边界转 number"
+  interval: "from/to 均为闭区间 [from, to]；省略 from/to 表示不限端点；rows 按 trade_date 升序"
+  pagination: "limit ∈ [1,500]，默认 120；repo 内部取 limit+1 判定 has_more 并丢弃多余 1 条"
+  as_of: "行级来源时点（+08:00 ISO8601），来自 DWD 的 as_of；A3 不得自行拼造"
+  staleness_ms: "行级 (now() - as_of) 毫秒，serving SQL 计算且钳制 ≥0；A3 原样放进 meta.source"
+  suspended: "停牌=证据行存在：suspended=true 且价格/涨跌幅为 null；禁止用 0 或上一日价冒充"
+  no_data: "无 bar 且无停牌证据 → getQuote 返回 null（标的存在但资源无数据，404 NOT_FOUND），不得推断为停牌"
+  prices: "serving_bar_daily 直接给三口径价格（none/hfq/qfq），读侧按 adj_type 过滤；volume/amount 不随复权变"
+
+row_types:
+  InstrumentRow:
+    instrument_id: {type: string}
+    exchange: {type: "enum[SSE, SZSE, BSE]"}
+    code: {type: string, pattern: '^[0-9]{6}$'}
+    name: {type: string}
+    board: {type: "enum[main, gem, star, bse]"}
+    security_type: {type: "enum[stock, etf, index]"}
+    list_status: {type: "enum[listed, delisted, pre_listed]"}
+    lot_size: {type: integer}
+    listed_at: {type: date, nullable: true}
+    display_safe: {type: boolean}   # L30：false 不进 C 端结果集，保留内部评测态
+    source: {type: string}
+    as_of: {type: string, format: date-time}
+    staleness_ms: {type: integer, minimum: 0}
+
+  QuoteRow:
+    instrument_id: {type: string}
+    trade_date: {type: date, nullable: true}   # 停牌日=停牌证据日；无任何数据时整行为 null
+    open: {type: string, nullable: true}
+    high: {type: string, nullable: true}
+    low: {type: string, nullable: true}
+    close: {type: string, nullable: true}
+    prev_close: {type: string, nullable: true}
+    change: {type: string, nullable: true}
+    change_pct: {type: string, nullable: true}
+    volume: {type: integer, nullable: true}
+    amount: {type: string, nullable: true}
+    suspended: {type: boolean}
+    limit_status: {type: "enum[none, limit_up, limit_down]"}
+    source: {type: string}
+    as_of: {type: string, format: date-time}
+    staleness_ms: {type: integer, minimum: 0}
+
+  BarRow:
+    instrument_id: {type: string}
+    trade_date: {type: date}
+    adj_type: {type: "enum[none, qfq, hfq]"}
+    open: {type: string}
+    high: {type: string}
+    low: {type: string}
+    close: {type: string}
+    volume: {type: integer}
+    amount: {type: string}
+    factor: {type: string, nullable: true}     # 当日累计因子（none 口径行可为空）
+    source: {type: string}
+    as_of: {type: string, format: date-time}
+    staleness_ms: {type: integer, minimum: 0}
+
+  FactorRow:
+    instrument_id: {type: string}
+    trade_date: {type: date}
+    factor: {type: string}
+    source: {type: string}
+    as_of: {type: string, format: date-time}
+    staleness_ms: {type: integer, minimum: 0}
+
+  FundamentalSummaryRow:
+    instrument_id: {type: string}
+    report_period: {type: string, pattern: '^[0-9]{4}Q[1-4]$'}
+    report_end_date: {type: date}
+    announced_at: {type: string, format: date-time}
+    statement_basis: {type: "enum[reported, restated]"}
+    currency: {type: "enum[CNY]"}
+    revenue: {type: string}
+    net_profit: {type: string}
+    revenue_yoy_pct: {type: string, nullable: true}
+    net_profit_yoy_pct: {type: string, nullable: true}
+    eps: {type: string, nullable: true}
+    roe_pct: {type: string, nullable: true}
+    gross_margin_pct: {type: string, nullable: true}
+    source: {type: string}
+    as_of: {type: string, format: date-time}
+    staleness_ms: {type: integer, minimum: 0}
+
+methods:
+  - name: getInstrument
+    input: {instrument_id: string}
+    returns: InstrumentRow | null
+    three_state: null = 标的不在 dim_instrument（A3 返 404 INSTRUMENT_NOT_FOUND）
+
+  - name: getQuote
+    input: {instrument_id: string}
+    returns: QuoteRow | null
+    three_state: >
+      row.suspended=false = 有最新行情；row.suspended=true = 停牌（价格/涨跌幅为 null）；
+      null = 标的存在但无 bar 且无停牌证据（404 NOT_FOUND，禁止当作停牌；与 contracts/shared 0.1.2 一致）
+
+  - name: getBars
+    input:
+      instrument_id: string
+      adj_type: {type: "enum[none, qfq, hfq]", default: none}
+      from: {type: date, nullable: true}
+      to: {type: date, nullable: true}
+      limit: {type: integer, minimum: 1, maximum: 500, default: 120}
+    returns:
+      rows: BarRow[]          # 升序；无数据时为空数组（200，不是 404）
+      has_more: boolean
+      adjustment: enum[none, qfq, hfq]   # 必须等于入参 adj_type（契约：meta.adjustment==data.adjustment）
+    no_data: 空数组 + has_more=false；停牌日不合成 bar
+
+  - name: getLatestFactor
+    input: {instrument_id: string}
+    returns: FactorRow | null
+    notes: "latest 口径 = 该标的全部历史最新一条 factor（不是查询区间内），与 warehouse/dwd/adjust.py 的 qfq 分母一致"
+
+  - name: getFundamentalSummary
+    input: {instrument_id: string}
+    returns: FundamentalSummaryRow | null
+    notes: >
+      最近一期按 announced_at 倒序；reported/restated 两套并存，返回时用 statement_basis 明示。
+      null = 无财报（新股/未披露 → 404）。P0 无财务数据接入，本方法当前恒 null。
+
+# 404 语义对齐 contracts/shared/openapi.yaml 0.1.2（ADR-001 D4）：
+#   标识本身不存在/未收录 → INSTRUMENT_NOT_FOUND
+#   标识存在但该资源无数据（无行情快照、无财报）→ NOT_FOUND
+errors:
+  - code: INSTRUMENT_NOT_FOUND   # dim_instrument 无该标的
+    http: 404
+  - code: NOT_FOUND              # 标的存在，但无行情快照/停牌证据/财报
+    http: 404
+  - code: VALIDATION_ERROR       # 入参非法（instrument_id 不合法、adj_type 非法、limit 越界）
+    http: 400
+  - code: HISTORICAL_DATA_MISSING  # 可选：区间请求无数据（按契约当前用空数组，不报错）
+    http: 200
+
+forbidden:
+  - ingest 产出复权价（ADR-002 D2：DWD 只存不复权 + 因子）
+  - 读侧按 instrument 聚合/排名/排序（DWS 职责，P1）
+  - 读侧直接 SELECT DWD 表（只允许 SELECT serving.*；A13 建只读角色只 GRANT serving）
+  - 读侧自行计算 qfq/hfq（必须用 serving_bar_daily 的 adj_type，保证全系统一套口径）

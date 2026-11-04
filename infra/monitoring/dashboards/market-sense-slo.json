@@ -1,0 +1,184 @@
+{
+  "uid": "market-sense-slo",
+  "title": "market-sense · SLO / AI 四项",
+  "tags": ["market-sense", "slo", "sre"],
+  "timezone": "Asia/Shanghai",
+  "editable": true,
+  "graphTooltip": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "DS_PROMETHEUS",
+        "label": "Prometheus",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": { "text": "Prometheus", "value": "Prometheus" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "交易时段可用性（SLO 99.9%）",
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "refId": "A", "expr": "1 - market_sense:http_error_ratio5m" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 3,
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 0.999 } ] }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "行情 P95（SLO ≤300ms）",
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [ { "refId": "A", "expr": "market_sense:quote_latency_p95_5m" } ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 3,
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 0.3 } ] }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "收盘后数据年龄（SLO ≤15min，C2=A）",
+      "gridPos": { "h": 5, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [ { "refId": "A", "expr": "max(time() - batch_job_last_success_timestamp_seconds{job=\"daily-close-refresh\"})" } ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 900 } ] }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "页面未标 stale 违规（必须为 0）",
+      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [ { "refId": "A", "expr": "sum(market_sense:page_stale_violation)" } ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "可用性错误率（5m / 1h）",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 5 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "refId": "A", "expr": "market_sense:http_error_ratio5m", "legendFormat": "5m" },
+        { "refId": "B", "expr": "market_sense:http_error_ratio1h", "legendFormat": "1h" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percentunit" }, "overrides": [] }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "行情 P95 延迟",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 5 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [ { "refId": "A", "expr": "market_sense:quote_latency_p95_5m", "legendFormat": "P95" } ],
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "AI 首 token P95（SLO ≤2s）",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [ { "refId": "A", "expr": "market_sense:agent_first_token_p95_5m", "legendFormat": "P95" } ],
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "AI 输出异常率（≤1%）/ 人工接管率（≤5%）",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "refId": "A", "expr": "market_sense:agent_anomaly_ratio5m", "legendFormat": "异常率" },
+        { "refId": "B", "expr": "market_sense:agent_takeover_ratio30m", "legendFormat": "接管率" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percentunit" }, "overrides": [] }
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "AI token 成本/小时 vs 7 日基线",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "refId": "A", "expr": "market_sense:agent_cost_usd_per_hour", "legendFormat": "当前" },
+        { "refId": "B", "expr": "market_sense:agent_cost_usd_per_hour_baseline7d", "legendFormat": "7 日基线" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "currencyUSD" }, "overrides": [] }
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "数据质量门禁（1=绿）",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 21 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [ { "refId": "A", "expr": "min by (gate) (quality_gate_status)", "legendFormat": "{{gate}}" } ],
+      "fieldConfig": { "defaults": { "min": 0, "max": 1 }, "overrides": [] }
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "灰度档位与停留（每档 ≥30min）",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 21 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "refId": "A", "expr": "release_gray_stage", "legendFormat": "stage" },
+        { "refId": "B", "expr": "release_gray_stage_dwell_seconds", "legendFormat": "dwell {{stage}}" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "回滚耗时（SLO ≤300s）",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 21 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [ { "refId": "A", "expr": "time() - deploy_rollback_start_timestamp_seconds{deploy_rollback_in_progress=\"1\"}", "legendFormat": "进行中秒数" } ],
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
+    },
+    {
+      "id": 13,
+      "type": "table",
+      "title": "当前告警（Alertmanager）",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 29 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "refId": "A", "expr": "ALERTS{alertstate=\"firing\"}", "format": "table", "instant": true }
+      ],
+      "transformations": [ { "id": "organize", "options": { "excludeByName": { "Time": true, "Value": true } } } ]
+    }
+  ],
+  "schemaVersion": 39,
+  "version": 1
+}

@@ -1,0 +1,18 @@
+{
+  "name": "@market-sense/e2e",
+  "private": true,
+  "version": "0.0.0",
+  "description": "market-sense-h5 E2E（A12）：真栈 docker-compose + tushare 录播 fixture；CI 禁止真实接口。",
+  "type": "module",
+  "scripts": {
+    "preflight": "python3 scripts/preflight.py",
+    "validate:compose": "python3 scripts/validate_compose.py",
+    "test": "playwright test",
+    "test:p0": "playwright test specs/p0-stock-page.spec.js",
+    "report": "playwright show-report",
+    "selftest": "python3 -m pytest tushare-replay/test_server.py -q"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.1"
+  }
+}

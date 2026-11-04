@@ -1,0 +1,13 @@
+apiVersion: v2
+name: market-sense
+description: market-sense-h5 · AI-native A 股 market sense H5（api + worker）
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.27.0-0"
+maintainers:
+  - name: A13 (SRE)
+    email: sre@market-sense.invalid
+annotations:
+  market-sense.io/owner: A13
+  market-sense.io/rollback: "helm rollback（见 infra/scripts/rollback.sh，目标 ≤5min）"

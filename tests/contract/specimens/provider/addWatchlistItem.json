@@ -1,0 +1,88 @@
+{
+  "operation_id": "addWatchlistItem",
+  "origin": "synthetic",
+  "recorded_at": "2026-11-04T08:40:00+08:00",
+  "note": "provider 侧录播（合成样本）。覆盖新增/幂等/400/401。；补 403 授权降级样本（L10）",
+  "cases": [
+    {
+      "name": "新增成功",
+      "status": 200,
+      "body": {
+        "data": {
+          "instrument_id": "SSE:600519",
+          "added_at": "2026-11-04T09:10:00+08:00"
+        },
+        "meta": {
+          "source": {
+            "source": "platform_watchlist",
+            "as_of": "2026-11-04T09:00:00+08:00",
+            "staleness_ms": 0,
+            "source_id": "platform"
+          },
+          "entitlement": {
+            "tier": "platform_user_data",
+            "is_entitled": true
+          }
+        }
+      }
+    },
+    {
+      "name": "幂等重复添加",
+      "status": 200,
+      "body": {
+        "data": {
+          "instrument_id": "SSE:600519",
+          "added_at": "2026-11-03T10:12:00+08:00"
+        },
+        "meta": {
+          "source": {
+            "source": "platform_watchlist",
+            "as_of": "2026-11-04T09:00:00+08:00",
+            "staleness_ms": 0,
+            "source_id": "platform"
+          },
+          "entitlement": {
+            "tier": "platform_user_data",
+            "is_entitled": true
+          }
+        }
+      },
+      "note": "幂等：added_at 保持首次加入时间，不重复插入"
+    },
+    {
+      "name": "请求体非法",
+      "status": 400,
+      "body": {
+        "type": "https://errors.market-sense.invalid/validation-error",
+        "title": "instrument_id 必须为 EXCH:CODE",
+        "status": 400,
+        "code": "VALIDATION_ERROR",
+        "trace_id": "trace-synthetic-0001"
+      }
+    },
+    {
+      "name": "未认证",
+      "status": 401,
+      "body": {
+        "type": "https://errors.market-sense.invalid/unauthenticated",
+        "title": "缺少或过期的凭据",
+        "status": 401,
+        "code": "UNAUTHENTICATED",
+        "trace_id": "trace-synthetic-0001"
+      }
+    },
+    {
+      "name": "授权不足（403 降级）",
+      "status": 403,
+      "body": {
+        "type": "https://errors.market-sense.invalid/forbidden",
+        "title": "无权访问该资源",
+        "status": 403,
+        "code": "FORBIDDEN",
+        "detail": "合成样本：已认证但无权访问他人自选",
+        "trace_id": "trace-synthetic-0403"
+      },
+      "note": "已认证但无权写他人自选"
+    }
+  ]
+}

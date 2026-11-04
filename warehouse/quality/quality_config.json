@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "weights": {
+    "struct": 0.2,
+    "business": 0.3,
+    "completeness": 0.3,
+    "consistency": 0.2
+  },
+  "thresholds": {
+    "green": 95,
+    "yellow": 90,
+    "red": 85
+  },
+  "blocker_blocks_downstream": true,
+  "scoring": {
+    "mode": "blocker_only",
+    "warn_affects_score": false,
+    "decision_ref": "L9",
+    "note": "质量分只由 blocker 计分；分子按规则去重（同一规则多条违规算 1），warn 不进分子但计入该类规则总数；warn 条数单列 violation_counts，避免为变绿而调阈值",
+    "score_counts": "blocker_rules",
+    "numerator": "distinct_blocker_rules_hit_in_category",
+    "denominator": "rules_in_category",
+    "formula": "category_score = 100 * (1 - distinct_blocker_rules_hit_in_category / total_rules_in_category)"
+  },
+  "rules": {
+    "STRUCT-01": {
+      "severity": "blocker"
+    },
+    "STRUCT-02": {
+      "severity": "blocker"
+    },
+    "STRUCT-03": {
+      "severity": "blocker"
+    },
+    "STRUCT-04": {
+      "severity": "blocker"
+    },
+    "STRUCT-05": {
+      "severity": "blocker"
+    },
+    "STRUCT-06": {
+      "severity": "blocker"
+    },
+    "BIZ-01": {
+      "severity": "blocker"
+    },
+    "BIZ-02": {
+      "severity": "warn"
+    },
+    "COMP-01": {
+      "severity": "blocker"
+    },
+    "COMP-02": {
+      "severity": "blocker"
+    },
+    "COMP-03": {
+      "severity": "blocker"
+    },
+    "CONS-01": {
+      "severity": "blocker"
+    },
+    "CONS-02": {
+      "severity": "blocker"
+    }
+  },
+  "board_limit_pct": {
+    "main": 10.0,
+    "gem": 20.0,
+    "star": 20.0,
+    "bse": 30.0
+  },
+  "st_limit_pct": 5.0,
+  "st_limit_boards": [
+    "main"
+  ],
+  "limit_tolerance_pp": 0.5
+}

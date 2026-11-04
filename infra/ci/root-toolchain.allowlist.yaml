@@ -1,0 +1,65 @@
+# market-sense-h5 · 根文件写域白名单（CI path guard 补充）
+#
+# 背景：ownership.yaml 由 A0 维护，只登记目录；根级工具链文件没有顶层目录可挂。
+#       在 A0 把根文件登记进 ownership.yaml 之前，本文件给出等价约束（default-deny 仍生效）。
+# 授权：Lead 2026-11-04 派单明确「A13 同时拥有仓库根的工具链文件」。
+# 维护：A13（infra/）；新增根文件必须在此登记，否则 path guard 拒绝（UNMATCHED）。
+# 注意：本文件不是绕过 ownership.yaml 的通道——登记项仍需 owner + 人审席位，且不允许与已登记目录重叠。
+schema_version: "0.1"
+owner: A13
+reviewers: [H5]
+
+entries:
+  - path: package.json
+    owner: A13
+    reviewers: [H5]
+    note: workspace 脚本与根 devDependencies（pnpm@9.12.3 锁定）
+  - path: pnpm-workspace.yaml
+    owner: A13
+    reviewers: [H5]
+    note: workspace 目录清单；新增目录须同步 ownership.yaml
+  - path: pnpm-lock.yaml
+    owner: A13
+    reviewers: [H5]
+    note: 仅由 pnpm 生成；禁止手改
+  - path: tsconfig.base.json
+    owner: A13
+    reviewers: [H5]
+    note: 共享 TS 基线
+  - path: eslint.config.mjs
+    owner: A13
+    reviewers: [H5]
+    note: ESLint 9 flat config
+  - path: .nvmrc
+    owner: A13
+    reviewers: [H5]
+    note: Node LTS 版本（与 CI setup-node 一致）
+  - path: .npmrc
+    owner: A13
+    reviewers: [H5]
+    note: engine-strict / save-exact
+  - path: .gitignore
+    owner: A13
+    reviewers: [H5]
+    note: 含 IaC state / 密钥 / kubeconfig 排除规则
+  - path: .prettierrc.json
+    owner: A13
+    reviewers: [H5]
+    note: 格式基线
+  - path: .prettierignore
+    owner: A13
+    reviewers: [H5]
+    note: 生成物不参与格式检查
+  # ---- 非 A13 的根文件（存量，登记以避免 default-deny 误伤） ----
+  - path: .dockerignore
+    owner: A0
+    reviewers: [H2]
+    note: 镜像构建上下文排除项（A0 新增；A13 构建配置域复核，改动需 A13 会签）
+  - path: ownership.yaml
+    owner: A0
+    reviewers: [H2]
+    note: 目录所有权表（A0 唯一写者；A13 只读）
+  - path: recover-ai-native-session.sh
+    owner: lead
+    reviewers: [H1]
+    note: 会话恢复脚本（行外存量文件，A13 不维护）

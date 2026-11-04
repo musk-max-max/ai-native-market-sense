@@ -1,0 +1,11 @@
+{
+  "name": "@market-sense/ingest",
+  "version": "0.1.0",
+  "private": true,
+  "description": "数据接入与调度（Python）：端口 + 适配层 + raw 落库 + 增量/回补。Python 包定义见 pyproject.toml。",
+  "scripts": {
+    "test": "python -m pytest",
+    "typecheck": "python -m mypy",
+    "sync-bars": "python ../../jobs/sync_bars.py"
+  }
+}

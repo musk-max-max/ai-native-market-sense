@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "key": "fed09e20baec509c4fe61588d292b7ba1e7e265f56f853d2850bf99567a5b1c9",
+  "kind": "tushare-http-raw",
+  "scope": "raw-source",
+  "request": {
+    "api_name": "fina_indicator",
+    "params": {
+      "ts_code": "000001.SZ",
+      "offset": 0,
+      "limit": 6000
+    },
+    "fields": "ann_date,end_date,eps,grossprofit_margin,netprofit_yoy,or_yoy,roe,ts_code"
+  },
+  "http_status": 200,
+  "response": {
+    "code": 0,
+    "msg": "synthetic fixture (L32: 非真实 tushare 报文)",
+    "data": {
+      "fields": [
+        "ts_code",
+        "ann_date",
+        "end_date",
+        "eps",
+        "roe",
+        "grossprofit_margin",
+        "or_yoy",
+        "netprofit_yoy"
+      ],
+      "items": [
+        [
+          "000001.SZ",
+          "20261028",
+          "20260930",
+          9.99,
+          99.9,
+          99.0,
+          99.0,
+          99.0
+        ]
+      ]
+    }
+  },
+  "recorded_at": "synthetic:2026-11-03",
+  "upstream": "synthetic://l32 (not real tushare; do not replace with real payloads)"
+}

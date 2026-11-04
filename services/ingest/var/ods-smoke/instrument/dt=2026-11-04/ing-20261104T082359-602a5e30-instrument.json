@@ -1,0 +1,36 @@
+{
+  "batch_id": "ing-20261104T082359-602a5e30-instrument",
+  "endpoint": "instrument",
+  "rows": [
+    {
+      "board": "main",
+      "code": "600519",
+      "exchange": "SSE",
+      "instrument_id": "SSE:600519",
+      "list_status": "listed",
+      "listed_at": "2001-08-27",
+      "lot_size": 100,
+      "name": "贵州茅台",
+      "security_type": "stock"
+    },
+    {
+      "board": "main",
+      "code": "000001",
+      "exchange": "SZSE",
+      "instrument_id": "SZSE:000001",
+      "list_status": "listed",
+      "listed_at": "1991-04-03",
+      "lot_size": 100,
+      "name": "平安银行",
+      "security_type": "stock"
+    }
+  ],
+  "rows_rejected": 0,
+  "rows_total": 2,
+  "schema": "instrument.v1",
+  "source": {
+    "as_of": "2026-11-04T08:23:59.396967+08:00",
+    "fetched_at": "2026-11-04T08:23:59.396967+08:00",
+    "source": "tushare"
+  }
+}

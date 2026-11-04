@@ -1,0 +1,42 @@
+{{- if .Values.ingress.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "market-sense.fullname" . }}-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "market-sense.labels" . | nindent 4 }}
+  annotations:
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    market-sense.io/owner: A13
+    {{- if .Values.ingress.noStore }}
+    # 授权/行情响应含 meta.entitlement，禁止任何中间层缓存复用（H5 卡点）
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      add_header Cache-Control "no-store, no-cache, must-revalidate, private" always;
+      add_header Pragma "no-cache" always;
+    market-sense.io/entitlement-no-store-paths: {{ join "," .Values.ingress.noStorePaths | quote }}
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  rules:
+    - host: {{ include "market-sense.ingressHost" . | quote }}
+      http:
+        # H4 m01681：/healthz 含 entitlement_degraded_reason 等内部原因，只允许运维可达。
+        # readiness/liveness 直连 Pod :8080，不依赖 ingress；公网只暴露 /v1。
+        paths:
+          - path: /v1
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "market-sense.fullname" . }}-api
+                port:
+                  name: http
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+    - hosts:
+        - {{ include "market-sense.ingressHost" . | quote }}
+      secretName: {{ .Values.ingress.tls.secretName }}
+  {{- end }}
+{{- end }}

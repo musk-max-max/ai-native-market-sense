@@ -1,0 +1,253 @@
+{
+  "operation_id": "listInstrumentBars",
+  "origin": "synthetic",
+  "recorded_at": "2026-11-04T08:40:00+08:00",
+  "note": "provider 侧录播（合成样本）。覆盖不复权/前复权/停牌缺 bar/空区间/400/404。；补 403 授权降级样本（L10）；补 404 NOT_FOUND（资源无数据）样本",
+  "cases": [
+    {
+      "name": "不复权日线",
+      "status": 200,
+      "body": {
+        "data": {
+          "instrument_id": "SSE:600519",
+          "adjustment": "none",
+          "bars": [
+            {
+              "trade_date": "2026-10-30",
+              "open": 1650.0,
+              "high": 1668.0,
+              "low": 1645.0,
+              "close": 1660.5,
+              "volume": 2810000,
+              "amount": 4650000000.0
+            },
+            {
+              "trade_date": "2026-11-02",
+              "open": 1661.0,
+              "high": 1675.0,
+              "low": 1655.0,
+              "close": 1668.0,
+              "volume": 2650000,
+              "amount": 4410000000.0
+            },
+            {
+              "trade_date": "2026-11-03",
+              "open": 1665.0,
+              "high": 1695.0,
+              "low": 1658.0,
+              "close": 1688.0,
+              "volume": 3125400,
+              "amount": 5268000000.0
+            }
+          ],
+          "has_more": false
+        },
+        "meta": {
+          "source": {
+            "source": "platform_eod",
+            "as_of": "2026-11-03T15:00:00+08:00",
+            "staleness_ms": 900000,
+            "source_id": "tushare"
+          },
+          "entitlement": {
+            "tier": "c_end_display",
+            "is_entitled": true
+          },
+          "adjustment": "none",
+          "disclaimer": {
+            "text": "本平台行情数据仅供参考，不构成任何投资建议。",
+            "version": "2026.11.1",
+            "closable": false
+          }
+        }
+      }
+    },
+    {
+      "name": "前复权口径回显",
+      "status": 200,
+      "body": {
+        "data": {
+          "instrument_id": "SSE:600519",
+          "adjustment": "qfq",
+          "bars": [
+            {
+              "trade_date": "2026-10-30",
+              "open": 1650.0,
+              "high": 1668.0,
+              "low": 1645.0,
+              "close": 1627.29,
+              "volume": 2810000,
+              "amount": 4650000000.0
+            },
+            {
+              "trade_date": "2026-11-02",
+              "open": 1661.0,
+              "high": 1675.0,
+              "low": 1655.0,
+              "close": 1634.64,
+              "volume": 2650000,
+              "amount": 4410000000.0
+            },
+            {
+              "trade_date": "2026-11-03",
+              "open": 1665.0,
+              "high": 1695.0,
+              "low": 1658.0,
+              "close": 1654.24,
+              "volume": 3125400,
+              "amount": 5268000000.0
+            }
+          ],
+          "has_more": false
+        },
+        "meta": {
+          "source": {
+            "source": "platform_eod",
+            "as_of": "2026-11-03T15:00:00+08:00",
+            "staleness_ms": 900000,
+            "source_id": "tushare"
+          },
+          "entitlement": {
+            "tier": "c_end_display",
+            "is_entitled": true
+          },
+          "adjustment": "qfq",
+          "disclaimer": {
+            "text": "本平台行情数据仅供参考，不构成任何投资建议。",
+            "version": "2026.11.1",
+            "closable": false
+          }
+        }
+      },
+      "note": "C06：data.adjustment 与 meta.adjustment 必须一致"
+    },
+    {
+      "name": "停牌期间无 K 线",
+      "status": 200,
+      "body": {
+        "data": {
+          "instrument_id": "SSE:688981",
+          "adjustment": "none",
+          "bars": [
+            {
+              "trade_date": "2026-10-30",
+              "open": 88.0,
+              "high": 89.2,
+              "low": 87.5,
+              "close": 88.5,
+              "volume": 12000000,
+              "amount": 1062000000.0
+            },
+            {
+              "trade_date": "2026-11-03",
+              "open": 88.9,
+              "high": 90.1,
+              "low": 88.4,
+              "close": 89.6,
+              "volume": 9800000,
+              "amount": 878000000.0
+            }
+          ],
+          "has_more": false
+        },
+        "meta": {
+          "source": {
+            "source": "platform_eod",
+            "as_of": "2026-11-03T15:00:00+08:00",
+            "staleness_ms": 900000,
+            "source_id": "tushare"
+          },
+          "entitlement": {
+            "tier": "c_end_display",
+            "is_entitled": true
+          },
+          "adjustment": "none",
+          "disclaimer": {
+            "text": "本平台行情数据仅供参考，不构成任何投资建议。",
+            "version": "2026.11.1",
+            "closable": false
+          }
+        }
+      },
+      "note": "C08：停牌日 2026-11-02 不生成 bar，不得补 0"
+    },
+    {
+      "name": "空区间",
+      "status": 200,
+      "body": {
+        "data": {
+          "instrument_id": "SZSE:301999",
+          "adjustment": "none",
+          "bars": [],
+          "has_more": false
+        },
+        "meta": {
+          "source": {
+            "source": "platform_eod",
+            "as_of": "2026-11-03T15:00:00+08:00",
+            "staleness_ms": 900000,
+            "source_id": "tushare"
+          },
+          "entitlement": {
+            "tier": "c_end_display",
+            "is_entitled": true
+          },
+          "adjustment": "none",
+          "disclaimer": {
+            "text": "本平台行情数据仅供参考，不构成任何投资建议。",
+            "version": "2026.11.1",
+            "closable": false
+          }
+        }
+      },
+      "note": "新股未上市：空数组而非 404，has_more=false"
+    },
+    {
+      "name": "复权参数非法",
+      "status": 400,
+      "body": {
+        "type": "https://errors.market-sense.invalid/validation-error",
+        "title": "adjustment 只允许 none/qfq/hfq",
+        "status": 400,
+        "code": "VALIDATION_ERROR",
+        "trace_id": "trace-synthetic-0001"
+      }
+    },
+    {
+      "name": "未收录证券",
+      "status": 404,
+      "body": {
+        "type": "https://errors.market-sense.invalid/instrument-not-found",
+        "title": "证券不存在",
+        "status": 404,
+        "code": "INSTRUMENT_NOT_FOUND",
+        "trace_id": "trace-synthetic-0001"
+      }
+    },
+    {
+      "name": "授权不足（403 降级）",
+      "status": 403,
+      "body": {
+        "type": "https://errors.market-sense.invalid/entitlement-restricted",
+        "title": "数据授权不足",
+        "status": 403,
+        "code": "ENTITLEMENT_RESTRICTED",
+        "detail": "合成样本：403 降级路径（不得返回任何可判读的行情数值）",
+        "trace_id": "trace-synthetic-0403"
+      },
+      "note": "F1 未落地时序列数据按 403 降级"
+    },
+    {
+      "name": "已收录但无K线",
+      "status": 404,
+      "body": {
+        "type": "https://errors.market-sense.invalid/not-found",
+        "title": "暂无该区间 K 线数据",
+        "status": 404,
+        "code": "NOT_FOUND",
+        "trace_id": "trace-synthetic-0404"
+      },
+      "note": "ADR-001 D4：资源无数据 → NOT_FOUND；不得用空数组冒充（空数组=合法无行情，语义不同）"
+    }
+  ]
+}

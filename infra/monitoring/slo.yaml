@@ -1,0 +1,100 @@
+# market-sense-h5 · SLO 目录（单一真源，A13 维护；指标口径需 H5/H4 评审）
+#
+# 决策依据：decisions.md C2=A —— 不做盘中实时。
+#   - 不承诺「盘中 as_of ≤60s」；
+#   - 承诺「收盘后 ≤15min 可查」，且页面必须显式标注 stale；
+#   - 违规可检测：数据年龄 > 15min 且页面 stale 标记 = 0（告警 StalePageNotMarked）。
+# 告警规则见 infra/monitoring/alerts/market-sense.rules.yaml，每条告警绑 runbook（CI 门禁）。
+schema_version: "0.1"
+owner: A13
+timezone: Asia/Shanghai
+reviewers: [H5, H4]
+budget_policy:
+  monthly_window: 30d
+  availability_trading_budget: 43m
+  note: "99.9% × 30 天 ≈ 43.2 分钟/月；交易时段烧预算按 14.4× 快烧告警"
+release_policy:
+  freeze_window: "A 股交易日 09:15–15:00 冻结非紧急发布（硬规则，见 docs/runbook/release-rollback.md）"
+  gray_stages: [1, 10, 50, 100]
+  gray_min_dwell: 30m
+  rollback_target: 5m
+  approver: H5
+  executor: A13
+cost_guardrail:
+  metric: market_sense:agent_cost_usd_per_hour
+  alert: TokenCostSpike
+  threshold: "2× 7 日同时段基线"
+slos:
+  - id: availability_trading
+    name: 交易时段可用性
+    target: "99.9%"
+    window: 30d
+    window_scope: "A 股交易日 09:15–15:00"
+    indicator: 'sum(rate(http_requests_total{code!~"5.."}[5m])) / clamp_min(sum(rate(http_requests_total[5m])), 1e-9)'
+    alert: ApiAvailabilityBurnFast
+    runbook: docs/runbook/release-rollback.md#止血
+  - id: availability_offhours
+    name: 非交易时段可用性
+    target: "99.0%"
+    window: 30d
+    window_scope: "非交易时段（含盘前盘后与周末）"
+    indicator: 'sum(rate(http_requests_total{code!~"5.."}[5m])) / clamp_min(sum(rate(http_requests_total[5m])), 1e-9)'
+    alert: ServiceDown
+    runbook: docs/runbook/release-rollback.md#止血
+  - id: quote_latency
+    name: 行情接口 P95 延迟
+    target: "P95 ≤ 300ms"
+    window: 7d
+    window_scope: "交易时段，服务端计时（不含客户端网络）"
+    indicator: "histogram_quantile(0.95, sum by (le) (rate(market_quote_latency_seconds_bucket[5m])))"
+    alert: QuoteLatencyP95High
+    runbook: docs/runbook/data-source-outage.md#止血
+  - id: asof_freshness
+    name: 收盘后数据可查时效（C2=A）
+    target: "收盘后 ≤15min"
+    window: 30d
+    window_scope: "15:00 收盘后；不承诺盘中实时"
+    indicator: 'time() - batch_job_last_success_timestamp_seconds{job="daily-close-refresh"}'
+    violation_indicator: "(market_asof_age_seconds > 900) and on(page) (market_page_stale_flag == 0)"
+    alert: StalePageNotMarked
+    runbook: docs/runbook/data-source-outage.md#止血
+  - id: agent_first_token
+    name: AI 首 token 延迟
+    target: "P95 ≤ 2s"
+    window: 7d
+    indicator: "histogram_quantile(0.95, sum by (le) (rate(agent_first_token_seconds_bucket[5m])))"
+    alert: AgentFirstTokenSlow
+    runbook: docs/runbook/ai-cost-drift.md#止血
+  - id: agent_anomaly_rate
+    name: AI 输出异常率
+    target: "≤ 1%"
+    window: 7d
+    indicator: "sum(rate(agent_output_anomaly_total[5m])) / clamp_min(sum(rate(agent_requests_total[5m])), 1e-9)"
+    alert: OutputAnomalyRateHigh
+    runbook: docs/runbook/ai-cost-drift.md#止血
+  - id: agent_takeover_rate
+    name: 人工接管率
+    target: "≤ 5%"
+    window: 7d
+    indicator: "sum(rate(agent_human_takeover_total[30m])) / clamp_min(sum(rate(agent_requests_total[30m])), 1e-9)"
+    alert: HumanTakeoverRateHigh
+    runbook: docs/runbook/ai-cost-drift.md#止血
+  - id: gray_stage_dwell
+    name: 灰度档位停留
+    target: "1→10→50→100，每档 ≥30min"
+    window: per_release
+    indicator: 'release_gray_stage_dwell_seconds{stage=~"1|10|50"}'
+    alert: GrayStageStuck
+    runbook: docs/runbook/release-rollback.md#止血
+  - id: rollback_duration
+    name: 回滚耗时
+    target: "≤ 5min"
+    window: per_incident
+    indicator: 'time() - deploy_rollback_start_timestamp_seconds{deploy_rollback_in_progress="1"}'
+    alert: RollbackExceededFiveMinutes
+    runbook: docs/runbook/release-rollback.md#止血
+ai_guardrails:
+  token_cost: agent_cost_usd_total
+  output_anomaly: agent_output_anomaly_total
+  human_takeover: agent_human_takeover_total
+  model_drift: market_sense_model_rollout_age_seconds

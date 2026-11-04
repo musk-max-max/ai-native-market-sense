@@ -1,0 +1,16 @@
+{
+  "//": "Docker/生产构建专用：与 tsconfig.json 相同编译规则，但允许 emit 且把跨包源码（services/market）一起编译到 dist。",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "rootDir": "../..",
+    "outDir": "dist",
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "removeComments": true
+  },
+  "include": [
+    "src/**/*.ts"
+  ]
+}

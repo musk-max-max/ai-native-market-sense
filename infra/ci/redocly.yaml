@@ -1,0 +1,15 @@
+# market-sense-h5 · Redocly 契约 lint 配置（A13 维护 infra/ci/）
+# 契约本身归 A0（contracts/），本文件只决定「怎么检查」，不改契约内容。
+# 门禁策略：warning 不红灯（S0 避免阻塞），error 红灯；破坏性变更由 oasdiff 负责。
+extends:
+  - recommended
+
+rules:
+  # 内部引用必须能解析——这是「单一真源 /v1」不被复制粘贴破坏的底线
+  no-unresolved-refs: error
+  # 契约里不允许出现真实生产域名/密钥（servers 用 .invalid 占位）
+  no-server-example.com: error
+  # 帮 A0 收敛无用组件，但 DRAFT 阶段不阻塞
+  no-unused-components: warn
+  # 4 份契约以中文描述为主，operationId 统一为 camelCase（A0 决定）
+  operation-operationId: warn

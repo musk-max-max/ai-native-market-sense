@@ -1,0 +1,1589 @@
+{
+  "meta": {
+    "startedAt": "2026-11-04T00:55:21.371Z",
+    "node": "v23.11.0",
+    "platform": "darwin",
+    "dbUrl": "postgresql://ms@localhost:55432/market_sense_a19",
+    "webDist": "/Users/leiyu/Documents/deepseek-harness/default-workspace/web/h5/dist",
+    "ports": {
+      "restrictedApi": 18182,
+      "expiringApi": 18183,
+      "limitedApi": 18184,
+      "trustProxyApi": 18185,
+      "trustProxyCidrApi": 18186,
+      "backdoorApi": 18187,
+      "restrictedWeb": 3200,
+      "expiringWeb": 3201
+    },
+    "expiryLeadMs": 120000,
+    "rawHttpLog": "tests/adversarial/entitlement-bypass/artifacts/http-attempts.jsonl",
+    "distMtime": "2026-11-04T00:53:55.335Z",
+    "browser": "156.0.8078.4",
+    "expiresAt": "2026-11-04T00:57:27.125Z",
+    "transitionStartedAt": "2026-11-04T00:55:28.535Z",
+    "expiredObservedAt": "2026-11-04T00:57:28.252Z",
+    "expiryWaitMs": 118315,
+    "finishedAt": "2026-11-04T00:57:29.908Z"
+  },
+  "summary": {
+    "total": 43,
+    "pass": 41,
+    "fail": 1,
+    "info": 1,
+    "verdict": "BYPASS_FOUND",
+    "failures": [
+      {
+        "id": "R4",
+        "title": "TRUST_PROXY 覆盖直连网段时：伪造 X-Forwarded-For 可换限流桶（条件性）",
+        "severity": "P2",
+        "observed": {
+          "beforeSpoof": 429,
+          "afterSpoof": 403,
+          "afterSpoofCode": "ENTITLEMENT_RESTRICTED"
+        }
+      }
+    ]
+  },
+  "checks": [
+    {
+      "id": "S1",
+      "title": "生产 bundle 无前端放行开关 / 运行时环境变量读取",
+      "clause": [
+        "decisions.md L28",
+        "decisions.md L36-7"
+      ],
+      "attempt": "扫描 3 个 dist JS asset，找 ALLOW_/BYPASS_/FORCE_/SKIP_AUTH/DISABLE_/mockGateway/import.meta.env/process.env",
+      "expectation": "无命中；构建期 env 已被 Vite 内联，不存在运行时可切换开关",
+      "observed": "无命中",
+      "status": "PASS",
+      "severity": null,
+      "evidence": {
+        "assets": [
+          "index-Dd2y022e.js",
+          "vendor-hNU1DSyb.js",
+          "vendor-react-CrowJ5J7.js"
+        ],
+        "hits": []
+      }
+    },
+    {
+      "id": "S2",
+      "title": "前端源码不读取 entitlement/tier 类 env，DATA_MODE 仅构建期且受 DEV 保护",
+      "clause": [
+        "decisions.md L28",
+        "decisions.md L36-7"
+      ],
+      "attempt": "枚举 web/h5/src 中 import.meta.env.*（5 处）",
+      "expectation": "无 entitlement/tier/放行类 env；VITE_DATA_MODE 只与 import.meta.env.DEV 组合",
+      "observed": {
+        "usages": [
+          {
+            "file": "web/h5/src/data/apiGateway.ts",
+            "name": "VITE_API_BASE_URL"
+          },
+          {
+            "file": "web/h5/src/data/index.ts",
+            "name": "VITE_DATA_MODE"
+          },
+          {
+            "file": "web/h5/src/data/index.ts",
+            "name": "DEV"
+          },
+          {
+            "file": "web/h5/src/lib/analytics.ts",
+            "name": "DEV"
+          },
+          {
+            "file": "web/h5/src/lib/auth.ts",
+            "name": "VITE_E2E_AUTH_STORAGE_KEY"
+          }
+        ],
+        "entitlementLike": [],
+        "dataModeUsages": 1
+      },
+      "status": "PASS",
+      "severity": null,
+      "evidence": {
+        "files": [
+          "web/h5/src/data/apiGateway.ts",
+          "web/h5/src/data/index.ts",
+          "web/h5/src/lib/analytics.ts",
+          "web/h5/src/lib/auth.ts"
+        ]
+      }
+    },
+    {
+      "id": "S3",
+      "title": "渲染放行只依据响应 meta.entitlement.is_entitled，本地存储不参与授权",
+      "clause": [
+        "decisions.md L28",
+        "decisions.md L33"
+      ],
+      "attempt": "检查 apiGateway.ts 的 is_entitled 判定（4 处）与全部 localStorage 读写（3 处）",
+      "expectation": "放行只出现在 apiGateway；localStorage 只存 e2e token/自选，不含 entitlement/tier",
+      "observed": {
+        "isEntitledUsages": 4,
+        "grantedBranch": true,
+        "storageReads": [
+          {
+            "file": "web/h5/src/data/mockGateway.ts",
+            "expr": "MOCK_WATCHLIST_KEY"
+          },
+          {
+            "file": "web/h5/src/data/mockGateway.ts",
+            "expr": "MOCK_WATCHLIST_KEY"
+          },
+          {
+            "file": "web/h5/src/lib/auth.ts",
+            "expr": "AUTH_STORAGE_KEY"
+          }
+        ],
+        "forbiddenStorage": []
+      },
+      "status": "PASS",
+      "severity": null,
+      "evidence": {
+        "gateway": "web/h5/src/data/apiGateway.ts"
+      }
+    },
+    {
+      "id": "S4-root",
+      "title": "HTML 无行情数字/无内联状态（restricted web /）",
+      "clause": [
+        "decisions.md L35",
+        "decisions.md L36-5"
+      ],
+      "attempt": "GET http://127.0.0.1:3200/，检查价格型数字、__INITIAL_STATE__、内联 JSON、股票名、Cache-Control",
+      "expectation": "200 + cache-control no-store + 无价格数字/无内联状态/无股票名（纯 SPA 壳）",
+      "observed": {
+        "target": "restricted web",
+        "path": "/",
+        "status": 200,
+        "contentType": "text/html; charset=utf-8",
+        "cacheControl": "no-store",
+        "priceLike": [],
+        "hasState": false,
+        "hasName": false,
+        "scriptSrcs": [
+          "/assets/index-Dd2y022e.js"
+        ]
+      },
+      "status": "PASS",
+      "severity": null,
+      "evidence": {
+        "htmlSnippet": "<!doctype html>\n<html lang=\"zh-CN\">\n  <head>\n    <meta charset=\"utf-8\" />\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\" />\n    <meta name=\"color-scheme\" content=\"light dark\" />\n    <meta name=\"theme-color\" content=\"#f7f8fa\" media=\"(prefers-color-scheme: light)\" />\n    <meta name=\"theme-color\" content=\"#0b0f14\" media=\"(prefers-color-scheme: dark)\" />\n    <meta\n      name=\"description\"\n      content=\"A 股行情与基本面数据工具。所有数据标注来源与截止时间，不构成投资建议。\"\n    />\n    <me"
+      }
+    },
+    {
+      "id": "S4-stock",
+      "title": "HTML 无行情数字/无内联状态（restricted web /stocks/SSE:600519）",
+      "clause": [
+        "decisions.md L35",
+        "decisions.md L36-5"
+      ],
+      "attempt": "GET http://127.0.0.1:3200/stocks/SSE:600519，检查价格型数字、__INITIAL_STATE__、内联 JSON、股票名、Cache-Control",
+      "expectation": "200 + cache-control no-store + 无价格数字/无内联状态/无股票名（纯 SPA 壳）",
+      "observed": {
+        "target": "restricted web",
+        "path": "/stocks/SSE:600519",
+        "status": 200,
+        "contentType": "text/html; charset=utf-8",
+        "cacheControl": "no-store",
+        "priceLike": [],
+        "hasState": false,
+        "hasName": false,
+        "scriptSrcs": [
+          "/assets/index-Dd2y022e.js"
+        ]
+      },
+      "status": "PASS",
+      "severity": null,
+      "evidence": {
+        "htmlSnippet": "<!doctype html>\n<html lang=\"zh-CN\">\n  <head>\n    <meta charset=\"utf-8\" />\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\" />\n    <meta name=\"color-scheme\" content=\"light dark\" />\n    <meta name=\"theme-color\" content=\"#f7f8fa\" media=\"(prefers-color-scheme: light)\" />\n    <meta name=\"theme-color\" content=\"#0b0f14\" media=\"(prefers-color-scheme: dark)\" />\n    <meta\n      name=\"description\"\n      content=\"A 股行情与基本面数据工具。所有数据标注来源与截止时间，不构成投资建议。\"\n    />\n    <me"
+      }
+    },
+    {
+      "id": "S4b-root",
+      "title": "HTML 无行情数字/无内联状态（expiring web /）",
+      "clause": [
+        "decisions.md L35",
+        "decisions.md L36-5"
+      ],
+      "attempt": "GET http://127.0.0.1:3201/，检查价格型数字、__INITIAL_STATE__、内联 JSON、股票名、Cache-Control",
+      "expectation": "200 + cache-control no-store + 无价格数字/无内联状态/无股票名（纯 SPA 壳）",
+      "observed": {
+        "target": "expiring web",
+        "path": "/",
+        "status": 200,
+        "contentType": "text/html; charset=utf-8",
+        "cacheControl": "no-store",
+        "priceLike": [],
+        "hasState": false,
+        "hasName": false,
+        "scriptSrcs": [
+          "/assets/index-Dd2y022e.js"
+        ]
+      },
+      "status": "PASS",
+      "severity": null,
+      "evidence": {
+        "htmlSnippet": "<!doctype html>\n<html lang=\"zh-CN\">\n  <head>\n    <meta charset=\"utf-8\" />\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\" />\n    <meta name=\"color-scheme\" content=\"light dark\" />\n    <meta name=\"theme-color\" content=\"#f7f8fa\" media=\"(prefers-color-scheme: light)\" />\n    <meta name=\"theme-color\" content=\"#0b0f14\" media=\"(prefers-color-scheme: dark)\" />\n    <meta\n      name=\"description\"\n      content=\"A 股行情与基本面数据工具。所有数据标注来源与截止时间，不构成投资建议。\"\n    />\n    <me"
+      }
+    },
+    {
+      "id": "S4b-stock",
+      "title": "HTML 无行情数字/无内联状态（expiring web /stocks/SSE:600519）",
+      "clause": [
+        "decisions.md L35",
+        "decisions.md L36-5"
+      ],
+      "attempt": "GET http://127.0.0.1:3201/stocks/SSE:600519，检查价格型数字、__INITIAL_STATE__、内联 JSON、股票名、Cache-Control",
+      "expectation": "200 + cache-control no-store + 无价格数字/无内联状态/无股票名（纯 SPA 壳）",
+      "observed": {
+        "target": "expiring web",
+        "path": "/stocks/SSE:600519",
+        "status": 200,
+        "contentType": "text/html; charset=utf-8",
+        "cacheControl": "no-store",
+        "priceLike": [],
+        "hasState": false,
+        "hasName": false,
+        "scriptSrcs": [
+          "/assets/index-Dd2y022e.js"
+        ]
+      },
+      "status": "PASS",
+      "severity": null,
+      "evidence": {
+        "htmlSnippet": "<!doctype html>\n<html lang=\"zh-CN\">\n  <head>\n    <meta charset=\"utf-8\" />\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\" />\n    <meta name=\"color-scheme\" content=\"light dark\" />\n    <meta name=\"theme-color\" content=\"#f7f8fa\" media=\"(prefers-color-scheme: light)\" />\n    <meta name=\"theme-color\" content=\"#0b0f14\" media=\"(prefers-color-scheme: dark)\" />\n    <meta\n      name=\"description\"\n      content=\"A 股行情与基本面数据工具。所有数据标注来源与截止时间，不构成投资建议。\"\n    />\n    <me"
+      }
+    },
+    {
+      "id": "S5",
+      "title": "web/h5/server.mjs 无 SSR/预渲染注入路径",
+      "clause": [
+        "decisions.md L35",
+        "decisions.md L36-5"
+      ],
+      "attempt": "检查 server.mjs（5879B）中的 SSR / 内联状态注入标记",
+      "expectation": "无 SSR 渲染调用；HTML 原样返回 dist/index.html",
+      "observed": {
+        "markers": [
+          {
+            "name": "renderToString",
+            "hit": false
+          },
+          {
+            "name": "renderToPipeableStream",
+            "hit": false
+          },
+          {
+            "name": "react-dom/server",
+            "hit": false
+          },
+          {
+            "name": "__INITIAL_STATE__ / preloadData 注入",
+            "hit": false
+          },
+          {
+            "name": "readFileSync(index.html) 后注入",
+            "hit": false
+          }
+        ],
+        "ssrComment": " *  - 本服务只做静态托管 + 反代，不做 SSR/预渲染，不会把行情数值烤进 HTML。"
+      },
+      "status": "PASS",
+      "severity": null,
+      "evidence": {
+        "file": "web/h5/server.mjs"
+      }
+    },
+    {
+      "id": "S6",
+      "title": "dist/index.html 无行情数字",
+      "clause": [
+        "decisions.md L35"
+      ],
+      "attempt": "读取 web/h5/dist/index.html",
+      "expectation": "无价格型数字",
+      "observed": {
+        "bytes": 1065,
+        "numeric": []
+      },
+      "status": "PASS",
+      "severity": null,
+      "evidence": {
+        "snippet": "<!doctype html>\n<html lang=\"zh-CN\">\n  <head>\n    <meta charset=\"utf-8\" />\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\" />\n    <meta name=\"color-scheme\" content=\"light dark\" />\n    <meta name=\"theme-color\" content=\"#f7f8fa\" media=\"(prefers-color-scheme: "
+      }
+    },
+    {
+      "id": "S7",
+      "title": "构建产物清单（INFO）",
+      "clause": [],
+      "attempt": "列 dist/assets",
+      "expectation": "-",
+      "observed": [
+        {
+          "file": "index-Dd2y022e.js",
+          "bytes": 28471
+        },
+        {
+          "file": "vendor-hNU1DSyb.js",
+          "bytes": 6633
+        },
+        {
+          "file": "vendor-react-CrowJ5J7.js",
+          "bytes": 221699
+        }
+      ],
+      "status": "INFO",
+      "severity": null,
+      "evidence": null
+    },
+    {
+      "id": "H1",
+      "title": "伪造/扩展请求头不能让 quote 越过 403",
+      "clause": [
+        "decisions.md L28",
+        "decisions.md L36-1"
+      ],
+      "attempt": "baseline | X-Entitlement-Tier: c_end_display | X-Entitlement: granted | X-Debug: 1 | X-Forwarded-For: 8.8.8.8 | X-Forwarded-For: 127.0.0.1 | X-Real-IP: 8.8.8.8 | X-Original-URL | X-Rewrite-URL | X-Forwarded-Host: localhost | X-Forwarded-Proto: https | X-HTTP-Method-Override: GET | Authorization: Bearer dev-token | Authorization: Bearer admin | Cookie: entitlement=c_end_display; tier=c_end_display | X-User-Tier: c_end_display | X-Admin: 1 | 组合伪造（XFF + entitlement + debug + bearer）",
+      "expectation": "全部 403 ENTITLEMENT_RESTRICTED；problem+json；cache-control: no-store；无行情字段数值；无内部原因码",
+      "observed": "全部 18 条被正确挡住",
+      "status": "PASS",
+      "severity": null,
+      "evidence": {
+        "observations": [
+          {
+            "attempt": "baseline",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-2\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "X-Entitlement-Tier: c_end_display",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-3\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "X-Entitlement: granted",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-4\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "X-Debug: 1",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-5\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "X-Forwarded-For: 8.8.8.8",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-6\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "X-Forwarded-For: 127.0.0.1",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-7\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "X-Real-IP: 8.8.8.8",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-8\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "X-Original-URL",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-9\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "X-Rewrite-URL",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-a\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "X-Forwarded-Host: localhost",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-b\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "X-Forwarded-Proto: https",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-c\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "X-HTTP-Method-Override: GET",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-d\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "Authorization: Bearer dev-token",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-e\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "Authorization: Bearer admin",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-f\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "Cookie: entitlement=c_end_display; tier=c_end_display",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-g\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "X-User-Tier: c_end_display",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-h\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "X-Admin: 1",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-i\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "组合伪造（XFF + entitlement + debug + bearer）",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-j\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          }
+        ]
+      }
+    },
+    {
+      "id": "H2",
+      "title": "query 参数不能让 quote 越过 403",
+      "clause": [
+        "decisions.md L28"
+      ],
+      "attempt": "?tier=c_end_display | ?entitlement=c_end_display | ?is_entitled=true | ?entitled=1 | ?debug=1 | ?mock=1 | ?demo=1 | ?include=quote | ?format=full | ?e2e=1",
+      "expectation": "全部 403 ENTITLEMENT_RESTRICTED；problem+json；cache-control: no-store；无行情字段数值；无内部原因码",
+      "observed": "全部 10 条被正确挡住",
+      "status": "PASS",
+      "severity": null,
+      "evidence": {
+        "observations": [
+          {
+            "attempt": "?tier=c_end_display",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-k\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "?entitlement=c_end_display",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-l\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "?is_entitled=true",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-m\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "?entitled=1",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-n\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "?debug=1",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-o\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "?mock=1",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-p\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "?demo=1",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-q\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "?include=quote",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-r\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "?format=full",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-s\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "?e2e=1",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-t\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          }
+        ]
+      }
+    },
+    {
+      "id": "H3",
+      "title": "路径变异不能让 quote 命中可读数据（403/404/400，绝不 200+行情字段）",
+      "clause": [
+        "decisions.md L28",
+        "decisions.md L36-1"
+      ],
+      "attempt": "trailing slash /quote/ | encoded colon %3A | uppercase /QUOTE | semicolon /quote;x=1 | dot-dot /v1/../v1/... | double slash //v1/... | double slash 在路径中 /v1//instruments | 尾部空格编码 %20",
+      "expectation": "403/404/400；无 200 带行情字段的响应",
+      "observed": "全部 8 条被挡住或 404",
+      "status": "PASS",
+      "severity": null,
+      "evidence": {
+        "observations": [
+          {
+            "attempt": "trailing slash /quote/",
+            "status": 404,
+            "code": "NOT_FOUND",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-u\",\"detail\":\"GET /v1/instruments/SSE:600519/quote/\"}"
+          },
+          {
+            "attempt": "encoded colon %3A",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-v\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "uppercase /QUOTE",
+            "status": 404,
+            "code": "NOT_FOUND",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-w\",\"detail\":\"GET /v1/instruments/SSE:600519/QUOTE\"}"
+          },
+          {
+            "attempt": "semicolon /quote;x=1",
+            "status": 404,
+            "code": "NOT_FOUND",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-x\",\"detail\":\"GET /v1/instruments/SSE:600519/quote;x=1\"}"
+          },
+          {
+            "attempt": "dot-dot /v1/../v1/...",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-y\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "double slash //v1/...",
+            "status": 404,
+            "code": "NOT_FOUND",
+            "cacheControl": null,
+            "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-z\",\"detail\":\"GET //v1/instruments/SSE:600519/quote\"}"
+          },
+          {
+            "attempt": "double slash 在路径中 /v1//instruments",
+            "status": 404,
+            "code": "NOT_FOUND",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-10\",\"detail\":\"GET /v1//instruments/SSE:600519/quote\"}"
+          },
+          {
+            "attempt": "尾部空格编码 %20",
+            "status": 404,
+            "code": "NOT_FOUND",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-11\",\"detail\":\"GET /v1/instruments/SSE:600519/quote%20\"}"
+          }
+        ]
+      }
+    },
+    {
+      "id": "H4",
+      "title": "写方法打到只读行情端点不返回数据",
+      "clause": [
+        "decisions.md L28"
+      ],
+      "attempt": "POST, PUT, PATCH, DELETE, OPTIONS",
+      "expectation": "403/404/405，无 200+行情值",
+      "observed": "全部 5 条被挡住",
+      "status": "PASS",
+      "severity": null,
+      "evidence": {
+        "observations": [
+          {
+            "attempt": "POST",
+            "status": 404,
+            "code": "NOT_FOUND",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-12\",\"detail\":\"POST /v1/instruments/SSE:600519/quote\"}"
+          },
+          {
+            "attempt": "PUT",
+            "status": 404,
+            "code": "NOT_FOUND",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-13\",\"detail\":\"PUT /v1/instruments/SSE:600519/quote\"}"
+          },
+          {
+            "attempt": "PATCH",
+            "status": 404,
+            "code": "NOT_FOUND",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-14\",\"detail\":\"PATCH /v1/instruments/SSE:600519/quote\"}"
+          },
+          {
+            "attempt": "DELETE",
+            "status": 404,
+            "code": "NOT_FOUND",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-15\",\"detail\":\"DELETE /v1/instruments/SSE:600519/quote\"}"
+          },
+          {
+            "attempt": "OPTIONS",
+            "status": 400,
+            "code": "VALIDATION_ERROR",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/validation-error\",\"title\":\"请求参数校验失败\",\"status\":400,\"code\":\"VALIDATION_ERROR\",\"trace_id\":\"req-16\"}"
+          }
+        ]
+      }
+    },
+    {
+      "id": "H5",
+      "title": "bars / fundamental-summary 同受 403 门禁保护",
+      "clause": [
+        "decisions.md L36-1"
+      ],
+      "attempt": "SSE:600519/bars?limit=5 | SSE:600519/fundamental-summary | SZSE:000001/bars?limit=5 | SZSE:000001/fundamental-summary",
+      "expectation": "全部 403 ENTITLEMENT_RESTRICTED；problem+json；cache-control: no-store；无行情字段数值；无内部原因码",
+      "observed": "全部 4 条被正确挡住",
+      "status": "PASS",
+      "severity": null,
+      "evidence": {
+        "observations": [
+          {
+            "attempt": "SSE:600519/bars?limit=5",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-17\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "SSE:600519/fundamental-summary",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-18\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "SZSE:000001/bars?limit=5",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-19\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "SZSE:000001/fundamental-summary",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-1a\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          }
+        ]
+      }
+    },
+    {
+      "id": "H6",
+      "title": "受限态基础信息仅返回 7 字段白名单，无行情字段、is_entitled=false",
+      "clause": [
+        "decisions.md L21",
+        "decisions.md L36-3"
+      ],
+      "attempt": "GET /v1/instruments/{SSE:600519,SZSE:000001}",
+      "expectation": "200；data 恰为 7 白名单字段；meta.entitlement={tier:internal_eval,is_entitled:false}；无行情字段；no-store",
+      "observed": "两条均符合白名单",
+      "status": "PASS",
+      "severity": null,
+      "evidence": {
+        "observations": [
+          {
+            "instrument": "SSE:600519",
+            "status": 200,
+            "dataKeys": [
+              "board",
+              "exchange",
+              "instrument_id",
+              "list_status",
+              "listed_at",
+              "name",
+              "security_type"
+            ],
+            "entitlement": {
+              "tier": "internal_eval",
+              "is_entitled": false
+            },
+            "forbidden": [],
+            "body": "{\"data\":{\"instrument_id\":\"SSE:600519\",\"exchange\":\"SSE\",\"name\":\"贵州茅台\",\"board\":\"main\",\"security_type\":\"stock\",\"list_status\":\"listed\",\"listed_at\":\"2001-08-27\"},\"meta\":{\"source\":{\"source\":\"platform_eod\",\"as_of\":\"2026-11-04T08:23:59+08:00\",\"staleness_ms\":1882875,\"source_id\":\"tushare\"},\"entitlement\":{\"tier\":\"internal_eval\",\"is_entitled\":false}}}"
+          },
+          {
+            "instrument": "SZSE:000001",
+            "status": 200,
+            "dataKeys": [
+              "board",
+              "exchange",
+              "instrument_id",
+              "list_status",
+              "listed_at",
+              "name",
+              "security_type"
+            ],
+            "entitlement": {
+              "tier": "internal_eval",
+              "is_entitled": false
+            },
+            "forbidden": [],
+            "body": "{\"data\":{\"instrument_id\":\"SZSE:000001\",\"exchange\":\"SZSE\",\"name\":\"平安银行\",\"board\":\"main\",\"security_type\":\"stock\",\"list_status\":\"listed\",\"listed_at\":\"1991-04-03\"},\"meta\":{\"source\":{\"source\":\"platform_eod\",\"as_of\":\"2026-11-04T08:23:59+08:00\",\"staleness_ms\":1882876,\"source_id\":\"tushare\"},\"entitlement\":{\"tier\":\"internal_eval\",\"is_entitled\":false}}}"
+          }
+        ]
+      }
+    },
+    {
+      "id": "H7",
+      "title": "watchlist 无 token/伪造 token 被 401；E2E dev-token 可写（仅测试环境，INFO）",
+      "clause": [
+        "decisions.md L28"
+      ],
+      "attempt": "GET /v1/watchlist（无 token / bogus / dev-token）+ POST + DELETE（dev-token）",
+      "expectation": "无/伪造 token=401；dev-token 属 E2E_MODE 测试后门，仅记录不判定生产",
+      "observed": {
+        "noToken": 401,
+        "bogus": 401,
+        "devGet": 200,
+        "devPost": 200,
+        "devDelete": 204,
+        "devMeta": {
+          "source": {
+            "source": "platform_watchlist",
+            "as_of": "2026-11-04T08:55:22+08:00",
+            "staleness_ms": 0
+          },
+          "entitlement": {
+            "tier": "platform_user_data",
+            "is_entitled": true
+          }
+        }
+      },
+      "status": "PASS",
+      "severity": null,
+      "evidence": {
+        "note": "dev-token 仅在 E2E_MODE=1 且配置 E2E_AUTH_TOKEN 时生效；生产不得设置该 env"
+      }
+    },
+    {
+      "id": "H8",
+      "title": "诊断/管理路径无行情或配置泄漏",
+      "clause": [
+        "decisions.md L28"
+      ],
+      "attempt": "/openapi.json | /docs | /metrics | /v1/admin | /v1/internal/entitlement | /v1/entitlement | /v1/config | /healthz | /v1/healthz | /.env | /debug/pprof",
+      "expectation": "非公开路径 404；/healthz 不泄漏行情值/token/ENTITLEMENT 配置",
+      "observed": [
+        {
+          "path": "/openapi.json",
+          "status": 404,
+          "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-1i\",\"detail\":\"GET /openapi.json\"}"
+        },
+        {
+          "path": "/docs",
+          "status": 404,
+          "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-1j\",\"detail\":\"GET /docs\"}"
+        },
+        {
+          "path": "/metrics",
+          "status": 404,
+          "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-1k\",\"detail\":\"GET /metrics\"}"
+        },
+        {
+          "path": "/v1/admin",
+          "status": 404,
+          "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-1l\",\"detail\":\"GET /v1/admin\"}"
+        },
+        {
+          "path": "/v1/internal/entitlement",
+          "status": 404,
+          "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-1m\",\"detail\":\"GET /v1/internal/entitleme"
+        },
+        {
+          "path": "/v1/entitlement",
+          "status": 404,
+          "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-1n\",\"detail\":\"GET /v1/entitlement\"}"
+        },
+        {
+          "path": "/v1/config",
+          "status": 404,
+          "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-1o\",\"detail\":\"GET /v1/config\"}"
+        },
+        {
+          "path": "/healthz",
+          "status": 200,
+          "body": "{\"status\":\"ok\",\"service\":\"market-sense-api\",\"version\":\"0.1.0\",\"uptime_s\":1,\"domains\":[\"market\"],\"data_ready\":false,\"data_ready_reason\":\"INGEST_REPORT_MISSING\",\""
+        },
+        {
+          "path": "/v1/healthz",
+          "status": 404,
+          "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-1q\",\"detail\":\"GET /v1/healthz\"}"
+        },
+        {
+          "path": "/.env",
+          "status": 404,
+          "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-1r\",\"detail\":\"GET /.env\"}"
+        },
+        {
+          "path": "/debug/pprof",
+          "status": 404,
+          "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-1s\",\"detail\":\"GET /debug/pprof\"}"
+        }
+      ],
+      "status": "PASS",
+      "severity": null,
+      "evidence": {}
+    },
+    {
+      "id": "H9",
+      "title": "403 响应体只含中性文案，无内部原因码/字段",
+      "clause": [
+        "decisions.md L33",
+        "decisions.md L36-5"
+      ],
+      "attempt": "读取 403 problem body 全部字段",
+      "expectation": "字段仅 type/title/status/code/trace_id/detail；detail 为中性文案；无 expired/hold/stale/internal_eval 等内部码",
+      "observed": {
+        "status": 403,
+        "body": {
+          "type": "https://errors.market-sense.invalid/entitlement-restricted",
+          "title": "行情数据暂不可用",
+          "status": 403,
+          "code": "ENTITLEMENT_RESTRICTED",
+          "trace_id": "req-1t",
+          "detail": "当前版本暂不提供该标的行情数据"
+        },
+        "internal": false,
+        "neutral": true
+      },
+      "status": "PASS",
+      "severity": null,
+      "evidence": {}
+    },
+    {
+      "id": "H10",
+      "title": "web 反代链路上的 403 同样 no-store 且形态一致",
+      "clause": [
+        "decisions.md L35",
+        "decisions.md L36-4"
+      ],
+      "attempt": "GET http://127.0.0.1:3200/v1/instruments/SSE:600519/quote",
+      "expectation": "403 + ENTITLEMENT_RESTRICTED + cache-control: no-store（含反代层）",
+      "observed": {
+        "status": 403,
+        "code": "ENTITLEMENT_RESTRICTED",
+        "cacheControl": "no-store, no-cache, must-revalidate",
+        "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-1u\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+      },
+      "status": "PASS",
+      "severity": null,
+      "evidence": {}
+    },
+    {
+      "id": "R1",
+      "title": "默认限流桶：连续请求触发 429（RATE_LIMITED + retry-after + no-store）",
+      "clause": [
+        "decisions.md L28"
+      ],
+      "attempt": "连续 14 次 GET quote（默认 ipBurst=10）",
+      "expectation": "第 ≤11 次起 429；code=RATE_LIMITED；retry-after≥1；no-store",
+      "observed": {
+        "statuses": [
+          403,
+          403,
+          403,
+          403,
+          403,
+          403,
+          403,
+          403,
+          403,
+          403,
+          429,
+          429,
+          429,
+          429,
+          429,
+          429,
+          429,
+          429
+        ],
+        "first429": 10,
+        "sample": {
+          "status": 429,
+          "headers": {
+            "cache-control": "no-store",
+            "connection": "keep-alive",
+            "content-length": "172",
+            "content-type": "application/problem+json; charset=utf-8",
+            "date": "Wed, 04 Nov 2026 00:55:22 GMT",
+            "keep-alive": "timeout=72",
+            "retry-after": "1"
+          },
+          "body": "{\"type\":\"https://errors.market-sense.invalid/rate-limited\",\"title\":\"请求过于频繁\",\"status\":429,\"code\":\"RATE_LIMITED\",\"trace_id\":\"req-c\",\"detail\":\"请稍后再试。\"}"
+        }
+      },
+      "status": "PASS",
+      "severity": null,
+      "evidence": {}
+    },
+    {
+      "id": "R2",
+      "title": "桶耗尽后伪造 X-Forwarded-For 不能换桶（默认 TRUST_PROXY 未开）",
+      "clause": [
+        "decisions.md L28"
+      ],
+      "attempt": "桶耗尽后带 4 个不同 X-Forwarded-For 请求",
+      "expectation": "全部 429（同一 socket IP 桶）；若出现 403/200 则说明按 XFF 换桶",
+      "observed": [
+        {
+          "xff": "8.8.8.8",
+          "status": 429,
+          "code": "RATE_LIMITED"
+        },
+        {
+          "xff": "1.1.1.1",
+          "status": 429,
+          "code": "RATE_LIMITED"
+        },
+        {
+          "xff": "203.0.113.7",
+          "status": 429,
+          "code": "RATE_LIMITED"
+        },
+        {
+          "xff": "127.0.0.1",
+          "status": 429,
+          "code": "RATE_LIMITED"
+        }
+      ],
+      "status": "PASS",
+      "severity": null,
+      "evidence": {}
+    },
+    {
+      "id": "R3",
+      "title": "TRUST_PROXY=true 启动被配置层拒绝（防伪造 XFF 换桶）",
+      "clause": [
+        "decisions.md L28"
+      ],
+      "attempt": "TRUST_PROXY=true node --import tsx src/server.ts (port 18185)",
+      "expectation": "进程启动失败，日志含 TRUST_PROXY 被禁说明",
+      "observed": {
+        "exited": true,
+        "log": "/Users/leiyu/Documents/deepseek-harness/default-workspace/services/api/src/config.ts:102\n    throw new ConfigError(\n          ^\n\n\nConfigError: TRUST_PROXY=true 被禁止：只允许 ingress CIDR 列表（如 10.0.0.0/8,192.168.0.0/16），否则 IP 桶可被 X-Forwarded-For 伪造绕过\n    at parseTrustProxy (/Users/leiyu/Documents/deepseek-harness/default-workspace/services/api/src/config.ts:102:11)\n    at loadConfig (/Users/leiyu/Documents/deepseek-harness/default-workspace/services/api/src/config.ts:83:22)\n    at <anonymous> (/Users/l"
+      },
+      "status": "PASS",
+      "severity": null,
+      "evidence": {
+        "log": "tests/adversarial/entitlement-bypass/artifacts/logs/api-trustproxy-true.log"
+      }
+    },
+    {
+      "id": "R4",
+      "title": "TRUST_PROXY 覆盖直连网段时：伪造 X-Forwarded-For 可换限流桶（条件性）",
+      "clause": [
+        "decisions.md L28"
+      ],
+      "attempt": "实例 TRUST_PROXY=127.0.0.0/8；耗尽桶后带 X-Forwarded-For: 8.8.8.8",
+      "expectation": "条件性 LEAK 记录：若 429→403 则证明按 XFF 换桶；仅当客户端可直连 pod 且网段被信任时成立",
+      "observed": {
+        "beforeSpoof": 429,
+        "afterSpoof": 403,
+        "afterSpoofCode": "ENTITLEMENT_RESTRICTED"
+      },
+      "status": "FAIL",
+      "severity": "P2",
+      "evidence": {
+        "note": "部署必须保证只有 ingress 能连 pod，且 TRUST_PROXY 只列 ingress 网段"
+      }
+    },
+    {
+      "id": "G1",
+      "title": "APP_PROFILE 缺省时 E2E 后门被配置层拒绝启动",
+      "clause": [
+        "decisions.md L28",
+        "config.ts:158-176 L44/L46"
+      ],
+      "attempt": "APP_PROFILE 未设置 + E2E_MODE=1 + E2E_AUTH_TOKEN=dev-token 启动 API",
+      "expectation": "进程退出，日志含「E2E 模式在生产不可用」与 APP_PROFILE",
+      "observed": {
+        "exited": true,
+        "log": "{\"level\":50,\"time\":1793753723425,\"pid\":61974,\"hostname\":\"ly-2.local\",\"err\":{\"type\":\"MarketConfigError\",\"message\":\"E2E 模式在生产不可用（L44/L46）：APP_PROFILE=\\\"\\\"（缺省=prod）下禁止 E2E_MODE=1、E2E_AUTH_TOKEN\",\"stack\":\"MarketConfigError: E2E 模式在生产不可用（L44/L46）：APP_PROFILE=\\\"\\\"（缺省=prod）下禁止 E2E_MODE=1、E2E_AUTH_TOKEN\\n    at assertNoE2EBackdoorInProduction (/Users/leiyu/Documents/deepseek-harness/default-workspace/serv"
+      },
+      "status": "PASS",
+      "severity": null,
+      "evidence": {
+        "log": "tests/adversarial/entitlement-bypass/artifacts/logs/api-backdoor-default.log"
+      }
+    },
+    {
+      "id": "G2",
+      "title": "APP_PROFILE 缺省时固定身份 token 也被拒绝启动",
+      "clause": [
+        "decisions.md L28",
+        "config.ts:158-176 L44/L46"
+      ],
+      "attempt": "APP_PROFILE 未设置 + 仅 E2E_AUTH_TOKEN=dev-token 启动 API",
+      "expectation": "进程退出，日志点名 E2E_AUTH_TOKEN",
+      "observed": {
+        "exited": true,
+        "log": "{\"level\":50,\"time\":1793753723859,\"pid\":61977,\"hostname\":\"ly-2.local\",\"err\":{\"type\":\"MarketConfigError\",\"message\":\"E2E 模式在生产不可用（L44/L46）：APP_PROFILE=\\\"\\\"（缺省=prod）下禁止 E2E_AUTH_TOKEN\",\"stack\":\"MarketConfigError: E2E 模式在生产不可用（L44/L46）：APP_PROFILE=\\\"\\\"（缺省=prod）下禁止 E2E_AUTH_TOKEN\\n    at assertNoE2EBackdoorInProduction (/Users/leiyu/Documents/deepseek-harness/default-workspace/services/market/src/config"
+      },
+      "status": "PASS",
+      "severity": null,
+      "evidence": {
+        "log": "tests/adversarial/entitlement-bypass/artifacts/logs/api-backdoor-token-only.log"
+      }
+    },
+    {
+      "id": "G3",
+      "title": "生产 profile 实例正常启动，但 dev-token 不被接受（固定身份入口关闭）",
+      "clause": [
+        "decisions.md L28",
+        "config.ts:158-176 L44/L46"
+      ],
+      "attempt": "APP_PROFILE 缺省（=prod）、无 E2E env 启动；用 Authorization: Bearer dev-token 访问 /v1/watchlist",
+      "expectation": "实例健康，watchlist 返回 401（无 dev 身份）",
+      "observed": {
+        "started": true,
+        "watchlistStatus": 401,
+        "watchlistBody": "{\"type\":\"https://errors.market-sense.invalid/unauthenticated\",\"title\":\"未认证\",\"status\":401,\"code\":\"UNAUTHENTICATED\",\"trace_id\":\"req-2\",\"detail\":\"自选为私有数据，需要有效的 Bearer 凭据。\"}"
+      },
+      "status": "PASS",
+      "severity": null,
+      "evidence": {
+        "log": "tests/adversarial/entitlement-bypass/artifacts/logs/api-prod-profile.log"
+      }
+    },
+    {
+      "id": "V1",
+      "title": "有效态基线：quote 200 带数值、entitlement 正确、no-store",
+      "clause": [
+        "decisions.md L36-1"
+      ],
+      "attempt": "GET http://127.0.0.1:18183/v1/instruments/SSE:600519/quote",
+      "expectation": "200；last_price/prev_close 数值；tier=c_end_display,is_entitled=true；cache-control: no-store",
+      "observed": {
+        "status": 200,
+        "data": {
+          "instrument_id": "SSE:600519",
+          "trade_date": "2024-01-04",
+          "last_price": 10.3,
+          "prev_close": 10.5,
+          "change": -0.2,
+          "change_pct": -1.9048,
+          "volume": 100000,
+          "amount": 5000000,
+          "suspended": false,
+          "open": 10.3,
+          "high": 10.8,
+          "low": 10,
+          "limit_status": "none"
+        },
+        "entitlement": {
+          "tier": "c_end_display",
+          "is_entitled": true
+        },
+        "cacheControl": "no-store"
+      },
+      "status": "PASS",
+      "severity": null,
+      "evidence": {}
+    },
+    {
+      "id": "V2",
+      "title": "有效态经 web 反代 200 也带 no-store",
+      "clause": [
+        "decisions.md L35"
+      ],
+      "attempt": "GET http://127.0.0.1:3201/v1/instruments/SSE:600519/quote",
+      "expectation": "200 + no-store",
+      "observed": {
+        "status": 200,
+        "cacheControl": "no-store, no-cache, must-revalidate"
+      },
+      "status": "PASS",
+      "severity": null,
+      "evidence": {}
+    },
+    {
+      "id": "C7",
+      "title": "有效态页面正常显示价格（对照基线）",
+      "clause": [
+        "decisions.md L36-1"
+      ],
+      "attempt": "打开 http://127.0.0.1:3201/stocks/SSE:600519",
+      "expectation": "quote-price 可见且为数值；disclaimer 可见",
+      "observed": {
+        "priceVisible": true,
+        "priceText": "10.30 元",
+        "disclaimerVisible": true,
+        "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n最新行情\n\n最新价 · 收盘快照\n\n10.30 元\n-1.90%\n-0.20 元\n\n数据截止（北京时间）\n2024-01-04T15:00:00+08:00\n数据来源\n平台行情（收盘）\n价格口径\n不复权（快照）\n交易日\n2024-01-04\n\n延时数据 · 非实时（滞后约 24833.9小时）\n\n☆\n加入自选\n登录后可加自选\n免责声明\n\n本页面数据仅供参考，不构成任何投资建议或买卖依据。数据可能存在延迟，请"
+      },
+      "status": "PASS",
+      "severity": null,
+      "evidence": {
+        "screenshot": "c7-valid.png"
+      }
+    },
+    {
+      "id": "C1",
+      "title": "受限态页面：无价格节点、无货币数字、无具体价格，展示受限提示",
+      "clause": [
+        "decisions.md L33",
+        "decisions.md L36-5"
+      ],
+      "attempt": "打开 http://127.0.0.1:3200/stocks/SSE:600519，检查 quote-price/quote-block/bodyText 是否含价格或货币数字",
+      "expectation": "quote-price 不可见；bodyText 无 ¥/￥+数字；不含有效态价格；entitlement-notice 可见",
+      "observed": {
+        "priceCount": 0,
+        "priceVisible": false,
+        "hasCurrencyNumber": false,
+        "containsValidPrice": false,
+        "noticeVisible": true,
+        "noticeText": "数据暂不可用\n\n当前版本暂不提供该标的行情数据，本页不会展示任何价格数字。\n\n该数据在当前版本中不提供。",
+        "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n数据暂不可用\n\n当前版本暂不提供该标的行情数据，本页不会展示任何价格数字。\n\n该数据在当前版本中不提供。\n\n☆\n加入自选\n登录后可加自选\n免责声明\n\n本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。\n\n基本面摘要\n\n财报为报告期口径，与上方行情时点不同，请勿混读。\n\n基本面数据暂时无法取得；页面不会用 0 或猜测值填充。\n\n本页行情为收盘快照，非盘中实时；如上方出现「延时数据」标记，请以标记为准。数据口径与免责声明不可关闭。\n\n本平台为客观数据工具，展示公开数据源与平台自有数据，不构成投资建议、要约或收益承诺。\n\n数据均标注来源与截止时间 · 免责声明由服务端版本化下发且不可关闭"
+      },
+      "status": "PASS",
+      "severity": null,
+      "evidence": {
+        "screenshot": "c1-restricted-baseline.png",
+        "url": "http://127.0.0.1:3200/stocks/SSE:600519"
+      }
+    },
+    {
+      "id": "C2",
+      "title": "localStorage/sessionStorage/cookie/window 注毒 + URL 参数/hash 不能让受限页渲染价格",
+      "clause": [
+        "decisions.md L28",
+        "decisions.md L36-7"
+      ],
+      "attempt": "首屏前注入 13 个 entitlement/tier/mock 类存储键 + cookie + window.__*；再试 ?mock/?tier/?demo/#hash；最后运行时二次注毒并 reload",
+      "expectation": "所有变体 priceVisible=false、无货币数字、不含有效态价格",
+      "observed": "全部 6 个变体被挡住",
+      "status": "PASS",
+      "severity": null,
+      "evidence": {
+        "observations": [
+          {
+            "variant": "正常 URL（注毒后）",
+            "priceVisible": false,
+            "priceCount": 0,
+            "containsValidPrice": false,
+            "noticeVisible": true,
+            "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n数据暂不可用\n\n当前版本暂不提供该标的行情数据，本页不会展示任何价格数字。\n\n该数据在当前版本中不提供。\n\n☆\n加入自选\n未自选\n免责声明\n\n本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。\n\n基本面摘要\n\n财报为报告期口径，与上方行情时点不同，请勿混读。\n\n基本面数据暂时无法取得；页面不会用 0 或猜测值填充。\n\n本页行情为收盘快照，非盘中实时；如上方出现「延时数据」标记，请"
+          },
+          {
+            "variant": "?mock=1",
+            "priceVisible": false,
+            "priceCount": 0,
+            "containsValidPrice": false,
+            "noticeVisible": true,
+            "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n数据暂不可用\n\n当前版本暂不提供该标的行情数据，本页不会展示任何价格数字。\n\n该数据在当前版本中不提供。\n\n☆\n加入自选\n未自选\n免责声明\n\n本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。\n\n基本面摘要\n\n财报为报告期口径，与上方行情时点不同，请勿混读。\n\n基本面数据暂时无法取得；页面不会用 0 或猜测值填充。\n\n本页行情为收盘快照，非盘中实时；如上方出现「延时数据」标记，请"
+          },
+          {
+            "variant": "?tier=c_end_display&is_entitled=true&debug=1",
+            "priceVisible": false,
+            "priceCount": 0,
+            "containsValidPrice": false,
+            "noticeVisible": true,
+            "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n数据暂不可用\n\n当前版本暂不提供该标的行情数据，本页不会展示任何价格数字。\n\n该数据在当前版本中不提供。\n\n☆\n加入自选\n未自选\n免责声明\n\n本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。\n\n基本面摘要\n\n财报为报告期口径，与上方行情时点不同，请勿混读。\n\n基本面数据暂时无法取得；页面不会用 0 或猜测值填充。\n\n本页行情为收盘快照，非盘中实时；如上方出现「延时数据」标记，请"
+          },
+          {
+            "variant": "?demo=1&entitled=1",
+            "priceVisible": false,
+            "priceCount": 0,
+            "containsValidPrice": false,
+            "noticeVisible": true,
+            "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n数据暂不可用\n\n当前版本暂不提供该标的行情数据，本页不会展示任何价格数字。\n\n该数据在当前版本中不提供。\n\n☆\n加入自选\n未自选\n免责声明\n\n本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。\n\n基本面摘要\n\n财报为报告期口径，与上方行情时点不同，请勿混读。\n\n基本面数据暂时无法取得；页面不会用 0 或猜测值填充。\n\n本页行情为收盘快照，非盘中实时；如上方出现「延时数据」标记，请"
+          },
+          {
+            "variant": "#entitled",
+            "priceVisible": false,
+            "priceCount": 0,
+            "containsValidPrice": false,
+            "noticeVisible": true,
+            "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n数据暂不可用\n\n当前版本暂不提供该标的行情数据，本页不会展示任何价格数字。\n\n该数据在当前版本中不提供。\n\n☆\n加入自选\n未自选\n免责声明\n\n本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。\n\n基本面摘要\n\n财报为报告期口径，与上方行情时点不同，请勿混读。\n\n基本面数据暂时无法取得；页面不会用 0 或猜测值填充。\n\n本页行情为收盘快照，非盘中实时；如上方出现「延时数据」标记，请"
+          },
+          {
+            "variant": "运行时注毒后 reload",
+            "priceVisible": false,
+            "priceCount": 0,
+            "containsValidPrice": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "C3",
+      "title": "前端不把授权状态写进 localStorage/sessionStorage",
+      "clause": [
+        "decisions.md L28"
+      ],
+      "attempt": "干净上下文打开受限页后枚举 localStorage/sessionStorage/cookie",
+      "expectation": "无 entitlement/tier/plan/vip/grant/access/mock 类键",
+      "observed": {
+        "keys": {
+          "local": [],
+          "session": [],
+          "cookie": ""
+        },
+        "suspicious": []
+      },
+      "status": "PASS",
+      "severity": null,
+      "evidence": {}
+    },
+    {
+      "id": "C4",
+      "title": "前端未注册 Service Worker / 未使用 Cache Storage（L35 SW 不缓存行情）",
+      "clause": [
+        "decisions.md L35",
+        "decisions.md L36-4"
+      ],
+      "attempt": "navigator.serviceWorker.getRegistrations() + caches.keys()",
+      "expectation": "registrations=0，cacheKeys=[]",
+      "observed": {
+        "serviceWorkerSupported": true,
+        "registrations": 0,
+        "cachesSupported": true,
+        "cacheKeys": [],
+        "manifest": null
+      },
+      "status": "PASS",
+      "severity": null,
+      "evidence": {}
+    },
+    {
+      "id": "C5",
+      "title": "客户端放行只信 meta.entitlement；200+is_entitled=false 或缺免责均不渲染价格",
+      "clause": [
+        "decisions.md L28",
+        "decisions.md L36-5"
+      ],
+      "attempt": "拦截 quote 响应重放：①200+数据但 is_entitled=false ②200+数据+is_entitled=true 但删 disclaimer ③200+is_entitled=true 完整（对照）",
+      "expectation": "①② 不渲染价格；③ 会渲染（客户端以服务端响应为授权依据，属契约行为）",
+      "observed": {
+        "restrictedReplay": {
+          "priceVisible": false,
+          "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n数据暂不可用\n\n当前版本暂不提供该标的行情数据，本页不会展示任何价格数字。\n\n该数据在当前版本中不提供。\n\n☆\n加入自选\n登录后可加自选\n免责声明\n\n本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。\n\n基本面摘要\n\n财报为报告期口径，与上方行情时点不同，请勿混读。\n\n基本面数据暂时无法取得；页面不会"
+        },
+        "missingDisclaimer": {
+          "priceVisible": false,
+          "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n数据暂不可用\n\n当前版本暂不提供该标的行情数据，本页不会展示任何价格数字。\n\n该数据在当前版本中不提供。\n\n☆\n加入自选\n登录后可加自选\n免责声明\n\n本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。\n\n基本面摘要\n\n财报为报告期口径，与上方行情时点不同，请勿混读。\n\n基本面数据暂时无法取得；页面不会"
+        },
+        "fullValidReplay": {
+          "priceVisible": false,
+          "priceText": null
+        }
+      },
+      "status": "PASS",
+      "severity": null,
+      "evidence": {
+        "note": "完整重放渲染价格是预期行为：攻击者若已在网络层篡改响应，等价于持有响应数据；此用例用于证明客户端没有本地放行逻辑"
+      }
+    },
+    {
+      "id": "C6",
+      "title": "受限页内 fetch 行情仍 403 + no-store + 无行情字段",
+      "clause": [
+        "decisions.md L35",
+        "decisions.md L36-4"
+      ],
+      "attempt": "page.evaluate(fetch /v1/instruments/SSE:600519/quote)",
+      "expectation": "403；cache-control 含 no-store；body 无 last_price/prev_close",
+      "observed": {
+        "status": 403,
+        "cacheControl": "no-store, no-cache, must-revalidate",
+        "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-34\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+      },
+      "status": "PASS",
+      "severity": null,
+      "evidence": {}
+    },
+    {
+      "id": "C8",
+      "title": "到期后浏览器历史回退（bfcache）不得复用到期前的价格 DOM",
+      "clause": [
+        "decisions.md L35",
+        "decisions.md L36-4"
+      ],
+      "attempt": "有效态打开股票页 → 离开 → 等待到期 → history.back()",
+      "expectation": "bfcache 若恢复 persisted=true，页面也不得出现价格（需 pageshow/visibilitychange 重新校验）；若重新加载则 403 视图",
+      "observed": {
+        "persisted": false,
+        "priceVisible": false,
+        "priceCount": 0,
+        "containsValidPrice": false,
+        "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n数据暂不可用\n\n当前版本暂不提供该标的行情数据，本页不会展示任何价格数字。\n\n该数据在当前版本中不提供。\n\n☆\n加入自选\n登录后可加自选\n免责声明\n\n本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。\n\n基本面摘要\n\n财报为报告期口径，与上方行情时点不同，请勿混读。\n\n基本面数据暂时无法取得；页面不会用 0 或猜测值填充。\n\n本页行情为收盘快照，非盘中实时；如上方出现「延时数据」标记，请以标记为准。数据口径与免责声明不可关闭。\n\n本平台为客观数据工具，展示公开数据源与平台自有数据，不构成投资建议、要约或收益承诺。\n\n数据均标注来源与截止时间 · 免责声明由服务端版本化下发且不"
+      },
+      "status": "PASS",
+      "severity": null,
+      "evidence": {
+        "screenshot": "c8-bfcache.png",
+        "note": "未复用旧 DOM"
+      }
+    },
+    {
+      "id": "C9",
+      "title": "到期后刷新页面 fail-closed：无价格节点/无旧价格/受限提示可见",
+      "clause": [
+        "decisions.md L33",
+        "decisions.md L36-1"
+      ],
+      "attempt": "到期后 page.reload()",
+      "expectation": "quote-price 不可见；DOM/bodyText 不含旧价格；entitlement-notice 可见；无货币数字",
+      "observed": {
+        "priceCount": 0,
+        "priceVisible": false,
+        "containsValidPrice": false,
+        "hasCurrencyNumber": false,
+        "noticeVisible": true,
+        "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n数据暂不可用\n\n当前版本暂不提供该标的行情数据，本页不会展示任何价格数字。\n\n该数据在当前版本中不提供。\n\n☆\n加入自选\n登录后可加自选\n免责声明\n\n本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。\n\n基本面摘要\n\n财报为报告期口径，与上方行情时点不同，请勿混读。\n\n基本面数据暂时无法取得；页面不会用 0 或猜测值填充。\n\n本页行情为收盘快照，非盘中实时；如上方出现「延时数据」标记，请以标记为准。数据口径与免责声明不可关闭。\n\n本平台为客观数据工具，展示公开数据源与平台自有数据，不构成投资建议、要约或收益承诺。\n\n数据均标注来源与截止时间 · 免责声明由服务端版本化下发且不可关闭"
+      },
+      "status": "PASS",
+      "severity": null,
+      "evidence": {
+        "screenshot": "c9-expired-reload.png"
+      }
+    },
+    {
+      "id": "C10",
+      "title": "到期后的行情请求走网络、403、no-store，不复用 200 缓存",
+      "clause": [
+        "decisions.md L35",
+        "decisions.md L36-4",
+        "decisions.md L36-7"
+      ],
+      "attempt": "CDP Network.responseReceived 记录所有 /quote 响应（status/cache-control/fromDiskCache/fromMemoryCache/fromServiceWorker）",
+      "expectation": "最后一次 quote 响应 403 + no-store + 三个缓存来源均 false",
+      "observed": {
+        "lastQuote": {
+          "url": "http://127.0.0.1:3201/v1/instruments/SSE%3A600519/quote",
+          "status": 403,
+          "cacheControl": "no-store, no-cache, must-revalidate",
+          "fromDiskCache": false,
+          "fromMemoryCache": false,
+          "fromServiceWorker": false
+        },
+        "allQuoteResponses": [
+          {
+            "url": "http://127.0.0.1:3201/v1/instruments/SSE%3A600519/quote",
+            "status": 200,
+            "cacheControl": "no-store, no-cache, must-revalidate",
+            "fromDiskCache": false,
+            "fromMemoryCache": false,
+            "fromServiceWorker": false
+          },
+          {
+            "url": "http://127.0.0.1:3201/v1/instruments/SSE%3A600519/quote",
+            "status": 403,
+            "cacheControl": "no-store, no-cache, must-revalidate",
+            "fromDiskCache": false,
+            "fromMemoryCache": false,
+            "fromServiceWorker": false
+          },
+          {
+            "url": "http://127.0.0.1:3201/v1/instruments/SSE%3A600519/quote",
+            "status": 403,
+            "cacheControl": "no-store, no-cache, must-revalidate",
+            "fromDiskCache": false,
+            "fromMemoryCache": false,
+            "fromServiceWorker": false
+          }
+        ]
+      },
+      "status": "PASS",
+      "severity": null,
+      "evidence": {}
+    },
+    {
+      "id": "C11",
+      "title": "到期后 quote 请求不计为缓存命中（Resource Timing 证据）",
+      "clause": [
+        "decisions.md L35",
+        "decisions.md L36-4"
+      ],
+      "attempt": "performance.getEntriesByType(\"resource\") 过滤 /quote",
+      "expectation": "transferSize>0 或 decodedBodySize>0（来自网络）",
+      "observed": {
+        "timing": [
+          {
+            "name": "http://127.0.0.1:3201/v1/instruments/SSE%3A600519/quote",
+            "transferSize": 526,
+            "encodedBodySize": 226,
+            "decodedBodySize": 226
+          }
+        ],
+        "timingOk": true
+      },
+      "status": "PASS",
+      "severity": null,
+      "evidence": {}
+    },
+    {
+      "id": "C12",
+      "title": "到期后 React 树不残留 quote-price 节点",
+      "clause": [
+        "decisions.md L33"
+      ],
+      "attempt": "document.querySelectorAll(\"[data-testid=quote-price]\")",
+      "expectation": "节点数 0（不允许隐藏残留）",
+      "observed": {
+        "priceNodeCount": 0,
+        "priceParent": null
+      },
+      "status": "PASS",
+      "severity": null,
+      "evidence": {}
+    },
+    {
+      "id": "E1",
+      "title": "到期后伪造头不能恢复行情（fail-closed）",
+      "clause": [
+        "decisions.md L36-1",
+        "decisions.md L36-2"
+      ],
+      "attempt": "baseline | X-Entitlement-Tier: c_end_display | X-Entitlement: granted | X-Debug: 1 | X-Forwarded-For: 8.8.8.8 | X-Forwarded-For: 127.0.0.1 | X-Real-IP: 8.8.8.8 | X-Original-URL",
+      "expectation": "全部 403 ENTITLEMENT_RESTRICTED；problem+json；cache-control: no-store；无行情字段数值；无内部原因码",
+      "observed": "全部 8 条被正确挡住",
+      "status": "PASS",
+      "severity": null,
+      "evidence": {
+        "observations": [
+          {
+            "attempt": "baseline",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-22\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "X-Entitlement-Tier: c_end_display",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-23\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "X-Entitlement: granted",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-24\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "X-Debug: 1",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-25\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "X-Forwarded-For: 8.8.8.8",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-26\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "X-Forwarded-For: 127.0.0.1",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-27\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "X-Real-IP: 8.8.8.8",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-28\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "X-Original-URL",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-29\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          }
+        ]
+      }
+    },
+    {
+      "id": "E2",
+      "title": "到期后基础信息 200 但 is_entitled=false / tier=internal_eval",
+      "clause": [
+        "decisions.md L36-2"
+      ],
+      "attempt": "GET /v1/instruments/SSE:600519",
+      "expectation": "200 + meta.entitlement.is_entitled=false + tier=internal_eval + no-store",
+      "observed": {
+        "status": 200,
+        "entitlement": {
+          "tier": "internal_eval",
+          "is_entitled": false
+        },
+        "cacheControl": "no-store"
+      },
+      "status": "PASS",
+      "severity": null,
+      "evidence": {}
+    }
+  ]
+}

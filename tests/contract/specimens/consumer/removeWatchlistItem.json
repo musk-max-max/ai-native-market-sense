@@ -1,0 +1,21 @@
+{
+  "operation_id": "removeWatchlistItem",
+  "client": "web-h5 移出自选",
+  "note": "204 无响应体，前端不得解析 body",
+  "calls": [
+    {
+      "name": "幂等移除",
+      "request": {
+        "method": "DELETE",
+        "path": "/v1/watchlist/SSE:600519",
+        "headers": {
+          "authorization": "Bearer synthetic-token-for-contract-test"
+        }
+      },
+      "expect": {
+        "status": 204,
+        "required_fields": []
+      }
+    }
+  ]
+}

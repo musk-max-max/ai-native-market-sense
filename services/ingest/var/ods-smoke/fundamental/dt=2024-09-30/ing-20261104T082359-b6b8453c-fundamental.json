@@ -1,0 +1,44 @@
+{
+  "batch_id": "ing-20261104T082359-b6b8453c-fundamental",
+  "endpoint": "fundamental",
+  "rows": [
+    {
+      "announced_at": "2024-10-25T15:00:00+08:00",
+      "currency": "CNY",
+      "eps": "1.0",
+      "gross_margin_pct": "45.0",
+      "instrument_id": "SSE:600519",
+      "net_profit": "45000000.0",
+      "net_profit_yoy_pct": "8.0",
+      "report_end_date": "2024-09-30",
+      "report_period": "2024Q3",
+      "revenue": "123000000.0",
+      "revenue_yoy_pct": "10.0",
+      "roe_pct": "12.0",
+      "statement_basis": "reported"
+    },
+    {
+      "announced_at": "2024-10-25T15:00:00+08:00",
+      "currency": "CNY",
+      "eps": "1.0",
+      "gross_margin_pct": "45.0",
+      "instrument_id": "SZSE:000001",
+      "net_profit": "45000000.0",
+      "net_profit_yoy_pct": "8.0",
+      "report_end_date": "2024-09-30",
+      "report_period": "2024Q3",
+      "revenue": "123000000.0",
+      "revenue_yoy_pct": "10.0",
+      "roe_pct": "12.0",
+      "statement_basis": "reported"
+    }
+  ],
+  "rows_rejected": 0,
+  "rows_total": 2,
+  "schema": "fundamental.v1",
+  "source": {
+    "as_of": "2024-10-25T15:00:00+08:00",
+    "fetched_at": "2026-11-04T08:23:59.686890+08:00",
+    "source": "tushare"
+  }
+}

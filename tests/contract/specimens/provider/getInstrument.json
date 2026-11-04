@@ -1,0 +1,195 @@
+{
+  "operation_id": "getInstrument",
+  "origin": "synthetic",
+  "recorded_at": "2026-11-04T08:40:00+08:00",
+  "note": "provider 侧录播（合成样本；非真实历史行情）。覆盖主板/创业板/科创板/北交所/退市/新股与 400/404。",
+  "cases": [
+    {
+      "name": "主板上市",
+      "status": 200,
+      "body": {
+        "data": {
+          "instrument_id": "SSE:600519",
+          "exchange": "SSE",
+          "name": "贵州茅台",
+          "board": "main",
+          "security_type": "stock",
+          "list_status": "listed",
+          "listed_at": "2001-08-27"
+        },
+        "meta": {
+          "source": {
+            "source": "platform_eod",
+            "as_of": "2026-11-03T15:00:00+08:00",
+            "staleness_ms": 900000,
+            "source_id": "tushare"
+          },
+          "entitlement": {
+            "tier": "c_end_display",
+            "is_entitled": true
+          }
+        }
+      }
+    },
+    {
+      "name": "创业板上市",
+      "status": 200,
+      "body": {
+        "data": {
+          "instrument_id": "SZSE:300750",
+          "exchange": "SZSE",
+          "name": "宁德时代",
+          "board": "gem",
+          "security_type": "stock",
+          "list_status": "listed",
+          "listed_at": "2018-06-11"
+        },
+        "meta": {
+          "source": {
+            "source": "platform_eod",
+            "as_of": "2026-11-03T15:00:00+08:00",
+            "staleness_ms": 900000,
+            "source_id": "tushare"
+          },
+          "entitlement": {
+            "tier": "c_end_display",
+            "is_entitled": true
+          }
+        }
+      }
+    },
+    {
+      "name": "科创板上市",
+      "status": 200,
+      "body": {
+        "data": {
+          "instrument_id": "SSE:688981",
+          "exchange": "SSE",
+          "name": "中芯国际",
+          "board": "star",
+          "security_type": "stock",
+          "list_status": "listed",
+          "listed_at": "2020-07-16"
+        },
+        "meta": {
+          "source": {
+            "source": "platform_eod",
+            "as_of": "2026-11-03T15:00:00+08:00",
+            "staleness_ms": 900000,
+            "source_id": "tushare"
+          },
+          "entitlement": {
+            "tier": "c_end_display",
+            "is_entitled": true
+          }
+        }
+      }
+    },
+    {
+      "name": "北交所上市",
+      "status": 200,
+      "body": {
+        "data": {
+          "instrument_id": "BSE:830799",
+          "exchange": "BSE",
+          "name": "示例北交所股",
+          "board": "bse",
+          "security_type": "stock",
+          "list_status": "listed",
+          "listed_at": "2021-11-15"
+        },
+        "meta": {
+          "source": {
+            "source": "platform_eod",
+            "as_of": "2026-11-03T15:00:00+08:00",
+            "staleness_ms": 900000,
+            "source_id": "tushare"
+          },
+          "entitlement": {
+            "tier": "c_end_display",
+            "is_entitled": true
+          }
+        }
+      }
+    },
+    {
+      "name": "退市保留记录",
+      "status": 200,
+      "body": {
+        "data": {
+          "instrument_id": "SSE:600145",
+          "exchange": "SSE",
+          "name": "示例退市股",
+          "board": "main",
+          "security_type": "stock",
+          "list_status": "delisted",
+          "listed_at": "1999-04-22"
+        },
+        "meta": {
+          "source": {
+            "source": "platform_eod",
+            "as_of": "2026-11-03T15:00:00+08:00",
+            "staleness_ms": 900000,
+            "source_id": "tushare"
+          },
+          "entitlement": {
+            "tier": "c_end_display",
+            "is_entitled": true
+          }
+        }
+      },
+      "note": "C14：退市证券保留，不得删除"
+    },
+    {
+      "name": "新股未上市",
+      "status": 200,
+      "body": {
+        "data": {
+          "instrument_id": "SZSE:301999",
+          "exchange": "SZSE",
+          "name": "示例新股",
+          "board": "gem",
+          "security_type": "stock",
+          "list_status": "pre_listed",
+          "listed_at": "2026-11-10"
+        },
+        "meta": {
+          "source": {
+            "source": "platform_eod",
+            "as_of": "2026-11-03T15:00:00+08:00",
+            "staleness_ms": 900000,
+            "source_id": "tushare"
+          },
+          "entitlement": {
+            "tier": "c_end_display",
+            "is_entitled": true
+          }
+        }
+      },
+      "note": "C14：pre_listed 不返回 quote，但基础信息可查"
+    },
+    {
+      "name": "标识格式非法",
+      "status": 400,
+      "body": {
+        "type": "https://errors.market-sense.invalid/validation-error",
+        "title": "参数校验失败",
+        "status": 400,
+        "code": "VALIDATION_ERROR",
+        "trace_id": "trace-synthetic-0001",
+        "detail": "instrument_id 必须为 EXCH:CODE"
+      }
+    },
+    {
+      "name": "标识合法但未收录",
+      "status": 404,
+      "body": {
+        "type": "https://errors.market-sense.invalid/instrument-not-found",
+        "title": "证券不存在",
+        "status": 404,
+        "code": "INSTRUMENT_NOT_FOUND",
+        "trace_id": "trace-synthetic-0001"
+      }
+    }
+  ]
+}

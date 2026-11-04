@@ -1,0 +1,10 @@
+node_modules/
+.e2e-status.json
+test-results/
+playwright-report/
+blob-report/
+.cache/
+*.tmp
+.DS_Store
+.state/*
+!.state/.gitkeep

@@ -1,0 +1,58 @@
+# A1 数据接入默认配置（本地 / CI / 生产共用，环境差异用环境变量覆盖）
+#
+# 说明：#10 已定 10000 积分套餐、#11 已定全历史 20 年回补。
+# 本文件只放与数据源无关的接入策略；源相关的端点/字段/令牌变量名
+# 只在 adapters/<adapter>/ 内出现（源细节不得出现在适配层以外）。
+
+paths:
+  # 相对本文件的基准目录：config/ 的上一级（= services/ingest）。
+  # 接入层的私有状态（SQLite 台账）落在服务目录内，避免占用共享根目录。
+  root: ".."
+
+storage:
+  # 本地与 CI 用 SQLite（stdlib）；生产 PG 后端由 A13/A1 在 M0 后补同一接口实现。
+  sqlite_path: var/ingest.db
+
+ods:
+  # A1 → A2 的 canonical 批次文件（交换格式 v1）根目录；null = 不导出（A2 会无数据）。
+  # L34 渠道物理隔离口径（写死，A2/A13 按此读）：
+  #   <root>/display/instrument/...   csv / official_api 渠道批次（可进展示态）
+  #   <root>/internal/<endpoint>/...  适配层交叉校验与行情/财务批次（display_safe=false）
+  # 单 root + 固定子目录：部署只配一个可写路径，少一个漏配机会。
+  root: var/ods
+
+quota:
+  # 硬约束：任何自动运行只吃套餐配额的 80%，留 20% 给人工补数/线上增量。
+  reserve_ratio: 0.2
+  # 数据源套餐的每分钟调用上限（不含预留；守卫自动按 reserve_ratio 折算）。
+  calls_per_minute: 500
+  # 周期配额上限（按 Asia/Shanghai 自然日累计），null = 只按运行预算控制。
+  period_cap_calls: null
+  # 单次运行默认调用预算（回补任务用 CLI --budget-calls 覆盖）。
+  default_run_budget_calls: 1000
+
+sync:
+  # 断点续跑的分块粒度：每块成功后写 checkpoint(last_success_trade_date)，
+  # 并把该块导出为一个 ODS 批次（中断后重跑只补剩余块，不产生缺口）。
+  # 8766 天 ≈ 24 年：20 年回补 = 1 块 = 1 页（page_limit 6000 行），预算 ≈2 次调用/标的。
+  # 不要为了「更细的中断粒度」改成 366：20 年 × 21 块/标的 会击穿决策 #11 的 2.6 万次预算。
+  chunk_days: 8766
+  # 单次请求行数（源侧上限 6000，取保守值）。
+  page_limit: 6000
+
+adapters:
+  # auto = 唯一已发现的适配器（当前仅一个）。显式 id 见 adapters/ 下的目录名。
+  active: auto
+  # 适配器私有选项（如 replay_fixture/record_path）；生产令牌只从环境变量读，
+  # 禁止写入本文件或任何仓库文件。
+  options: {}
+
+imports:
+  # 主数据导入的 manifest（append-only JSONL）+ 条款快照（sha256 内容寻址）根目录。
+  # 展示态校验会拒绝 channel=tushare 的字段；tushare 路径仅内部交叉校验。
+  manifest_root: var/audit
+  # 生产 profile 置 true：manifest root 与容器根文件系统同设备时拒绝写入（H4 m01335）。
+  # 本地/CI/e2e 保持 false；也可用环境变量 INGEST_STRICT_AUDIT_ROOT=1 临时开启。
+  require_durable_manifest: false
+  # C 端白名单基础信息（交易所公开渠道维护）；不在 data/golden 写域内。
+  base_info_path: ../../data/instruments/base_info.csv

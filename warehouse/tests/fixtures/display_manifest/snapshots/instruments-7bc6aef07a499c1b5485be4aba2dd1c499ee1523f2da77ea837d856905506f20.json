@@ -1,0 +1,11 @@
+{
+  "checksum_sha256": "7bc6aef07a499c1b5485be4aba2dd1c499ee1523f2da77ea837d856905506f20",
+  "rows": [
+    {
+      "instrument_id": "SSE:600519"
+    },
+    {
+      "instrument_id": "SZSE:000001"
+    }
+  ]
+}

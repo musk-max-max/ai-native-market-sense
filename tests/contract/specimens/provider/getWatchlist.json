@@ -1,0 +1,84 @@
+{
+  "operation_id": "getWatchlist",
+  "origin": "synthetic",
+  "recorded_at": "2026-11-04T08:40:00+08:00",
+  "note": "provider 侧录播（合成样本）。覆盖非空/空列表/401。；补 403 授权降级样本（L10）",
+  "cases": [
+    {
+      "name": "两条自选",
+      "status": 200,
+      "body": {
+        "data": {
+          "items": [
+            {
+              "instrument_id": "SSE:600519",
+              "added_at": "2026-11-03T10:12:00+08:00"
+            },
+            {
+              "instrument_id": "SZSE:300750",
+              "added_at": "2026-11-02T14:05:00+08:00"
+            }
+          ]
+        },
+        "meta": {
+          "source": {
+            "source": "platform_watchlist",
+            "as_of": "2026-11-04T09:00:00+08:00",
+            "staleness_ms": 0,
+            "source_id": "platform"
+          },
+          "entitlement": {
+            "tier": "platform_user_data",
+            "is_entitled": true
+          }
+        }
+      }
+    },
+    {
+      "name": "空列表",
+      "status": 200,
+      "body": {
+        "data": {
+          "items": []
+        },
+        "meta": {
+          "source": {
+            "source": "platform_watchlist",
+            "as_of": "2026-11-04T09:00:00+08:00",
+            "staleness_ms": 0,
+            "source_id": "platform"
+          },
+          "entitlement": {
+            "tier": "platform_user_data",
+            "is_entitled": true
+          }
+        }
+      },
+      "note": "空列表 200 + 空数组，不返回 404"
+    },
+    {
+      "name": "未认证",
+      "status": 401,
+      "body": {
+        "type": "https://errors.market-sense.invalid/unauthenticated",
+        "title": "缺少或过期的凭据",
+        "status": 401,
+        "code": "UNAUTHENTICATED",
+        "trace_id": "trace-synthetic-0001"
+      }
+    },
+    {
+      "name": "授权不足（403 降级）",
+      "status": 403,
+      "body": {
+        "type": "https://errors.market-sense.invalid/forbidden",
+        "title": "无权访问该资源",
+        "status": 403,
+        "code": "FORBIDDEN",
+        "detail": "合成样本：已认证但无权访问他人自选",
+        "trace_id": "trace-synthetic-0403"
+      },
+      "note": "已认证但无权读他人自选"
+    }
+  ]
+}

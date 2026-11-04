@@ -1,0 +1,175 @@
+{
+  "operation_id": "getFundamentalSummary",
+  "origin": "synthetic",
+  "recorded_at": "2026-11-04T08:40:00+08:00",
+  "note": "provider 侧录播（合成样本）。覆盖 reported/restated/null 缺失/404/400。；补 403 授权降级样本（L10）；补 404 NOT_FOUND（资源无数据）样本",
+  "cases": [
+    {
+      "name": "原始披露",
+      "status": 200,
+      "body": {
+        "data": {
+          "instrument_id": "SSE:600519",
+          "report_period": "2026Q3",
+          "report_end_date": "2026-09-30",
+          "announced_at": "2026-10-29T16:30:00+08:00",
+          "statement_basis": "reported",
+          "currency": "CNY",
+          "revenue": 123450000000.0,
+          "net_profit": 62000000000.0,
+          "revenue_yoy_pct": 12.34,
+          "net_profit_yoy_pct": 15.21,
+          "eps": 48.5,
+          "roe_pct": 31.2,
+          "gross_margin_pct": 91.5,
+          "total_assets": 280000000000.0
+        },
+        "meta": {
+          "source": {
+            "source": "platform_fundamental",
+            "as_of": "2026-11-03T15:00:00+08:00",
+            "staleness_ms": 900000,
+            "source_id": "tushare"
+          },
+          "entitlement": {
+            "tier": "c_end_display",
+            "is_entitled": true
+          },
+          "disclaimer": {
+            "text": "本平台行情数据仅供参考，不构成任何投资建议。",
+            "version": "2026.11.1",
+            "closable": false
+          }
+        }
+      }
+    },
+    {
+      "name": "追溯调整后",
+      "status": 200,
+      "body": {
+        "data": {
+          "instrument_id": "SSE:600519",
+          "report_period": "2026Q3",
+          "report_end_date": "2026-09-30",
+          "announced_at": "2026-10-29T16:30:00+08:00",
+          "statement_basis": "restated",
+          "currency": "CNY",
+          "revenue": 123900000000.0,
+          "net_profit": 61800000000.0,
+          "revenue_yoy_pct": 12.71,
+          "net_profit_yoy_pct": 14.83,
+          "eps": 48.34,
+          "roe_pct": 31.0,
+          "gross_margin_pct": 91.4,
+          "total_assets": 280500000000.0
+        },
+        "meta": {
+          "source": {
+            "source": "platform_fundamental",
+            "as_of": "2026-11-03T15:00:00+08:00",
+            "staleness_ms": 900000,
+            "source_id": "tushare"
+          },
+          "entitlement": {
+            "tier": "c_end_display",
+            "is_entitled": true
+          },
+          "disclaimer": {
+            "text": "本平台行情数据仅供参考，不构成任何投资建议。",
+            "version": "2026.11.1",
+            "closable": false
+          }
+        }
+      },
+      "note": "C12：reported 与 restated 两套口径均保留，切换只改 statement_basis"
+    },
+    {
+      "name": "无同期数据用 null",
+      "status": 200,
+      "body": {
+        "data": {
+          "instrument_id": "SZSE:300750",
+          "report_period": "2026Q3",
+          "report_end_date": "2026-09-30",
+          "announced_at": "2026-10-30T19:05:00+08:00",
+          "statement_basis": "reported",
+          "currency": "CNY",
+          "revenue": 294600000000.0,
+          "net_profit": 36000000000.0,
+          "revenue_yoy_pct": null,
+          "net_profit_yoy_pct": null,
+          "eps": null,
+          "roe_pct": null,
+          "gross_margin_pct": null,
+          "total_assets": null
+        },
+        "meta": {
+          "source": {
+            "source": "platform_fundamental",
+            "as_of": "2026-11-03T15:00:00+08:00",
+            "staleness_ms": 900000,
+            "source_id": "tushare"
+          },
+          "entitlement": {
+            "tier": "c_end_display",
+            "is_entitled": true
+          },
+          "disclaimer": {
+            "text": "本平台行情数据仅供参考，不构成任何投资建议。",
+            "version": "2026.11.1",
+            "closable": false
+          }
+        }
+      },
+      "note": "C10：缺失用 null，禁止用 0 冒充"
+    },
+    {
+      "name": "未收录证券",
+      "status": 404,
+      "body": {
+        "type": "https://errors.market-sense.invalid/instrument-not-found",
+        "title": "证券不存在",
+        "status": 404,
+        "code": "INSTRUMENT_NOT_FOUND",
+        "trace_id": "trace-synthetic-0001"
+      },
+      "note": "标识不存在/未收录 → INSTRUMENT_NOT_FOUND"
+    },
+    {
+      "name": "标识格式非法",
+      "status": 400,
+      "body": {
+        "type": "https://errors.market-sense.invalid/validation-error",
+        "title": "参数校验失败",
+        "status": 400,
+        "code": "VALIDATION_ERROR",
+        "trace_id": "trace-synthetic-0001"
+      }
+    },
+    {
+      "name": "授权不足（403 降级）",
+      "status": 403,
+      "body": {
+        "type": "https://errors.market-sense.invalid/entitlement-restricted",
+        "title": "数据授权不足",
+        "status": 403,
+        "code": "ENTITLEMENT_RESTRICTED",
+        "detail": "合成样本：403 降级路径（不得返回任何可判读的行情数值）",
+        "trace_id": "trace-synthetic-0403"
+      },
+      "note": "F1 未落地时财务数据按 403 降级"
+    },
+    {
+      "name": "已收录但无财报",
+      "status": 404,
+      "body": {
+        "type": "https://errors.market-sense.invalid/not-found",
+        "title": "该证券暂无已披露财务数据",
+        "status": 404,
+        "code": "NOT_FOUND",
+        "trace_id": "trace-synthetic-0404"
+      },
+      "note": "ADR-001 D4：标识存在但无财报数据 → NOT_FOUND"
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+# Docker 构建上下文（仓库根）忽略项：只保留源码与 manifest，避免把本机 node_modules/产物送进 daemon。
+**/node_modules
+**/dist
+**/.pnpm-store
+.git
+.github
+.husky
+coverage
+**/*.log
+.env
+.env.*
+.DS_Store
+# 本机数据库数据目录 / e2e 状态（A12 反馈：不忽略会让远端构建上下文过大）
+.state
+tests/e2e/.state
+**/.state

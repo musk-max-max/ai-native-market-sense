@@ -1,0 +1,23 @@
+{
+  "status": "blocked",
+  "event_id": "mft-20261104T083637-d785248d",
+  "channel": "manual_import",
+  "rows": 5,
+  "conflicts_total": 1,
+  "conflicts": [
+    {
+      "kind": "rename_without_basis",
+      "instrument_id": "SSE:600519",
+      "detail": "简称由上版 '贵州茅台' 变为 '贵州茅台酒'，但未提供公告依据"
+    }
+  ],
+  "conflicts_rendered": [
+    "[rename_without_basis] SSE:600519: 简称由上版 '贵州茅台' 变为 '贵州茅台酒'，但未提供公告依据"
+  ],
+  "manifest_path": "samples/h4-audit/run/audit/manifest.jsonl",
+  "snapshot_path": null,
+  "ods_path": null,
+  "batch_id": null,
+  "note": "冲突 1 条（≤5）：请人工终审 diff + 来源依据 + 建议",
+  "exit_code": 4
+}

@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "key": "79e6b18bf0bcb334527f9f1e2c5673c84a9ad5a123a3ec268f578f1c265ba382",
+  "kind": "tushare-http-raw",
+  "scope": "raw-source",
+  "request": {
+    "api_name": "income",
+    "params": {
+      "ts_code": "000001.SZ",
+      "offset": 0,
+      "limit": 6000
+    },
+    "fields": "ann_date,end_date,n_income_attr_p,total_revenue,ts_code"
+  },
+  "http_status": 200,
+  "response": {
+    "code": 0,
+    "msg": "synthetic fixture (L32: 非真实 tushare 报文)",
+    "data": {
+      "fields": [
+        "ts_code",
+        "ann_date",
+        "end_date",
+        "total_revenue",
+        "n_income_attr_p"
+      ],
+      "items": [
+        [
+          "000001.SZ",
+          "20261028",
+          "20260930",
+          999999999.0,
+          99999999.0
+        ]
+      ]
+    }
+  },
+  "recorded_at": "synthetic:2026-11-03",
+  "upstream": "synthetic://l32 (not real tushare; do not replace with real payloads)"
+}

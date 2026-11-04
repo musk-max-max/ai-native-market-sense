@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "key": "312c2e11b1cddcbde6c1f1210ede76bb4e549e2ee4344bbd62528a71f39e5cba",
+  "kind": "tushare-http-raw",
+  "scope": "raw-source",
+  "request": {
+    "api_name": "daily",
+    "params": {
+      "ts_code": "600519.SH",
+      "start_date": "20261028",
+      "end_date": "20261103",
+      "offset": 0,
+      "limit": 6000
+    },
+    "fields": "amount,change,close,high,low,open,pct_chg,pre_close,trade_date,ts_code,vol"
+  },
+  "http_status": 200,
+  "response": {
+    "code": 0,
+    "msg": "synthetic fixture (L32: 非真实 tushare 报文)",
+    "data": {
+      "fields": [
+        "ts_code",
+        "trade_date",
+        "open",
+        "high",
+        "low",
+        "close",
+        "pre_close",
+        "change",
+        "pct_chg",
+        "vol",
+        "amount"
+      ],
+      "items": [
+        [
+          "600519.SH",
+          "20261028",
+          9999.0,
+          10000.0,
+          9998.0,
+          9999.99,
+          9998.99,
+          1.0,
+          0.01,
+          123456.0,
+          123456789.0
+        ],
+        [
+          "600519.SH",
+          "20261029",
+          9999.0,
+          10000.0,
+          9998.0,
+          9999.99,
+          9999.99,
+          0.0,
+          0.01,
+          123456.0,
+          123456789.0
+        ],
+        [
+          "600519.SH",
+          "20261030",
+          9999.0,
+          10000.0,
+          9998.0,
+          9999.99,
+          9999.99,
+          0.0,
+          0.01,
+          123456.0,
+          123456789.0
+        ],
+        [
+          "600519.SH",
+          "20261102",
+          9999.0,
+          10000.0,
+          9998.0,
+          9999.99,
+          9999.99,
+          0.0,
+          0.01,
+          123456.0,
+          123456789.0
+        ],
+        [
+          "600519.SH",
+          "20261103",
+          9999.0,
+          10000.0,
+          9998.0,
+          9999.99,
+          9999.99,
+          0.0,
+          0.01,
+          123456.0,
+          123456789.0
+        ]
+      ]
+    }
+  },
+  "recorded_at": "synthetic:2026-11-03",
+  "upstream": "synthetic://l32 (not real tushare; do not replace with real payloads)"
+}

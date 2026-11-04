@@ -1,0 +1,26 @@
+{
+  "name": "@market-sense/market",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "market / fundamental / watchlist 域插件（A3）：按 contracts/ 实现，导出可被服务外壳挂载的 Fastify plugin",
+  "exports": {
+    ".": "./src/index.ts",
+    "./plugin": "./src/plugin.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node --import tsx --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@market-sense/api-client": "workspace:*",
+    "fastify": "^5.12.8",
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "@types/pg": "^8.15.5",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  }
+}

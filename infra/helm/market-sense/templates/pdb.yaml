@@ -1,0 +1,15 @@
+{{- if .Values.podDisruptionBudget.enabled -}}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "market-sense.fullname" . }}-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "market-sense.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "market-sense.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api
+{{- end }}

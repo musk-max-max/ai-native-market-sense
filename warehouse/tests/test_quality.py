@@ -1,0 +1,138 @@
+"""质量分：权重/阈值/阻断语义必须与 docs/metrics/P0-metrics.md 一致。"""
+
+from __future__ import annotations
+
+import json
+
+from warehouse.quality.checks import load_config, run_quality_checks
+from warehouse.tests.helpers import bar_row, envelopes, factor_row, instrument_row, state_from_envelopes
+
+DAYS = ["2026-09-28", "2026-09-29", "2026-09-30"]
+
+
+def _chain(**overrides) -> list[dict]:
+    """构造 prev_close 链连续的 3 根 bar（默认恒价 10.30，涨跌幅 0%）。"""
+    return [
+        bar_row(trade_date=day, prev_close="10.30", **overrides) for day in DAYS
+    ]
+
+
+def _state(tmp_path, instrument=None, bars=None, **bar_overrides):
+    bars = bars if bars is not None else _chain(**bar_overrides)
+    factors = [
+        factor_row(trade_date=bar["trade_date"], instrument_id=bar["instrument_id"])
+        for bar in bars
+    ]
+    return state_from_envelopes(
+        tmp_path, envelopes(instrument=instrument or instrument_row(), bars=bars, factors=factors)
+    )
+
+
+def test_config_weights_and_thresholds_are_legislated_values():
+    config = load_config()
+    assert config["weights"] == {"struct": 0.2, "business": 0.3, "completeness": 0.3, "consistency": 0.2}
+    assert sum(config["weights"].values()) == 1.0
+    assert config["thresholds"] == {"green": 95, "yellow": 90, "red": 85}
+    assert config["blocker_blocks_downstream"] is True
+
+
+def test_clean_state_scores_100_green(tmp_path):
+    report = run_quality_checks(_state(tmp_path))
+    assert report.score == 100.0
+    assert report.grade == "green"
+    assert report.blocked is False
+
+
+def test_high_low_violation_blocks_downstream(tmp_path):
+    # 最后一天 high < low → STRUCT-03 blocker → 一票否决（改坏一条数据必须红灯）
+    bars = _chain()
+    bars[-1] = bar_row(trade_date=DAYS[-1], high="9.00", low="9.90", close="9.50", prev_close="10.30")
+    report = run_quality_checks(_state(tmp_path, bars=bars))
+    assert report.blocked is True
+    assert report.grade == "black"
+    assert "STRUCT-03" in [v.rule_id for v in report.blocker_violations]
+
+
+def test_board_limit_enforced_not_hardcoded(tmp_path):
+    # 主板 +11% → BIZ-01；同样幅度换成创业板（20%）则合法
+    main_bars = [bar_row(trade_date=DAYS[-1], high="11.20", close="11.10", low="10.00", open="10.10", prev_close="10.00")]
+    main_report = run_quality_checks(_state(tmp_path / "main", bars=main_bars))
+    assert "BIZ-01" in [v.rule_id for v in main_report.blocker_violations]
+
+    gem_bars = [bar_row(trade_date=DAYS[-1], instrument_id="SZSE:300750", high="11.20", close="11.10",
+                        low="10.00", open="10.10", prev_close="10.00")]
+    gem_instrument = instrument_row(instrument_id="SZSE:300750", board="gem", listed_at="2018-06-11")
+    gem_report = run_quality_checks(_state(tmp_path / "gem", instrument=gem_instrument, bars=gem_bars))
+    assert "BIZ-01" not in [v.rule_id for v in gem_report.blocker_violations]
+    assert gem_report.blocked is False
+
+
+def test_warn_does_not_block_or_drop_score(tmp_path):
+    # 非首日缺 prev_close → BIZ-02 warn：不进 blocker、不阻断、不扣分
+    bars = [bar_row(trade_date=DAYS[0], prev_close="10.30")]
+    second = bar_row(trade_date=DAYS[1], prev_close="10.30")
+    second.pop("prev_close")
+    bars.append(second)
+    report = run_quality_checks(_state(tmp_path, bars=bars))
+    assert report.blocked is False
+    assert report.score == 100.0
+    assert [(r.category, v.rule_id) for r in report.results for v in r.violations] == [("business", "BIZ-02")]
+
+
+def test_report_serializable(tmp_path):
+    report = run_quality_checks(_state(tmp_path))
+    payload = json.dumps(report.as_dict(), ensure_ascii=False)
+    assert '"grade": "green"' in payload
+
+
+def test_config_scoring_is_blocker_only_l9():
+    # L9：质量分只由 blocker 计分；warn 不进分子/分母（配置显式声明，待 H4 会签）
+    scoring = load_config()["scoring"]
+    assert scoring["mode"] == "blocker_only"
+    assert scoring["warn_affects_score"] is False
+    assert scoring["decision_ref"] == "L9"
+
+
+def test_violation_counts_is_independent_from_score(tmp_path):
+    # 违规数与质量分是两个独立指标：warn 只进 violation_counts，不改 score
+    bars = [bar_row(trade_date=DAYS[0], prev_close="10.30")]
+    second = bar_row(trade_date=DAYS[1], prev_close="10.30")
+    second.pop("prev_close")
+    bars.append(second)
+    report = run_quality_checks(_state(tmp_path, bars=bars))
+    assert report.violation_counts == {"blocker": 0, "warn": 1}
+    assert report.score == 100.0
+    assert report.as_dict()["violation_counts"] == {"blocker": 0, "warn": 1}
+
+    clean = run_quality_checks(_state(tmp_path / "clean"))
+    assert clean.violation_counts == {"blocker": 0, "warn": 0}
+
+
+def test_category_score_counts_distinct_blocker_rules(tmp_path):
+    # L9：类别分 = 100 × (1 − 该类别命中 blocker 的不同规则数 / 该类规则总数)
+    bars = _chain()
+    bars[-1] = bar_row(trade_date=DAYS[-1], high="9.00", low="9.90", close="9.50", prev_close="10.30")
+    report = run_quality_checks(_state(tmp_path, bars=bars))
+    assert round(report.category_scores["struct"], 2) == round(100 * (1 - 1 / 6), 2)
+    assert report.category_scores["business"] == 100.0
+    assert report.score == round(0.2 * round(100 * (1 - 1 / 6), 2) + 80, 2)
+
+
+def test_same_rule_hit_twice_counts_once(tmp_path):
+    # 分子按规则去重：同一规则命中 2 条也只算 1（分数不随样本量放大）
+    bars = _chain()
+    for i in (1, 2):
+        bars[i] = bar_row(trade_date=DAYS[i], high="9.00", low="9.90", close="9.50", prev_close="10.30")
+    report = run_quality_checks(_state(tmp_path, bars=bars))
+    assert round(report.category_scores["struct"], 2) == round(100 * (1 - 1 / 6), 2)
+    assert len([v for v in report.blocker_violations if v.rule_id == "STRUCT-03"]) == 2
+
+
+def test_business_rule_denominator_is_two(tmp_path):
+    # 业务规则总数 2（BIZ-01 blocker + BIZ-02 warn）：命中 BIZ-01 → 类别分 50，总分 85
+    bars = [bar_row(trade_date=DAYS[-1], high="11.20", close="11.10", low="10.00",
+                    open="10.10", prev_close="10.00")]
+    report = run_quality_checks(_state(tmp_path, bars=bars))
+    assert report.category_scores["business"] == 50.0
+    assert report.score == 85.0
+    assert report.grade == "black" and report.blocked is True

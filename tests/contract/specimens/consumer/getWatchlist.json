@@ -1,0 +1,24 @@
+{
+  "operation_id": "getWatchlist",
+  "client": "web-h5 自选列表",
+  "note": "自选为私有数据，必须携带 bearer 凭据",
+  "calls": [
+    {
+      "name": "读取列表",
+      "request": {
+        "method": "GET",
+        "path": "/v1/watchlist",
+        "headers": {
+          "authorization": "Bearer synthetic-token-for-contract-test"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "required_fields": [
+          "data.items[].instrument_id",
+          "data.items[].added_at"
+        ]
+      }
+    }
+  ]
+}

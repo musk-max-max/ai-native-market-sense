@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "key": "4a77fc0248be236995fbbae3149f0a300fd2be684f3dd1dc93e2a3e791680e1e",
+  "kind": "tushare-http-raw",
+  "scope": "raw-source",
+  "request": {
+    "api_name": "adj_factor",
+    "params": {
+      "ts_code": "601398.SH",
+      "start_date": "20261028",
+      "end_date": "20261103",
+      "offset": 0,
+      "limit": 6000
+    },
+    "fields": "adj_factor,trade_date,ts_code"
+  },
+  "http_status": 200,
+  "response": {
+    "code": 0,
+    "msg": "synthetic fixture (L32: 非真实 tushare 报文)",
+    "data": {
+      "fields": [
+        "ts_code",
+        "trade_date",
+        "adj_factor"
+      ],
+      "items": [
+        [
+          "601398.SH",
+          "20261028",
+          1.0
+        ],
+        [
+          "601398.SH",
+          "20261029",
+          1.0
+        ],
+        [
+          "601398.SH",
+          "20261030",
+          1.0
+        ],
+        [
+          "601398.SH",
+          "20261102",
+          1.0
+        ],
+        [
+          "601398.SH",
+          "20261103",
+          1.0
+        ]
+      ]
+    }
+  },
+  "recorded_at": "synthetic:2026-11-03",
+  "upstream": "synthetic://l32 (not real tushare; do not replace with real payloads)"
+}

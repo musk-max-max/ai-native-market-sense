@@ -1,0 +1,274 @@
+openapi: 3.1.0
+
+info:
+  title: market-sense-h5 · shared（P0 公共 schema）
+  version: 0.2.1
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+  description: |
+    P0 公共 schema 唯一真源（A0 owns）。其余域契约以相对 $ref 引用本文件，禁止复制定义：
+      $ref: '../shared/openapi.yaml#/components/schemas/ResponseMeta'
+    依据：agents/decisions.md #1（OpenAPI 3.1 单一真源）、#4（canonical 模型、source/as_of/授权元数据）、
+    C2（不做盘中实时，页面必须显式标注 stale）、F1（上游数据授权范围未定 → data_entitlement 结构固定、取值可切换）。
+    对外契约只使用平台语义的来源词表，不包含任何上游供数方名称（ADR-004）。
+    约束：字段只增不删；新增字段必须 optional；枚举加值视为破坏性变更（ADR-001）。
+
+servers:
+  - url: https://api.market-sense.invalid
+    description: 占位域名（RFC 2606 .invalid）；本文件只含公共组件，实际服务地址见各域契约
+
+paths: {}
+
+components:
+  schemas:
+
+    SourceRef:
+      type: object
+      description: |
+        数据来源与时效元数据。所有对外数据响应必须携带（由 ResponseMeta 强制）。
+        来源标识由适配层按平台词表产出（ADR-002/ADR-004），与具体供数方解耦；换源不改变本契约。
+      required: [source, as_of, staleness_ms]
+      additionalProperties: false
+      properties:
+        source:
+          type: string
+          enum:
+            - platform_realtime
+            - platform_delayed
+            - platform_eod
+            - platform_snapshot
+            - platform_degraded
+            - platform_watchlist
+            - platform_fundamental
+          description: |
+            平台来源词表（封闭枚举，C 端据此映射展示文案；新增档位属契约变更，须走 ADR-001 D6）。
+            - platform_realtime：盘中实时（P0 不启用，P1 预留）
+            - platform_delayed：延时行情
+            - platform_eod：收盘后官方快照（P0 主口径）
+            - platform_snapshot：最近一次成功快照（降级展示用）
+            - platform_degraded：降级/过期状态（数据来自缓存，已标 stale）
+            - platform_watchlist：自选列表响应（平台自有数据）
+            - platform_fundamental：财报响应（平台整理口径）
+            词表只描述平台对数据的承诺，不背书也无须知道上游供数方；合规披露口径见 ADR-004。
+        source_id:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: '^[a-z0-9_.:-]+$'
+          description: |
+            内部溯源标识（审计/排障用，可选）。不参与 C 端展示语义，前端不得据此渲染来源文案；
+            对外契约不枚举其取值。
+        as_of:
+          type: string
+          format: date-time
+          description: |
+            数据对应的市场时点（A 股统一 +08:00），如 2026-11-03T15:00:00+08:00。
+            不是抓取时间，也不得用「当前时间」冒充无数据；C 端「数据截止时间」展示本字段。
+          examples: ["2026-11-03T15:00:00+08:00"]
+        staleness_ms:
+          type: integer
+          format: int64
+          minimum: 0
+          description: |
+            响应生成时刻 − as_of 的毫秒差。C2 裁定不做盘中实时：
+            staleness_ms > 900000（15 分钟）即按延时数据展示，C 端必须显式标注 stale/非实时（H5 SLO 已改为「收盘后 ≤15min」）。
+
+    AdjType:
+      type: string
+      enum: [none, qfq, hfq]
+      description: |
+        复权口径。none=不复权（H4 主口径，K 线默认）；hfq=后复权（收益/区间涨跌幅计算口径）；
+        qfq=前复权（仅用于画图，且随除权事件回溯变化，必须结合 as_of 使用）。
+        新增口径值属破坏性变更（决策 #1 + ADR-001），须变更声明 + H2 签字。
+
+    Entitlement:
+      type: object
+      description: |
+        数据授权状态（data_entitlement）。F1（上游数据商用/再分发书面授权）未落地前：
+        结构固定、取值可切换——授权范围变化只改 tier 取值，不修改本契约。
+      required: [tier, is_entitled]
+      additionalProperties: false
+      properties:
+        tier:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: '^[a-z][a-z0-9_]*$'
+          description: |
+            授权层级 canonical 标识。当前约定取值（后续只增不改）：
+            internal_eval=内部评估，禁止 C 端展示；c_end_display=已获 C 端展示与再分发授权；
+            research_only=仅研究/内部使用；platform_user_data=平台自有数据（自选等）。
+          examples: [internal_eval]
+        is_entitled:
+          type: boolean
+          description: |
+            当前响应数据是否已获得 tier 对应的展示授权。false 时后端不得返回可被判读的行情数值，
+            C 端不得渲染数值（H3 发布否决线：无书面授权不得对 C 端展示行情）。
+
+    InstrumentId:
+      type: string
+      pattern: '^(SSE|SZSE|BSE):[0-9]{6}$'
+      description: |
+        证券唯一标识，格式 EXCH:CODE（决策 #4）。交易所前缀：SSE 上交所 / SZSE 深交所 / BSE 北交所。
+        禁止「代码 + 点号 + 交易所后缀」的点号格式出现在契约、代码与配置中。
+      examples: [SSE:600519]
+
+    DisclaimerMeta:
+      type: object
+      description: |
+        免责声明元数据。H6 配置边界：免责为不可配项，界面不渲染关闭/折叠入口（A10 视觉规则：不得可折叠或低对比）。
+        护栏：免责展示率 100%（决策 #9）。
+      required: [text, version, closable]
+      additionalProperties: false
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: 展示文案，由 A5 合规规则版本发布（H3 立法权：规则由 H3 起草 → 法务会签 → 发布）。
+        version:
+          type: string
+          pattern: '^[0-9]{4}\.[0-9]{2}\.[0-9]+$'
+          description: 免责文案/规则版本号，用于留痕与 A16 合规复核对账。
+          examples: ["2026.11.1"]
+        closable:
+          type: boolean
+          const: false
+          description: 是否允许用户关闭。恒为 false（H6 不可配项）。
+
+    ResponseMeta:
+      type: object
+      description: |
+        统一响应 meta 骨架：强制携带 source（内含 as_of / staleness_ms）与 data_entitlement。
+        价格类响应须额外 required adjustment 与 disclaimer，写法：
+          meta:
+            allOf:
+              - $ref: '../shared/openapi.yaml#/components/schemas/ResponseMeta'
+            required: [adjustment, disclaimer]
+      required: [source, entitlement]
+      properties:
+        source:
+          $ref: '#/components/schemas/SourceRef'
+        adjustment:
+          $ref: '#/components/schemas/AdjType'
+        entitlement:
+          $ref: '#/components/schemas/Entitlement'
+        disclaimer:
+          $ref: '#/components/schemas/DisclaimerMeta'
+
+    Problem:
+      type: object
+      description: |
+        错误响应体（RFC 9457 problem details + 机器可读 code）。所有错误响应统一使用。
+        契约测试（A11）按 code 断言，不解析 title/detail。
+      required: [type, title, status, code]
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+          format: uri-reference
+          description: 错误类型 URI（文档占位域，部署时替换）。
+          examples: ["https://errors.market-sense.invalid/validation-error"]
+        title:
+          type: string
+          description: 人类可读短标题。
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+          description: 与 HTTP 状态码一致。
+        code:
+          type: string
+          description: |
+            稳定的机器可读错误码。P0 已定义：
+            VALIDATION_ERROR、UNAUTHENTICATED、FORBIDDEN、INSTRUMENT_NOT_FOUND、
+            ENTITLEMENT_RESTRICTED、RATE_LIMITED、INTERNAL_ERROR、NOT_FOUND。
+            404 语义：标识本身不存在 → INSTRUMENT_NOT_FOUND；标识存在但请求的资源无数据
+            （如无行情快照/无财报），或路由不存在 → NOT_FOUND。判定顺序（Lead m00443）：
+            先判存在性（未收录 → INSTRUMENT_NOT_FOUND）→ 再判授权（无权展示 → 403）→
+            再取数（无数据 → NOT_FOUND）；未收录标的不得用 403 掩盖 404。
+          examples: [INSTRUMENT_NOT_FOUND]
+        detail:
+          type: string
+          description: 详细说明（可含定位信息，不含内部实现细节与密钥）。
+        trace_id:
+          type: string
+          description: 服务端 trace id，供 A13 定位与审计（H5 审计不可篡改要求）。
+
+  parameters:
+
+    InstrumentIdPath:
+      name: instrument_id
+      in: path
+      required: true
+      description: 证券标识，格式 EXCH:CODE（如 SSE:600519）。
+      schema:
+        $ref: '#/components/schemas/InstrumentId'
+
+  responses:
+
+    ProblemResponse:
+      description: 统一错误响应（Problem 结构）
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+    BadRequest:
+      description: 参数校验失败（code=VALIDATION_ERROR）
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+    Unauthorized:
+      description: 未认证（凭据缺失/过期，code=UNAUTHENTICATED）。员工 OIDC 与 agent 机器身份走同一入口（决策 #5）。
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+    Forbidden:
+      description: 已认证但无权限（code=FORBIDDEN），服务端强制判定（决策 #5）。
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+    NotFound:
+      description: |
+        资源不存在。code=INSTRUMENT_NOT_FOUND 表示证券标识不存在/未收录；
+        标识存在但该资源无数据（无行情快照、无财报）用 code=NOT_FOUND。
+        判定顺序：先判存在性（未收录 → 404 INSTRUMENT_NOT_FOUND）→ 再判授权（无权展示 →
+        403 EntitlementRestricted）→ 再取数（无数据 → 404 NOT_FOUND）。未收录标的不得用 403 掩盖 404。
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+    EntitlementRestricted:
+      description: |
+        数据授权不足（code=ENTITLEMENT_RESTRICTED），语义 = 「无权展示」，**不是**「无数据」。
+        判定顺序：先存在性（不存在 → 404 INSTRUMENT_NOT_FOUND）→ 再授权（403）→ 再取数
+        （无数据 → 404 NOT_FOUND）；403 只表示标的已确认存在但无权展示其内容。
+        F1 未落地时 C 端行情/财务按此降级、不得返回可判读数值；404 仅用于确实不存在的数据。
+        200 + meta.entitlement.is_entitled=false 只用于前端预判与降级提示，**不得替代**本 403。
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+    TooManyRequests:
+      description: 触发限流（code=RATE_LIMITED）
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+    InternalError:
+      description: 服务端错误（code=INTERNAL_ERROR）
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'

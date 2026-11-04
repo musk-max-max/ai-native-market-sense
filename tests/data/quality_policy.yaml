@@ -1,0 +1,80 @@
+# 数据质量分「已批准口径」的测试侧基准（A11 owns: tests/data/）
+#
+# 作用：warehouse/quality/quality_config.json 是运行时配置（A2 owns，可被改动）；
+# 本文件是 A11 门禁认可的**已批准值**。两者不一致即红灯 —— 防止有人改阈值/权重/规则级别
+# 让坏数据变绿（roster A11 forbidden: 放宽门禁；must_escalate: 门禁被要求绕过）。
+#
+# 依据：
+#   - H4-D8：质量分 ≥95 green / [90,95) yellow / [85,90) red / <85 black
+#   - task-6 指定四类权重：结构 0.2 / 业务规则 0.3 / 完整性及时性 0.3 / 一致性 0.2
+#   - docs/metrics/P0-metrics.md §6 规则清单（STRUCT-01..06 / BIZ-01..02 / COMP-01..03 / CONS-01..02）
+#   - ADR-002 C01–C20、H4-D6/D7/D9
+#
+# 变更流程：改本文件 = 改口径，必须 H4 签字并同步 docs/metrics/P0-metrics.md；
+# A11 不得自行放宽，只能在 H4 签字后跟随修改（并留下 decision_refs）。
+version: 1
+owner: A11
+reviewers: [H4]
+approved_by: H4
+decision_refs: [H4-D8, H4-D9, task-6, L9]
+
+weights:
+  struct: 0.2
+  business: 0.3
+  completeness: 0.3
+  consistency: 0.2
+
+thresholds:
+  green: 95
+  yellow: 90
+  red: 85
+
+blocker_blocks_downstream: true
+
+# 计分口径（L9 裁定，待 H4 会签）：
+#   只由 blocker 计分。类别分 = 100 × (1 − 该类别命中 blocker 的「不同规则数」/ 该类别规则总数)；
+#   同一规则多根 bar 命中只算 1 次；warn 不进分子分母，只做展示与趋势。
+#   理由：warn 是「值得看一眼」，blocker 是「这批数据不能用」。混在一个分数里，会让一个 warn
+#   把整批数据从绿拖到黄，团队就会开始调阈值而不是修数据——阈值一旦被调，门禁就死了。
+#   「违规数」与「质量分」是两个独立指标，不得混用。
+# 待同步（口径变更，须 H4 会签后由 A2 改代码 + 文档）：A2 现行 warehouse/quality/checks.py
+#   用「违规条数/评估条数」做分母，与本口径不一致；A11 参考实现按 L9 执行。
+score_counts: blocker_rules
+formula: category_score = 100 * (1 - distinct_blocker_rules_hit / rules_in_category)
+
+# 决定记录（必须可追溯，不允许口口相传）：
+open_questions:
+  - id: Q-WARN-SCORE
+    question: warn 级违规（如 BIZ-02 缺基准）是否计入质量分分子？
+    status: decided_pending_H4_countersign
+    decision: L9
+    owner: H4
+    note: >-
+      L9 裁定：只由 blocker 计分，warn 只作展示与趋势；「违规数」与「质量分」是两个指标不得混用。
+      理由：warn 把整批数据拖黄会诱导团队调阈值而不是修数据，门禁随之失效。
+      待办：H4 会签后，A2 同步 warehouse/quality/checks.py 的算分分母与 docs/metrics/P0-metrics.md §6（A11 不写这两个域）。
+
+board_limit_pct:
+  main: 10.0
+  gem: 20.0
+  star: 20.0
+  bse: 30.0
+st_limit_pct: 5.0
+st_limit_boards: [main]
+limit_tolerance_pp: 0.5
+
+# 规则 id -> (类别, 级别)。级别 blocker 触发一票否决（直接 black + blocked）。
+rules:
+  STRUCT-01: {category: struct, severity: blocker, label: 必填字段与非空类型}
+  STRUCT-02: {category: struct, severity: blocker, label: 主键唯一（instrument_id + trade_date）}
+  STRUCT-03: {category: struct, severity: blocker, label: OHLC 关系 ≥/≤}
+  STRUCT-04: {category: struct, severity: blocker, label: 价格 > 0，volume/amount ≥ 0}
+  STRUCT-05: {category: struct, severity: blocker, label: 价格小数位 ≤ 2（人民币分）}
+  STRUCT-06: {category: struct, severity: blocker, label: 复权因子 > 0 且每根 bar 有因子}
+  BIZ-01: {category: business, severity: blocker, label: 涨跌幅在板块限内}
+  BIZ-02: {category: business, severity: warn, label: prev_close 缺失（告警，上市首日豁免）}
+  COMP-01: {category: completeness, severity: blocker, label: 不生成周末 bar}
+  COMP-02: {category: completeness, severity: blocker, label: as_of 属当日收盘后（≥15:00）}
+  COMP-03: {category: completeness, severity: blocker, label: 工作日覆盖（bar ∪ 停牌证据）}
+  CONS-01: {category: consistency, severity: blocker, label: prev_close 与前一日 close 一致}
+  CONS-02: {category: consistency, severity: blocker, label: bar/因子的 instrument 必须在维表}

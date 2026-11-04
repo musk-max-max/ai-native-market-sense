@@ -1,0 +1,15 @@
+# 已知契约缺陷台账（A11 维护；不是豁免开关）
+#
+# 规则（tests/contract/known_defects.py 强制）：
+# 1) 只能登记 A11 无权修的缺陷（contracts/ 归 A0），每条必须有 owner / reported / expires_at / fix；
+# 2) 修复窗口 ≤14 天，到期自动红灯；缺陷已修复但条目未删 → 告警（A0 无权改本文件，由 A11 清理），到期仍驻留则红灯；
+# 3) 每条必须在当次质量报告里作为「数据/契约质量债务」出现，不得静默。
+#
+# 当前债务：0 条。
+#   KD-001/002/003（shared 响应组件未被引用）已由 A0 于 2026-11-04 修复并闭合（L10）：
+#   - market /quote、/bars、fundamental 补 403 EntitlementRestricted；
+#   - watchlist 三接口补 403 Forbidden；
+#   - 500/default 改用 ProblemResponse。
+#   A11 已用 provider 侧录播样本覆盖 403 降级路径（tests/contract/specimens/provider/*.json）。
+# 台账清空后 test_no_unused_components 回到严格模式：出现未登记组件即红灯。
+entries: []

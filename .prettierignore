@@ -1,0 +1,27 @@
+# 生成物 / 依赖 / IaC 状态 —— 不格式检查
+pnpm-lock.yaml
+**/node_modules/**
+**/dist/**
+**/coverage/**
+**/.terraform/**
+**/.pytest_cache/**
+infra/monitoring/dashboards/*.json
+
+# Helm 模板含 {{- }} Go template 语法，prettier 不解析；由 helm lint/template 负责
+infra/helm/**/templates/
+
+# 非 A13 写域：格式化由各 owner 在 S1 前接入自己的门禁（显式 ignore，不是静默放过）。
+# 当前 CI 的 format 门禁只覆盖 infra/ .github/ docs/runbook/ 与根工具链文件。
+contracts/
+services/
+packages/
+web/
+jobs/
+tests/
+warehouse/
+data/
+agents/
+docs/adr/
+docs/release/
+docs/metrics/
+docs/p0-acceptance.md

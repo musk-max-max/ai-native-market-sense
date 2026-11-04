@@ -1,0 +1,97 @@
+name: e2e-build-smoke
+
+# A12 交付的 docker compose build 冒烟（tests/e2e/ci/BUILD-SMOKE.md）。
+# Lead 定：远端接上后的第一条；本机不装容器运行时期间状态记「未验证」。
+# 先手动触发，连续 3 次绿后再挂 PR（e2e 3 绿由 Lead 盯）。
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref_note:
+        description: 本次冒烟针对的变更 / PR（写入 summary）
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-build-smoke-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  e2e-build-smoke:
+    name: e2e image build smoke (docker compose build)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: compose 变量/服务图
+        run: docker compose -f tests/e2e/docker-compose.yml config -q
+
+      - name: 逐镜像构建（哪个先炸定位哪个）
+        run: |
+          set -o pipefail
+          for svc in tushare-replay ingress warehouse-load api web; do
+            echo "== build $svc =="
+            docker compose -f tests/e2e/docker-compose.yml build --pull "$svc" 2>&1 | tail -40
+          done
+
+      - name: 记录镜像大小（磁盘预算）
+        if: always()
+        run: docker image ls --format '{{.Repository}}:{{.Tag}}\t{{.Size}}' | sort | tee image-sizes.txt
+
+      - name: 起基础设施 + 录播自检（不需要 seed 成功）
+        run: |
+          docker compose -f tests/e2e/docker-compose.yml up -d --wait postgres redis tushare-replay
+          curl -fsS http://127.0.0.1:18081/__health | python3 -m json.tool
+
+      - name: seed 链（db-migrate → ingress → warehouse-load → ingest-report）
+        # 参考 A12 BUILD-SMOKE.md：逐个服务跑、每个 rc 写入 seed-rcs.txt；
+        # 第一个非零在最后作为 job 失败归因，但 api/web 仍要起来抓 data_ready。
+        # /state 是 host bind（uid 10001 写宿主属主目录会 EACCES），seed 前先放开。
+        run: |
+          set +e
+          mkdir -p tests/e2e/.state && chmod 0777 tests/e2e/.state
+          : > seed-rcs.txt
+          seed_fail=0
+          for svc in db-migrate ingress warehouse-load ingest-report; do
+            echo "== seed $svc =="
+            docker compose -f tests/e2e/docker-compose.yml --profile seed run --rm "$svc"
+            rc=$?
+            echo "$svc=$rc" | tee -a seed-rcs.txt
+            [[ $rc -ne 0 ]] && seed_fail=1
+          done
+          echo "seed_fail=$seed_fail" >> "$GITHUB_STEP_SUMMARY"
+          echo "SEED_FAIL=$seed_fail" >> "$GITHUB_ENV"
+
+      - name: 起 api/web 并记录 healthz（data_ready=false 是合法 SKIP 态）
+        run: |
+          docker compose -f tests/e2e/docker-compose.yml up -d --wait api web
+          curl -fsS http://127.0.0.1:8081/healthz | python3 -m json.tool
+
+      - name: seed 链失败归因（任一 seed 服务非零即失败，但证据已落）
+        if: env.SEED_FAIL == '1'
+        run: |
+          echo "::error::seed 链存在非零退出（见 seed-rcs.txt / stack.log）"
+          exit 1
+
+      - name: 失败时转储构建/栈日志
+        if: failure()
+        run: |
+          docker compose -f tests/e2e/docker-compose.yml logs --no-color --tail=400 > stack.log || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-build-smoke
+          path: |
+            image-sizes.txt
+            stack.log
+            seed-rcs.txt
+          if-no-files-found: warn
+
+      - name: 关栈
+        if: always()
+        run: docker compose -f tests/e2e/docker-compose.yml down -v --remove-orphans

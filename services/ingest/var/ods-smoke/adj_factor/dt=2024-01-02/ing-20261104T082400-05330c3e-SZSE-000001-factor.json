@@ -1,0 +1,29 @@
+{
+  "batch_id": "ing-20261104T082400-05330c3e-SZSE-000001-factor",
+  "endpoint": "adj_factor",
+  "rows": [
+    {
+      "factor": "1.000000",
+      "instrument_id": "SZSE:000001",
+      "trade_date": "2024-01-02"
+    },
+    {
+      "factor": "1.000000",
+      "instrument_id": "SZSE:000001",
+      "trade_date": "2024-01-03"
+    },
+    {
+      "factor": "1.000000",
+      "instrument_id": "SZSE:000001",
+      "trade_date": "2024-01-04"
+    }
+  ],
+  "rows_rejected": 0,
+  "rows_total": 3,
+  "schema": "adj_factor.v1",
+  "source": {
+    "as_of": "2024-01-04T15:00:00+08:00",
+    "fetched_at": "2026-11-04T08:24:00.912216+08:00",
+    "source": "tushare"
+  }
+}

@@ -1,0 +1,32 @@
+# market-sense-h5 · E2E **录播模式** override（A12 owns）
+#
+# 用途：本地「录一次」——从真实 tushare 拉取响应，落地为 tests/fixtures/tushare/recordings/。
+# 用法（仅限人工、本地、带 token）：
+#   TUSHARE_TOKEN=*** tests/e2e/scripts/record-fixtures.sh
+#
+# 禁止：在 CI 中使用本文件。scripts/record-fixtures.sh 在 CI=1 / GITHUB_ACTIONS 下会直接退出 2，
+#       tushare-replay 在 CI=1 时 record 模式启动即拒绝（双保险）。
+#
+# 与默认栈的唯一区别：
+#   1. app-net 打开出网（只有录播代理需要，但 compose 网络不能按服务开关）；
+#   2. tushare-replay 切 record 模式并持有 TUSHARE_TOKEN（token 只进容器环境，不落 fixtures）；
+#   3. api/worker 侧仍走 TUSHARE_API_URL=tushare-replay，记录发生在代理层，业务代码无感知。
+
+name: market-sense-e2e
+
+services:
+
+  tushare-replay:
+    environment:
+      FIXTURE_MODE: record
+      FIXTURES_DIR: /fixtures/tushare
+      TUSHARE_REAL_API: ${TUSHARE_REAL_API:-https://api.tushare.pro}
+      TUSHARE_TOKEN: ${TUSHARE_TOKEN:?TUSHARE_TOKEN 必填：录播需要真实 token，且不得提交到仓库}
+      CI: "0"
+    volumes:
+      # 录制需要写：override 掉默认栈的 :ro
+      - ../fixtures/tushare:/fixtures/tushare:rw
+
+networks:
+  app-net:
+    internal: false

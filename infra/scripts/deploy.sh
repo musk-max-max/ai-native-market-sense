@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+# market-sense-h5 · 发布（灰度档位部署；只允许 A13 通过流水线执行）
+#
+# 用法：infra/scripts/deploy.sh <env> <image_tag> [--stage 1|10|50|100] [--release name]
+#   dev         → namespace market-sense-dev（可直接执行）
+#   preview     → 用 preview-up.sh（按 PR 起停）
+#   production  → 需 APPROVAL_REF（H5 批准）+ 冻结窗口检查（9:15–15:00 禁止非紧急发布）
+#
+# 灰度节奏（SLO）：1 → 10 → 50 → 100，每档 ≥30min；本脚本只部署单档，
+# 推进下一档必须另一次 dispatch（时间间隔由发布流程/CI 强制记录）。
+set -euo pipefail
+
+ENV_NAME="${1:-}"
+IMAGE_TAG="${2:-}"
+shift $(( $# >= 2 ? 2 : $# )) || true
+STAGE="1"
+RELEASE=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --stage) STAGE="${2:-}"; shift 2 ;;
+    --release) RELEASE="${2:-}"; shift 2 ;;
+    *) echo "未知参数：$1" >&2; exit 2 ;;
+  esac
+done
+
+[[ -n "${ENV_NAME}" && -n "${IMAGE_TAG}" ]] || { echo "用法：infra/scripts/deploy.sh <env> <image_tag> [--stage N]" >&2; exit 2; }
+case "${STAGE}" in 1|10|50|100) ;; *) echo "❌ stage 必须是 1|10|50|100（SLO 灰度档位）" >&2; exit 2 ;; esac
+
+CHART_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../helm/market-sense" && pwd)"
+case "${ENV_NAME}" in
+  dev)
+    NAMESPACE="market-sense-dev"
+    VALUES="${CHART_DIR}/values-dev.yaml"
+    RELEASE="${RELEASE:-market-sense-dev}"
+    ;;
+  production)
+    # S0 只做 dev+preview；生产 IaC 在 S1 由 A13 提案、H5 批准后加入（不提前写生产配置）
+    echo "❌ S0 未启用生产发布：生产 IaC/发布流程在 S1 由 A13 提案、H5 批准后落地。" >&2
+    exit 2
+    ;;
+  production-guard)
+    NAMESPACE="${PROD_NAMESPACE:-market-sense}"
+    VALUES="${CHART_DIR}/values-production.yaml"
+    RELEASE="${RELEASE:-market-sense}"
+    if [[ -z "${APPROVAL_REF:-}" ]]; then
+      echo "❌ 生产发布被拒绝：缺少 APPROVAL_REF（H5 人类批准）。A13 不能自批。" >&2
+      exit 3
+    fi
+    # 冻结窗口：交易日 9:15–15:00 禁止非紧急发布（EMERGENCY=1 + H5 批准才可）
+    NOW_HM="$(TZ=Asia/Shanghai date +%H:%M)"
+    DOW="$(TZ=Asia/Shanghai date +%u)"
+    if [[ "${DOW}" -le 5 && "${NOW_HM}" > "09:15" && "${NOW_HM}" < "15:00" ]]; then
+      if [[ "${EMERGENCY:-0}" != "1" ]]; then
+        echo "❌ 当前 ${NOW_HM} 在交易日冻结窗口 9:15–15:00 内，禁止非紧急发布（需 H5 批准且 EMERGENCY=1）。" >&2
+        exit 4
+      fi
+      echo "⚠ 紧急发布：冻结窗口内放行，H5 批准=${APPROVAL_REF}，原因=${EMERGENCY_REASON:-未填写}"
+    fi
+    ;;
+  preview)
+    echo "preview 环境请用 infra/scripts/preview-up.sh <pr_number>" >&2
+    exit 2
+    ;;
+  *) echo "未知环境：${ENV_NAME}（dev|production）" >&2; exit 2 ;;
+esac
+
+command -v helm >/dev/null || { echo "❌ 缺少 helm" >&2; exit 1; }
+
+# 灰度 SLO：1→10→50→100，每档 ≥30min。推进档位时检查上一档停留时长。
+if [[ "${STAGE}" != "1" ]] && helm status "${RELEASE}" -n "${NAMESPACE}" >/dev/null 2>&1; then
+  LAST_TS="$(helm history "${RELEASE}" -n "${NAMESPACE}" -o json | python3 -c '
+import json, sys
+history = json.load(sys.stdin)
+deployed = [h for h in history if h.get("status") == "deployed"]
+deployed.sort(key=lambda h: h["revision"])
+print(deployed[-1]["updated"] if deployed else "")
+')"
+  if [[ -n "${LAST_TS}" ]]; then
+    LAST_EPOCH="$(python3 -c "import datetime,sys; print(int(datetime.datetime.fromisoformat(sys.argv[1].replace('Z','+00:00')).timestamp()))" "${LAST_TS}")"
+    DWELL=$(( $(date +%s) - LAST_EPOCH ))
+    if (( DWELL < 1800 )) && [[ "${ALLOW_FAST_PROMOTE:-0}" != "1" ]]; then
+      echo "❌ 灰度档位停留仅 ${DWELL}s（要求 ≥1800s/30min）——SLO：每档 ≥30min。本地演练可 ALLOW_FAST_PROMOTE=1。" >&2
+      exit 5
+    fi
+    echo "✓ 上一档已停留 ${DWELL}s（≥1800s）"
+  fi
+fi
+
+echo "▶ 部署 ${ENV_NAME}/${RELEASE}：image tag=${IMAGE_TAG}，灰度 stage=${STAGE}%"
+helm upgrade --install "${RELEASE}" "${CHART_DIR}" \
+  -n "${NAMESPACE}" --create-namespace \
+  -f "${VALUES}" \
+  --set "image.api.tag=${IMAGE_TAG}" \
+  --set "image.worker.tag=${IMAGE_TAG}" \
+  --set "config.RELEASE_GRAY_STAGE=${STAGE}" \
+  --set "global.environment=${ENV_NAME}" \
+  --atomic --wait --timeout 5m --history-max 10
+
+echo "✅ 部署完成：stage=${STAGE}%。下一档需间隔 ≥30min，且观察错误率/P95/AI 四项。"
+echo "   如有异常：infra/scripts/rollback.sh ${ENV_NAME} ${RELEASE}"

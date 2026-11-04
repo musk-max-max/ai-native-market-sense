@@ -1,0 +1,13 @@
+market-sense 已部署到 namespace {{ .Release.Namespace }}
+
+环境: {{ .Values.global.environment }}
+Release: {{ .Release.Name }} (revision {{ .Release.Revision }})
+API 镜像: {{ include "market-sense.image" (dict "registry" .Values.global.imageRegistry "repository" .Values.image.api.repository "tag" .Values.image.api.tag "digest" .Values.image.api.digest) }}
+灰度档位: {{ .Values.config.RELEASE_GRAY_STAGE }}%（SLO：1→10→50→100，每档 ≥30min）
+
+访问: https://{{ include "market-sense.ingressHost" . }}
+
+回滚（≤5min，A13 执行、H5 批准）:
+  infra/scripts/rollback.sh {{ .Values.global.environment }} {{ .Release.Name }}
+
+值班：告警全部绑定 runbook，见 docs/runbook/README.md

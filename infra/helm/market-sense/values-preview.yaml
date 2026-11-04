@@ -1,0 +1,55 @@
+# preview 环境覆盖值：一个 PR 一套 namespace/release（由 CI 传入 prNumber）
+# 限制：单副本、无 HPA、小配额；数据只用 fixture/mock，不连生产 tushare 凭据。
+global:
+  environment: preview
+  imageRegistry: ghcr.io/market-sense-h5
+
+image:
+  api:
+    tag: pr
+  worker:
+    tag: pr
+
+api:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+ingress:
+  enabled: true
+  host: pr-0.preview.market-sense.invalid
+  annotations:
+    market-sense.io/preview: "true"
+
+config:
+  APP_PROFILE: "prod"
+  NODE_ENV: preview
+  LOG_LEVEL: debug
+  DATA_FRESHNESS_MAX_AGE_SECONDS: "900"
+  RELEASE_GRAY_STAGE: "100"
+  INGEST_FALLBACK: fixture
+  # preview 默认受限档：fixture/mock 不是授权依据。
+  ENTITLEMENT_TIER: "internal_eval"
+  ENTITLEMENT_EXPIRES_AT: ""
+
+monitoring:
+  serviceMonitor:
+    enabled: false
+
+podDisruptionBudget:
+  enabled: false
+
+autoscaling:
+  enabled: false
+
+preview:
+  prNumber: 0
+
+worker:
+  replicaCount: 1
+  persistence:
+    size: 5Gi

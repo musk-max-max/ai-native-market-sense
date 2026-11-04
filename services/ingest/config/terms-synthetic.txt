@@ -1,0 +1,3 @@
+SYNTHETIC TERMS — 非真实条款全文（e2e/样例占位）
+本文件仅用于证明 manifest 的条款全文内容寻址快照机制，不构成任何授权或条款依据。
+真实导入必须使用渠道方实际条款全文与版本号，并记录 source_url / credential_ref。

@@ -1,0 +1,13 @@
+{
+  "baseline_id": "v1",
+  "frozen_at": "2026-11-04",
+  "owner": "A0",
+  "approved_by": "H2（ADR-001 D5 v1 冻结；契约由 H2 会签、Lead 批准）",
+  "note": "v1 契约冻结快照，供 oasdiff breaking 门禁比对。快照只读：A0 修订契约后由 A11 重新生成并更新哈希（等同审批动作）。",
+  "files": {
+    "shared/openapi.yaml": "5e3ad075c52600df2cecfbeb4465d4276d4600955ffdd40b56b0e08351c5b601",
+    "market/openapi.yaml": "0681b5aa92be7a84153e3eb81f5d744bec46ff1f66ad13b70219db6368999dac",
+    "fundamental/openapi.yaml": "0522af0e2a31ded636a61f79da383c23f3e46c9e10a719f1a737097cf3bd28cc",
+    "watchlist/openapi.yaml": "c8976fe1a7d9f2fe02a8449c570ba4a6b8a06f5cd67170d2bba64628deef3d94"
+  }
+}

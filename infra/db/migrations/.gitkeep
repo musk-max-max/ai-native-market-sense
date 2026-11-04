@@ -1,0 +1,2 @@
+# infra/db/migrations/ —— 跨域/基础设施表的幂等迁移（A13 署名，走 infra/scripts/db-migrate.sh 的 ledger）
+# 业务表仍放 services/<svc>/migrations/（各域 owner 署名）。两者共用同一 ledger 与执行顺序（路径字典序）。

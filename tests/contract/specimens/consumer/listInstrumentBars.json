@@ -1,0 +1,32 @@
+{
+  "operation_id": "listInstrumentBars",
+  "client": "web-h5 个股页 K 线图",
+  "note": "K 线依赖 has_more 做分页；依赖 data.adjustment 标注口径",
+  "calls": [
+    {
+      "name": "默认不复权",
+      "request": {
+        "method": "GET",
+        "path": "/v1/instruments/SSE:600519/bars",
+        "query": {
+          "adjustment": "none",
+          "from": "2026-10-01",
+          "to": "2026-11-03"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "required_fields": [
+          "data.adjustment",
+          "data.bars[].trade_date",
+          "data.bars[].open",
+          "data.bars[].high",
+          "data.bars[].low",
+          "data.bars[].close",
+          "data.bars[].volume",
+          "data.has_more"
+        ]
+      }
+    }
+  ]
+}

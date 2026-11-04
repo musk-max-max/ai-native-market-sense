@@ -1,0 +1,23 @@
+{
+  "name": "@market-sense/api-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "market-sense-h5 生成的类型化 API 客户端（契约单一真源：contracts/；本包禁止手写 DTO）",
+  "exports": {
+    ".": "./src/index.ts",
+    "./generated/*": "./src/generated/*"
+  },
+  "scripts": {
+    "gen:client": "openapi-typescript ../../contracts/shared/openapi.yaml -o src/generated/shared.ts && openapi-typescript ../../contracts/market/openapi.yaml -o src/generated/market.ts && openapi-typescript ../../contracts/fundamental/openapi.yaml -o src/generated/fundamental.ts && openapi-typescript ../../contracts/watchlist/openapi.yaml -o src/generated/watchlist.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.17.0"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.13.0",
+    "typescript": "^5.9.3"
+  },
+  "packageManager": "pnpm@9.12.3+sha512.cce0f9de9c5a7c95bef944169cc5dfe8741abfb145078c0d508b868056848a87c81e626246cb60967cbd7fd29a6c062ef73ff840d96b3c86c40ac92cf4a813ee"
+}

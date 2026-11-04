@@ -1,0 +1,25 @@
+{{- if .Values.monitoring.serviceMonitor.enabled -}}
+# 注意：ServiceMonitor 需要集群已安装 Prometheus Operator（kube-prometheus-stack）。
+# 告警规则不在此 chart 内，由发布流水线 `kubectl apply -f infra/monitoring/alerts/` 同步，
+# 保证 infra/monitoring/ 是唯一真源（避免 chart 内复制一份规则导致漂移）。
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "market-sense.fullname" . }}-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "market-sense.labels" . | nindent 4 }}
+    {{- with .Values.monitoring.serviceMonitor.additionalLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "market-sense.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api
+  endpoints:
+    - port: http
+      path: {{ .Values.monitoring.serviceMonitor.path }}
+      interval: {{ .Values.monitoring.serviceMonitor.interval }}
+      scrapeTimeout: {{ .Values.monitoring.serviceMonitor.scrapeTimeout }}
+{{- end }}

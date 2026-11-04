@@ -1,0 +1,263 @@
+# market-sense-h5 · E2E 真栈（A12 owns）
+#
+# 目的：一条命令起「真栈」——浏览器 → web(h5) → api → PG/Redis → ingest worker → 数据源。
+#      数据源不是 mock：tushare 由 `tushare-replay` 代理回放**真实录播响应**（tests/fixtures/tushare）。
+#      被验证的链路（页面渲染、api 契约、DB 持久化、adapter 映射）全部真实运行。
+#
+# 硬约束（roster A12 / task-7）：
+#   1. 默认网络 app-net 为 internal=true —— 容器无法出网，CI 结构上不可能打到真实 tushare。
+#   2. 录播代理只读挂载 fixtures；缺 fixture 时返回 503 FIXTURE_MISSING，绝不伪造空数据。
+#   3. 需要「录一次」时用 docker-compose.record.yml（本地显式操作，非 CI）。
+#
+# 交接依赖（实现未落地时 compose 起不来，preflight 会 FAIL 并指出缺哪一个）：
+#   - api:   ${API_DOCKERFILE:-services/api/Dockerfile}   （A3）
+#   - web:   ${WEB_DOCKERFILE:-web/h5/Dockerfile}         （A7；须在 3000 端口提供页面并把 /v1 反代到 api:8080，同源）
+#   - ingest:${INGEST_DOCKERFILE:-services/ingest/Dockerfile}（A1；一次性 ingest 命令 ${INGEST_ONCE_CMD}）
+#   契约见 tests/e2e/README.md §交接依赖。
+
+name: market-sense-e2e
+
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: market
+      POSTGRES_PASSWORD: market_e2e_only_local
+      POSTGRES_DB: market
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U market -d market"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks: [app-net]
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    networks: [app-net]
+
+  tushare-replay:
+    build:
+      context: .
+      dockerfile: tushare-replay/Dockerfile
+    environment:
+      FIXTURE_MODE: replay
+      FIXTURES_DIR: /fixtures/tushare
+      PORT: "18080"
+      STRICT_FIXTURES: "1"
+      # 容器内 CI=1 时 record 模式启动即拒绝（双保险，见 tushare-replay/server.py）
+      CI: "${CI:-0}"
+    volumes:
+      - ../fixtures/tushare:/fixtures/tushare:ro
+    # 存活探针：fixtures 缺失不应让「栈起不来」，但必须让 preflight 明确 FAIL。
+    # /__livez = 进程活着；/__health = fixtures 完整性（preflight 读它判定 FIXTURE_MISSING）。
+    healthcheck:
+      test:
+        - CMD
+        - python3
+        - -c
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:18080/__livez', timeout=2).status==200 else 1)"
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    # preflight 在宿主机读 /__livez 与 /__health（fixtures 完整性），因此需要发布端口。
+    ports:
+      - "${E2E_REPLAY_PORT:-18081}:18080"
+    networks: [app-net]
+
+  api:
+    build:
+      context: ../..
+      dockerfile: ${API_DOCKERFILE:-services/api/Dockerfile}
+    environment:
+      NODE_ENV: test
+      DATABASE_URL: postgres://market:market_e2e_only_local@postgres:5432/market
+      REDIS_URL: redis://redis:6379/0
+      # A1 adapter 的注入点（环境变量契约，见 README §录播注入点）：
+      DATA_SOURCE_MODE: replay            # replay | live；默认/replay 时禁止外呼
+      TUSHARE_API_URL: http://tushare-replay:18080
+      FIXTURES_DIR: /fixtures/tushare
+      # 授权层级：默认 internal_eval（fail-closed）——测试栈不得默认给 C 端展示特权（A13/H5 2026-11-04）。
+      # normal 矩阵必须显式 E2E_ENTITLEMENT_TIER=c_end_display；restricted 矩阵保持 internal_eval。
+      ENTITLEMENT_TIER: ${E2E_ENTITLEMENT_TIER:-internal_eval}
+      # A3 fail-closed：tier != internal_eval 时必须显式给到期时间，否则 api 拒绝启动。
+      # 默认栈（internal_eval）不需要时间盒，因此默认空；normal 矩阵必须同时传
+      # E2E_ENTITLEMENT_TIER=c_end_display 与 E2E_ENTITLEMENT_EXPIRES_AT（例如 2030-12-31T00:00:00Z）。
+      ENTITLEMENT_EXPIRES_AT: ${E2E_ENTITLEMENT_EXPIRES_AT:-}
+      # ingest-once 契约：api 的 /healthz 读该报告给 data_ready；报告缺失 → data_ready=false（SKIP DATA_NOT_READY）。
+      INGEST_REPORT_PATH: /state/ingest-report.json
+      DISCLAIMER_VERSION: ${E2E_DISCLAIMER_VERSION:-2026.11.1}
+      # decisions.md L46：E2E 后门只在非 prod profile 放行；必须显式写，不能留空继承（缺省=prod → fail-closed 拒启动）。
+      APP_PROFILE: "e2e"
+      E2E_MODE: "1"                      # A3：开启 E2E_AUTH_TOKEN dev bearer + 启动建 watchlist 表
+      E2E_AUTH_TOKEN: ${E2E_AUTH_TOKEN:-}  # 空串 → preflight AUTH SKIP（P0-08/09 skip，不假 FAIL）
+      # A0 限流（单 IP 60/min、burst 10）对真实 C 端够用，但 E2E 在同一进程里连续打
+      # 12 条用例会在第 3 条撞 429（非产品缺陷）。E2E 栈显式放宽，生产默认值不变。
+      RATE_LIMIT_IP_PER_MIN: ${E2E_RATE_LIMIT_IP_PER_MIN:-600}
+      RATE_LIMIT_IP_BURST: ${E2E_RATE_LIMIT_IP_BURST:-120}
+      E2E_WATCHLIST_TABLE: ${E2E_WATCHLIST_TABLE:-watchlist_items}
+      # A3 hold/audit 闸门：默认关（未迁移库上硬开会 500/拒启）；hold 场景联调时显式置 1。
+      ENTITLEMENT_HOLD_CHECK: ${E2E_ENTITLEMENT_HOLD_CHECK:-0}
+      ENTITLEMENT_AUDIT: ${E2E_ENTITLEMENT_AUDIT:-0}
+    volumes:
+      - ../fixtures/tushare:/fixtures/tushare:ro
+      - ./.state:/state:ro             # ingest-once 契约 §4：只读读 ingest-report.json（宿主 tests/e2e/.state）
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      tushare-replay: {condition: service_healthy}
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:8080/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 3s
+      timeout: 3s
+      retries: 40
+    ports:
+      - "${E2E_API_PORT:-8081}:8080"
+    networks: [app-net]
+
+  web:
+    build:
+      context: ../..
+      dockerfile: ${WEB_DOCKERFILE:-web/h5/Dockerfile}
+    environment:
+      API_BASE_URL: http://api:8080
+      E2E_MODE: "1"
+    depends_on:
+      api: {condition: service_healthy}
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 3s
+      timeout: 3s
+      retries: 40
+    ports:
+      - "${E2E_WEB_PORT:-3000}:3000"
+    networks: [app-net]
+
+  # ---- seed 流水线（契约 §1；Lead m01015 裁定：单职责镜像，不往 ingest 镜像塞 warehouse） ----
+  # 顺序由 scripts/up.sh 用 `run --rm` 编排：db-migrate → ingress → warehouse-load → ingest-report。
+  # 任一步非零不算「E2E 通过」；up.sh 最终退出码取第一个非零。
+
+  # 第 0 步：数据库底座 + 业务/合规迁移（A13 的同一路径 services/compliance/migrations/* + 20_grants/90_verify）。
+  # 禁止在 compose 里塞手写 SQL 建表（Lead m01015：E2E 必须走被发布的同一条迁移路径）。
+  db-migrate:
+    image: postgres:16
+    environment:
+      DATABASE_URL: postgres://market:market_e2e_only_local@postgres:5432/market
+    volumes:
+      - ../..:/repo:ro
+    working_dir: /repo
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        sh infra/db/bootstrap.sh --env dev --dsn "$$DATABASE_URL"
+        bash infra/scripts/db-migrate.sh --env dev --dsn "$$DATABASE_URL"
+    depends_on:
+      postgres: {condition: service_healthy}
+    profiles: ["seed"]
+    restart: "no"
+    networks: [app-net]
+
+  # 第 1 步 ingress：A1 adapter 录播回放 → ODS（display/internal）+ audit manifest；写 /state/step-ingest.json。
+  ingress:
+    build:
+      context: ../..
+      dockerfile: ${INGEST_DOCKERFILE:-services/ingest/Dockerfile}
+    environment:
+      DATABASE_URL: postgres://market:market_e2e_only_local@postgres:5432/market
+      REDIS_URL: redis://redis:6379/0
+      DATA_SOURCE_MODE: replay
+      TUSHARE_API_URL: http://tushare-replay:18080
+      FIXTURES_DIR: /fixtures/tushare
+      ODS_ROOT: /data/ods
+      INGEST_DB: /data/ingest.db
+      AUDIT_ROOT: /data/audit
+      STEP_INGEST_FILE: /state/step-ingest.json
+      # 确定性时钟（A1）：ISO 8601 必须带时区；pin 到与 19 条合成录制锚点（end_date=20261104）一致的日子。
+      # 不 pin → adj_factor 锚点随「今天」漂移，录制跨天失效（表现是「数据不一致」而非时钟问题）。
+      MARKET_NOW: ${E2E_MARKET_NOW:-2026-11-04T15:00:00+08:00}
+      INGEST_BARS_START: ${E2E_BARS_START:-2026-10-28}
+      INGEST_BARS_END: ${E2E_BARS_END:-2026-11-03}
+    # 覆盖 A1 镜像 ENTRYPOINT（python -m market_ingest），否则 command 会被当成子命令参数。
+    entrypoint: ["/bin/sh", "/e2e/ingress_once.sh"]
+    volumes:
+      - ../fixtures/tushare:/fixtures/tushare:ro
+      - ./scripts/ingress_once.sh:/e2e/ingress_once.sh:ro
+      - ./.state:/state
+      # 契约 §1b：/data 必须持久（ODS 批次、ingest.db 台账、audit manifest），失败时现场可查。
+      - ingest-data:/data
+    depends_on:
+      postgres: {condition: service_healthy}
+      tushare-replay: {condition: service_healthy}
+    profiles: ["seed"]
+    restart: "no"
+    networks: [app-net]
+
+  # 第 2 步 warehouse-load：A2 的 warehouse 镜像（Lead：不塞进 ingest 镜像）；写 quality.json + step-load.json。
+  warehouse-load:
+    build:
+      context: ../..
+      dockerfile: ${WAREHOUSE_DOCKERFILE:-warehouse/Dockerfile}
+    environment:
+      DATABASE_URL: postgres://market:market_e2e_only_local@postgres:5432/market
+      ODS_ROOT: /data/ods
+      ODS_DIR: /data/ods
+      AUDIT_ROOT: /data/audit
+      QUALITY_REPORT_PATH: /state/quality.json
+      STEP_LOAD_FILE: /state/step-load.json
+    # 覆盖 A2 镜像 ENTRYPOINT（python -m warehouse.load）。
+    entrypoint: ["/bin/sh", "/e2e/warehouse_load_once.sh"]
+    volumes:
+      - ./scripts/warehouse_load_once.sh:/e2e/warehouse_load_once.sh:ro
+      - ./.state:/state
+      - ingest-data:/data
+    depends_on:
+      postgres: {condition: service_healthy}
+    profiles: ["seed"]
+    restart: "no"
+    networks: [app-net]
+
+  # 第 3 步 ingest-report：聚合 step-ingest/step-load/quality → /state/ingest-report.json（api /healthz 读它）。
+  # 无论前几步成败都要跑（让 healthz 能报 data_ready=false）；up.sh 单独调用。
+  ingest-report:
+    image: python:3.12-slim
+    environment:
+      INGEST_REPORT_PATH: /state/ingest-report.json
+      QUALITY_REPORT_PATH: /state/quality.json
+      STEP_INGEST_FILE: /state/step-ingest.json
+      STEP_LOAD_FILE: /state/step-load.json
+    volumes:
+      - ./scripts/ingest_report.py:/e2e/ingest_report.py:ro
+      - ./.state:/state
+    command: ${INGEST_REPORT_CMD:-python3 /e2e/ingest_report.py}
+    profiles: ["seed"]
+    restart: "no"
+    networks: [app-net]
+
+networks:
+  app-net:
+    # internal=true：容器无外网出口。CI 里打真实 tushare 在这里就是网络不可达，
+    # 而不是「靠约定不打」——这是「禁止真实接口进 CI」的结构性保证。
+    internal: true
+
+volumes:
+  pgdata:
+  ingest-data:

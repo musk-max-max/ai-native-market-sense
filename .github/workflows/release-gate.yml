@@ -1,0 +1,163 @@
+name: release-gate
+
+# 11-12 放行验收（A11 的 tests/contract/CI_MOUNT.md §7；Lead L36 冻结）。
+# 只在 release 前手动/打 tag 时跑，不进日常必过集。
+# 退出码约定：0 通过 / 1 失败 / 2 缺配置 —— 2 必须按失败处理，不 skip。
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 被测镜像 tag（release 候选）
+        required: true
+        type: string
+      reason:
+        description: 放行单号 / 变更说明（写入 job summary）
+        required: false
+        type: string
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-gate-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: "22.11.0"
+  PNPM_VERSION: "9.12.3"
+  A11_IMPL_BASE_URL: ${{ vars.A11_IMPL_BASE_URL || 'http://127.0.0.1:8081' }}
+  E2E_API_PORT: "8081"
+
+jobs:
+  release-gate:
+    name: 11-12 entitlement + rate-limit 验收
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 安装依赖
+        run: |
+          pnpm install --frozen-lockfile
+          python3 -m pip install --quiet pyyaml requests
+
+      - name: 起真栈（docker compose；API 8081）
+        run: |
+          bash tests/e2e/scripts/up.sh
+          curl -fsS "${A11_IMPL_BASE_URL}/healthz"
+
+      - name: seed 审计事件与 hold（A11 需要可抽样数据）
+        env:
+          A11_AUDIT_DSN: ${{ secrets.A11_AUDIT_DSN }}
+          SEED_ENVIRONMENT: e2e
+        run: |
+          # 缺 DSN 时脚本 exit 2；按失败处理，不 skip。
+          bash infra/db/seed-entitlement-audit.sh
+
+      # ---- §7.1 Entitlement 桶（顺序即口径；任一非 0 即失败）----
+      - name: §7.1-1 到期 fail-closed（expired）
+        env:
+          A11_EXPIRY_MODE: expired
+          A11_AUDIT_DSN: ${{ secrets.A11_AUDIT_DSN }}
+        run: python3 tests/data/acceptance/check_entitlement_expiry.py
+
+      - name: §7.1-2 启动拒绝（c_end_display 无 expires）
+        env:
+          A11_EXPIRY_MODE: unset
+          A11_AUDIT_DSN: ${{ secrets.A11_AUDIT_DSN }}
+        run: python3 tests/data/acceptance/check_entitlement_expiry.py
+
+      - name: §7.1-3 base-info 白名单（data ⊆ 7 字段，lot_size 出现即红）
+        run: python3 tests/data/acceptance/check_base_info_whitelist.py
+
+      - name: §7.1-4 hold stale → 403（control 不可达即拒）
+        env:
+          A11_HOLD_MODE: stale
+          A11_HOLD_DSN: ${{ secrets.A11_HOLD_DSN }}
+        run: python3 tests/data/acceptance/check_entitlement_hold.py
+
+      - name: §7.1-4b hold unreachable → 403
+        env:
+          A11_HOLD_MODE: unreachable
+          A11_HOLD_DSN: ${{ secrets.A11_HOLD_DSN }}
+        run: python3 tests/data/acceptance/check_entitlement_hold.py
+
+      - name: §7.1-4c /v1/* 无条件 no-store
+        run: python3 tests/data/acceptance/check_no_store_all.py
+
+      - name: §7.1-5 四原因对外文案一致（内部事件原因可区分见 #6）
+        run: python3 tests/data/acceptance/check_entitlement_copy.py
+
+      - name: §7.1-6 事件可回指 + 链一致 + append-only + event_key 幂等
+        env:
+          A11_AUDIT_DSN: ${{ secrets.A11_AUDIT_DSN }}
+        run: python3 tests/data/acceptance/check_entitlement_events.py
+
+      - name: §7.1-7 前端无渲染绕开关（静态）
+        run: python3 tests/data/acceptance/check_frontend_render_gate.py
+
+      - name: §7.1-8 裸启动（bare：行情 403、tier=internal_eval）
+        env:
+          A11_EXPIRY_MODE: bare
+        run: python3 tests/data/acceptance/check_entitlement_expiry.py
+
+      # ---- §7.3 数据侧 display_safe fail-closed（A11 CI_MOUNT §7.3，不依赖 PG）----
+      - name: §7.3 display_safe fail-closed（prod 拒绝 / dev 全 false / synthetic 忽略）
+        run: python3 tests/data/acceptance/check_display_safe_failclosed.py
+
+      # ---- §7.2 限流桶 ----
+      - name: §7.2 限流（第 61 次 429 / Retry-After / XFF 不换桶 / 文案不露内部码）
+        run: python3 tests/data/acceptance/check_rate_limit.py
+
+      - name: 恢复 hold 对账时间（stale 只服务 #4；不能让 #4 之后的环境默认 fail-closed）
+        if: always()
+        env:
+          A11_AUDIT_DSN: ${{ secrets.A11_AUDIT_DSN }}
+        # 恢复失败 = 真失败：环境停在 stale 会让 A11 把「环境坏了」误判成「判定对了」。
+        # 本地无 PG 的容错只放在本地脚本里，release gate 不降级。
+        run: bash infra/db/seed-entitlement-audit.sh --restore-fresh
+
+      - name: 汇总
+        if: always()
+        run: |
+          {
+            echo '## Release gate 结果'
+            echo
+            echo "- 镜像 tag: `${{ inputs.image_tag || github.ref_name }}`"
+            echo "- 放行说明: ${{ inputs.reason || '（tag 触发）' }}"
+            echo "- 口径: \`tests/contract/CI_MOUNT.md §7\`（退出码 2 = 缺配置，按失败处理）"
+            echo "- e2e 真栈状态见 \`.e2e-status.json\` artifact"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 上传证据（失败也上传）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-gate-evidence
+          path: |
+            .e2e-status.json
+            tests/e2e/.e2e-status.json
+            tests/e2e/stack.log
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: 收栈
+        if: always()
+        run: docker compose -f tests/e2e/docker-compose.yml down -v || true

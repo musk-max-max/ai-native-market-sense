@@ -1,0 +1,32 @@
+{
+  "name": "@market-sense/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "API composition shell: Fastify instance factory, config, domain plugin registry, Problem error mapping. No domain logic.",
+  "exports": {
+    ".": "./src/app.ts",
+    "./plugin": "./src/plugin.ts"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "node --import tsx src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test test/app.test.ts",
+    "build": "tsc -p tsconfig.build.json && pnpm run check:copy && pnpm run check:manifest && pnpm run check:dist",
+    "check:copy": "tsx scripts/check-copy-version.mjs",
+    "check:dist": "node scripts/check-dist.mjs",
+    "copy:manifest": "tsx scripts/copy-manifest.mjs",
+    "check:manifest": "tsx scripts/copy-manifest.mjs --check"
+  },
+  "dependencies": {
+    "fastify": "^5.12.8",
+    "ioredis": "^5.4.2",
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  }
+}

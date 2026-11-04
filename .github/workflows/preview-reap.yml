@@ -1,0 +1,63 @@
+name: preview-reap
+
+# preview 成本兜底回收（A13）：每 6 小时扫一次超过 TTL 的 PR 预览环境。
+# 按需创建见 preview.yml（PR 打 `preview` label 才起）；本 job 负责「忘记关/事件丢了」的兜底。
+# 无 KUBE_CONFIG 时显式 skip，不伪装成功。
+on:
+  schedule:
+    - cron: "23 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: preview-reap
+  cancel-in-progress: false
+
+env:
+  HELM_VERSION: "v3.16.2"
+  PREVIEW_TTL_HOURS: "24"
+
+jobs:
+  reap:
+    name: reap 超龄 preview（TTL 24h）
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        if: env.KUBE_CONFIG != ''
+        with:
+          terraform_version: "1.9.8"
+          terraform_wrapper: false
+      - uses: azure/setup-helm@v4
+        if: env.KUBE_CONFIG != ''
+        with:
+          version: ${{ env.HELM_VERSION }}
+      - name: 写入 kubeconfig
+        if: env.KUBE_CONFIG != ''
+        run: |
+          install -d -m 0700 "$RUNNER_TEMP/kube"
+          printf '%s' "$KUBE_CONFIG" > "$RUNNER_TEMP/kube/config"
+          chmod 0600 "$RUNNER_TEMP/kube/config"
+          echo "KUBECONFIG=$RUNNER_TEMP/kube/config" >> "$GITHUB_ENV"
+      - name: 回收 >24h 的 preview（先 dry-run 打印，再执行）
+        if: env.KUBE_CONFIG != ''
+        run: |
+          bash infra/scripts/preview-reap.sh --dry-run
+          bash infra/scripts/preview-reap.sh
+          {
+            echo '### preview 回收'
+            echo ''
+            echo "- TTL：${PREVIEW_TTL_HOURS}h（可用 PREVIEW_TTL_HOURS 覆盖，上限 72h）"
+            echo '- 依据：`.preview-state/pr-*.tfstate` mtime；state 丢失时用 `helm list` 的 release updated 兜底'
+            echo '> 本 job 只做回收；创建由 PR label `preview` 触发。'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: 未配置 KUBE_CONFIG：显式 skip
+        if: env.KUBE_CONFIG == ''
+        run: |
+          echo "::notice::preview 回收未启用：仓库未配置 KUBE_CONFIG secret" >&2
+          echo '### preview-reap SKIPPED：无 KUBE_CONFIG' >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "key": "6da7e82d3bf14ad4002e8e9c4cb9166a44451d9530cd89215feac8296d0593db",
+  "kind": "tushare-http-raw",
+  "scope": "raw-source",
+  "request": {
+    "api_name": "trade_cal",
+    "params": {
+      "exchange": "SSE",
+      "start_date": "20261028",
+      "end_date": "20261103",
+      "is_open": "1",
+      "offset": 0,
+      "limit": 6000
+    },
+    "fields": "cal_date,is_open"
+  },
+  "http_status": 200,
+  "response": {
+    "code": 0,
+    "msg": "synthetic fixture (L32: 非真实 tushare 报文)",
+    "data": {
+      "fields": [
+        "cal_date",
+        "is_open"
+      ],
+      "items": [
+        [
+          "20261028",
+          "1"
+        ],
+        [
+          "20261029",
+          "1"
+        ],
+        [
+          "20261030",
+          "1"
+        ],
+        [
+          "20261102",
+          "1"
+        ],
+        [
+          "20261103",
+          "1"
+        ]
+      ]
+    }
+  },
+  "recorded_at": "synthetic:2026-11-03",
+  "upstream": "synthetic://l32 (not real tushare; do not replace with real payloads)"
+}

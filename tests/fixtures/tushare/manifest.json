@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "generated_by": "tests/fixtures/tushare/synthetic/build_recordings.py (L32 synthetic only)",
+  "updated_at": "synthetic:2026-11-03",
+  "recordings": [
+    {
+      "key": "04a3ffabec184bd338e2d78a2a8b2ae1aa6b1f56e75574e0ed8ec885ab5ce2af",
+      "api_name": "adj_factor",
+      "file": "recordings/04a3ffabec184bd338e2d78a2a8b2ae1aa6b1f56e75574e0ed8ec885ab5ce2af.json",
+      "recorded_at": "synthetic:2026-11-03"
+    },
+    {
+      "key": "0a2ca9dca3c9a4126b39ec96d8155f7773db5241e42f1225ea8f2202c9ff96dd",
+      "api_name": "adj_factor",
+      "file": "recordings/0a2ca9dca3c9a4126b39ec96d8155f7773db5241e42f1225ea8f2202c9ff96dd.json",
+      "recorded_at": "synthetic:2026-11-03"
+    },
+    {
+      "key": "0ae7dc087bd86820e49d2001be7ace399c2fd12ccb1da207836d235eb3d59782",
+      "api_name": "fina_indicator",
+      "file": "recordings/0ae7dc087bd86820e49d2001be7ace399c2fd12ccb1da207836d235eb3d59782.json",
+      "recorded_at": "synthetic:2026-11-03"
+    },
+    {
+      "key": "2cf5d268358d32b58159ba2f22262701f495e6af9fa15e0eabe16a5f3c5baa24",
+      "api_name": "adj_factor",
+      "file": "recordings/2cf5d268358d32b58159ba2f22262701f495e6af9fa15e0eabe16a5f3c5baa24.json",
+      "recorded_at": "synthetic:2026-11-03"
+    },
+    {
+      "key": "312c2e11b1cddcbde6c1f1210ede76bb4e549e2ee4344bbd62528a71f39e5cba",
+      "api_name": "daily",
+      "file": "recordings/312c2e11b1cddcbde6c1f1210ede76bb4e549e2ee4344bbd62528a71f39e5cba.json",
+      "recorded_at": "synthetic:2026-11-03"
+    },
+    {
+      "key": "3b3fd9ed20bf59764fec5a90807f940dc7971430a0f3bc311e4f54bbaeb5fef9",
+      "api_name": "daily",
+      "file": "recordings/3b3fd9ed20bf59764fec5a90807f940dc7971430a0f3bc311e4f54bbaeb5fef9.json",
+      "recorded_at": "synthetic:2026-11-03"
+    },
+    {
+      "key": "4a77fc0248be236995fbbae3149f0a300fd2be684f3dd1dc93e2a3e791680e1e",
+      "api_name": "adj_factor",
+      "file": "recordings/4a77fc0248be236995fbbae3149f0a300fd2be684f3dd1dc93e2a3e791680e1e.json",
+      "recorded_at": "synthetic:2026-11-03"
+    },
+    {
+      "key": "6da7e82d3bf14ad4002e8e9c4cb9166a44451d9530cd89215feac8296d0593db",
+      "api_name": "trade_cal",
+      "file": "recordings/6da7e82d3bf14ad4002e8e9c4cb9166a44451d9530cd89215feac8296d0593db.json",
+      "recorded_at": "synthetic:2026-11-03"
+    },
+    {
+      "key": "6e1066079f9c76f08d47e0adbaeed17923778f67c290c47437730f75a183e82c",
+      "api_name": "adj_factor",
+      "file": "recordings/6e1066079f9c76f08d47e0adbaeed17923778f67c290c47437730f75a183e82c.json",
+      "recorded_at": "synthetic:2026-11-03"
+    },
+    {
+      "key": "7486f9344fea06eeb2341f4cee9ad745790dfc0dc2d47c826ab5fbe930d93725",
+      "api_name": "adj_factor",
+      "file": "recordings/7486f9344fea06eeb2341f4cee9ad745790dfc0dc2d47c826ab5fbe930d93725.json",
+      "recorded_at": "synthetic:2026-11-03"
+    },
+    {
+      "key": "79e6b18bf0bcb334527f9f1e2c5673c84a9ad5a123a3ec268f578f1c265ba382",
+      "api_name": "income",
+      "file": "recordings/79e6b18bf0bcb334527f9f1e2c5673c84a9ad5a123a3ec268f578f1c265ba382.json",
+      "recorded_at": "synthetic:2026-11-03"
+    },
+    {
+      "key": "af478374feda1eb9b221e22f7aaa364371f1da9fd6dba8653246d600382da655",
+      "api_name": "income",
+      "file": "recordings/af478374feda1eb9b221e22f7aaa364371f1da9fd6dba8653246d600382da655.json",
+      "recorded_at": "synthetic:2026-11-03"
+    },
+    {
+      "key": "cd50539d55fedb251a4dc85b8935127ea125f0d357c780a0465e1b8fb27ad3b5",
+      "api_name": "daily",
+      "file": "recordings/cd50539d55fedb251a4dc85b8935127ea125f0d357c780a0465e1b8fb27ad3b5.json",
+      "recorded_at": "synthetic:2026-11-03"
+    },
+    {
+      "key": "cebe0c04e312edd0cb92ec74f978f5ee8c20ba4dcc2ac0c9a84284c97d1bc993",
+      "api_name": "adj_factor",
+      "file": "recordings/cebe0c04e312edd0cb92ec74f978f5ee8c20ba4dcc2ac0c9a84284c97d1bc993.json",
+      "recorded_at": "synthetic:2026-11-03"
+    },
+    {
+      "key": "d1900dd866ad79ea3a684a118f7d4dfcbaccc0faf3b605ba17a7bb7a733787a0",
+      "api_name": "adj_factor",
+      "file": "recordings/d1900dd866ad79ea3a684a118f7d4dfcbaccc0faf3b605ba17a7bb7a733787a0.json",
+      "recorded_at": "synthetic:2026-11-03"
+    },
+    {
+      "key": "d386da8f3ba4121923f3dbbc01688cef3aecde032f836d83347b62fa55eeecfb",
+      "api_name": "income",
+      "file": "recordings/d386da8f3ba4121923f3dbbc01688cef3aecde032f836d83347b62fa55eeecfb.json",
+      "recorded_at": "synthetic:2026-11-03"
+    },
+    {
+      "key": "df300c0367c5b44ed71fd9e5f46a33a69d328e81627832dc7c30e38e19237718",
+      "api_name": "adj_factor",
+      "file": "recordings/df300c0367c5b44ed71fd9e5f46a33a69d328e81627832dc7c30e38e19237718.json",
+      "recorded_at": "synthetic:2026-11-03"
+    },
+    {
+      "key": "f42c58c27c2b3e9e682b1dd368fbf61869320ed0c62d74dd854e856813906092",
+      "api_name": "fina_indicator",
+      "file": "recordings/f42c58c27c2b3e9e682b1dd368fbf61869320ed0c62d74dd854e856813906092.json",
+      "recorded_at": "synthetic:2026-11-03"
+    },
+    {
+      "key": "fed09e20baec509c4fe61588d292b7ba1e7e265f56f853d2850bf99567a5b1c9",
+      "api_name": "fina_indicator",
+      "file": "recordings/fed09e20baec509c4fe61588d292b7ba1e7e265f56f853d2850bf99567a5b1c9.json",
+      "recorded_at": "synthetic:2026-11-03"
+    }
+  ]
+}

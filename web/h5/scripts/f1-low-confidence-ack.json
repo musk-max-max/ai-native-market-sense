@@ -1,0 +1,19 @@
+{
+  "format": 2,
+  "entries": [
+    {
+      "version": "2026.11.4",
+      "hash": "deae2d4d75857c1081f113bcfc950dca567dd5a2e14e6ac8fb8e5785ff4dd5ec",
+      "signer": "A0",
+      "signedAt": "2026-11-04",
+      "reason": "react-dom 键盘键名枚举 F1..F12，非业务出口",
+      "occurrences": [
+        {
+          "file": "assets/vendor-react-*.js",
+          "token": "F1",
+          "count": 3
+        }
+      ]
+    }
+  ]
+}

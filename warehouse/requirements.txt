@@ -1,0 +1,4 @@
+# A2 落库唯一允许的第三方依赖（lead 2026-11-04 批准）。
+# 仅 warehouse/load.py 在真实写库时延迟导入；builder/门禁/单测不依赖驱动。
+# 不放进 services/api：API 使用只读角色，不该具备写库能力。
+psycopg[binary]>=3.1,<4

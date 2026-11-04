@@ -1,0 +1,25 @@
+{
+  "operation_id": "getInstrument",
+  "client": "web-h5 个股页头部（证券名/板块/状态）",
+  "note": "consumer 侧只依赖契约声明字段；新增字段不得成为隐式依赖",
+  "calls": [
+    {
+      "name": "按标识查询",
+      "request": {
+        "method": "GET",
+        "path": "/v1/instruments/SSE:600519"
+      },
+      "expect": {
+        "status": 200,
+        "required_fields": [
+          "data.instrument_id",
+          "data.name",
+          "data.board",
+          "data.list_status",
+          "meta.source.as_of",
+          "meta.entitlement.is_entitled"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "batch_id": "ing-20261103T150000-6e08c2cc-instrument",
+  "endpoint": "instrument",
+  "rows": [
+    {
+      "board": "bse",
+      "code": "830799",
+      "exchange": "BSE",
+      "instrument_id": "BSE:830799",
+      "list_status": "listed",
+      "listed_at": "2021-11-15",
+      "lot_size": 100,
+      "name": "贝特瑞",
+      "security_type": "stock"
+    },
+    {
+      "board": "main",
+      "code": "600519",
+      "exchange": "SSE",
+      "instrument_id": "SSE:600519",
+      "list_status": "listed",
+      "listed_at": "2001-08-27",
+      "lot_size": 100,
+      "name": "贵州茅台",
+      "security_type": "stock"
+    },
+    {
+      "board": "star",
+      "code": "688981",
+      "exchange": "SSE",
+      "instrument_id": "SSE:688981",
+      "list_status": "listed",
+      "listed_at": "2020-07-16",
+      "lot_size": 200,
+      "name": "中芯国际",
+      "security_type": "stock"
+    },
+    {
+      "board": "main",
+      "code": "000001",
+      "exchange": "SZSE",
+      "instrument_id": "SZSE:000001",
+      "list_status": "listed",
+      "listed_at": "1991-04-03",
+      "lot_size": 100,
+      "name": "平安银行",
+      "security_type": "stock"
+    },
+    {
+      "board": "gem",
+      "code": "300750",
+      "exchange": "SZSE",
+      "instrument_id": "SZSE:300750",
+      "list_status": "listed",
+      "listed_at": "2018-06-11",
+      "lot_size": 100,
+      "name": "宁德时代",
+      "security_type": "stock"
+    }
+  ],
+  "rows_rejected": 0,
+  "rows_total": 5,
+  "schema": "instrument.v1",
+  "source": {
+    "as_of": "2026-11-03T15:00:00+08:00",
+    "fetched_at": "2026-11-03T15:00:00+08:00",
+    "source": "tushare"
+  }
+}

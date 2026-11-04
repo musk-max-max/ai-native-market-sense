@@ -1,0 +1,23 @@
+# 破坏性契约变更豁免台账（A11 维护；不是免死金牌）
+#
+# 规则（tests/contract/contract_diff_lib.py 强制）：
+# 1) 只有 oasdiff breaking（level=ERR）的变更需要登记；非破坏性变更（新增可选字段、新增错误码）
+#    不需要登记，但会出现在 CI 报告的 observation 里；
+# 2) 每条必须写清 ADR 编号、理由、H2 签字（approved_by 必须以 H2 开头）、到期日；
+# 3) 到期未消解 = 红灯；waiver 匹配不到任何 breaking 变更 = 红灯（要求删除，防止台账变摆设）；
+# 4) 首选的「合法」做法永远是在 ADR 里声明变更并原地完成 v1→v2 迁移，waiver 只是过渡期护栏。
+# 5) H2 L45：response-optional-property-removed / response-optional-write-only-property-removed
+#    由 contracts/oasdiff-severity.txt 提升为 err；oasdiff 报出的 ERR 同样按 waiver 语义登记。
+waivers:
+  # H4 白名单 + D5 决议：Instrument.lot_size 属 H4 白名单外的字段，A0 已确认无消费方后删除
+  # （contracts/market 0.3.0）。H2 L45 把 response-optional-property-removed 提升为 err 后，
+  # 这条删除从「工具看不见」变成「工具报了」——按 waiver 语义同日登记，到期用 baseline
+  # 再冻结消解，不续期。
+  - id: W-2026-11-04-lot-size-d5
+    finding: response-optional-property-removed
+    operation_id: getInstrument
+    fingerprint: "29e737155bc9"
+    reason: "H4 白名单要求基础信息不含 lot_size；H2 条件批准 D5 删除，A0 确认 web/h5 无消费方；属已声明变更"
+    adr: ADR-001 D5
+    approved_by: "H2 2026-11-04（agents/decisions.md「L6-附：lot_size 删除的签字条件」2026-11-04 行）"
+    expires_at: 2026-12-15

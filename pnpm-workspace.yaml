@@ -1,0 +1,8 @@
+# market-sense-h5 · pnpm workspace（决策 #2：单仓，按域分目录）
+# ownership: 根工具链文件由 A13 维护；子目录 package.json 由各域 owner 维护。
+# 新增 workspace 目录时必须同时在 ownership.yaml 登记，否则 CI path guard 拒绝（default-deny）。
+packages:
+  - "packages/*"
+  - "services/*"
+  - "web/*"
+  - "jobs"

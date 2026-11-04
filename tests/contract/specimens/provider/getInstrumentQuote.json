@@ -1,0 +1,211 @@
+{
+  "operation_id": "getInstrumentQuote",
+  "origin": "synthetic",
+  "recorded_at": "2026-11-04T08:40:00+08:00",
+  "note": "provider 侧录播（合成样本）。覆盖正常/停牌 null/创业板涨停/ST 涨停/400/404。；补 403 授权降级样本（L10）；补 404 NOT_FOUND（资源无数据）样本",
+  "cases": [
+    {
+      "name": "正常快照",
+      "status": 200,
+      "body": {
+        "data": {
+          "instrument_id": "SSE:600519",
+          "trade_date": "2026-11-03",
+          "last_price": 1688.0,
+          "prev_close": 1660.5,
+          "change": 27.5,
+          "change_pct": 1.66,
+          "open": 1665.0,
+          "high": 1695.0,
+          "low": 1658.0,
+          "volume": 3125400,
+          "amount": 5268000000.0,
+          "suspended": false,
+          "limit_status": "none"
+        },
+        "meta": {
+          "source": {
+            "source": "platform_eod",
+            "as_of": "2026-11-03T15:00:00+08:00",
+            "staleness_ms": 900000,
+            "source_id": "tushare"
+          },
+          "entitlement": {
+            "tier": "c_end_display",
+            "is_entitled": true
+          },
+          "adjustment": "none",
+          "disclaimer": {
+            "text": "本平台行情数据仅供参考，不构成任何投资建议。",
+            "version": "2026.11.1",
+            "closable": false
+          }
+        }
+      }
+    },
+    {
+      "name": "停牌无价",
+      "status": 200,
+      "body": {
+        "data": {
+          "instrument_id": "SSE:688981",
+          "trade_date": "2026-11-03",
+          "last_price": null,
+          "prev_close": 88.5,
+          "change": null,
+          "change_pct": null,
+          "volume": 0,
+          "amount": 0.0,
+          "suspended": true,
+          "limit_status": "none"
+        },
+        "meta": {
+          "source": {
+            "source": "platform_eod",
+            "as_of": "2026-11-03T15:00:00+08:00",
+            "staleness_ms": 900000,
+            "source_id": "tushare"
+          },
+          "entitlement": {
+            "tier": "c_end_display",
+            "is_entitled": true
+          },
+          "adjustment": "none",
+          "disclaimer": {
+            "text": "本平台行情数据仅供参考，不构成任何投资建议。",
+            "version": "2026.11.1",
+            "closable": false
+          }
+        }
+      },
+      "note": "C10：停牌用 null 表达无价，禁止用 0 冒充价格；volume/amount 为 0 是真实值"
+    },
+    {
+      "name": "创业板涨停20%",
+      "status": 200,
+      "body": {
+        "data": {
+          "instrument_id": "SZSE:300750",
+          "trade_date": "2026-11-03",
+          "last_price": 240.0,
+          "prev_close": 200.0,
+          "change": 40.0,
+          "change_pct": 20.0,
+          "open": 1665.0,
+          "high": 240.0,
+          "low": 1658.0,
+          "volume": 3125400,
+          "amount": 5268000000.0,
+          "suspended": false,
+          "limit_status": "limit_up"
+        },
+        "meta": {
+          "source": {
+            "source": "platform_eod",
+            "as_of": "2026-11-03T15:00:00+08:00",
+            "staleness_ms": 900000,
+            "source_id": "tushare"
+          },
+          "entitlement": {
+            "tier": "c_end_display",
+            "is_entitled": true
+          },
+          "adjustment": "none",
+          "disclaimer": {
+            "text": "本平台行情数据仅供参考，不构成任何投资建议。",
+            "version": "2026.11.1",
+            "closable": false
+          }
+        }
+      },
+      "note": "C11：创业板涨跌停 20%，不得硬编码 10%"
+    },
+    {
+      "name": "ST涨停5%",
+      "status": 200,
+      "body": {
+        "data": {
+          "instrument_id": "SSE:600123",
+          "trade_date": "2026-11-03",
+          "last_price": 10.5,
+          "prev_close": 10.0,
+          "change": 0.5,
+          "change_pct": 5.0,
+          "open": 1665.0,
+          "high": 10.5,
+          "low": 1658.0,
+          "volume": 3125400,
+          "amount": 5268000000.0,
+          "suspended": false,
+          "limit_status": "limit_up"
+        },
+        "meta": {
+          "source": {
+            "source": "platform_eod",
+            "as_of": "2026-11-03T15:00:00+08:00",
+            "staleness_ms": 900000,
+            "source_id": "tushare"
+          },
+          "entitlement": {
+            "tier": "c_end_display",
+            "is_entitled": true
+          },
+          "adjustment": "none",
+          "disclaimer": {
+            "text": "本平台行情数据仅供参考，不构成任何投资建议。",
+            "version": "2026.11.1",
+            "closable": false
+          }
+        }
+      },
+      "note": "C11：ST 涨跌停 5%"
+    },
+    {
+      "name": "标识格式非法",
+      "status": 400,
+      "body": {
+        "type": "https://errors.market-sense.invalid/validation-error",
+        "title": "参数校验失败",
+        "status": 400,
+        "code": "VALIDATION_ERROR",
+        "trace_id": "trace-synthetic-0001"
+      }
+    },
+    {
+      "name": "未收录证券",
+      "status": 404,
+      "body": {
+        "type": "https://errors.market-sense.invalid/instrument-not-found",
+        "title": "证券不存在",
+        "status": 404,
+        "code": "INSTRUMENT_NOT_FOUND",
+        "trace_id": "trace-synthetic-0001"
+      }
+    },
+    {
+      "name": "授权不足（403 降级）",
+      "status": 403,
+      "body": {
+        "type": "https://errors.market-sense.invalid/entitlement-restricted",
+        "title": "数据授权不足",
+        "status": 403,
+        "code": "ENTITLEMENT_RESTRICTED",
+        "detail": "合成样本：403 降级路径（不得返回任何可判读的行情数值）",
+        "trace_id": "trace-synthetic-0403"
+      },
+      "note": "F1 未落地时 C 端行情按 403 降级"
+    },
+    {
+      "name": "已收录但无快照",
+      "status": 404,
+      "body": {
+        "type": "https://errors.market-sense.invalid/not-found",
+        "title": "暂无该证券行情快照",
+        "status": 404,
+        "code": "NOT_FOUND",
+        "trace_id": "trace-synthetic-0404"
+      },
+      "note": "ADR-001 D4：标识存在但资源无数据 → NOT_FOUND（与未收录的 INSTRUMENT_NOT_FOUND 区分）"
+    }
+  ]
+}

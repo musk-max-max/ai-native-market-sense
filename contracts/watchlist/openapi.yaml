@@ -1,0 +1,176 @@
+openapi: 3.1.0
+
+info:
+  title: market-sense-h5 · watchlist（自选域 P0）
+  version: 0.2.0
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+  description: |
+    P0 自选域契约（个股页「加入自选 / 自选列表」，决策 #8）。每个用户的自选为私有数据：
+    鉴权走统一判定点（决策 #5）：C 端用户 / 员工用 OIDC access token，agent 用 OAuth2 机器身份 token，
+    服务端只信任 token 主体，不接受请求体/查询参数中的 user_id。
+    写操作幂等：重复添加不报错、删除不存在的条目同样成功（204），重试安全。
+    上限（如单用户自选数上限）属于运营配置（A14/A15 维护），契约不写死数值；超限按 400 VALIDATION_ERROR 返回。
+    meta 使用 shared ResponseMeta：source=platform.watchlist、as_of=服务端响应时刻、staleness_ms=0；
+    自选数据无复权口径与免责声明，不携带 adjustment/disclaimer。
+
+servers:
+  - url: https://api.market-sense.invalid
+    description: 占位域名（RFC 2606 .invalid），由 A13 在部署环境替换；路径含 /v1（决策 #1）
+
+tags:
+  - name: watchlist
+    description: 当前用户自选（私有数据）
+
+security:
+  - bearerAuth: []
+
+paths:
+
+  /v1/watchlist:
+    get:
+      operationId: getWatchlist
+      tags: [watchlist]
+      summary: 读取当前用户自选列表
+      description: 按加入时间倒序返回（最近加入在前）。空列表返回 200 + 空数组，不返回 404。
+      responses:
+        '200':
+          description: 自选列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WatchlistResponse'
+        '401':
+          $ref: '../shared/openapi.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '../shared/openapi.yaml#/components/responses/Forbidden'
+        '429':
+          $ref: '../shared/openapi.yaml#/components/responses/TooManyRequests'
+        '500':
+          $ref: '../shared/openapi.yaml#/components/responses/InternalError'
+        default:
+          $ref: '../shared/openapi.yaml#/components/responses/ProblemResponse'
+    post:
+      operationId: addWatchlistItem
+      tags: [watchlist]
+      summary: 添加自选（幂等）
+      description: |
+        幂等：若该 instrument_id 已在自选中，不重复插入、返回 200 与现有条目（added_at 保持首次加入时间）。
+        只做新增（决策 #1：字段只增不删），不提供「清空 / 批量覆盖」接口。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddWatchlistItemRequest'
+      responses:
+        '200':
+          description: 已存在或新增成功（幂等语义，统一 200）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WatchlistItemResponse'
+        '400':
+          $ref: '../shared/openapi.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '../shared/openapi.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '../shared/openapi.yaml#/components/responses/Forbidden'
+        '429':
+          $ref: '../shared/openapi.yaml#/components/responses/TooManyRequests'
+        '500':
+          $ref: '../shared/openapi.yaml#/components/responses/InternalError'
+        default:
+          $ref: '../shared/openapi.yaml#/components/responses/ProblemResponse'
+
+  /v1/watchlist/{instrument_id}:
+    delete:
+      operationId: removeWatchlistItem
+      tags: [watchlist]
+      summary: 移除自选（幂等）
+      description: 条目不存在时同样返回 204（幂等删除），便于 agent / 前端安全重试。
+      parameters:
+        - $ref: '../shared/openapi.yaml#/components/parameters/InstrumentIdPath'
+      responses:
+        '204':
+          description: 已移除或本就不存在
+        '400':
+          $ref: '../shared/openapi.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '../shared/openapi.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '../shared/openapi.yaml#/components/responses/Forbidden'
+        '429':
+          $ref: '../shared/openapi.yaml#/components/responses/TooManyRequests'
+        '500':
+          $ref: '../shared/openapi.yaml#/components/responses/InternalError'
+        default:
+          $ref: '../shared/openapi.yaml#/components/responses/ProblemResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        统一判定点（决策 #5）：C 端用户 / 员工为 OIDC access token；agent 为 OAuth2 机器身份 token。
+        服务端只信任 token 中的主体，不接受客户端传入的 user_id。
+
+  schemas:
+
+    WatchlistItem:
+      type: object
+      description: 一条自选记录（instrument 基础信息由 market 域接口补齐，本域不冗余证券字段）。
+      required: [instrument_id, added_at]
+      additionalProperties: false
+      properties:
+        instrument_id:
+          $ref: '../shared/openapi.yaml#/components/schemas/InstrumentId'
+        added_at:
+          type: string
+          format: date-time
+          description: 首次加入时间（+08:00）。幂等重复添加不修改该值。
+
+    WatchlistData:
+      type: object
+      required: [items]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          description: 自选条目（最近加入在前）。
+          items:
+            $ref: '#/components/schemas/WatchlistItem'
+    WatchlistResponse:
+      type: object
+      required: [data, meta]
+      additionalProperties: false
+      properties:
+        data:
+          $ref: '#/components/schemas/WatchlistData'
+        meta:
+          allOf:
+            - $ref: '../shared/openapi.yaml#/components/schemas/ResponseMeta'
+          description: source=platform.watchlist；自选为私有数据，无复权口径与免责声明。
+
+    WatchlistItemResponse:
+      type: object
+      required: [data, meta]
+      additionalProperties: false
+      properties:
+        data:
+          $ref: '#/components/schemas/WatchlistItem'
+        meta:
+          allOf:
+            - $ref: '../shared/openapi.yaml#/components/schemas/ResponseMeta'
+          description: source=platform.watchlist。
+
+    AddWatchlistItemRequest:
+      type: object
+      required: [instrument_id]
+      additionalProperties: false
+      properties:
+        instrument_id:
+          $ref: '../shared/openapi.yaml#/components/schemas/InstrumentId'

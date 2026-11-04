@@ -1,0 +1,20 @@
+{{- if .Values.worker.persistence.enabled }}
+# H4 m00992：审计 manifest 的持久化卷。禁止 emptyDir —— pod 重建即丢证据。
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "market-sense.fullname" . }}-worker-data
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "market-sense.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+spec:
+  accessModes:
+    - {{ .Values.worker.persistence.accessMode | quote }}
+  resources:
+    requests:
+      storage: {{ .Values.worker.persistence.size | quote }}
+  {{- if .Values.worker.persistence.storageClass }}
+  storageClassName: {{ .Values.worker.persistence.storageClass | quote }}
+  {{- end }}
+{{- end }}

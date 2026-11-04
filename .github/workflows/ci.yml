@@ -1,0 +1,492 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "22.11.0"
+  PNPM_VERSION: "9.12.3"
+  TERRAFORM_VERSION: "1.9.8"
+  HELM_VERSION: "v3.16.2"
+  PROMTOOL_VERSION: "3.0.1"
+  ACTIONLINT_VERSION: "1.7.4"
+
+jobs:
+  detect:
+    name: detect（空仓跳过语义）
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      has_contracts: ${{ steps.detect.outputs.has_contracts }}
+      has_code: ${{ steps.detect.outputs.has_code }}
+      has_tests: ${{ steps.detect.outputs.has_tests }}
+      has_terraform: ${{ steps.detect.outputs.has_terraform }}
+      has_helm: ${{ steps.detect.outputs.has_helm }}
+      has_monitoring: ${{ steps.detect.outputs.has_monitoring }}
+      has_e2e: ${{ steps.detect.outputs.has_e2e }}
+      contract_domains: ${{ steps.detect.outputs.contract_domains }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - id: detect
+        name: 探测仓库现状（skip 而非 silent pass）
+        run: node infra/ci/has.mjs --gha all
+      - name: 写入 job summary
+        run: |
+          {
+            echo '### 仓库存量探测'
+            echo ''
+            echo '| 项 | 值 |'
+            echo '| --- | --- |'
+            echo "| 契约域 | ${{ steps.detect.outputs.contract_domains }} |"
+            echo "| 有实现代码 | ${{ steps.detect.outputs.has_code }} |"
+            echo "| 有测试 | ${{ steps.detect.outputs.has_tests }} |"
+            echo "| Terraform | ${{ steps.detect.outputs.has_terraform }} |"
+            echo "| Helm | ${{ steps.detect.outputs.has_helm }} |"
+            echo "| 监控规则 | ${{ steps.detect.outputs.has_monitoring }} |"
+            echo "| E2E（独立安装单元） | ${{ steps.detect.outputs.has_e2e }} |"
+            echo ''
+            echo '> 标记为 false 的项由对应 job 显式 skip，不伪装成「检查通过」。'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  lint:
+    name: lint + format
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run lint
+      - run: pnpm run format
+
+  typecheck:
+    name: typecheck
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    needs: detect
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: typecheck（无 tsconfig 时显式 skip）
+        run: pnpm run typecheck
+      - name: build（A0 要求：含 services/api check:copy / COPY_VERSION 校验）
+        run: pnpm -r --if-present build
+      - name: 写入 job summary
+        run: |
+          echo "has_code=${{ needs.detect.outputs.has_code }}（false 时 typecheck.mjs 会打印 skip 原因）" >> "$GITHUB_STEP_SUMMARY"
+
+  unit:
+    name: unit tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    needs: detect
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: 运行测试（infra CI 测试 + 各 workspace 自身 test）
+        run: pnpm test
+      - name: 写入 job summary
+        run: |
+          echo "has_tests=${{ needs.detect.outputs.has_tests }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "> 无测试实现时只有 infra/ci/test 会执行；业务测试缺失会在此显式暴露，不阻塞 S0。" >> "$GITHUB_STEP_SUMMARY"
+
+  contracts:
+    name: contracts（redocly + oasdiff breaking）
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    needs: detect
+    if: needs.detect.outputs.has_contracts == 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: 安装固定版本 oasdiff（1.35.0 + sha256）
+        run: bash infra/ci/install-oasdiff.sh
+      - name: oasdiff 版本锁定校验
+        run: oasdiff --version
+      - name: 契约门禁（lint + 按域 breaking diff）
+        env:
+          CONTRACT_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: pnpm run ci:contracts
+      - name: C01b 厂商标识门禁（ADR-004 / ADR-002 D2b）
+        run: node infra/ci/check-source-vocabulary.mjs
+      - name: C01b 门禁自测（防止脚本静默失效）
+        run: node infra/ci/check-source-vocabulary.mjs --self-test
+
+  path-guard:
+    name: path guard（ownership.yaml 写域）
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: 注册表校验 + 门禁自检
+        run: |
+          node infra/ci/path-guard.mjs --validate-registry
+          node infra/ci/path-guard.mjs --self-test
+      - name: PR 写域检查（越界写直接 fail）
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          ACTOR="${HEAD_REF%%/*}"
+          if [[ ! "$ACTOR" =~ ^a[0-9]+$ ]]; then ACTOR=""; fi
+          echo "base=${BASE_SHA} head=${HEAD_SHA} actor=${ACTOR:-未识别（只做覆盖检查）}"
+          if [[ -n "$ACTOR" ]]; then
+            node infra/ci/path-guard.mjs --base "$BASE_SHA" --head "$HEAD_SHA" --actor "$ACTOR"
+          else
+            node infra/ci/path-guard.mjs --base "$BASE_SHA" --head "$HEAD_SHA"
+          fi
+      - name: 不得绕过 ownership.yaml（防止有人改 registry 自身）
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if git diff --name-only "${BASE_SHA}...HEAD" -- ownership.yaml | grep -q .; then
+            echo "::error::ownership.yaml 只能由 A0 在评审后修改，请走 A0 PR"
+            exit 1
+          fi
+
+  runbooks:
+    name: alerts ↔ runbook 绑定
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: node infra/ci/check-runbooks.mjs
+
+  web-quality:
+    name: web quality（build budget + testid 契约）
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: 首屏 JS 预算（A7 规则：≤200KB gzip）
+        run: pnpm --filter @market-sense/h5 run check:budget
+      - name: testid 契约（与 tests/e2e/testids.json 对齐）
+        run: pnpm --filter @market-sense/h5 run check:testids
+      - name: 写入 job summary
+        run: |
+          {
+            echo '### web 质量门禁'
+            echo ''
+            echo '- `check:budget`：首屏 JS gzip ≤ 200KB（当前脚本实测 PASS）'
+            echo '- `check:testids`：data-testid 与 E2E 选择器对齐（当前脚本实测 PASS）'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  db-schema:
+    name: db bootstrap（顺序/幂等/授权边界，不连库）
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: 静态校验（DWD → serving 顺序、只读授权边界、迁移 ledger）
+        run: node infra/ci/check-db-bootstrap.mjs
+      - name: shell 语法（bootstrap / migrate）
+        run: |
+          bash -n infra/db/bootstrap.sh
+          bash -n infra/scripts/db-migrate.sh
+      - name: dry-run 执行计划（无 DB 也验证顺序与待执行迁移）
+        run: |
+          bash infra/db/bootstrap.sh --env dev --dry-run
+          bash infra/scripts/db-migrate.sh --env dev --dry-run
+      - name: 写入 job summary
+        run: |
+          {
+            echo '### DB bootstrap 静态门禁'
+            echo ''
+            echo '- DWD → serving → 只读角色 → 授权 顺序：已断言'
+            echo '- 只读角色：serving 仅 SELECT；dwd_/dim_ 显式 REVOKE；运行时断言见 90_verify_readonly.sql'
+            echo '- 迁移：ledger(sha256) + advisory lock + 生产 APPROVAL_REF/pg_dump'
+            echo '> 本 job 不连接数据库；真库执行由 bootstrap.sh --verify 在部署环境完成。'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  e2e-static:
+    name: e2e static（无 docker：compose 结构 + 录播代理）
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    needs: detect
+    if: needs.detect.outputs.has_e2e == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml pytest
+      - name: compose 结构断言（真栈/录播/断网/token）
+        run: python3 tests/e2e/scripts/validate_compose.py
+      - name: 录播代理自测
+        run: python3 -m pytest tests/e2e/tushare-replay/test_server.py -q
+      - name: preflight 离线（应 SKIP 78 而不是崩）
+        run: |
+          set +e
+          python3 tests/e2e/scripts/preflight.py --offline
+          rc=$?
+          echo "preflight exit=$rc"
+          test "$rc" -eq 78
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-static-status
+          path: tests/e2e/.e2e-status.json
+          if-no-files-found: warn
+
+  e2e:
+    name: e2e real stack（docker + replay fixtures）· 未验证
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    needs: detect
+    if: needs.detect.outputs.has_e2e == 'true'
+    # 未验证声明：本机无 docker，该 job 从未在本地跑过；首次 GitHub 绿之前不得当成可信门禁。
+    # 首次连续 3 次绿后取消 continue-on-error，并在周会记录。见 infra/ci/README.md §e2e 验证状态。
+    continue-on-error: true
+    steps:
+      - name: 标记「未验证」
+        run: |
+          echo "::warning::e2e real stack 尚未在真实 runner 验证过（本机无 docker）；失败被 continue-on-error 吞掉，不代表通过" >&2
+          {
+            echo '### ⚠️ e2e 未验证'
+            echo ''
+            echo '本 job 依赖 docker，本地环境没有 docker，**从未本地跑过**。'
+            echo '当前 `continue-on-error: true`：红灯不阻塞工作流，但也**不代表通过**。'
+            echo '首次在 GitHub runner 连续 3 次绿后，才允许去掉 continue-on-error 并转为必绿门禁。'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: e2e 独立安装（--ignore-workspace；tests/e2e 不在 pnpm workspace 内）
+        run: |
+          cd tests/e2e
+          pnpm install --ignore-workspace --frozen-lockfile
+      - name: Playwright 浏览器
+        run: |
+          cd tests/e2e
+          pnpm exec playwright install --with-deps chromium
+      - name: 起真栈（含 preflight；SKIP 不会失败）
+        run: bash tests/e2e/scripts/up.sh
+      - name: 跑 P0 E2E（不注入 TUSHARE_TOKEN）
+        env:
+          CI: "1"
+        run: |
+          cd tests/e2e
+          pnpm exec playwright test
+      - name: 失败时转储栈日志
+        if: failure()
+        run: |
+          cd tests/e2e
+          docker compose -f docker-compose.yml logs --no-color --tail=300 > stack.log || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-artifacts
+          path: |
+            tests/e2e/.e2e-status.json
+            tests/e2e/playwright-report/
+            tests/e2e/test-results/
+            tests/e2e/stack.log
+          if-no-files-found: warn
+      - name: 关栈
+        if: always()
+        run: |
+          cd tests/e2e
+          docker compose -f docker-compose.yml down -v --remove-orphans || true
+
+  iac:
+    name: iac（terraform + helm + promtool + actionlint）
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    needs: detect
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+      - uses: azure/setup-helm@v4
+        with:
+          version: ${{ env.HELM_VERSION }}
+      - name: 安装固定版本 promtool 3.0.1（sha256 校验）
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          cd "$RUNNER_TEMP"
+          curl -fsSL --retry 3 --max-time 180 -o prom.tar.gz \
+            "https://github.com/prometheus/prometheus/releases/download/v3.0.1/prometheus-${PROMTOOL_VERSION}.linux-amd64.tar.gz"
+          echo "43f6f228ef59e0c2f6994e489c5c76c6671553eaa99ded0aea1cd31366222916  prom.tar.gz" | sha256sum -c -
+          tar -xzf prom.tar.gz
+          install -m 0755 "prometheus-${PROMTOOL_VERSION}.linux-amd64/promtool" "$RUNNER_TEMP/bin/promtool"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: 安装固定版本 actionlint 1.7.4（sha256 校验）
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          cd "$RUNNER_TEMP"
+          curl -fsSL --retry 3 --max-time 120 -o actionlint.tar.gz \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          echo "fc0a6886bbb9a23a39eeec4b176193cadb54ddbe77cdbb19b637933919545395  actionlint.tar.gz" | sha256sum -c -
+          tar -xzf actionlint.tar.gz actionlint
+          install -m 0755 actionlint "$RUNNER_TEMP/bin/actionlint"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: Terraform fmt / init / validate（dev + preview）
+        if: needs.detect.outputs.has_terraform == 'true'
+        run: |
+          terraform fmt -check -recursive infra/terraform
+          for env_dir in infra/terraform/envs/dev infra/terraform/envs/preview; do
+            echo "== ${env_dir} =="
+            terraform -chdir="${env_dir}" init -backend=false -input=false -no-color
+            terraform -chdir="${env_dir}" validate -no-color
+          done
+      - name: Helm lint + template（dev / preview）
+        if: needs.detect.outputs.has_helm == 'true'
+        run: |
+          helm lint infra/helm/market-sense -f infra/helm/market-sense/values-dev.yaml
+          helm lint infra/helm/market-sense -f infra/helm/market-sense/values-preview.yaml
+          helm template market-sense-dev infra/helm/market-sense \
+            -n market-sense-dev -f infra/helm/market-sense/values-dev.yaml > /dev/null
+          helm template market-sense-pr-1 infra/helm/market-sense \
+            -n market-sense-preview-pr-1 -f infra/helm/market-sense/values-preview.yaml \
+            --set preview.prNumber=1 > /dev/null
+      - name: 授权配置 fail-closed 门禁（H5 卡点）
+        if: needs.detect.outputs.has_helm == 'true'
+        run: node infra/ci/check-entitlement-config.mjs
+      - name: 部署面 APP_PROFILE 断言（decisions.md L46；缺失/继承 entrypoint 即失败）
+        if: needs.detect.outputs.has_helm == 'true'
+        run: |
+          helm template market-sense-dev infra/helm/market-sense \
+            -n market-sense-dev -f infra/helm/market-sense/values-dev.yaml > /tmp/prod-manifest.yaml
+          count=$(grep -cE 'APP_PROFILE: "?prod"?' /tmp/prod-manifest.yaml || true)
+          echo "APP_PROFILE=prod occurrences: ${count}"
+          test "${count}" -ge 1
+      - name: Prometheus 规则校验（alert 表达式必须可解析）
+        if: needs.detect.outputs.has_monitoring == 'true'
+        run: promtool check rules infra/monitoring/alerts/*.yaml
+      - name: Alertmanager 配置存在性检查（语法由 S1 引入 amtool 校验）
+        if: needs.detect.outputs.has_monitoring == 'true'
+        run: test -s infra/monitoring/alertmanager/alertmanager.yaml
+      - name: GitHub Actions 工作流 lint
+        run: actionlint -color
+      - name: Shell 脚本语法检查
+        run: |
+          for script in infra/ci/*.sh infra/scripts/*.sh; do
+            bash -n "$script"
+          done
+      - name: 告警 ↔ runbook（IaC 侧同步）
+        run: node infra/ci/check-runbooks.mjs
+
+  ci-gate:
+    name: ci-gate
+    runs-on: ubuntu-24.04
+    if: always()
+    needs:
+      [
+        detect,
+        lint,
+        typecheck,
+        unit,
+        contracts,
+        path-guard,
+        runbooks,
+        web-quality,
+        db-schema,
+        iac,
+        e2e-static,
+        e2e,
+      ]
+    steps:
+      - name: 汇总结果（除 e2e 外任何一个失败即红灯）
+        run: |
+          echo "lint=${{ needs.lint.result }} typecheck=${{ needs.typecheck.result }} unit=${{ needs.unit.result }}"
+          echo "contracts=${{ needs.contracts.result }} path-guard=${{ needs['path-guard'].result }}"
+          echo "runbooks=${{ needs.runbooks.result }} db-schema=${{ needs['db-schema'].result }} iac=${{ needs.iac.result }}"
+          echo "web-quality=${{ needs['web-quality'].result }}"
+          echo "e2e-static=${{ needs['e2e-static'].result }} e2e=${{ needs.e2e.result }}"
+          echo "注意：e2e 依赖 docker 真栈，首次在 runner 连续 3 次绿之前不作为门禁（失败只 warning，不阻塞合并）。"
+          for result in \
+            "${{ needs.lint.result }}" \
+            "${{ needs.typecheck.result }}" \
+            "${{ needs.unit.result }}" \
+            "${{ needs.contracts.result }}" \
+            "${{ needs['path-guard'].result }}" \
+            "${{ needs.runbooks.result }}" \
+            "${{ needs['web-quality'].result }}" \
+            "${{ needs['db-schema'].result }}" \
+            "${{ needs.iac.result }}" \
+            "${{ needs['e2e-static'].result }}"; do
+            if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
+              echo "::error::CI 存在失败 job，禁止合并/发布"
+              exit 1
+            fi
+          done
+          E2E_RESULT="${{ needs.e2e.result }}"
+          if [[ "$E2E_RESULT" == "failure" || "$E2E_RESULT" == "cancelled" ]]; then
+            echo "::warning::e2e=$E2E_RESULT（docker 真栈未验证/失败）——按 S0 政策不阻塞合并，但绝不算 e2e 通过"
+          else
+            echo "e2e=$E2E_RESULT（若为 success，仅代表该次 runner 跑过，仍需连续 3 次观察）"
+          fi
+          echo "✅ CI 通过（e2e 例外，见上）"

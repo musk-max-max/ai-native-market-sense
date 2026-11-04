@@ -1,0 +1,272 @@
+# market-sense-h5 · Prometheus 规则（recording + alerting）
+#
+# 约定：
+#  - 每条 alert 必须绑 runbook_url（CI 由 infra/ci/check-runbooks.mjs 门禁）。
+#  - severity: critical|warning|info；labels 至少含 service 或 slo。
+#  - C2=A：不承诺盘中 as_of≤60s；StalePageNotMarked 检出「页面未标 stale 但数据超 15min」= 违规。
+#  - AI 四项：annotations.ai_signal ∈ {token_cost, output_anomaly, human_takeover, model_drift}。
+#  - 指标来源与语义见 infra/monitoring/README.md（app/ingest/worker 负责暴露）。
+groups:
+  - name: market-sense-recording
+    interval: 30s
+    rules:
+      - record: market_sense:http_error_ratio5m
+        expr: 'sum(rate(http_requests_total{code=~"5.."}[5m])) / clamp_min(sum(rate(http_requests_total[5m])), 1e-9)'
+      - record: market_sense:http_error_ratio1h
+        expr: 'sum(rate(http_requests_total{code=~"5.."}[1h])) / clamp_min(sum(rate(http_requests_total[1h])), 1e-9)'
+      - record: market_sense:quote_latency_p95_5m
+        expr: "histogram_quantile(0.95, sum by (le) (rate(market_quote_latency_seconds_bucket[5m])))"
+      - record: market_sense:agent_first_token_p95_5m
+        expr: "histogram_quantile(0.95, sum by (le) (rate(agent_first_token_seconds_bucket[5m])))"
+      - record: market_sense:agent_anomaly_ratio5m
+        expr: "sum(rate(agent_output_anomaly_total[5m])) / clamp_min(sum(rate(agent_requests_total[5m])), 1e-9)"
+      - record: market_sense:agent_takeover_ratio30m
+        expr: "sum(rate(agent_human_takeover_total[30m])) / clamp_min(sum(rate(agent_requests_total[30m])), 1e-9)"
+      - record: market_sense:agent_cost_usd_per_hour
+        expr: "sum(rate(agent_cost_usd_total[1h])) * 3600"
+      - record: market_sense:agent_cost_usd_per_hour_baseline7d
+        expr: "avg_over_time(market_sense:agent_cost_usd_per_hour[7d:1h])"
+      - record: market_sense:quality_score_ratio7d
+        expr: "market_sense:quality_score_current / clamp_min(market_sense:quality_score_median7d, 1e-9)"
+      - record: market_sense:page_stale_violation
+        expr: "(market_asof_age_seconds > 900) and on(page) (market_page_stale_flag == 0)"
+
+  - name: market-sense-alerts
+    interval: 30s
+    rules:
+      - alert: ServiceDown
+        expr: 'up{job="market-sense-api"} == 0'
+        for: 2m
+        labels:
+          severity: critical
+          service: api
+          team: sre
+        annotations:
+          summary: "API 不可达（up=0 持续 2m）"
+          description: "job=market-sense-api 的 scrape 失败或服务下线；先看 Pod/发布记录，再决定回滚。"
+          runbook_url: "https://github.com/market-sense-h5/market-sense-h5/blob/main/docs/runbook/release-rollback.md#止血"
+
+      - alert: ApiAvailabilityBurnFast
+        expr: "market_sense:http_error_ratio5m > 0.0144 and market_sense:http_error_ratio1h > 0.00144"
+        for: 5m
+        labels:
+          severity: critical
+          service: api
+          slo: availability_trading
+          team: sre
+        annotations:
+          summary: "交易时段可用性快烧（14.4× burn rate）"
+          description: "5m 错误率与 1h 错误率同时超阈值，月度 99.9% 预算将在数小时内耗尽。"
+          runbook_url: "https://github.com/market-sense-h5/market-sense-h5/blob/main/docs/runbook/release-rollback.md#止血"
+
+      - alert: DeployErrorBudgetBurn
+        expr: "market_sense:http_error_ratio5m > 0.05 and on() (deploy_in_progress == 1)"
+        for: 5m
+        labels:
+          severity: critical
+          service: api
+          slo: availability_trading
+          team: sre
+        annotations:
+          summary: "发布窗口内错误率 5% 以上"
+          description: "发布期间错误率异常，优先冻结灰度并回滚（rollback.sh），不要继续放量。"
+          runbook_url: "https://github.com/market-sense-h5/market-sense-h5/blob/main/docs/runbook/release-rollback.md#止血"
+
+      - alert: QuoteLatencyP95High
+        expr: "market_sense:quote_latency_p95_5m > 0.3"
+        for: 10m
+        labels:
+          severity: warning
+          service: market
+          slo: quote_latency
+          team: sre
+        annotations:
+          summary: "行情接口 P95 超过 300ms"
+          description: "P95 已超 SLO 10 分钟；先区分上游 tushare 慢还是本服务慢。"
+          runbook_url: "https://github.com/market-sense-h5/market-sense-h5/blob/main/docs/runbook/data-source-outage.md#判断"
+
+      - alert: QuoteStalenessHigh
+        expr: "market_quote_age_seconds > 300"
+        for: 5m
+        labels:
+          severity: critical
+          service: market
+          slo: asof_freshness
+          team: sre
+        annotations:
+          summary: "行情数据年龄超过 5 分钟"
+          description: "交易时段行情旧数据会误导用户；立即按数据源不可用流程止血并标 stale。"
+          runbook_url: "https://github.com/market-sense-h5/market-sense-h5/blob/main/docs/runbook/data-source-outage.md#止血"
+
+      - alert: DataSourceUnavailable
+        expr: 'sum(rate(ingest_records_total{status="error"}[5m])) / clamp_min(sum(rate(ingest_records_total[5m])), 1e-9) > 0.1'
+        for: 5m
+        labels:
+          severity: critical
+          service: ingest
+          slo: asof_freshness
+          team: sre
+        annotations:
+          summary: "tushare ingest 错误率超过 10%"
+          description: "上游不可用/限流/积分不足；查 tushare 状态与配额，必要时降级到 last_good。"
+          runbook_url: "https://github.com/market-sense-h5/market-sense-h5/blob/main/docs/runbook/data-source-outage.md#症状"
+
+      - alert: IngestLagHigh
+        expr: 'time() - batch_job_last_success_timestamp_seconds{job="ingest-realtime"} > 120'
+        for: 2m
+        labels:
+          severity: warning
+          service: ingest
+          slo: quote_latency
+          team: sre
+        annotations:
+          summary: "实时 ingest 超过 2 分钟没有成功批次"
+          description: "worker 卡住/上游超时；看 worker 日志与队列积压。"
+          runbook_url: "https://github.com/market-sense-h5/market-sense-h5/blob/main/docs/runbook/data-source-outage.md#判断"
+
+      - alert: DailyCloseRefreshMissed
+        expr: '(time() - batch_job_last_success_timestamp_seconds{job="daily-close-refresh"} > 900) and on() (day_of_week() >= 1 and day_of_week() <= 5 and hour() == 15)'
+        for: 5m
+        labels:
+          severity: critical
+          service: warehouse
+          slo: asof_freshness
+          team: sre
+        annotations:
+          summary: "收盘刷新超过 15 分钟未成功（C2=A 承诺：收盘后 ≤15min）"
+          description: "15:00 收盘后 15 分钟仍无成功批次；页面必须标 stale。注意 A 股节假日需用交易日历替代 day_of_week。"
+          runbook_url: "https://github.com/market-sense-h5/market-sense-h5/blob/main/docs/runbook/data-source-outage.md#止血"
+
+      - alert: StalePageNotMarked
+        expr: "market_sense:page_stale_violation > 0"
+        for: 1m
+        labels:
+          severity: critical
+          service: web
+          slo: asof_freshness
+          team: sre
+        annotations:
+          summary: "页面数据已超 15min 但未标 stale（C2=A 违规）"
+          description: "这是 C2=A 明确的可检测违规：数据年龄 > 15min 而 market_page_stale_flag=0，用户无法识别旧数据。"
+          runbook_url: "https://github.com/market-sense-h5/market-sense-h5/blob/main/docs/runbook/data-source-outage.md#止血"
+
+      - alert: QualityGateRed
+        expr: "min by (gate) (quality_gate_status) == 0"
+        for: 10m
+        labels:
+          severity: warning
+          service: warehouse
+          slo: asof_freshness
+          team: sre
+        annotations:
+          summary: "数据质量门禁红（{{ $labels.gate }}）"
+          description: "质量门禁 10 分钟未恢复；冻结发布，禁止把坏数据推进 published。"
+          runbook_url: "https://github.com/market-sense-h5/market-sense-h5/blob/main/docs/runbook/quality-score-red.md#症状"
+
+      - alert: QualityGateScoreDrop
+        expr: "market_sense:quality_score_ratio7d < 0.8"
+        for: 30m
+        labels:
+          severity: warning
+          service: warehouse
+          slo: asof_freshness
+          team: sre
+        annotations:
+          summary: "质量分较 7 日中位数下降超过 20%"
+          description: "即使门禁未红也要排查，防止阈值过宽掩盖质量退化。"
+          runbook_url: "https://github.com/market-sense-h5/market-sense-h5/blob/main/docs/runbook/quality-score-red.md#判断"
+
+      - alert: GrayStageStuck
+        expr: 'release_gray_stage_dwell_seconds{stage=~"1|10|50"} > 5400'
+        for: 5m
+        labels:
+          severity: warning
+          service: api
+          slo: gray_stage_dwell
+          team: sre
+        annotations:
+          summary: "灰度档位停留超过 90 分钟（stage={{ $labels.stage }}）"
+          description: "要求每档 ≥30min 且推进；长时间停留说明门禁或观察指标卡住。"
+          runbook_url: "https://github.com/market-sense-h5/market-sense-h5/blob/main/docs/runbook/release-rollback.md#判断"
+
+      - alert: RollbackExceededFiveMinutes
+        expr: "deploy_rollback_in_progress == 1 and (time() - deploy_rollback_start_timestamp_seconds) > 300"
+        for: 0m
+        labels:
+          severity: critical
+          service: api
+          slo: rollback_duration
+          team: sre
+        annotations:
+          summary: "回滚超过 5 分钟未完成"
+          description: "回滚 SLO 已破；停止盲目重试，升级 H5，必要时切只读降级。"
+          runbook_url: "https://github.com/market-sense-h5/market-sense-h5/blob/main/docs/runbook/release-rollback.md#升级"
+
+      - alert: AgentFirstTokenSlow
+        expr: "market_sense:agent_first_token_p95_5m > 2"
+        for: 10m
+        labels:
+          severity: warning
+          service: api
+          slo: agent_first_token
+          team: sre
+        annotations:
+          ai_signal: latency
+          summary: "AI 首 token P95 超过 2s"
+          description: "先看模型供应商状态与 prompt 长度，再决定降级到模板输出。"
+          runbook_url: "https://github.com/market-sense-h5/market-sense-h5/blob/main/docs/runbook/ai-cost-drift.md#止血"
+
+      - alert: TokenCostSpike
+        expr: "market_sense:agent_cost_usd_per_hour > 2 * market_sense:agent_cost_usd_per_hour_baseline7d"
+        for: 15m
+        labels:
+          severity: warning
+          service: ai
+          team: sre
+        annotations:
+          ai_signal: token_cost
+          summary: "AI token 成本超过 7 日基线 2 倍"
+          description: "成本异常上涨；检查重试风暴、prompt 变长、模型切换或缓存失效。"
+          runbook_url: "https://github.com/market-sense-h5/market-sense-h5/blob/main/docs/runbook/ai-cost-drift.md#止血"
+
+      - alert: OutputAnomalyRateHigh
+        expr: "market_sense:agent_anomaly_ratio5m > 0.01"
+        for: 15m
+        labels:
+          severity: critical
+          service: ai
+          slo: agent_anomaly_rate
+          team: sre
+        annotations:
+          ai_signal: output_anomaly
+          summary: "AI 输出异常率超过 1%"
+          description: "解析失败/空输出/超长截断激增；优先回滚 prompt/模型配置。"
+          runbook_url: "https://github.com/market-sense-h5/market-sense-h5/blob/main/docs/runbook/ai-cost-drift.md#止血"
+
+      - alert: HumanTakeoverRateHigh
+        expr: "market_sense:agent_takeover_ratio30m > 0.05"
+        for: 30m
+        labels:
+          severity: critical
+          service: ai
+          slo: agent_takeover_rate
+          team: sre
+        annotations:
+          ai_signal: human_takeover
+          summary: "人工接管率超过 5%"
+          description: "AI 输出不可用比例过高；按 AI 成本/质量流程判断是否关闭入口。"
+          runbook_url: "https://github.com/market-sense-h5/market-sense-h5/blob/main/docs/runbook/ai-cost-drift.md#判断"
+
+      - alert: ModelDriftAfterChange
+        expr: "(market_sense:agent_anomaly_ratio5m > 1.3 * market_sense:agent_anomaly_ratio5m offset 2h) and on() (market_sense_model_rollout_age_seconds < 3600)"
+        for: 10m
+        labels:
+          severity: warning
+          service: ai
+          slo: agent_anomaly_rate
+          team: sre
+        annotations:
+          ai_signal: model_drift
+          summary: "模型/prompt 变更后 1 小时内指标漂移"
+          description: "新版本发布 1 小时内异常率相对 2 小时前上升 30% 以上；回滚配置版本并复核评测。"
+          runbook_url: "https://github.com/market-sense-h5/market-sense-h5/blob/main/docs/runbook/ai-cost-drift.md#判断"

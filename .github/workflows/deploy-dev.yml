@@ -1,0 +1,78 @@
+name: deploy-dev
+
+# 手动部署 dev（非生产）。生产发布 S0 未启用：deploy.sh 的 production 分支会直接拒绝，
+# 生产流程须 S1 由 A13 提案 + H5 批准后落地。
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "镜像 tag（必须是已构建并推送的不可变 tag）"
+        required: true
+        type: string
+      stage:
+        description: "灰度档位（dev 通常 100）"
+        required: true
+        default: "100"
+        type: choice
+        options: ["1", "10", "50", "100"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+
+env:
+  HELM_VERSION: "v3.16.2"
+
+jobs:
+  deploy:
+    name: deploy dev（stage ${{ inputs.stage }}）
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: dev
+    env:
+      KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        if: env.KUBE_CONFIG != ''
+        with:
+          version: ${{ env.HELM_VERSION }}
+      - name: 写入 kubeconfig
+        if: env.KUBE_CONFIG != ''
+        run: |
+          install -d -m 0700 "$RUNNER_TEMP/kube"
+          printf '%s' "$KUBE_CONFIG" > "$RUNNER_TEMP/kube/config"
+          chmod 0600 "$RUNNER_TEMP/kube/config"
+          echo "KUBECONFIG=$RUNNER_TEMP/kube/config" >> "$GITHUB_ENV"
+      - name: 部署 dev（灰度停留闸门在 deploy.sh 内强制）
+        if: env.KUBE_CONFIG != ''
+        env:
+          IMAGE_TAG: ${{ inputs.image_tag }}
+          STAGE: ${{ inputs.stage }}
+        run: |
+          bash infra/scripts/deploy.sh dev "$IMAGE_TAG" --stage "$STAGE"
+          {
+            echo '### deploy dev 完成'
+            echo ''
+            echo "- image tag：\`$IMAGE_TAG\`"
+            echo "- 灰度档位：$STAGE（每档 ≥30min 由 deploy.sh 校验，ALLOW_FAST_PROMOTE 仅本地演练）"
+            echo '- 回滚：run workflow `rollback`（dev）'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: smoke（/healthz 必须 200；行情/自选未实现只 WARN）
+        if: env.KUBE_CONFIG != ''
+        env:
+          BASE_URL: ${{ vars.DEV_BASE_URL }}
+        run: |
+          if [[ -z "${BASE_URL:-}" ]]; then
+            echo "::warning::仓库变量 DEV_BASE_URL 未配置，跳过 smoke（不伪装通过）" >&2
+            exit 0
+          fi
+          bash infra/scripts/smoke.sh
+      - name: 未配置 KUBE_CONFIG：显式 skip
+        if: env.KUBE_CONFIG == ''
+        run: |
+          echo "::notice::dev 部署未启用：仓库未配置 KUBE_CONFIG secret" >&2
+          echo '### deploy SKIPPED：无 KUBE_CONFIG' >> "$GITHUB_STEP_SUMMARY"

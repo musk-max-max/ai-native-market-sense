@@ -1,0 +1,214 @@
+# market-sense-h5 · 目录所有权表（P0 骨架 v0.1）
+#
+# 依据：agents/decisions.md #2（2026-11-03 已批准）
+#       「单仓 pnpm workspace，按域分目录，ownership.yaml + CI path guard」
+# 维护者：A0（仓库目录结构 owner）；本文件任何改动 reviewer 必须包含 H2。
+#
+# 字段语义（CI path guard 按此执行，脚本由 A13 落在 ci/）：
+#   path      仓库相对路径前缀（末尾 / 表示目录）。匹配规则：最长前缀优先。
+#   owner     唯一写者（single writer）。任何写操作的主体必须等于 owner。
+#   reviewers 人审席位。仅允许 H1–H6（README §3：agent 永远不能批准 agent）。
+#   forbidden 禁止写入的主体列表。"*" = 除 owner 外的所有主体（A0–A19 与 H1–H6）。
+#             越界即触发 README §9 熔断：吊销身份 + 全量审计历史操作。
+#
+# 本文件只登记「已创建目录」。尚未激活的 P2/P3 写域见文件末尾 notes.reserved_paths。
+
+schema_version: "0.1"
+updated_at: "2026-11-04"
+owner: A0
+
+paths:
+  # ---------- 架构与契约层（A0） ----------
+  - path: contracts/
+    owner: A0
+    reviewers: [H2]
+    forbidden: ["*"]
+
+  - path: docs/adr/
+    owner: A0
+    reviewers: [H2]
+    forbidden: ["*"]
+
+  - path: docs/release/
+    owner: A0
+    reviewers: [H2, H3]
+    forbidden: ["*"]
+
+  - path: config/datasource/
+    owner: A1
+    reviewers: [H4]
+    forbidden: ["*"]
+
+  # ---------- 文档与数据口径 ----------
+  - path: docs/runbook/
+    owner: A13
+    reviewers: [H5]
+    forbidden: ["*"]
+
+  - path: docs/metrics/
+    owner: A2
+    reviewers: [H4]
+    forbidden: ["*"]
+
+  # ---------- 服务层 ----------
+  - path: services/api/
+    owner: A0
+    reviewers: [H2]
+    forbidden: ["*"]
+
+  - path: services/market/
+    owner: A3
+    reviewers: [H2, H4]
+    forbidden: ["*"]
+
+  - path: services/content/
+    owner: A3
+    reviewers: [H2]
+    forbidden: ["*"]
+
+  - path: services/ingest/
+    owner: A1
+    reviewers: [H4]
+    forbidden: ["*"]
+
+  - path: services/identity/
+    owner: A4
+    reviewers: [H5]
+    forbidden: ["*"]
+
+  - path: services/compliance/
+    owner: A5
+    reviewers: [H3]
+    forbidden: ["*"]
+
+  - path: services/crm/
+    owner: A6
+    reviewers: [H6]
+    forbidden: ["*"]
+
+  # ---------- 数仓与数据 ----------
+  - path: warehouse/
+    owner: A2
+    reviewers: [H4]
+    forbidden: ["*"]
+
+  - path: warehouse/quality/
+    owner: A2
+    reviewers: [H4]
+    forbidden: ["*"]
+
+  - path: data/golden/
+    owner: A2
+    reviewers: [H4]
+    forbidden: ["*"]
+
+  - path: data/instruments/
+    owner: A1
+    reviewers: [H4]
+    forbidden: ["*"]
+
+  - path: jobs/
+    owner: A1
+    reviewers: [H4]
+    forbidden: ["*"]
+
+  # ---------- 前端 ----------
+  - path: web/h5/
+    owner: A7
+    reviewers: [H1]
+    forbidden: ["*"]
+
+  - path: web/console/
+    owner: A8
+    reviewers: [H2]
+    forbidden: ["*"]
+
+  # ---------- 共享包 ----------
+  - path: packages/api-client/
+    owner: A0
+    reviewers: [H2]
+    forbidden: ["*"]
+
+  - path: packages/design-tokens/
+    owner: A10
+    reviewers: [H1]
+    forbidden: ["*"]
+
+  # ---------- 测试 ----------
+  - path: tests/contract/
+    owner: A11
+    reviewers: [H2]
+    forbidden: ["*"]
+
+  - path: tests/data/
+    owner: A11
+    reviewers: [H4]
+    forbidden: ["*"]
+
+  - path: tests/e2e/
+    owner: A12
+    reviewers: [H1]
+    forbidden: ["*"]
+
+  - path: tests/fixtures/
+    owner: A12
+    reviewers: [H1]
+    forbidden: ["*"]
+
+  - path: tests/adversarial/
+    owner: A19
+    reviewers: [H5]
+    forbidden: ["*"]
+
+  # ---------- 平台 ----------
+  - path: infra/
+    owner: A13
+    reviewers: [H5]
+    forbidden: ["*"]
+
+  - path: .github/workflows/
+    owner: A13
+    reviewers: [H5]
+    forbidden: ["*"]
+
+  # ---------- 运行手册（agent 编制文件，非 agent 写域） ----------
+  - path: agents/
+    owner: lead
+    reviewers: [H1]
+    forbidden: ["*"]
+
+notes:
+  # CI path guard 默认策略：未匹配任何 entry 的路径一律拒绝写入（default-deny）；
+  # 新增顶层目录必须同时在本文件登记，否则 CI 拒绝（A13 实现 guard 时按此语义）。
+  unmatched_paths: deny
+
+  # 与 roster.yaml write_scope 的差异 → Lead 2026-11-04 已机械批准（本表写权即时生效；
+  # roster 文本按 Lead 指令待 H2 会签后修订，不阻塞骨架落地）。
+  pending_roster_amendments:
+    - path: services/api/
+      reason: Lead 2026-11-04 机械批准 owner 由 A3 改为 A0（H2 会签后修订 roster）。roster 中 A0 write_scope 仅含 contracts/ 与 docs/，A3 仅含 services/market/ 与 services/content/。
+      proposed: A0 owner（H2 reviewer 不变），H2 补 roster write_scope。
+    - path: packages/api-client/
+      reason: 由 contracts/ 生成的 TS 客户端（决策 #1）；生成物禁止手改。roster 中 A0 write_scope 仅含 contracts/ 与 docs/。
+      proposed: A0 owner（只跑 codegen，不手改），H2 补 roster write_scope。
+    - path: .github/workflows/
+      reason: roster 中 A13 owns ci/；本骨架按 GitHub Actions 放置流水线。
+      proposed: A13 owner，roster write_scope 增加 .github/workflows/ 或 ci/ 改挂载点。
+    - path: docs/runbook/
+      reason: roster 中 A13 owns ops/runbooks/；本骨架把 runbook 放 docs/runbook。
+      proposed: A13 owner，H2 确认 runbook 目录位置后修订 roster。
+
+  # 尚未创建的 P2/P3 写域（对应 agent 激活时由 A0 按 roster owns 补建并登记）。
+  reserved_paths:
+    - { path: services/workflow-adapter/, owner: A4 }
+    - { path: rules/, owner: A5 }
+    - { path: configs/ops/, owner: A14 }
+    - { path: configs/rbac/, owner: A15 }
+    - { path: approvals/, owner: A15 }
+    - { path: reviews/compliance/, owner: A16 }
+    - { path: crm/playbooks/, owner: A17 }
+    - { path: security/, owner: A9 }
+    - { path: auth/, owner: A9 }
+    - { path: design/, owner: A10 }
+    - { path: tests/personas/, owner: A18 }
+    - { path: ops/dashboards/, owner: A13 }

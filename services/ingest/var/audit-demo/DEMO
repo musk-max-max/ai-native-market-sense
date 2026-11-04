@@ -1,0 +1,4 @@
+DEMO — dev/机制冒烟，不是 11-12 证据，禁止被 release 证据脚本引用（H4 m01620）。
+数据来源为本地占位 CSV（source_url=https://example.invalid/dev/base_info.csv），
+仅用于验证 manifest 链/head/snapshot 派生机制；真实证据必须带真实 source_url、
+fetched_at、原始响应哈希与取数凭证。verify-manifest 默认拒绝本目录，需 --allow-demo。

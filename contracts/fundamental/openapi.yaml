@@ -1,0 +1,140 @@
+openapi: 3.1.0
+
+info:
+  title: market-sense-h5 · fundamental（基本面域 P0）
+  version: 0.2.0
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+  description: |
+    P0 基本面域契约（个股页「基本面摘要」，决策 #8）。
+    H4 D6 口径：财务保留「原始 + 追溯调整」两套，本接口用 data.statement_basis 明示返回的是哪一套；
+    财务数据不适用复权口径（AdjType 仅用于价格序列），本域不携带 adjustment 字段，不得自行扩展。
+    来源与时效由 shared ResponseMeta 强制携带：source（含 as_of/staleness_ms）、data_entitlement；
+    另 required disclaimer（免责元数据，H6 不可配）。
+
+servers:
+  - url: https://api.market-sense.invalid
+    description: 占位域名（RFC 2606 .invalid），由 A13 在部署环境替换；路径含 /v1（决策 #1）
+
+security: []  # 公开只读；数据授权与限流仍由服务端统一判定（决策 #5）
+
+tags:
+  - name: fundamental
+    description: 财务摘要（P0 仅最新一期）
+
+paths:
+
+  /v1/instruments/{instrument_id}/fundamental-summary:
+    get:
+      operationId: getFundamentalSummary
+      tags: [fundamental]
+      summary: 最新一期财务摘要
+      description: |
+        返回最近一期已披露财务摘要。最近一期以 announced_at 排序为准；报告期由 report_period 表达。
+        无财报数据（新股/未披露）返回 404，不得返回空对象或全 0。
+      parameters:
+        - $ref: '../shared/openapi.yaml#/components/parameters/InstrumentIdPath'
+      responses:
+        '200':
+          description: 财务摘要
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FundamentalSummaryResponse'
+        '400':
+          $ref: '../shared/openapi.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: '../shared/openapi.yaml#/components/responses/NotFound'
+        '403':
+          $ref: '../shared/openapi.yaml#/components/responses/EntitlementRestricted'
+        '429':
+          $ref: '../shared/openapi.yaml#/components/responses/TooManyRequests'
+        '500':
+          $ref: '../shared/openapi.yaml#/components/responses/InternalError'
+        default:
+          $ref: '../shared/openapi.yaml#/components/responses/ProblemResponse'
+
+components:
+  schemas:
+
+    FundamentalSummary:
+      type: object
+      description: |
+        财务摘要（单位：金额=元；比率=百分数数值，12.34 表示 12.34%；EPS=元/股）。
+        允许 null 的字段表示「数据缺失/不适用」，禁止用 0 冒充。
+      required:
+        - instrument_id
+        - report_period
+        - report_end_date
+        - announced_at
+        - statement_basis
+        - currency
+        - revenue
+        - net_profit
+      additionalProperties: false
+      properties:
+        instrument_id:
+          $ref: '../shared/openapi.yaml#/components/schemas/InstrumentId'
+        report_period:
+          type: string
+          pattern: '^[0-9]{4}Q[1-4]$'
+          description: 报告期，如 2026Q3（Q4 表示年报口径）。
+          examples: ["2026Q3"]
+        report_end_date:
+          type: string
+          format: date
+          description: 报告期截止日，如 2026-09-30。
+        announced_at:
+          type: string
+          format: date-time
+          description: 公告披露时间（+08:00）。与 meta.source.as_of（平台数据时点）区分，不得混用。
+        statement_basis:
+          type: string
+          enum: [reported, restated]
+          description: |
+            报表口径（H4 D6）：reported=原始披露；restated=追溯调整后。
+            两套口径均须保留，切换口径不得改变本契约结构。
+        currency:
+          type: string
+          enum: [CNY]
+          description: 币种。
+        revenue:
+          type: number
+          description: 营业收入（元）。
+        net_profit:
+          type: number
+          description: 归母净利润（元，可为负）。
+        revenue_yoy_pct:
+          type: [number, "null"]
+          description: 营业收入同比（百分数）；无同期数据为 null。
+        net_profit_yoy_pct:
+          type: [number, "null"]
+          description: 归母净利润同比（百分数）；无同期数据为 null。
+        eps:
+          type: [number, "null"]
+          description: 每股收益（元/股）。
+        roe_pct:
+          type: [number, "null"]
+          description: 净资产收益率（百分数）。
+        gross_margin_pct:
+          type: [number, "null"]
+          description: 毛利率（百分数）。
+        total_assets:
+          type: [number, "null"]
+          description: 总资产（元）。
+
+    FundamentalSummaryResponse:
+      type: object
+      required: [data, meta]
+      additionalProperties: false
+      properties:
+        data:
+          $ref: '#/components/schemas/FundamentalSummary'
+        meta:
+          allOf:
+            - $ref: '../shared/openapi.yaml#/components/schemas/ResponseMeta'
+          required: [disclaimer]
+          description: |
+            强制携带 source（含 as_of/staleness_ms）、data_entitlement、disclaimer。
+            财务口径由 data.statement_basis 表达，不复用价格类 adjustment 字段。

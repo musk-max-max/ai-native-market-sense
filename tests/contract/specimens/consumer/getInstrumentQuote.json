@@ -1,0 +1,43 @@
+{
+  "operation_id": "getInstrumentQuote",
+  "client": "web-h5 个股页行情卡",
+  "note": "行情卡依赖 staleness_ms 与 disclaimer；停牌时 last_price 为 null 必须能渲染占位",
+  "calls": [
+    {
+      "name": "行情卡主数值",
+      "request": {
+        "method": "GET",
+        "path": "/v1/instruments/SSE:600519/quote"
+      },
+      "expect": {
+        "status": 200,
+        "required_fields": [
+          "data.last_price",
+          "data.prev_close",
+          "data.change",
+          "data.change_pct",
+          "data.trade_date",
+          "meta.source.as_of",
+          "meta.source.staleness_ms",
+          "meta.disclaimer.text",
+          "meta.disclaimer.closable"
+        ]
+      }
+    },
+    {
+      "name": "停牌态展示",
+      "request": {
+        "method": "GET",
+        "path": "/v1/instruments/SSE:688981/quote"
+      },
+      "expect": {
+        "status": 200,
+        "required_fields": [
+          "data.suspended",
+          "data.last_price",
+          "meta.adjustment"
+        ]
+      }
+    }
+  ]
+}

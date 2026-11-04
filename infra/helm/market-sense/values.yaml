@@ -1,0 +1,140 @@
+# market-sense-h5 · Helm 默认值（A13 维护；env 差异见 values-dev.yaml / values-preview.yaml）
+# 原则：所有可调项都进 values 并随 release 版本化；禁止 kubectl edit 生产。
+global:
+  environment: dev
+  imageRegistry: ghcr.io/market-sense-h5
+  imagePullSecrets: []
+
+image:
+  api:
+    repository: api
+    tag: "0.1.0"
+    digest: ""
+    pullPolicy: IfNotPresent
+  worker:
+    repository: worker
+    tag: "0.1.0"
+    digest: ""
+    pullPolicy: IfNotPresent
+
+serviceAccount:
+  create: true
+  name: market-sense-app
+  annotations: {}
+
+api:
+  replicaCount: 2
+  containerPort: 8080
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  readinessProbe:
+    httpGet:
+      path: /healthz
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    failureThreshold: 3
+  livenessProbe:
+    httpGet:
+      path: /healthz
+      port: http
+    initialDelaySeconds: 20
+    periodSeconds: 20
+    failureThreshold: 3
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+worker:
+  replicaCount: 1
+  # H4 m00992：审计产物必须持久化（emptyDir 会在 pod 重建时丢 = 无法回指条款）。
+  persistence:
+    enabled: true
+    # 显式 storageClass；生产覆盖为集群实际 StorageClass（不允许隐式依赖默认类）。
+    storageClass: standard
+    accessMode: ReadWriteOnce
+    size: 20Gi
+  env:
+    AUDIT_MANIFEST_ROOT: /data/audit
+    REQUIRE_DURABLE_ROOT: "true"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  podAnnotations: {}
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: http
+
+ingress:
+  enabled: true
+  className: nginx
+  host: dev.market-sense.invalid
+  annotations: {}
+  # H5 卡点：凡含 meta.entitlement 的响应（含 200）不得被 ingress/CDN 缓存复用。
+  # API ingress 统一 no-store（保守超集），CDN 侧必须按同列表排除缓存；改列表需 H5 复核。
+  noStore: true
+  noStorePaths:
+    - /v1/market/**
+    - /v1/instruments/**
+  tls:
+    enabled: false
+    secretName: ""
+
+config:
+  NODE_ENV: production
+  # decisions.md L46：缺省 prod；只有显式 dev/test/e2e 才允许测试后门。
+  # 部署面断言要求渲染结果显式出现 APP_PROFILE=prod（缺失即渲染失败）。
+  APP_PROFILE: "prod"
+  LOG_LEVEL: info
+  # C2=A：不做盘中实时；数据超 15min 必须显式标 stale（StalePageNotMarked 告警）
+  DATA_FRESHNESS_MAX_AGE_SECONDS: "900"
+  MARKET_STALE_BANNER_ENABLED: "true"
+  INGEST_FALLBACK: last_good
+  # 发布：灰度档位与最短停留（SLO：1→10→50→100，每档 ≥30min）
+  RELEASE_GRAY_STAGE: "1"
+  RELEASE_GRAY_MIN_DWELL_SECONDS: "1800"
+  # AI 四项：成本/异常/接管/漂移的运行时护栏
+  AI_MAX_RETRIES: "1"
+  AI_TIMEOUT_MS: "8000"
+  AI_COST_PRICING_VERSION: "2026-11-01"
+  AI_MODEL_PROVIDER: "primary"
+  # 数据授权（F1 未落地，H3 fail-closed 时间盒）：默认 internal_eval = 受限展示，不向 C 端展示行情。
+  # 非 internal_eval 时必须显式设置 ENTITLEMENT_EXPIRES_AT，否则模板渲染直接失败（代码侧 A3 启动也拒绝）。
+  ENTITLEMENT_TIER: "internal_eval"
+  ENTITLEMENT_EXPIRES_AT: ""
+
+monitoring:
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    scrapeTimeout: 10s
+    path: /metrics
+    additionalLabels:
+      release: kube-prometheus-stack
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+# 发布批次（供 CI/发布流程读取；实际流量切换由发布流程执行）
+release:
+  grayStages: [1, 10, 50, 100]
+  freezeWindow: "09:15-15:00 Asia/Shanghai（交易日，非紧急发布禁止）"

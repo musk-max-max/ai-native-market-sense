@@ -1,0 +1,111 @@
+name: preview
+
+# PR 预览环境：按需创建 + 24h 自动回收（A13）。A12 的 docker-compose 是本地真栈，这里是远端 k8s preview。
+# 成本约束（lead 2026-11 指令，disk 仅剩 11Gi）：
+#   * 按需：只有 PR 打了 `preview` label 才创建，不再每次 push 都起；
+#   * 回收：关闭 PR 触发 down；另有 preview-reap.yml 每 6h 兜底回收 >24h 的预览；
+#   * 配额：Terraform preview 档 8 pods / 2 CPU / 4Gi，TTL 默认 24h（见 infra/terraform/envs/preview）。
+# 没有配置 KUBE_CONFIG secret 时 job 显式 skip（不伪装成功），并在 summary 说明原因。
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  TERRAFORM_VERSION: "1.9.8"
+  HELM_VERSION: "v3.16.2"
+
+jobs:
+  preview-up:
+    name: preview up（PR #${{ github.event.pull_request.number }}）
+    if: github.event.action != 'closed' && contains(github.event.pull_request.labels.*.name, 'preview')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      PREVIEW_IMAGE_TAG: pr-${{ github.event.pull_request.number }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        if: env.KUBE_CONFIG != ''
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+      - uses: azure/setup-helm@v4
+        if: env.KUBE_CONFIG != ''
+        with:
+          version: ${{ env.HELM_VERSION }}
+      - name: 写入 kubeconfig（仅临时 runner，用后即弃）
+        if: env.KUBE_CONFIG != ''
+        run: |
+          install -d -m 0700 "$RUNNER_TEMP/kube"
+          printf '%s' "$KUBE_CONFIG" > "$RUNNER_TEMP/kube/config"
+          chmod 0600 "$RUNNER_TEMP/kube/config"
+          echo "KUBECONFIG=$RUNNER_TEMP/kube/config" >> "$GITHUB_ENV"
+      - name: 起 preview 环境（Terraform namespace + Helm release）
+        if: env.KUBE_CONFIG != ''
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          bash infra/scripts/preview-up.sh
+          {
+            echo '### preview 已创建'
+            echo ''
+            echo "- PR：#${{ github.event.pull_request.number }}"
+            echo "- namespace：\`market-sense-preview-pr-${{ github.event.pull_request.number }}\`"
+            echo "- host：\`pr-${{ github.event.pull_request.number }}.preview.market-sense.invalid\`"
+            echo "- 镜像 tag：\`pr-${{ github.event.pull_request.number }}\`"
+            echo ''
+            echo '> 销毁：关闭/合并 PR 触发 preview-down，或手动跑 `infra/scripts/preview-down.sh`。'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: 未配置 KUBE_CONFIG：显式 skip
+        if: env.KUBE_CONFIG == ''
+        run: |
+          echo "::notice::preview 未启用：仓库未配置 KUBE_CONFIG secret（远端 preview 环境尚未开通）" >&2
+          {
+            echo '### preview SKIPPED'
+            echo ''
+            echo '仓库未配置 `KUBE_CONFIG` secret，远端 preview 环境未开通。'
+            echo '这是显式 skip，不是检查通过；开通后本 job 会自动生效。'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  preview-down:
+    name: preview down（PR #${{ github.event.pull_request.number }} 已关闭）
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        if: env.KUBE_CONFIG != ''
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+      - uses: azure/setup-helm@v4
+        if: env.KUBE_CONFIG != ''
+        with:
+          version: ${{ env.HELM_VERSION }}
+      - name: 写入 kubeconfig
+        if: env.KUBE_CONFIG != ''
+        run: |
+          install -d -m 0700 "$RUNNER_TEMP/kube"
+          printf '%s' "$KUBE_CONFIG" > "$RUNNER_TEMP/kube/config"
+          chmod 0600 "$RUNNER_TEMP/kube/config"
+          echo "KUBECONFIG=$RUNNER_TEMP/kube/config" >> "$GITHUB_ENV"
+      - name: 销毁 preview（Helm uninstall → Terraform destroy）
+        if: env.KUBE_CONFIG != ''
+        run: bash infra/scripts/preview-down.sh
+      - name: 未配置 KUBE_CONFIG：无需销毁
+        if: env.KUBE_CONFIG == ''
+        run: echo "::notice::preview 未启用（无 KUBE_CONFIG），无需销毁"

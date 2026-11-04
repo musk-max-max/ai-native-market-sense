@@ -1,0 +1,149 @@
+# tests/e2e/ci/e2e-job.yml.snippet
+#
+# 提案给 A13 的 CI 片段（A12 owns E2E，CI 编排归 A13）。粘进 .github/workflows/*.yml 的 jobs: 下。
+# 关键约束：
+#   * e2e-static 不需要 docker，PR 必跑（结构断言 + 录播代理自测，秒级）
+#   * e2e 需要 docker，PR 也跑；绝不注入 TUSHARE_TOKEN（record 脚本在 CI 直接退出 2）
+#   * 失败时上传 playwright-report / test-results / .e2e-status.json 与栈日志，否则排查只能靠猜
+#
+# 授权矩阵（A12 口径，A3 按 tier 映射实现）：
+#   normal     = E2E_ENTITLEMENT_TIER=c_end_display + E2E_ENTITLEMENT_EXPIRES_AT=2030-12-31T00:00:00Z
+#                （必须显式；compose 默认 internal_eval 是 fail-closed，裸跑会 FAIL:CONFIG_TIER_FAIL_CLOSED。
+#                 数据接口 200+true，P0-02 价格断言必须真跑）
+#   restricted = E2E_ENTITLEMENT_TIER=internal_eval（quote/bars/fundamental 必须 403 ENTITLEMENT_RESTRICTED，
+#                instrument 基础信息 200+false，watchlist 恒 200+true；只跑 P0-06 F1 否决线）
+# preflight 的 ENTITLEMENT 检查会比对矩阵与 API 实际返回，配错直接 FAIL。
+
+jobs:
+
+  e2e-static:
+    name: e2e static (no docker)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: pip install pyyaml pytest
+      - name: compose 结构断言（真栈/录播/断网/token）
+        run: python3 tests/e2e/scripts/validate_compose.py
+      - name: 录播代理自测
+        run: python3 -m pytest tests/e2e/tushare-replay/test_server.py -q
+      - name: preflight 离线（应 SKIP 78 而不是崩）
+        run: |
+          set +e
+          python3 tests/e2e/scripts/preflight.py --offline
+          rc=$?
+          echo "preflight exit=$rc"
+          test "$rc" -eq 78
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-static-status
+          path: tests/e2e/.e2e-status.json
+
+  e2e:
+    name: e2e real stack (docker + replay fixtures)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: pip install pyyaml
+      - name: 起真栈（含 preflight；SKIP 不会失败）
+        run: bash tests/e2e/scripts/up.sh
+      - name: Playwright 依赖
+        run: |
+          cd tests/e2e
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: 跑 P0 E2E
+        env:
+          CI: '1'
+          # 负向保证：不提供 TUSHARE_TOKEN；录制脚本会因此拒绝执行
+        run: cd tests/e2e && npx playwright test
+      - name: 失败时转储栈日志
+        if: failure()
+        run: |
+          cd tests/e2e
+          docker compose -f docker-compose.yml logs --no-color --tail=300 > stack.log || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-artifacts
+          path: |
+            tests/e2e/.e2e-status.json
+            tests/e2e/playwright-report/
+            tests/e2e/test-results/
+            tests/e2e/stack.log
+      - name: 关栈
+        if: always()
+        run: cd tests/e2e && docker compose -f docker-compose.yml down -v --remove-orphans
+
+  # e2e-restricted:
+  #   name: e2e F1 veto line (restricted entitlement)
+  #   runs-on: ubuntu-latest
+  #   env:
+  #     E2E_ENTITLEMENT_MATRIX: restricted
+  #     E2E_ENTITLEMENT_TIER: internal_eval   # quote/bars/fundamental → 403 ENTITLEMENT_RESTRICTED（F1 否决线）
+  #     # normal job 必须显式 E2E_ENTITLEMENT_TIER=c_end_display + E2E_ENTITLEMENT_EXPIRES_AT（A3 无到期时间拒启动）
+  #   # 只跑否决线：npx playwright test --grep "E2E-P0-06"
+  #   steps:
+  #     - ... 同 e2e，但断言 E2E-P0-06 走 is_entitled=false 分支
+
+  # ---- 镜像构建冒烟：远端接上后的第一条；本机从未跑过 docker compose build（Dlv-4 未验证）----
+  # 先 workflow_dispatch，稳定后挂 PR。失败归类见 tests/e2e/ci/BUILD-SMOKE.md §3。
+  e2e-build-smoke:
+    name: e2e image build smoke (docker compose build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: compose 变量/服务图
+        run: docker compose -f tests/e2e/docker-compose.yml config -q
+      - name: 逐镜像构建（哪个先炸定位哪个）
+        run: |
+          set -o pipefail
+          for svc in tushare-replay ingress warehouse-load api web; do
+            echo "== build $svc =="
+            docker compose -f tests/e2e/docker-compose.yml build --pull "$svc" 2>&1 | tail -40
+          done
+      - name: 记录镜像大小（磁盘预算）
+        if: always()
+        run: docker image ls --format '{{.Repository}}:{{.Tag}}\t{{.Size}}' | sort | tee image-sizes.txt
+      - name: 起基础设施 + 录播自检（不需要 seed 成功）
+        run: |
+          docker compose -f tests/e2e/docker-compose.yml up -d --wait postgres redis tushare-replay
+          curl -fsS http://127.0.0.1:18081/__health | python3 -m json.tool
+      - name: seed（A1 接线完成前预期失败：记录退出码，不判 build 失败）
+        # A1 两步命令/证据参数/固定时钟落地后去掉 || 与 KNOWN_PENDING 注记，改为硬门禁
+        run: |
+          set +e
+          set +e
+          for svc in db-migrate ingress warehouse-load ingest-report; do
+            docker compose -f tests/e2e/docker-compose.yml --profile seed run --rm "$svc"
+            echo "$svc rc=$?" >> seed-rcs.txt
+          done
+          set -e
+          echo "seed_exit=$?"
+          echo "KNOWN_PENDING: seed 接线未完成（A1 契约 §1b）" >> "$GITHUB_STEP_SUMMARY"
+      - name: 起 api/web 并记录 healthz（data_ready=false 是合法 SKIP 态）
+        run: |
+          docker compose -f tests/e2e/docker-compose.yml up -d --wait api web
+          curl -fsS http://127.0.0.1:8081/healthz | python3 -m json.tool
+      - name: 失败时转储构建/栈日志
+        if: failure()
+        run: |
+          docker compose -f tests/e2e/docker-compose.yml logs --no-color --tail=400 > stack.log || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-build-smoke
+          path: |
+            image-sizes.txt
+            stack.log
+      - name: 关栈
+        if: always()
+        run: docker compose -f tests/e2e/docker-compose.yml down -v --remove-orphans

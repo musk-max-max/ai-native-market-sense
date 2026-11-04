@@ -1,0 +1,46 @@
+# market-sense-h5 · Alertmanager 路由骨架（A13 维护）
+# 原则：critical 立即叫醒值班；warning 工作时间聚合；所有告警都带 runbook_url。
+# 渠道（pager/slack/webhook）由 S0 之后的 secret 注入，这里只定义路由与抑制。
+route:
+  receiver: sre-default
+  group_by: [alertname, service]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    - matchers: ['severity="critical"']
+      receiver: sre-pager
+      group_wait: 0s
+      repeat_interval: 1h
+      continue: true
+    - matchers: ['severity="warning"']
+      receiver: sre-workhours
+      group_wait: 5m
+      repeat_interval: 12h
+    - matchers: ['ai_signal=~".+"']
+      receiver: sre-workhours
+      group_wait: 5m
+
+inhibit_rules:
+  # 服务整体不可达时，抑制同服务的细粒度告警，避免噪音
+  - source_matchers: ['alertname="ServiceDown"']
+    target_matchers: ['severity=~"warning|critical"']
+    equal: [service]
+  # 回滚进行中时抑制该服务的延迟类告警
+  - source_matchers: ['alertname="RollbackExceededFiveMinutes"']
+    target_matchers: ['severity="warning"']
+    equal: [service]
+
+receivers:
+  - name: sre-default
+    webhook_configs:
+      - url: "http://alert-sink.market-sense-dev.svc.cluster.local:8080/alerts"
+        send_resolved: true
+  - name: sre-pager
+    webhook_configs:
+      - url: "http://alert-sink.market-sense-dev.svc.cluster.local:8080/pager"
+        send_resolved: true
+  - name: sre-workhours
+    webhook_configs:
+      - url: "http://alert-sink.market-sense-dev.svc.cluster.local:8080/workhours"
+        send_resolved: true

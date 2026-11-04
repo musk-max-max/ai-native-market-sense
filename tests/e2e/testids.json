@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "about": "E2E test-id 契约（A12 owns，交接 A7 web/h5 与 A3 api）。命名规则见 docs/TESTID-CONVENTION.md：kebab-case、语义化、稳定，禁止 nth-child/布局序号。web 用 data-testid 属性，值等于本文件的字符串。",
+  "ids": {
+    "stockPage": "stock-page",
+    "stockHeader": "stock-header",
+    "instrumentId": "stock-instrument-id",
+    "stockName": "stock-name",
+    "stockExchange": "stock-exchange",
+    "stockBoard": "stock-board",
+    "stockSecurityType": "stock-security-type",
+    "stockListStatus": "stock-list-status",
+    "stockListDate": "stock-list-date",
+    "quoteBlock": "quote-block",
+    "quotePrice": "quote-price",
+    "quoteChange": "quote-change",
+    "quoteAsOf": "quote-as-of",
+    "quoteStaleBadge": "quote-stale-badge",
+    "quoteAdjustment": "quote-adjustment",
+    "quoteSource": "quote-source",
+    "entitlementNotice": "entitlement-notice",
+    "disclaimer": "disclaimer",
+    "disclaimerText": "disclaimer-text",
+    "disclaimerVersion": "disclaimer-version",
+    "disclaimerClose": "disclaimer-close",
+    "fundamentalSummary": "fundamental-summary",
+    "fundamentalReportPeriod": "fundamental-report-period",
+    "fundamentalStatementBasis": "fundamental-statement-basis",
+    "watchlistToggle": "watchlist-toggle",
+    "watchlistState": "watchlist-state",
+    "errorBanner": "error-banner",
+    "loading": "stock-page-loading"
+  },
+  "stateIds": {
+    "description": "异步状态不要复用业务 id：状态用独立 id，便于断言「先 loading 后内容」且不依赖时序。",
+    "loading": "stock-page-loading",
+    "error": "stock-page-error",
+    "empty": "stock-page-empty"
+  }
+}

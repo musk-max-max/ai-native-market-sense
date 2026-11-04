@@ -1,0 +1,81 @@
+{
+  "scenario": "p0-stock-page",
+  "description": "P0 唯一用户旅程（决策 #8）：打开个股页 → 行情 → 基本面摘要 → as_of → 免责 → 加自选 → 刷新仍在。录制与回放共用本文件；expected_tushare_apis 是录制必须覆盖的 tushare 接口（adapter 实际可能多调，多录不报错）。",
+  "instrument_id": "SSE:600519",
+  "stock_page_path": "/stocks/SSE:600519",
+  "trade_date": "20261103",
+  "expected_tushare_apis": [
+    "trade_cal",
+    "daily",
+    "adj_factor",
+    "fina_indicator",
+    "income"
+  ],
+  "calls": [
+    {
+      "name": "instrument",
+      "method": "GET",
+      "path": "/v1/instruments/{instrument_id}",
+      "expect_status": 200,
+      "hop": "api.market"
+    },
+    {
+      "name": "quote",
+      "method": "GET",
+      "path": "/v1/instruments/{instrument_id}/quote?adjustment=qfq",
+      "expect_status": 200,
+      "hop": "api.market"
+    },
+    {
+      "name": "bars",
+      "method": "GET",
+      "path": "/v1/instruments/{instrument_id}/bars?adjustment=qfq&limit=120",
+      "expect_status": 200,
+      "hop": "api.market"
+    },
+    {
+      "name": "fundamental-summary",
+      "method": "GET",
+      "path": "/v1/instruments/{instrument_id}/fundamental-summary",
+      "expect_status": 200,
+      "hop": "api.fundamental"
+    },
+    {
+      "name": "watchlist-list-initial",
+      "method": "GET",
+      "path": "/v1/watchlist",
+      "expect_status": 200,
+      "auth": true,
+      "hop": "api.watchlist"
+    },
+    {
+      "name": "watchlist-add",
+      "method": "POST",
+      "path": "/v1/watchlist",
+      "body": {
+        "instrument_id": "{instrument_id}"
+      },
+      "expect_status": 200,
+      "auth": true,
+      "hop": "api.watchlist"
+    },
+    {
+      "name": "watchlist-list-after-add",
+      "method": "GET",
+      "path": "/v1/watchlist",
+      "expect_status": 200,
+      "auth": true,
+      "hop": "api.watchlist"
+    },
+    {
+      "name": "watchlist-remove-cleanup",
+      "method": "DELETE",
+      "path": "/v1/watchlist/{instrument_id}",
+      "expect_status": 204,
+      "auth": true,
+      "cleanup": true,
+      "hop": "api.watchlist"
+    }
+  ],
+  "recording_policy": "L32 synthetic only: values are forged (SYNTHETIC-*/9999.99); never commit real tushare payloads."
+}

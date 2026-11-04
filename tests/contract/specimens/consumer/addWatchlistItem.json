@@ -1,0 +1,27 @@
+{
+  "operation_id": "addWatchlistItem",
+  "client": "web-h5 加自选按钮",
+  "note": "幂等语义：重复添加不报错，前端可安全重试",
+  "calls": [
+    {
+      "name": "幂等添加",
+      "request": {
+        "method": "POST",
+        "path": "/v1/watchlist",
+        "headers": {
+          "authorization": "Bearer synthetic-token-for-contract-test"
+        },
+        "body": {
+          "instrument_id": "SSE:600519"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "required_fields": [
+          "data.instrument_id",
+          "data.added_at"
+        ]
+      }
+    }
+  ]
+}

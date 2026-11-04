@@ -1,0 +1,26 @@
+{
+  "operation_id": "getFundamentalSummary",
+  "client": "web-h5 个股页财务摘要",
+  "note": "财务摘要必须展示 report_period 与 statement_basis（reported/restated 不留歧义）",
+  "calls": [
+    {
+      "name": "最新一期",
+      "request": {
+        "method": "GET",
+        "path": "/v1/instruments/SSE:600519/fundamental-summary"
+      },
+      "expect": {
+        "status": 200,
+        "required_fields": [
+          "data.report_period",
+          "data.report_end_date",
+          "data.announced_at",
+          "data.statement_basis",
+          "data.revenue",
+          "data.net_profit",
+          "data.currency"
+        ]
+      }
+    }
+  ]
+}
