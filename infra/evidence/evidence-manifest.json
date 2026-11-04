@@ -2,7 +2,7 @@
   "schema_version": "0.1",
   "owner": "A13",
   "generated_by": "a13-sre",
-  "generated_at": "2026-11-04T06:04:00Z",
+  "generated_at": "2026-11-04T06:06:00Z",
   "rule": "artifact 不内嵌自身哈希；哈希只进 manifest；内容改动必须换新文件名（UTC 时间戳），旧 artifact 保留；CI 独立复算每条 sha。",
   "authority_values": [
     "authoritative",
@@ -138,9 +138,9 @@
   "related_manifests": [
     {
       "path": "services/market/evidence/MANIFEST.json",
-      "sha256": "ced607bf92e59d78c0ae4f8671ea437a02f84831dd4dd1edb8a7b83f6037a803",
+      "sha256": "f105b58284827b454b2abdd9563356a0c990035da9bf1bf09a90dc41ac66cd75",
       "owner": "a3-backend-market",
-      "notes": "A3 的 hold-unreachable 证据包；其 v3 申报 730cddf5 与实算 f80562ca 差异已由其 MANIFEST errata 解释（自指哈希），权威值 f80562ca；本包不重复覆盖 services/ 域 artifact，整包时并入。"
+      "notes": "A3 证据包（含 #3 采样两档：internal_eval 短路 + c_end_display+hold_active）；A3 更新 MANIFEST 时必须同 commit 更新本 sha；历史自指哈希 errata 见其 MANIFEST 正文。"
     }
   ]
 }
