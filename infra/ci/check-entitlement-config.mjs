@@ -19,7 +19,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -106,11 +106,38 @@ for (const [name, text] of [
 
 // 4. E2E compose
 check(
-  'e2e compose 默认 ENTITLEMENT_TIER 为 internal_eval（可显式覆盖）',
-  /ENTITLEMENT_TIER:\s*\$\{E2E_ENTITLEMENT_TIER:-internal_eval\}/.test(compose),
+  'e2e 默认栈 ENTITLEMENT_TIER 固定字面量 internal_eval（不接受 env override）',
+  /ENTITLEMENT_TIER:\s*"?internal_eval"?/.test(compose) &&
+    !/ENTITLEMENT_TIER:\s*\$\{/.test(compose),
 );
-check('e2e compose 不得默认 c_end_display', !/ENTITLEMENT_TIER:[^\n]*c_end_display/.test(compose));
-check('e2e compose 透传 E2E_ENTITLEMENT_EXPIRES_AT', /E2E_ENTITLEMENT_EXPIRES_AT/.test(compose));
+check('e2e 默认栈不得出现 c_end_display', !/ENTITLEMENT_TIER:[^\n]*c_end_display/.test(compose));
+check(
+  'e2e 默认栈显式 HOLD_CHECK=1 / AUDIT=1（不依赖 e2eMode 默认关）',
+  /ENTITLEMENT_HOLD_CHECK:\s*"?1"?/.test(compose) &&
+    /ENTITLEMENT_AUDIT:\s*"?1"?/.test(compose),
+);
+const positivePath = join(ROOT, 'tests/e2e/docker-compose.entitlement-positive.yml');
+const positive = existsSync(positivePath) ? readFileSync(positivePath, 'utf8') : '';
+check('c_end_display 正向用例有独立 override 文件', positive.length > 0);
+check(
+  'positive override：tier=c_end_display + HOLD_CHECK=1 + AUDIT=1',
+  /ENTITLEMENT_TIER:\s*"?c_end_display"?/.test(positive) &&
+    /ENTITLEMENT_HOLD_CHECK:\s*"?1"?/.test(positive) &&
+    /ENTITLEMENT_AUDIT:\s*"?1"?/.test(positive),
+);
+check(
+  'positive override：EXPECTED_SHA 64 位小写 hex 且 EXPIRES_AT 成对出现',
+  /ENTITLEMENT_CONFIG_EXPECTED_SHA256:\s*"?[0-9a-f]{64}"?/.test(positive) &&
+    /ENTITLEMENT_EXPIRES_AT:\s*"?20\d\d-/.test(positive),
+);
+const e2ePorts = [...compose.matchAll(/-\s+"([^"]+:\d+)"/g)].map((m) => m[1]);
+check(
+  'e2e 默认栈发布端口全部 loopback（禁 0.0.0.0/:::）',
+  e2ePorts.length > 0 &&
+    e2ePorts.every((p) => p.startsWith('127.0.0.1:')) &&
+    !/0\.0\.0\.0:/.test(compose) &&
+    !/":::/.test(compose),
+);
 
 // 5. 部署文件不得把 c_end_display 当默认值（注释/授权用例显式覆盖允许）
 for (const [name, text] of [
