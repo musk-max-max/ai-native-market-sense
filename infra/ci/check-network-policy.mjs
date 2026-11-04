@@ -120,19 +120,14 @@ if (!helmAvailable) {
   }
 }
 
-// 集群外 /healthz=404 的实测证据：本地无集群时只能显式未验证，不伪造绿。
-if (process.env.PUBLIC_BASE_URL) {
-  check(
-    `集群外 /healthz 必须 404（PUBLIC_BASE_URL=${process.env.PUBLIC_BASE_URL}）`,
-    false,
-    '需要 curl 实测；CI 请用 release-gate 的 probe 步骤，本脚本不代跑网络',
-  );
-} else {
-  skipped++;
-  console.log(
-    '⏭ 集群外 /healthz=404：未提供 PUBLIC_BASE_URL，未验证（release-gate 会在有入口时实测）',
-  );
-}
+// L91：入口裁定为「内网访问、不暴露公网」，本脚本只做静态/渲染层断言。
+// 内网可达 + 公网不可达的实测证据由 infra/evidence/tools/capture-exposure.sh 产出，
+// 文件登记在 infra/evidence/evidence-manifest.json（authority=authoritative），
+// release-gate 在有 vars.PUBLIC_HOST 时跑 public 模式探针；本脚本不代跑网络、不伪造绿。
+skipped++;
+console.log(
+  '⏭ 公网不可达实测：不在本脚本执行（L91）；见 infra/evidence/exposure-{internal,public}-*.txt 与 release-gate 的 public 探针',
+);
 
 if (failures > 0) {
   console.error(`\n网络边界断言失败：${failures} 项`);

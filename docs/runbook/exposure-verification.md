@@ -1,62 +1,66 @@
-# RB-SEC-001 公网暴露面收口验证（/healthz、/metrics、/\_debug、/internal）
+# 暴露面验证 / 内网可达与公网不可达（RB-SEC-001）
 
-**状态（2026-11-04）**：静态门禁已落（`infra/ci/check-network-policy.mjs`）；**集群外 404 实测 = UNVERIFIED**（缺 staging 公网入口 `PUBLIC_BASE_URL`，owner A13/H5）。本 runbook 是拿到环境后的执行步骤与取证口径。
+> **状态（2026-11-05）**：按 Lead m03310 / 用户 m05225、m05235 与 `agents/decisions.md` L91，入口裁定为**内网访问、不暴露公网**。④ 的口径从「公网 ingress 四件套」降级为 **A. 内网可达 + B. 公网不可达** 双向取证。`ms-nginx` 临时层**永久不恢复**（随内网裁定，原 P2 暴露事件消解，加固留档）。
+>
+> 已交证据（authoritative，待 H5 核）：
+>
+> - `infra/evidence/exposure-internal-20261104T234904Z.txt`（ECS 侧：业务端口仅 loopback、容器 PortBindings 全 127.0.0.1、ms-nginx exited/restart=no、内网 API /healthz 200、quote 403、web 200）
+> - `infra/evidence/exposure-public-20261104T234826Z.txt`（公网侧：`47.120.16.239` 的 80/8081/3000/18081 全部无 HTTP 响应）
+> - 静态：`infra/evidence/exposure-static-guard-20261104T0615Z.txt`（helm 渲染只 `/v1`、5 条 NetworkPolicy）
+>
+> 安全组 80 由用户在云控制台处置；ECS 侧无法验证安全组，只能验证「无 0.0.0.0 监听 + 端口不可达」。任何一方把 `ms-nginx` 或端口重新发布到 0.0.0.0，都按 P1 处理。
 
-## 症状
+## 1. 症状（触发）
 
-- 外部可直接 `GET /healthz`、`/metrics`、`/_debug`、`/internal*`；
-- `/healthz` 泄露内部状态机（`entitlement_degraded_reason`、`data_ready_reason`、hold 状态）；
-- Ingress 出现 `path: /`、`/healthz`、`/metrics`、`/docs`、`/openapi.json`、`/readyz`、`/internal` 任一路径。
+- 监控/巡检发现 ECS 出现非 loopback 的业务端口监听（`ss -ltnp` 中 `0.0.0.0:<业务端口>` 或 `[::]:`）。
+- 公网 `http://<public-ip>:<业务端口>/` 返回可观测 HTTP（200/403/401 等），而非连接拒绝/超时。
+- `ms-nginx` 或其它临时层容器处于 running，或 `restart` 策略为 `always`/`unless-stopped`。
+- ingress 渲染出现 `/`、`/healthz`、`/metrics`、`/docs`、`/openapi.json`、`/readyz`、`/internal` 等非 `/v1` 路径。
 
-## 影响
+## 2. 影响
 
-攻击者无需登录即可读取"当前是否 hold / 授权是否过期 / 数据链路断在哪一步"，据此选择下手时机；运维接口暴露面扩大。属 11-12 门禁 #7 的硬缺口。
+- 内网可达是预期能力；**公网可达**会把 `/healthz` 内部状态（`entitlement_degraded`、`data_ready_reason`）和 `/v1/**` 业务接口暴露给未授权方，等于免费情报（hold 状态/授权是否过期/数据链路断点）。
+- `ms-nginx` 手工 Basic Auth 层不是 Helm ingress，验证的是手写配置而非发布物；其暴露会把 e2e 栈（含测试后门风险）带上公网。
+- 按 L91，本项目**不需要**公网 ingress；任何公网可达都视为配置漂移/事故，不是"功能特性"。
 
-## 判断（≤2 分钟）
+## 3. 判断（≤5 分钟）
 
-1. `helm template ... | grep -nE 'path: *[/]|/healthz|/metrics|/docs|/openapi.json|/readyz|/internal'` 有任何命中即红；
-2. 外部 `curl -sS -o /dev/null -w '%{http_code}' https://$BASE/healthz` 必须 `404`（不是 200、不是 401/403）；
-3. Pod 内 `curl -sS http://127.0.0.1:8081/healthz` 必须 `200`（探针直连 Pod，不经 ingress）；
-4. 响应头/响应体不得出现 `entitlement_degraded_reason`、`hold_reason`、DSN/主机名/端口。
+1. `ss -ltnp | grep -E ':(80|8080|8081|3000|18080|18081|5432|6379)\b'`：除 `sshd:22` 外出现 `0.0.0.0`/`[::]` → 立即按公网暴露处理。
+2. `docker ps -a --format '{{.Names}}\t{{.State}}'`：确认 `ms-nginx` 必须 `exited`，`docker inspect -f '{{.HostConfig.RestartPolicy.Name}}' ms-nginx` 必须 `no`。
+3. `docker inspect -f '{{json .HostConfig.PortBindings}}' <container>`：只允许 `HostIp=127.0.0.1`（或空）；出现 `0.0.0.0` → 暴露。
+4. 公网退证：`curl -m 10 http://<public-ip>:<port>/` 必须 connection refused / timeout / `http=000`；任何 HTTP 状态码都算暴露。
+5. 内网正向：本机/内网段 `curl 127.0.0.1:8081/healthz` = 200 且含 `data_ready`/`entitlement_degraded`；`/v1/instruments/SSE:600519/quote` = 200/403 均算可达；web `127.0.0.1:3000/` = 200。
 
-## 止血
+## 4. 止血（确认公网暴露后立即执行）
 
-1. 立刻回滚 ingress 变更（`infra/scripts/rollback.sh production <release>`，须 H5 `APPROVAL_REF`，A13 只执行）；
-2. 或把 ingress path 收敛为 `/v1` 并 `helm upgrade --atomic`（同发布流程，禁 `kubectl edit`）；
-3. 若已泄露内部状态：按 H5 工单保留证据（时间、响应体、来源 IP），评估是否需 H5 对外沟通。
+1. **先停公网入口**：`docker stop <入口容器>`（如 `ms-nginx`）；不要 `docker restart`。若入口由云 LB/安全组提供，立即收紧安全组并报 H5。
+2. 将容器 restart 策略改 `no`：`docker update --restart=no <container>`（仅元数据，不启动容器）；保留容器与日志用于复盘。
+3. 只回退暴露面，不动业务容器：API/web 等仍保持在 loopback；若端口发布被改，恢复 compose override 为 `127.0.0.1:<host>:<container>`，走正常发布流程（需 H5 批准、A13 执行）。
+4. 记录：容器名/端口/binding/restart 策略、发现时间、处置命令与时间、处置人；证据落 `infra/evidence/` 并登记 manifest（authority=authoritative，除非是演练）。
+5. 若暴露窗口内有人带凭证访问 `/v1/**`，立刻轮换口令并交 access log 复盘（参考 P2 事件 `infra/evidence/drill/nginx-access-review-*.txt`）。
 
-## 升级
+## 5. 升级
 
-- P1：外部连续 5 分钟可访问内部端点 → H5 + lead；
-- 涉及生产发布 → H5 批准后 A13 执行；本 runbook 不授予任何人手工改生产 ingress 的权限。
+- P1（公网可访问内部端点/业务接口）：5 分钟内通知 H5 + Lead；15 分钟未止血按 `internal_eval` 降级并阻断发布。
+- 安全组/云控制台侧配置：A13 不可改，报 Lead/用户处置；A13 只做 ECS 侧止损与取证。
+- 发布门禁相关：`check-network-policy.mjs` 由 CI 自动拦截；本地复跑 `node infra/ci/check-network-policy.mjs`。
 
-## 复盘
+## 6. 复盘
 
-- 证据入包：`infra/evidence/` 新文件（UTC 时间戳命名），`manifest.json` 记 `authority`/`phase`/`sha256`/`case_ids=["L77","H5-R19"]`；
-- 外部 404 / Pod 200 / helm 静态守卫三份原始输出 + 复算命令/人/时间；
-- 若用 `allow-monitoring` 放行整个 `http` 端口：补 `/metrics` 时须独立端口或 A11 断言命名空间隔离（H4 提醒），否则视为未收口。
+- 证据包：`exposure-internal-*.txt` + `exposure-public-*.txt` + `exposure-static-guard-*.txt`，各带命令原文、时间戳、执行人、commit、原始输出与断言结果。
+- 复盘问题：为什么会产生 0.0.0.0 监听/公网入口？变更是否经过发布流程？容器 restart 策略为何不是 no？如何用 CI 前向检查（静态渲染断言 + 端口发布 lint）防复发？
+- 结论写入 `infra/ops/release-evidence-status.md` 与 decisions（由 Lead/H5 落）；`ms-nginx` 永久不恢复（L91）。
 
-## 当前阻塞
-
-`PUBLIC_BASE_URL`（staging 域名 + 可达性）未提供 → 外部 404 与 Pod 200 无法实测；在 `docs/release` 与释放说明中必须写 `UNVERIFIED`，不得计入 PASS。
-
-## 当前状态（2026-11-04T06:15Z，A13）
-
-- **静态守卫：已过**（证据 `infra/evidence/exposure-static-guard-20261104T0615Z.txt`，入 evidence-manifest）：`helm template` 渲染后 Ingress 路径只有 `/v1`；`/`、`/healthz`、`/metrics`、`/docs`、`/openapi.json`、`/readyz`、`/internal` 均不在 ingress；NetworkPolicy 5 条（default-deny ingress/egress、allow ingress-controller、allow monitoring 限定命名空间且只 http 端口、DNS）；Service 未暴露 metrics 端口。
-- **集群外 `/healthz`、`/metrics` 实测：UNVERIFIED**。阻塞：缺真实 ingress host / `PUBLIC_BASE_URL` 与公网可达（安全组/入口）——需 Lead/用户确认开入口或提供 staging 集群；不在 A13 代码侧。拿到入口后 30–60 分钟内出「外部 404（含响应头/时间戳/执行人）+ Pod 内 200」两条证据。
-- **`/metrics` 口径**：当前未实现。实现时必须二选一：①独立端口（不复用 8080）；②A11 断言仅 monitoring 命名空间可达 8080。在此之前，`allow-monitoring` 的 8080 放行是命名空间受限的临时口径，不得视为永久豁免；`check-network-policy.mjs` 会在出现 metrics 端口/路径时要求 `METRICS_ISOLATION_APPROVED=1` 并应走上述二选一评审。
-
-## 入口到位后的执行模板（脚本，勿现写）
-
-前置：拿到真实 ingress host（`EXPOSURE_HOST`）、运行中的 api pod（`POD`）、命名空间（`NS`，默认 `market-sense-dev`）、执行人（`EXECUTOR`）。
+## 7. 取证命令（脚本）
 
 ```sh
-# 预演（不联网）：
-infra/evidence/tools/capture-exposure.sh --dry-run
+# ECS 侧（内网可达 + 端口/绑定/restart 检查）；需 ssh 到 ECS
+ssh root@<ecs> 'env COMMIT=<sha> sh -s -- --mode internal' \
+  < infra/evidence/tools/capture-exposure.sh > infra/evidence/exposure-internal-<UTC>.txt
 
-# 正式取证：
-EXPOSURE_HOST=<ingress-host> NS=<namespace> POD=<api-pod> EXECUTOR="A13 (a13-sre)" \
-  infra/evidence/tools/capture-exposure.sh
+# 公网侧（不可达退证）；在能访问公网 IP 的机器上跑
+COMMIT=<sha> sh infra/evidence/tools/capture-exposure.sh --mode public \
+  > infra/evidence/exposure-public-<UTC>.txt
 ```
 
-脚本一次产出 `infra/evidence/exposure-live-<UTC>.txt`，内含：命令原文、commit、时间戳、执行人、runtime、四条请求的响应头/状态码/body，以及断言结果（external `/healthz`、`/metrics` 必须非 200 且 body 不含 `entitlement_degraded|hold_reason|data_ready_reason`；internal `/healthz` 必须 200 且含 `data_ready`+`entitlement_degraded`）。退出码：0 PASS / 3 外部失败 / 4 内部失败。跑完把文件 path/bytes/sha256/authority/phase/case_ids 加进 `infra/evidence/evidence-manifest.json`（新文件名，不覆盖旧证据）。
+退出码：0 全部断言通过 / 2 用法错误 / 3 公网暴露 / 4 内网不可达 / 5 其他断言失败。证据文件不覆盖旧文件（H4 m02216：内容变则换新文件名）。

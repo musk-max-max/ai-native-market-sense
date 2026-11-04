@@ -2,7 +2,7 @@
   "schema_version": "0.1",
   "owner": "A13",
   "generated_by": "a13-sre",
-  "generated_at": "2026-11-04T12:46:57Z",
+  "generated_at": "2026-11-04T23:49:31Z",
   "rule": "artifact 不内嵌自身哈希；哈希只进 manifest；内容改动必须换新文件名（UTC 时间戳），旧 artifact 保留；CI 独立复算每条 sha。",
   "authority_values": [
     "authoritative",
@@ -150,8 +150,8 @@
     },
     {
       "path": "infra/evidence/tools/capture-exposure.sh",
-      "sha256": "564dd79415a25e26b6521f61e727fe2801caa6736f1addc7deabca91a68d74e8",
-      "bytes": 7830,
+      "sha256": "d5c5e4be1762e7be6ddd7df55f6150f89ad521ae1d5e7b1ae58e23bc32a6d876",
+      "bytes": 10666,
       "recompute": "sha256sum infra/evidence/tools/capture-exposure.sh",
       "role": "evidence-tool",
       "authority": "authoritative",
@@ -160,7 +160,7 @@
         "H5-R10",
         "H5-R19"
       ],
-      "notes": "H5 四件套采集模板；新增 NetworkPolicy 真集群执行命令与授权边界（只读 kubeconfig → PARTIAL）。"
+      "notes": "L91 内网裁定后的取证脚本：--mode internal（ECS 侧内网可达+端口/绑定/restart）/ --mode public（公网不可达退证）；旧公网 ingress 模式已废弃。"
     },
     {
       "path": "infra/evidence/port-bindings-audit-20261104T1219Z.txt",
@@ -313,6 +313,36 @@
       "status": "signed",
       "signed_at": "2026-11-04",
       "signed_ref": "H5 m03277"
+    },
+    {
+      "path": "infra/evidence/exposure-internal-20261104T234904Z.txt",
+      "sha256": "0ba32a45f13acb1398ade79dde523959d75027994a72f0d5af4e67f5f9e11821",
+      "bytes": 3165,
+      "recompute": "sha256sum infra/evidence/exposure-internal-20261104T234904Z.txt",
+      "role": "exposure-evidence-internal",
+      "authority": "authoritative",
+      "phase": "post-fix",
+      "case_ids": [
+        "H5-R10",
+        "H5-R19"
+      ],
+      "notes": "L91 ④-A：ECS 47.120.16.239 业务端口仅 loopback（ss 唯一通配为 sshd:22）、容器 PortBindings 全 127.0.0.1、ms-nginx exited/restart=no、内网 api /healthz 200、quote 403、web 200；单次 run，含命令/时间/执行人/commit。",
+      "code_ref": "agents/decisions.md L91（内网访问，不暴露公网）"
+    },
+    {
+      "path": "infra/evidence/exposure-public-20261104T234826Z.txt",
+      "sha256": "acb23d13ac4c064b031a96ec38cb3eecebdfc931bab8d959a57b90bfc532e33b",
+      "bytes": 2050,
+      "recompute": "sha256sum infra/evidence/exposure-public-20261104T234826Z.txt",
+      "role": "exposure-evidence-public",
+      "authority": "authoritative",
+      "phase": "post-fix",
+      "case_ids": [
+        "H5-R10",
+        "H5-R19"
+      ],
+      "notes": "L91 ④-B：公网 47.120.16.239 的 80/8081/3000/18081 全部无 HTTP 响应（80 refused；其余 timeout），/healthz、/metrics 不可达；安全组由用户控制台处置、ECS 侧无法验证，已注明。",
+      "code_ref": "agents/decisions.md L91（内网访问，不暴露公网）"
     }
   ],
   "related_manifests": [

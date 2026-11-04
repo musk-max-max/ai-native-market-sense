@@ -1,0 +1,29 @@
+# ④ 内网可达 / 公网不可达 实测证据（L91，内网访问、不暴露公网）
+# mode: public  authority: authoritative  phase: post-fix  case_ids: H5-R10,H5-R19
+# timestamp: 2026-11-04T23:48:26Z  executor: A13 (a13-sre)
+# commit: da615c35ea8876961d2bd8d66c5a30ca6882b406  runtime: Darwin 25.5.0 arm64
+# code_ref: agents/decisions.md L91（内网访问，不暴露公网）
+
+## B1) 公网不可达：47.120.16.239 上业务端口应全部 connection refused（或超时/无 HTTP 响应）
+  说明：安全组由用户在云控制台处置，本脚本只能验 ECS/网络侧；若端口被安全组放行但 ECS 未监听，仍表现为 refused/timeout。
+  http://47.120.16.239:80/ -> http=000 exit=7 time=0.043941
+    curl_stderr: curl: (7) Failed to connect to 47.120.16.239 port 80 after 43 ms: Could not connect to server
+  ASSERT_PASS 端口 80 无 HTTP 响应（不可达）
+  http://47.120.16.239:8081/ -> http=000 exit=28 time=10.005421
+    curl_stderr: curl: (28) Connection timed out after 10005 milliseconds
+  ASSERT_PASS 端口 8081 无 HTTP 响应（不可达）
+  http://47.120.16.239:3000/ -> http=000 exit=28 time=10.003918
+    curl_stderr: curl: (28) Connection timed out after 10003 milliseconds
+  ASSERT_PASS 端口 3000 无 HTTP 响应（不可达）
+  http://47.120.16.239:18081/ -> http=000 exit=28 time=10.006290
+    curl_stderr: curl: (28) Connection timed out after 10006 milliseconds
+  ASSERT_PASS 端口 18081 无 HTTP 响应（不可达）
+
+## B2) 公网 healthz/metrics 直探（即使 80 不通也记录原始输出，作为不可达证据）
+  http://47.120.16.239/healthz -> curl: (7) Failed to connect to 47.120.16.239 port 80 after 34 ms: Could not connect to server
+http=000 exit=7
+  http://47.120.16.239/metrics -> curl: (7) Failed to connect to 47.120.16.239 port 80 after 32 ms: Could not connect to server
+http=000 exit=7
+
+## 结论
+PASS: 公网 47.120.16.239 的业务端口均无可观测 HTTP 响应（不可达）；ms-nginx stopped、ECS 侧仅 loopback 的结论见 internal 模式证据。

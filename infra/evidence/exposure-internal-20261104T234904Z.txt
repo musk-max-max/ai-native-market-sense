@@ -1,0 +1,52 @@
+# ④ 内网可达 / 公网不可达 实测证据（L91，内网访问、不暴露公网）
+# mode: internal  authority: authoritative  phase: post-fix  case_ids: H5-R10,H5-R19
+# timestamp: 2026-11-04T23:49:04Z  executor: A13 (a13-sre)
+# commit: da615c35ea8876961d2bd8d66c5a30ca6882b406  runtime: Linux 5.15.0-179-generic x86_64
+# code_ref: agents/decisions.md L91（内网访问，不暴露公网）
+
+## A1) 宿主监听：业务端口不得 0.0.0.0/::
+  State  Recv-Q Send-Q Local Address:Port  Peer Address:PortProcess                                      
+  LISTEN 0      4096       127.0.0.1:8081       0.0.0.0:*    users:(("docker-proxy",pid=1216557,fd=8))   
+  LISTEN 0      4096       127.0.0.1:3000       0.0.0.0:*    users:(("docker-proxy",pid=1216838,fd=8))   
+  LISTEN 0      4096       127.0.0.1:18081      0.0.0.0:*    users:(("docker-proxy",pid=1216358,fd=8))   
+  LISTEN 0      4096   127.0.0.53%lo:53         0.0.0.0:*    users:(("systemd-resolve",pid=976727,fd=14))
+  LISTEN 0      4096       127.0.0.1:45231      0.0.0.0:*    users:(("hbrclient",pid=956202,fd=9))       
+  LISTEN 0      128          0.0.0.0:22         0.0.0.0:*    users:(("sshd",pid=987071,fd=3))            
+  LISTEN 0      128             [::]:22            [::]:*    users:(("sshd",pid=987071,fd=4))            
+
+ASSERT_PASS 业务端口仅 loopback（唯一通配监听为 sshd:22，允许）
+
+## A2) 容器端口绑定：全部 127.0.0.1（Docker inspect PortBindings）
+  market-sense-e2e-web-1: {"3000/tcp":[{"HostIp":"127.0.0.1","HostPort":"3000"}]}
+  market-sense-e2e-api-1: {"8080/tcp":[{"HostIp":"127.0.0.1","HostPort":"8081"}]}
+  market-sense-e2e-postgres-1: {}
+  market-sense-e2e-redis-1: {}
+  market-sense-e2e-tushare-replay-1: {"18080/tcp":[{"HostIp":"127.0.0.1","HostPort":"18081"}]}
+ASSERT_PASS 所有运行容器 PortBindings 无 0.0.0.0
+  -- 静态留档（按名称）--
+  market-sense-e2e-web-1 restart=no
+  market-sense-e2e-api-1 restart=no
+  market-sense-e2e-postgres-1 restart=no
+  market-sense-e2e-redis-1 restart=no
+  market-sense-e2e-tushare-replay-1 restart=no
+
+## A3) 临时层 ms-nginx 必须保持 stopped，且不得自启（restart=no）
+  ms-nginx: exited restart=no
+ASSERT_PASS ms-nginx 非 running（L91：永久不恢复）
+
+## A4) 内网可达：API /healthz 200 且字段完整
+  GET http://127.0.0.1:8081/healthz -> status=200
+  {"status":"ok","service":"market-sense-api","version":"0.1.0","uptime_s":63760,"domains":["market"],"data_ready":true,"data_quality":"green","entitlement_degraded":false}ASSERT_PASS 内网 API /healthz=200，含 data_ready/entitlement_degraded
+
+## A5) 内网可达：业务 API 返回 200/403（本例 quote 在 internal_eval 下应 403 或 200，均算可达）
+  GET http://127.0.0.1:8081/v1/instruments/SSE:600519/quote -> status=403
+  HTTP/1.1 403 Forbidden
+  cache-control: no-store
+ASSERT_PASS 内网业务 API 可达（403）
+
+## A6) 内网可达：H5 入口 web 返回 200
+  GET http://127.0.0.1:3000/ -> status=200
+ASSERT_PASS 内网 web=200
+
+## 结论
+PASS: 内网可达（api 200 / quote 200|403 / web 200）+ ECS 业务端口仅 loopback + ms-nginx stopped；公网侧见 public 模式证据。
