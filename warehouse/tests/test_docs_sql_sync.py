@@ -79,10 +79,14 @@ def test_registry_quality_matches_executable_config():
     assert quality["blocker_blocks_downstream"] == config["blocker_blocks_downstream"]
 
 
-def test_legislation_still_pending_h4_signature():
-    # H4 未签字前不得把状态改成 approved（agent 永远不能批准 agent）
-    assert registry()["sign_off"]["status"] == "pending_h4_signature"
-    assert registry()["sign_off"]["approved_by"] is None
+def test_legislation_is_signed_by_h4_not_approved_by_agent():
+    # 只有 H4（人类席位）能签字；A2 只能改状态与留痕，不能自批。
+    sign = registry()["sign_off"]
+    assert sign["status"] == "signed"
+    assert "H4" in sign["approved_by"]
+    assert sign["approved_at"] == "2026-11-04"
+    assert sign["conditions"], "会签必须带条件"
+    assert sign["note"] and "H4" in sign["note"]
 
 
 def test_board_limits_in_doc_sql_match_config():
@@ -103,12 +107,13 @@ def test_doc_lists_pending_metrics_and_p0_limits():
     assert "待 H4" in text or "待确认" in text
 
 
-def test_doc_has_h4_signoff_checklist():
-    # 会签清单必须覆盖 8 条口径 + L3 + L9，签字前不得把 sign_off 改成 signed
+def test_doc_has_h4_signoff_record():
+    # 会签记录必须覆盖 8 条口径 + L3 + L9，并写明签字人/日期/条件引用
     text = DOC.read_text(encoding="utf-8")
-    assert "## 8. H4 会签请求" in text
+    assert "## 8. H4 会签记录" in text and "已签" in text
     for metric_id in ["M01", "M02", "M04", "M08"]:
         assert metric_id in text
     assert "L3" in text and "L9" in text
     assert "签字栏（H4）" in text
-    assert registry()["sign_off"]["status"] == "pending_h4_signature"
+    assert "sign_off.conditions" in text
+    assert registry()["sign_off"]["status"] == "signed"

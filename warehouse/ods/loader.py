@@ -274,7 +274,7 @@ def normalize_instrument_row(row: dict[str, Any], *, where: str) -> dict[str, An
         raise OdsFormatError(f"{where}.list_status: 非法取值 {row['list_status']!r}")
     if not INSTRUMENT_ID_RE.match(instrument_id) or instrument_id.split(":")[0] != exchange:
         raise OdsFormatError(f"{where}: instrument_id 与 exchange 不一致")
-    # display root 的 instrument 行只有 7 个展示字段（H4 m01335 §2）：code 由 instrument_id
+    # display root 的 instrument 行只有 7 个展示字段（H4 2026-11-04 裁定 §2）：code 由 instrument_id
     # 派生、lot_size 只进 internal；internal 若显式给了就必须合法。DWD 内部仍保存两者。
     code = row.get("code")
     if code is None:
@@ -516,7 +516,7 @@ def _canonical_event_bytes(event: dict[str, Any]) -> bytes:
 
 
 def _event_hash(prev_hash: str, event: dict[str, Any]) -> str:
-    """H4 m01228（M1）：hash = sha256(prev_hash + "\n" + canonical_json)。"""
+    """H4 2026-11-04 口径 M1（agents/decisions.md L52）：hash = sha256(prev_hash + "\n" + canonical_json)。"""
     return hashlib.sha256(prev_hash.encode("utf-8") + b"\n" + _canonical_event_bytes(event)).hexdigest()
 
 
@@ -537,7 +537,7 @@ def _read_manifest_head(root: Path) -> dict[str, Any] | None:
 def load_display_safety(manifest_root: str | Path, *, strict: bool = False) -> dict[str, bool]:
     """从 A1 的主数据 manifest 派生 instrument_id -> display_safe（L30/L34 + H4 证据裁定）。
 
-    证据式派生（H4 m01072/m01084，不再信任目录位置或 DEFAULT）：
+    证据式派生（H4 2026-11-04 裁定，agents/decisions.md L42/L43；不再信任目录位置或 DEFAULT）：
       display_safe = 该 instrument 最近一条 succeeded instrument_import 事件；
                      channel ∈ {manual_import, authorized_download, official_api}；
                      snapshot 文件存在且其内嵌 checksum_sha256 与事件一致。
@@ -616,7 +616,7 @@ def load_display_safety(manifest_root: str | Path, *, strict: bool = False) -> d
 
     head = _read_manifest_head(root)
     if head is None:
-        # H4 m01228（M2）：全 synthetic 目录没有 head；除此之外生产 profile 必须有
+        # H4 2026-11-04 口径 M2（agents/decisions.md L52）：全 synthetic 目录没有 head；除此之外生产 profile 必须有
         if strict and events:
             raise OdsFormatError(f"{manifest_path}: 生产 profile 要求 manifest.head（schema_version/count/last_hash）")
     else:
@@ -685,7 +685,7 @@ def _resolve_snapshot(
 ) -> tuple[Path | None, bool]:
     """定位并（能定位时）校验快照文件字节哈希。
 
-    H4 m01172：成功事件必须带 `snapshot_path` + `snapshot_sha256`（快照文件字节 sha256）。
+    H4 2026-11-04 裁定：成功事件必须带 `snapshot_path` + `snapshot_sha256`（快照文件字节 sha256）。
     缺失按"无证据"处理：strict（生产）直接报错；dev 返回 None（不产生 true）。
     旧格式没有这两个字段时回退 `snapshots/instruments-<checksum>.json`，但字节哈希未验证，
     因此即使能读到快照也只算 False。
@@ -774,7 +774,7 @@ def require_display_evidence(batches: list[Batch], safety: dict[str, bool]) -> N
     """生产 profile：display root 里的每个标的都必须有 positive manifest 证据。
 
     缺证据 / 渠道不可展示 / 快照不一致都会在这里变成硬失败，而不是悄悄落成 false
-    （否则维表会整片空掉，没人发现——H4 m01072 第 3 条）。
+    （否则维表会整片空掉，没人发现——H4 2026-11-04 裁定第 3 条）。
     """
     missing = [instrument_id for instrument_id in display_instrument_ids(batches) if not safety.get(instrument_id, False)]
     if missing:

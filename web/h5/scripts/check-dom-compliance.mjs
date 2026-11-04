@@ -270,6 +270,11 @@ async function main() {
       console.error('[dom] 403 结构异常页缺少 stock-page');
       ok = false;
     }
+    const malformedText = await page.locator('[data-testid="stock-page"]').innerText();
+    if (/[元%]|\d+\s*小时/.test(malformedText)) {
+      console.error('[dom] 403 结构异常页不得出现数值/时效（元/%/小时）');
+      ok = false;
+    }
     ok = (await inspectPage(page, 'restricted-malformed-403')) && ok;
     consoleErrors = consoleErrors.filter((text) => !/403/.test(text));
     await page.unroute('**/v1/instruments/*/quote*');

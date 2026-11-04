@@ -49,7 +49,11 @@ test('除 copy.ts 外，src 中没有中文字面量（文案单一来源）', (
     const matches = code.match(/[\u4e00-\u9fff]/g);
     if (matches) offenders.push(`${relative(H5_DIR, file)}（${matches.length} 处）`);
   }
-  assert.deepEqual(offenders, [], `以下文件含硬编码中文，请改从 lib/copy.ts 引用：${offenders.join('、')}`);
+  assert.deepEqual(
+    offenders,
+    [],
+    `以下文件含硬编码中文，请改从 lib/copy.ts 引用：${offenders.join('、')}`,
+  );
 });
 
 test('403 文案中性：不出现法律定性、不伪装成故障/不存在/退市', () => {
@@ -135,6 +139,21 @@ test('403 与 EntitlementNotice 共用同一份文案，且 403 不提供重试�
   assert.equal(status403.retry, null, '403 是确定状态，不暗示可恢复');
 });
 
+test('受限 notice 渲染路径 0 引用本地 403 文案（H4 #5 静态门禁）', () => {
+  const noticeSource = readFileSync(join(SRC_DIR, 'components', 'EntitlementNotice.tsx'), 'utf8');
+  const pageSource = readFileSync(join(SRC_DIR, 'pages', 'StockPage.tsx'), 'utf8');
+  assert.ok(!noticeSource.includes('copy.entitlement'), 'notice 不得引用本地受限文案分组');
+  assert.ok(!noticeSource.includes('UNAVAILABLE_'), 'notice 不得引用 403 兜底常量');
+  assert.ok(noticeSource.includes('problem'), 'notice 必须以 API Problem 为唯一输入');
+  assert.ok(pageSource.includes('restrictedProblem'), '受限分支必须来自 API Problem body');
+  const noticeTag = /<EntitlementNotice[^>]*\/>/.exec(pageSource)?.[0] ?? '';
+  assert.ok(
+    noticeTag.includes('problem={data.restrictedProblem}'),
+    '受限 notice 只能渲染 API Problem',
+  );
+  assert.ok(!noticeTag.includes('copy.'), '受限 notice 渲染处不得拼本地文案');
+});
+
 test('copy 版本轴：快照文件名为 <version>.<hash12>.frontend.json，且与 manifest 互相引用（ADR-006 D2/D3）', () => {
   const snapshotDir = join(H5_DIR, '..', '..', 'docs', 'release', 'copy-snapshots');
   const files = readdirSync(snapshotDir).filter(
@@ -142,7 +161,10 @@ test('copy 版本轴：快照文件名为 <version>.<hash12>.frontend.json，且
   );
   assert.equal(files.length, 1, '同一版本只允许一个 frontend 快照（append-only，不覆盖）');
   const fileName = files[0] ?? '';
-  assert.match(fileName, new RegExp(`^${COPY_VERSION.replaceAll('.', '\\.')}\\.[a-f0-9]{12}\\.frontend\\.json$`));
+  assert.match(
+    fileName,
+    new RegExp(`^${COPY_VERSION.replaceAll('.', '\\.')}\\.[a-f0-9]{12}\\.frontend\\.json$`),
+  );
 
   const snapshot = JSON.parse(readFileSync(join(snapshotDir, fileName), 'utf8')) as {
     version?: string;
@@ -161,17 +183,25 @@ test('copy 版本轴：快照文件名为 <version>.<hash12>.frontend.json，且
   );
   // append-only：同版本可能有多行（每次发版追加一行），取登记了当前 hash 的那一行；
   // 全部未命中时取最后一行，失败信息更有指向性（不会误取历史行）。
-  const sameVersionRows = manifestText
-    .split('\n')
-    .filter((line) => line.split('|').map((cell) => cell.trim()).includes(COPY_VERSION));
+  const sameVersionRows = manifestText.split('\n').filter((line) =>
+    line
+      .split('|')
+      .map((cell) => cell.trim())
+      .includes(COPY_VERSION),
+  );
   assert.ok(sameVersionRows.length > 0, `manifest 缺少 ${COPY_VERSION} 行（前后端成对登记）`);
-  const row = sameVersionRows.find((line) => line.includes(snapshot.hash ?? '')) ?? sameVersionRows.at(-1) ?? '';
+  const row =
+    sameVersionRows.find((line) => line.includes(snapshot.hash ?? '')) ??
+    sameVersionRows.at(-1) ??
+    '';
   assert.ok(row?.includes(snapshot.hash ?? ''), 'manifest 该行未登记当前 frontend hash');
   assert.ok(row?.includes(fileName), 'manifest 该行未记录当前 frontend 快照文件名');
 
   // manifest 行内引用的后端快照文件必须真实存在（回指不断链）。
   const backendRefs =
-    row?.match(new RegExp(`${COPY_VERSION.replaceAll('.', '\\.')}\\.[a-f0-9]+\\.backend\\.json`, 'g')) ?? [];
+    row?.match(
+      new RegExp(`${COPY_VERSION.replaceAll('.', '\\.')}\\.[a-f0-9]+\\.backend\\.json`, 'g'),
+    ) ?? [];
   for (const ref of backendRefs) {
     assert.ok(existsSync(join(snapshotDir, ref)), `manifest 引用的后端快照不存在：${ref}`);
   }

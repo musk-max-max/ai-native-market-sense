@@ -1,6 +1,6 @@
 {
   "label": "hold_active",
-  "generated_at": "2026-11-04T10:35:53+08:00",
+  "generated_at": "2026-11-04T10:39:49+08:00",
   "rules": {
     "quote_403": {
       "ok": true,
@@ -41,9 +41,21 @@
       "report": "playwright-hold_active.json"
     }
   },
-  "skipped_scenarios": {
-    "hold_active": "BLOCKED：E2E 原生库未跑 A13 db-migrate（A5 control 表不存在），不冒领",
-    "hold_stale": "BLOCKED：同上"
-  },
-  "overall": "PASS"
+  "overall": "PASS",
+  "scenario": "hold_active",
+  "coverage": {
+    "expected": [
+      "expired",
+      "hold_active",
+      "hold_stale",
+      "unauthorized_config"
+    ],
+    "covered": {
+      "hold_active": "PASS",
+      "expired": "PASS",
+      "hold_stale": "PASS",
+      "unauthorized_config": "PASS"
+    },
+    "blocked": {}
+  }
 }

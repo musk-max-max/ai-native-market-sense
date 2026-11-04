@@ -112,7 +112,7 @@ def build_dwd(
     """把 ODS 批次折叠为 DWD 状态。输入输出均为纯数据，可重复执行（幂等）。
 
     `display_safety` 是 `load_display_safety()` 派生的证据映射（instrument_id -> bool）；
-    证据式派生（H4 m01072）：`display_safe = origin=='display' AND evidence==True`。
+    证据式派生（H4 2026-11-04 裁定，agents/decisions.md L42）：`display_safe = origin=='display' AND evidence==True`。
     internal 批次不参与展示态；旧平铺 root 没有可展示性证据，一律 false（离线回归需显式构造
     display root + manifest，或直接读 build 结果验证）。缺证据时 false，绝不默认 true。
     """

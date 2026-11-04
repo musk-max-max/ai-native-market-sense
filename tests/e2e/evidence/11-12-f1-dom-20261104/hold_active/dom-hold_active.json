@@ -2,8 +2,8 @@
   "label": "hold_active",
   "web_url": "http://127.0.0.1:3004",
   "instrument": "SSE:600519",
-  "started_at": "2026-11-04T02:35:48.565Z",
-  "finished_at": "2026-11-04T02:35:49.631Z",
+  "started_at": "2026-11-04T02:39:43.750Z",
+  "finished_at": "2026-11-04T02:39:44.746Z",
   "console_errors": [
     "Failed to load resource: the server responded with a status of 403 (Forbidden)",
     "Failed to load resource: the server responded with a status of 403 (Forbidden)"

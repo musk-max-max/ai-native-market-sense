@@ -6,7 +6,7 @@
     "status": "signed",
     "approved_by": "H4（数据负责人）",
     "approved_at": "2026-11-04",
-    "review_ref": "H4 m01482 批注 + A2 m01496 落改（#3 时点ST已知限制/G22、#6 L3 三件、#7 分母提示、#10 22+9）",
+    "review_ref": "H4 核签 2026-11-04（见 docs/metrics/P0-metrics.md §8；本文件 sign_off.conditions）+ A2 落改记录",
     "conditions": [
       "L3 锚变更=口径变更，必须重新会签；anchor_date/factor_version 随输出下发，hfq 绝对价不得直接进 C 端。",
       "M04 ST 为当前名称快照（L80），跨戴帽/摘帽/退市窗口不适用，BIZ-03 warn 单列；P1 接 namechange 后转 blocker。",

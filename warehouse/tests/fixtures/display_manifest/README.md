@@ -4,7 +4,7 @@
 （`warehouse.ods.loader.load_display_safety`）对同一条 manifest 的理解一致。
 A1 读这个目录，A2 读 `services/ingest/var/audit-demo`，双向通过才算链口径闭合。
 
-形状（H4 m01228 M1/M2 + lead L52）：
+形状（H4 2026-11-04 口径 M1/M2 + lead L52，见 `agents/decisions.md` L52）：
 
 - 首条真实事件 `prev_hash` = 64 个 `0`（不是 `GENESIS`）。
 - `hash = sha256(prev_hash + "\n" + canonical_json)`；canonical = 键排序、紧凑分隔符、UTF-8，

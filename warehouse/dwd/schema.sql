@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS dim_instrument (
     list_status     text        NOT NULL CHECK (list_status IN ('listed','delisted','pre_listed')),
     lot_size        integer     NOT NULL DEFAULT 100 CHECK (lot_size >= 1),
     listed_at       date,
-    -- L30 + L34 + H4 m01072：证据式派生，fail-closed。display_safe = origin=='display'
+    -- L30 + L34 + H4 2026-11-04 裁定（agents/decisions.md L42）：证据式派生，fail-closed。display_safe = origin=='display'
     -- AND manifest 有 succeeded 事件 AND channel ∈ {manual_import,authorized_download,official_api}
     -- AND 快照与事件一致。缺证据一律 false（生产 profile 直接拒绝落库，不静默降级）。
     display_safe    boolean     NOT NULL DEFAULT false,

@@ -93,6 +93,20 @@ export function StockPage({ instrumentId }: { instrumentId: string }) {
   }
 
   const { data } = load;
+
+  // 受限但响应里没有合法 Problem（结构异常）：整页中性错误态。
+  // 不能只替换行情区——否则页面仍会渲染基本面数值，等于在无授权时输出数据（H4 #5）。
+  if (data.access === 'restricted' && !data.restrictedProblem) {
+    return (
+      <div className="page stock-page" data-testid={TID.stockPage}>
+        <nav className="breadcrumb" aria-label={copy.stock.breadcrumbAria}>
+          <Link href="/">{copy.stock.breadcrumbHome}</Link>
+        </nav>
+        <ErrorState text={errorCopy(null, false)} onRetry={() => window.location.reload()} />
+      </div>
+    );
+  }
+
   const displayName = data.name ?? data.instrumentId;
   const exchangeLabel = data.exchange ? (copy.stock.exchange[data.exchange] ?? data.exchange) : null;
   const granted = data.access === 'granted';

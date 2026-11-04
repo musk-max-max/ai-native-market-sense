@@ -35,7 +35,7 @@ def _canonical(event: dict) -> bytes:
 
 
 def _event_hash(prev_hash: str, event: dict) -> str:
-    # H4 m01228 / lead L52：hash = sha256(prev_hash + "\n" + canonical_json)
+    # H4 2026-11-04 口径 M1/M2 / lead L52（agents/decisions.md L52）：hash = sha256(prev_hash + "\n" + canonical_json)
     return hashlib.sha256(prev_hash.encode() + b"\n" + _canonical(event)).hexdigest()
 
 
@@ -80,7 +80,7 @@ def _manifest(
 ) -> Path:
     """写 manifest.jsonl + snapshots/（+ manifest.head）。events 为未加链字段的事件。
 
-    synthetic 事件按 H4 m01084 整条跳过：不进链、不进 head.count（仍原样写在文件里）。
+    synthetic 事件按 H4 2026-11-04 裁定整条跳过：不进链、不进 head.count（仍原样写在文件里）。
     """
     root.mkdir(parents=True, exist_ok=True)
     snapshots = snapshots or {}
@@ -98,7 +98,7 @@ def _manifest(
     counted = 0
     for event in events:
         record = dict(event)
-        # H4 m01172：成功事件带 snapshot_path + 快照文件字节 sha256；有快照的测试默认注入
+        # H4 2026-11-04 裁定：成功事件带 snapshot_path + 快照文件字节 sha256；有快照的测试默认注入
         checksum = record.get("checksum_sha256")
         if refs and checksum in snapshots:
             relative = f"snapshots/instruments-{checksum}.json"
@@ -596,7 +596,7 @@ def test_read_side_fixture_is_valid_and_documents_expected_hashes() -> None:
     """A2 侧跨 agent 校验产物：A1 用 verify-manifest 反向读它，必须 strict 通过。
 
     链里故意夹一条 synthetic（不参与 count/链），第二真实事件 prev_hash 跨过它接第一条真实 hash；
-    head 故意多带未知键（note），读取方必须忽略（H4 m01228）。
+    head 故意多带未知键（note），读取方必须忽略（H4 2026-11-04 口径 M1/M2）。
     """
     safety = load_display_safety(FIXTURE_ROOT, strict=True)
     assert safety == {"SSE:600519": True, "SZSE:000001": True, "BSE:830799": True}

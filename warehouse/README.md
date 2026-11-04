@@ -218,14 +218,14 @@ python3 -m warehouse.load --ods-root <ODS_DISPLAY_ROOT> --internal-ods-root <ODS
   调用方给 `--ods-root`（display）+ `--internal-ods-root`（internal），或只给一个其下含 `display/` + `internal/`
   的父目录（自动识别）。**旧平铺单 root（如 `services/ingest/var/ods-smoke`）保持兼容**，行为不变。
   两个 root 的批次会合并做全局 `batch_id` 唯一校验（跨 root 重复直接拒绝）。
-- **display_safe（L30 + L34 + H4 m01072/m01084/m01172；证据式、fail-closed，DEFAULT false）**：
+- **display_safe（L30/L34/L40 + H4 2026-11-04 裁定；证据式、fail-closed，DEFAULT false；裁定见 agents/decisions.md L40/L42/L43）**：
   `dim_instrument.display_safe` 不从 ODS 行取，**不能靠目录位置信任**。派生规则：
   `display_safe = (origin=='display') AND (manifest 有该 instrument 的 succeeded instrument_import) AND
   (channel ∈ {manual_import, authorized_download, official_api}) AND（快照文件字节哈希通过且
   快照内嵌 checksum/rows 与事件一致）`。只有 `internal` 批次 → FALSE；internal 批次不得覆盖 display
   的维表行，也不得把已展示标的降级。旧平铺 root 无可展示性证据 → 全部 FALSE（离线回归语义，
   不回退 manifest 默认值）。
-  manifest 完整性（读取侧复算，H4 m01084/m01228 + lead L52）：`event_id` 全局唯一、`finished_at` 非降序、
+  manifest 完整性（读取侧复算，H4 2026-11-04 裁定 + lead L52；agents/decisions.md L43/L52）：`event_id` 全局唯一、`finished_at` 非降序、
   每条事件 `hash = sha256(prev_hash + "\n" + canonical_json)`（canonical = 键排序、紧凑分隔符、UTF-8、
   排除 `prev_hash`/`hash` 两键）、`prev_hash` 接上一条 hash（首条 = 64 个 0，不用 `GENESIS` 字符串）、
   `manifest.head`（文件，JSON `{"schema_version":1,"count":n,"last_hash":"...","updated_at":"..."}`）：
@@ -233,7 +233,7 @@ python3 -m warehouse.load --ods-root <ODS_DISPLAY_ROOT> --internal-ods-root <ODS
   **未知键忽略**（head 会演进，读取方不假设键集固定）；全 synthetic 目录没有 head。
   `synthetic: true` 整条跳过（不进 count、不进链、不参与派生，也不校验其链；下一条真实事件的 prev_hash
   跨过 synthetic 行接最后一条真实 hash）；synthetic 行声明 `display_safe:true` 一律报错（样例不得充当展示证据）。
-  **快照证据（H4 m01172）**：`checksum_sha256` 是来源 CSV 内容哈希（证明内容一致），**不能**证明
+  **快照证据（H4 2026-11-04 裁定）**：`checksum_sha256` 是来源 CSV 内容哈希（证明内容一致），**不能**证明
   快照文件没被改；成功事件还必须带 `snapshot_path` + `snapshot_sha256`（快照文件字节 sha256），
   loader 严格复算文件字节哈希并拒绝越出 manifest root 的路径。两字段缺失 = 无证据：prod 报错，
   dev 降 false（不产生 true）；旧格式（只有 checksum）在 dev 下最多派生出 false。
@@ -242,7 +242,7 @@ python3 -m warehouse.load --ods-root <ODS_DISPLAY_ROOT> --internal-ods-root <ODS
   `finished_at` 倒序、快照缺失/不一致 → **直接报错退出，不降级**。离线回归用 `--profile dev`
   （仍不产生 true，只是不因缺证据失败）。展示判定 = `entitlement_ok AND display_safe`；
   `display_safe=false` 的标的不进 C 端结果集，但保留内部评测态。
-  **状态：closed（H4 m01172/m01200）**——A1 写入侧两问已闭合：(a) 成功事件增加 `snapshot_path` +
+  **状态：closed（H4 2026-11-04）**——A1 写入侧两问已闭合：(a) 成功事件增加 `snapshot_path` +
   `snapshot_sha256`（快照文件字节哈希），(b) synthetic 不参与链/count；读取侧已按此实现并由
   `warehouse/tests/test_display_safe.py` 锁定，本节无悬案。
 - **验证边界（如实声明）**：本机没有 PostgreSQL，`warehouse/tests/test_load.py` 验证的是 builder 生成的 SQL/列/
@@ -266,14 +266,14 @@ compose 里是独立的一次性服务 `warehouse-load`（`restart: "no"`）。
 原因：本机没有容器运行时，磁盘也不够。已静态核对：只用 Python 标准库 + psycopg、
 不读仓库内相对路径以外的资源、ENTRYPOINT 与 CLI 一致；真实构建/运行留给 A12/A13 的 compose/CI。
 
-compose 约定（A12 m01435）：`warehouse-load` 服务**覆盖 entrypoint** 为 `sh /e2e/warehouse_load_once.sh`
+compose 约定（A12 2026-11-04）：`warehouse-load` 服务**覆盖 entrypoint** 为 `sh /e2e/warehouse_load_once.sh`
 （否则镜像 ENTRYPOINT 会把脚本当子命令参数）；env 为 `DATABASE_URL`、`ODS_ROOT=/data/ods`、
 `AUDIT_ROOT=/data/audit`、`QUALITY_REPORT_PATH=/state/quality.json`。镜像内预建 `/state` 并
 `chown 10001:10001`：named volume 会继承该属主；A12 实际用 host bind（`./.state:/state`，契约 §4 要求
 报告落在宿主可查路径），由 `up.sh` 事前 `mkdir -p && chmod 0777`，否则报告写入会因 EACCES 退 2（环境错误）。
 `AUDIT_ROOT` 必须直接指向含 `manifest.jsonl`+`snapshots/` 的那层；`/data/ods`、`/data/audit` 只读挂载即可。
 
-## 9. 交付纪律（lead m01413 裁定，通用规则）
+## 9. 交付纪律（lead 2026-11-04 裁定，通用规则）
 
 1. **契约是唯一真源，口头裁定不是。** 当口述与已发布契约冲突时，契约赢；口述方须明说作废了哪一句。
    本仓实例：`warehouse.load` 退出码 `0=成功 / 1=质量红或黑拒绝 / 2=环境/DB/schema / 3=输入缺失或为空`

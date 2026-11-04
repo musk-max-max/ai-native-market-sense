@@ -265,7 +265,7 @@ ORDER BY trade_date;
 
 这四条**没有 SQL**，注册表 `p0_metrics.json` 里 `status=pending-data`，serving 层不得对其出具数值。
 
-**M06 状态边界（lead m00881）**：`pending-data` 是指标定义状态，**不是 P0 验收项**；E2E 对
+**M06 状态边界（lead 2026-11-04 裁定，见 agents/decisions.md L30）**：`pending-data` 是指标定义状态，**不是 P0 验收项**；E2E 对
 `GET /fundamental-summary` 返回 200（A1 已给切片标的落最小 `fina_indicator`）不改变 M06 的 pending-data 状态，
 验收时不得把它当成"没做完"。
 
@@ -329,11 +329,11 @@ ORDER BY trade_date;
 > 以下 8 条口径 + 规则变更已由 A2 落成可执行物（SQL / 配置 / golden）。请 H4 逐条签"同意/修改"；
 > 签字后把 `docs/metrics/p0_metrics.json::sign_off.status` 改为 `signed`，并记录签字人与日期。
 
-| # | 事项 | 现状与证据 | 需 H4 确认 | H4 核签意见（m01482，2026-11-04） |
+| # | 事项 | 现状与证据 | 需 H4 确认 | H4 核签意见（2026-11-04） |
 | --- | --- | --- | --- | --- |
 | 1 | M01 主口径不复权 | `warehouse/metrics/m01_bars_none.sql`；DWD 只存不复权 OHLC | 同意/修改 | **可签**（不动） |
 | 2 | M02 收益口径后复权 | `warehouse/metrics/m02_return_hfq.sql`；hfq = close × factor；新增 `anchor_date`/`factor_version`/`factor_as_of` | 同意/修改 | **可签**（L3 条件见 #6） |
-| 3 | M04 涨跌停按板块 | `warehouse/metrics/m04_limit_status.sql`；主板 10% / 创业科创 20% / 北交所 30% / 主板 ST 5%；未知 board fail-closed；ST 时点性输出 `known_limitation` | 同意/修改 | **H4 m01654 重签通过**（曾拒签，批注修复）：①ST 判定时点性（L80：P0 限定 + 输出 known_limitation + BIZ-03 warn）；②`CASE` 无 `ELSE` 的静默放行已改 fail-closed（`limit_status=NULL`）；③限价取整边界补 G22 |
+| 3 | M04 涨跌停按板块 | `warehouse/metrics/m04_limit_status.sql`；主板 10% / 创业科创 20% / 北交所 30% / 主板 ST 5%；未知 board fail-closed；ST 时点性输出 `known_limitation` | 同意/修改 | **H4 重签 2026-11-04（见 `p0_metrics.json::sign_off`）**（曾拒签，批注修复）：①ST 判定时点性（L80：P0 限定 + 输出 known_limitation + BIZ-03 warn）；②`CASE` 无 `ELSE` 的静默放行已改 fail-closed（`limit_status=NULL`）；③限价取整边界补 G22 |
 | 4 | M08 涨跌幅基准=prev_close | `warehouse/metrics/m08_change_pct.sql`；除权日由适配层写入除权参考价 | 同意/修改 | **可签** |
 | 5 | M03/M05/M06/M07 立法但 P0 无数据 | §5；M06 的 DDL 已备（`dwd_fundamental_report`），数据待 A1 | 同意"P0 只立法" | **可签** |
 | 6 | **L3 因子归一** `adj_factor = raw / anchor` | 锚=该标的最早可得因子日，老股锚 1990-12-19；DWD 不二次归一；M02 收益两锚等价、hfq 绝对价不同 | **复权算法变更，需会签** | **条件签（三件已落）**：①`m02_return_hfq.sql` 注释已改 L3（不再写"首个上市交易日"）；②输出 `anchor_date` + `factor_version`（锚变则版本串变、须重新会签）；③hfq 绝对价不进 C 端（仅收益），展示绝对价需另签 |
@@ -355,6 +355,6 @@ ORDER BY trade_date;
 | 2026-11-04 | 初版：M01/M02/M04/M08 可执行；质量分 0.2/0.3/0.3/0.2、阈值 95/90/85、blocker 一票否决 | 待 H4 |
 | 2026-11-04 | 记录 L3（因子锚=最早可得因子日，待 H4 会签）、L7（prev_close 必填）、L8（停牌证据行）；规则/阈值/否决均不变 | 待 H4 |
 | 2026-11-04 | 记录 L9（质量分只计 blocker，warn 独立计数）与 §8 H4 会签清单；新增 G21（ST 恰好 +5.00%）边界样本 | 待 H4 |
-| 2026-11-04 | H4 m01482 核签后修复：M04 未知板块 fail-closed（`limit_status=NULL`，BIZ-01 blocker）+ ST 时点性 L80（`known_limitation`/`st_status_source`、BIZ-03 warn）；M02 注释改 L3 锚并输出 `anchor_date`/`factor_version`/`factor_as_of`；新增 G22 取整边界 | H4 重签通过 |
+| 2026-11-04 | H4 核签 2026-11-04 后修复：M04 未知板块 fail-closed（`limit_status=NULL`，BIZ-01 blocker）+ ST 时点性 L80（`known_limitation`/`st_status_source`、BIZ-03 warn）；M02 注释改 L3 锚并输出 `anchor_date`/`factor_version`/`factor_as_of`；新增 G22 取整边界 | H4 重签通过 |
 | 2026-11-04 | **规则集变更 before/after（H4 条件 3）**：新增 BIZ-03（warn）后业务规则数 2→3；同一 blocker（BIZ-01）命中时 business 类别分 **50.00→66.67**、总分 **85.00→90.00**，仍因一票否决 `black`；结构 6 / 完整性 3 / 一致性 2 不变。阈值、权重、否决规则均不变；该变化不改变任何门禁结论。**signed / H4 / 2026-11-04 / 条件见 `sign_off.conditions`** | 已签 |
 | 2026-11-04 | H4 会签 §8 十项：#1/#2/#4/#5/#7/#8/#9/#10 同意；#3 按 L80 条件收（时点 ST 限制+BIZ-03 warn，未知板 fail-closed）；#6 L3 条件已落（anchor_date/factor_version、锚变重签）。条件见 `p0_metrics.json::sign_off.conditions` | H4（signed） |

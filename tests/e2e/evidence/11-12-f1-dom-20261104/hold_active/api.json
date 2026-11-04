@@ -5,14 +5,14 @@
     "title": "行情数据暂不可用",
     "status": 403,
     "code": "ENTITLEMENT_RESTRICTED",
-    "trace_id": "req-8",
+    "trace_id": "req-1s",
     "detail": "当前版本暂不提供该标的行情数据"
   },
   "quote_headers": {
     "content-type": "application/problem+json; charset=utf-8",
     "cache-control": "no-store",
-    "content-length": "225",
-    "date": "Wed, 04 Nov 2026 02:35:47 GMT",
+    "content-length": "226",
+    "date": "Wed, 04 Nov 2026 02:39:43 GMT",
     "connection": "close"
   },
   "instrument_status": 200,
@@ -30,7 +30,7 @@
       "source": {
         "source": "platform_eod",
         "as_of": "2026-11-04T08:55:00+08:00",
-        "staleness_ms": 6046664,
+        "staleness_ms": 6282264,
         "source_id": "fixture"
       },
       "entitlement": {

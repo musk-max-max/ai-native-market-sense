@@ -26,6 +26,20 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
+PHASES = {"pre_fix", "post_fix", "not_applicable"}
+AUTHORITIES = {
+    "pre_fix_baseline",
+    "pre_fix_control",
+    "post_fix_authoritative",
+    "post_fix_control",
+    "post_fix_run_scoped_raw_log",
+    "evidence",
+    "index",
+    "receipt",
+    "meta",
+}
+
+
 @dataclass
 class Failure:
     path: str
@@ -82,6 +96,18 @@ def verify_manifest_schema(manifest: dict) -> list[Failure]:
         size = entry.get("bytes")
         if not isinstance(size, int) or size <= 0:
             failures.append(Failure(path, f"bytes 必须 >0，实际 {size!r}"))
+        if int(manifest.get("schema_version", 1)) >= 2:
+            # H5-R19：每条带 authority / phase / case_ids
+            authority = entry.get("authority")
+            if authority not in AUTHORITIES:
+                failures.append(Failure(path, f"authority 非法或缺失：{authority!r}（允许 {sorted(AUTHORITIES)}）"))
+            phase = entry.get("phase")
+            if phase not in PHASES:
+                failures.append(Failure(path, f"phase 非法或缺失：{phase!r}（允许 {sorted(PHASES)}）"))
+            case_ids = entry.get("case_ids")
+            if (not isinstance(case_ids, list) or not case_ids
+                    or any(not isinstance(c, str) or not c for c in case_ids)):
+                failures.append(Failure(path, f"case_ids 必须是非空字符串数组：{case_ids!r}"))
     return failures
 
 
@@ -138,6 +164,122 @@ def verify_entries_against_archive(manifest: dict, archive: Path) -> list[Failur
     return failures
 
 
+def verify_exact_correspondence(manifest: dict, archive: Path) -> list[Failure]:
+    """H4 m02705：tar 内除 manifest 自身外，文件集合与 manifest 条目一一对应（多一个少一个都红）。"""
+    failures: list[Failure] = []
+    if int(manifest.get("schema_version", 1)) < 2:
+        return failures
+    try:
+        with tarfile.open(archive, "r:*") as tar:
+            members = {m.name for m in tar.getmembers() if m.isfile()}
+    except (OSError, tarfile.TarError) as exc:
+        return [Failure(str(archive), f"无法打开证据包：{exc}")]
+    manifest_member = manifest.get("_manifest_member")
+    packed = members - ({manifest_member} if manifest_member else set())
+    registered = {e["path"] for e in manifest["entries"]}
+    for name in sorted(packed - registered):
+        failures.append(Failure(name, "包内文件未登记（tar↔manifest 不一一对应）"))
+    for name in sorted(registered - packed):
+        failures.append(Failure(name, "manifest 登记但包内不存在（tar↔manifest 不一一对应）"))
+    return failures
+
+
+def _normalise_ref(ref: str) -> str:
+    value = ref.strip().lstrip("./")
+    while value.startswith("./"):
+        value = value[2:]
+    return value
+
+
+def _resolve_pointer(ref: str, entries: list[dict]) -> dict | None:
+    """把 repo-relative evidence 指针解析到包内条目（按 source_path / 包内路径 / basename 后缀）。"""
+    value = _normalise_ref(ref)
+    by_source = {e.get("source_path"): e for e in entries if isinstance(e.get("source_path"), str)}
+    if value in by_source:
+        return by_source[value]
+    for entry in entries:
+        if entry["path"] == value:
+            return entry
+        if value.endswith("/" + entry["path"]) or entry["path"].endswith("/" + value):
+            return entry
+    basename = Path(value).name
+    hits = [e for e in entries if Path(e["path"]).name == basename]
+    return hits[0] if len(hits) == 1 else None
+
+
+def _walk_evidence_refs(node, path: str = "") -> list[tuple[str, str]]:
+    """收集 evidence.log / evidence.logs / meta.rawHttpLog 一类的指针。"""
+    found: list[tuple[str, str]] = []
+    if isinstance(node, dict):
+        for key, value in node.items():
+            child = f"{path}.{key}" if path else key
+            if key in ("log", "logs", "rawHttpLog"):
+                values = value if isinstance(value, list) else [value]
+                for item in values:
+                    if isinstance(item, str):
+                        found.append((child, item))
+            else:
+                found.extend(_walk_evidence_refs(value, child))
+    elif isinstance(node, list):
+        for index, item in enumerate(node):
+            found.extend(_walk_evidence_refs(item, f"{path}[{index}]"))
+    return found
+
+
+def verify_evidence_pointers(manifest: dict, archive: Path) -> list[Failure]:
+    """H5/H4：包内每个 artifact 引用的 evidence 路径必须命中包内条目（悬空即红灯）。"""
+    failures: list[Failure] = []
+    if int(manifest.get("schema_version", 1)) < 2:
+        return failures
+    referenced: set[str] = set()
+    try:
+        with tarfile.open(archive, "r:*") as tar:
+            members = {m.name: m for m in tar.getmembers() if m.isfile()}
+            for entry in manifest["entries"]:
+                if not entry["path"].lower().endswith(".json"):
+                    continue
+                member = members.get(entry["path"])
+                if member is None:
+                    continue  # 对应性检查已单独报
+                data = tar.extractfile(member)
+                if data is None:
+                    continue
+                try:
+                    payload = json.loads(data.read().decode("utf-8"))
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    continue  # 非 JSON 语义文件不参与指针校验
+                for label, ref in _walk_evidence_refs(payload):
+                    if not ref or "://" in ref or ref.startswith(("http:", "https:")):
+                        continue
+                    target = _resolve_pointer(ref, manifest["entries"])
+                    if target is None:
+                        failures.append(
+                            Failure(entry["path"], f"{label} 指向的 evidence 不在包内：{ref!r}（悬空指针）")
+                        )
+                    else:
+                        referenced.add(target["path"])
+    except (OSError, tarfile.TarError) as exc:
+        return [Failure(str(archive), f"无法打开证据包：{exc}")]
+    for path in sorted(referenced):
+        target = next(e for e in manifest["entries"] if e["path"] == path)
+        if target["bytes"] <= 0:
+            failures.append(Failure(path, "被 evidence 指针引用但为 0 字节"))
+    return failures
+
+
+def verify_receipts(manifest: dict) -> list[Failure]:
+    """receipt 也是 artifact：包内若有凭证类文件，必须登记且带自己的 sha256（H5-R18 第 3 条）。"""
+    failures: list[Failure] = []
+    entries = manifest["entries"]
+    receipt_like = [e for e in entries if "RECEIPT" in e["path"].upper() or "receipt" in Path(e["path"]).name.lower()]
+    for entry in receipt_like:
+        if len(entry.get("sha256", "")) != 64:
+            failures.append(Failure(entry["path"], "receipt 必须有独立 sha256"))
+        if int(manifest.get("schema_version", 1)) >= 2 and entry.get("authority") != "receipt":
+            failures.append(Failure(entry["path"], f"receipt 类 artifact 的 authority 应为 receipt，实际 {entry.get('authority')!r}"))
+    return failures
+
+
 def verify_authority(manifest: dict) -> list[Failure]:
     """权威版本标注（H5-R18 第 3 条）。"""
     failures: list[Failure] = []
@@ -148,11 +290,14 @@ def verify_authority(manifest: dict) -> list[Failure]:
         "a19-artifacts/trustproxy-guard.json": "post_fix_authoritative",
         "a19-artifacts/http-attempts-20261104T012350680Z.jsonl": "post_fix_run_scoped_raw_log",
     }
+    required = bool(manifest.get("a19_authority_required", False))
     for path, authority in expected.items():
         entry = by_path.get(path)
         if entry is None:
-            failures.append(Failure(path, "缺权威版本文件"))
-        elif entry.get("authority") != authority:
+            if required:
+                failures.append(Failure(path, "缺权威版本文件"))
+            continue
+        if entry.get("authority") != authority:
             failures.append(Failure(path, f"authority 应为 {authority}，实际 {entry.get('authority')!r}"))
     return failures
 
@@ -182,6 +327,9 @@ def main(argv: list[str] | None = None) -> int:
     failures = verify_manifest_schema(manifest)
     if not failures:
         failures += verify_entries_against_archive(manifest, args.archive)
+        failures += verify_exact_correspondence(manifest, args.archive)
+        failures += verify_evidence_pointers(manifest, args.archive)
+        failures += verify_receipts(manifest)
         failures += verify_authority(manifest)
 
     if failures:

@@ -85,3 +85,9 @@
 3. #4 的 control「真实网络不可达」P95 —— 最终复跑未含，仅早前记录与 fake-control harness。
 
 **仍未闭合（非 A11 域）**：真实 GitHub runner 首跑（仓无 remote）；`docker compose build` / 镜像构建未验证；H4 授权三件（11-12 到期）。
+
+| **L78** | H1：授权主体代价（A=1万/年在预算内直接过；B=8-30万/年需 H1 重签+再分发条款；C=个股页降基本面+自选+免责）；合成数据三条（明写合成/不进 release note/不作 DA 组证据）；**git remote 缺失=P0 记未发布，不接受「本地全绿」顶替** | 2026-11-04 |
+| **L79** | H2：L6 第三条不变式已在（path-guard owns 解析）；ci-gate 否决「CI 通过」必须带例外标注；`lot_size` waiver 截止 2026-12-15 到期不续 | 2026-11-04 |
+| **L80** | M04 ST 时点性 P0 用当前名称快照（无历史名称源）；未知 board fail-closed=limit_status NULL；namechange 记 P1 数据依赖 | 2026-11-04 |
+| **L81** | C01 正向清单扩 `services/ingest/tests/**` + 渠道标识 `tushare`（H4 强制名）豁免；`samples/h4-audit/` 清除 | 2026-11-04 |
+| **L82** | ① L52 哈希范围句：事件表按 001，JSONL 按 L52（不推翻已交证据）② 11-12 compliance 纯 DDL（clause_review 走运维角色 psql，apr_uuidv7 属 P1/A4）③ 外部校验哈希 DB canonical 文本不用 Python 重排 float ④ copy 版本裁 b：死常量不触发门禁，受限页时效显示是 bug 现在删，其余记 2026.11.5 文案清单（f56 保持）⑤ 自指哈希=坏模式，CI 只校验 manifest 覆盖率+独立复算，不扫内容十六进制串 ⑥ M04 维持 L80 ②（A1 纠偏：上游下游均无历史名称源）⑦ C01 扩 ingest/tests | 2026-11-04 |
