@@ -35,6 +35,7 @@ from datetime import datetime, timezone
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 E2E_ROOT = os.path.dirname(HERE)
+EVIDENCE_ROOT = os.path.join(E2E_ROOT, "evidence", "11-12-f1-dom-20261104")
 REPO_ROOT = os.path.dirname(os.path.dirname(E2E_ROOT))
 INSTRUMENT = os.environ.get("EVIDENCE_INSTRUMENT", "SSE:600519")
 AUTH_TOKEN = os.environ.get("E2E_AUTH_TOKEN", "dev-token")
@@ -217,12 +218,30 @@ def main() -> int:
                 "report": os.path.basename(report_path),
             },
         },
-        "skipped_scenarios": {
-            "hold_active": "BLOCKED：E2E 原生库未跑 A13 db-migrate（A5 control 表不存在），不冒领",
-            "hold_stale": "BLOCKED：同上",
-        },
     }
     verdict["overall"] = "PASS" if all(rule.get("ok") for rule in verdict["rules"].values()) else "FAIL"
+    # 覆盖度以证据根目录下已存在的 verdict.json 为准，不靠单次运行的自我声明（H4：不冒领 PASS）。
+    expected = ["expired", "hold_active", "hold_stale", "unauthorized_config"]
+    covered = {label: verdict["overall"]}
+    if os.path.isdir(EVIDENCE_ROOT):
+        for entry in sorted(os.listdir(EVIDENCE_ROOT)):
+            path = os.path.join(EVIDENCE_ROOT, entry, "verdict.json")
+            if os.path.isfile(path) and entry != label:
+                try:
+                    with open(path, encoding="utf-8") as handle:
+                        covered[entry] = json.load(handle).get("overall")
+                except (OSError, json.JSONDecodeError):
+                    covered[entry] = "INVALID"
+    verdict["scenario"] = label
+    verdict["coverage"] = {
+        "expected": expected,
+        "covered": covered,
+        "blocked": {
+            name: "BLOCKED：该场景未采集（无 verdict.json）"
+            for name in expected
+            if name not in covered
+        },
+    }
     with open(os.path.join(out_dir, "verdict.json"), "w", encoding="utf-8") as handle:
         json.dump(verdict, handle, ensure_ascii=False, indent=2)
 
@@ -231,6 +250,7 @@ def main() -> int:
     for name, rule in verdict["rules"].items():
         transcript.append(f"- {name}: {'PASS' if rule.get('ok') else 'FAIL'}  {json.dumps(rule, ensure_ascii=False)}")
     transcript.append(f"- overall: {verdict['overall']}")
+    transcript.append(f"- coverage: {json.dumps(verdict['coverage'], ensure_ascii=False)}")
     transcript.append(f"# finished_at: {now()}")
     with open(os.path.join(out_dir, "transcript.log"), "w", encoding="utf-8") as handle:
         handle.write("\n".join(transcript) + "\n")

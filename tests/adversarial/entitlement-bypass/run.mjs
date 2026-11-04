@@ -132,8 +132,6 @@ function rawLogEvidence(file) {
 
 async function main() {
   ensureDir(ARTIFACTS_DIR);
-  ensureDir(path.join(ARTIFACTS_DIR, 'logs'));
-  const logDir = path.join(ARTIFACTS_DIR, 'logs');
 
   // 单条复跑（lead 裁定后：修完只用同一 case 复跑 R4，不用全量）
   const onlyArg = process.argv.find((a) => a.startsWith('--only='));
@@ -145,6 +143,9 @@ async function main() {
 
   const startedAt = isoNow();
   const runId = startedAt.replace(/[^0-9TZ]/g, '');
+  // 日志也 run-scoped：每次 run 一个新目录，不覆盖历史证据（L75/H5 m00606）。
+  const logDir = path.join(ARTIFACTS_DIR, 'logs', runId + (only ? '-r4' : ''));
+  ensureDir(logDir);
   const rawLog = initRawLog(path.join(ARTIFACTS_DIR, `http-attempts-${runId}${only ? '-r4' : ''}.jsonl`));
   const results = [];
   const handles = [];

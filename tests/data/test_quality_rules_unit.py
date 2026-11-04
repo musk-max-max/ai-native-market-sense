@@ -1,4 +1,4 @@
-"""13 条数据校验规则的单元级触发测试（每条规则一例，互相隔离）。
+"""14 条数据校验规则的单元级触发测试（每条规则一例，互相隔离）。
 
 目的：golden 包只证明「A2 的期望能被复现」，本文件证明「每条规则都能单独触发」——
 否则某条规则可能从未被执行过，规则覆盖率高但实际是空转（数据缺陷逃逸的典型来源）。
@@ -158,16 +158,36 @@ def test_cons_02_instrument_must_exist_in_dim():
     assert run(make_case(bars=bars)).rule_ids == {"CONS-02"}
 
 
+def test_biz_03_st_name_on_historical_bar_is_warn():
+    """L80：ST 判定只有当期名称快照；bar 早于 as_of 日期时 warn 标注，不改涨跌停口径。"""
+    instrument = dict(INSTRUMENT, name="ST测试", instrument_id="SSE:600601")
+    case = make_case(instrument=instrument, as_of="2026-09-30T20:05:00+08:00")
+    assert run(case).rule_ids == {"BIZ-03"}
+
+
+def test_biz_03_same_day_snapshot_has_no_warning():
+    """bar 与快照同日：没有"历史未还原"问题，不得告警（防误报）。"""
+    instrument = dict(INSTRUMENT, name="ST测试", instrument_id="SSE:600602")
+    case = make_case(instrument=instrument, as_of="2026-09-28T20:05:00+08:00")
+    assert run(case).rule_ids == set()
+
+
+def test_biz_03_non_st_instrument_is_not_flagged():
+    instrument = dict(INSTRUMENT, name="测试股份")
+    case = make_case(instrument=instrument, as_of="2026-09-30T20:05:00+08:00")
+    assert "BIZ-03" not in run(case).rule_ids
+
+
 # --- 覆盖率门禁 ---------------------------------------------------------
 RULESET = {
     "STRUCT-01", "STRUCT-02", "STRUCT-03", "STRUCT-04", "STRUCT-05", "STRUCT-06",
-    "BIZ-01", "BIZ-02",
+    "BIZ-01", "BIZ-02", "BIZ-03",
     "COMP-01", "COMP-02", "COMP-03",
     "CONS-01", "CONS-02",
 }
 
 
 def test_rule_catalog_is_fully_exercised():
-    """13 条规则必须全部被本文件单独触发；新增规则必须在同一 PR 补单测。"""
+    """14 条规则必须全部被本文件单独触发；新增规则必须在同一 PR 补单测。"""
     policy = load_policy()
     assert set(policy["rules"]) == RULESET, "口径规则清单变了：先补单测与质量分配置"

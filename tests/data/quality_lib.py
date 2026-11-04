@@ -255,6 +255,8 @@ def evaluate_case(pack: Pack, case: CaseData, policy: dict[str, Any] | None = No
     limits = policy["board_limit_pct"]
     tolerance = Decimal(str(policy["limit_tolerance_pp"]))
     is_st = board in policy["st_limit_boards"] and name.startswith(("ST", "*ST"))
+    # L80：ST 判定只有当期名称快照（dim.as_of）；历史交易日未还原，只做 warn 标注。
+    dim_as_of = parse_datetime(case.instrument.get("as_of") or case.as_of)
     limit_pct = Decimal(str(policy["st_limit_pct"] if is_st else limits.get(board, limits["main"])))
 
     # 排序后的 bar（fixture 允许乱序输入，规则按交易日顺序判定）
@@ -347,6 +349,16 @@ def evaluate_case(pack: Pack, case: CaseData, policy: dict[str, Any] | None = No
     for trade_date, bar in bars:
         td_text = trade_date.isoformat() if trade_date else None
         first_day = trade_date is not None and listed_at is not None and trade_date == listed_at
+        if (name.startswith(("ST", "*ST")) and trade_date is not None
+                and dim_as_of is not None and trade_date < dim_as_of.date()):
+            stats.bump("BIZ-03")
+            stats.flag(
+                "BIZ-03",
+                f"ST 按当期名称快照判定（dim.as_of={dim_as_of.date()}），{trade_date} 早于快照；"
+                "历史 ST 状态未还原（L80 known limitation，warn）",
+                iid,
+                td_text,
+            )
         if first_day:
             continue  # 上市首日：无涨跌幅限制、无前收基准（BIZ-01/BIZ-02 豁免）
         prev_close = parse_decimal(bar.get("prev_close"))

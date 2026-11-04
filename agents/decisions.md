@@ -1091,3 +1091,28 @@ A13 如实交了失败记录（本机无 iptables、pf 无权限），**没有�
 **另（A0 转）`lot_size` waiver 四方路径已在 L80 记录**：A0 出新 baseline sha → A11 接收挂门禁 → H2 签字 → A0 记 path+sha256。到期 2026-12-15。
 
 **另（H4 转）§8 会签条件**：A5 需明确第三项「待条件才签」的具体条件/owner/是否阻塞 S0。
+
+### L82 三条裁定（2026-11-04）
+
+**1) L52 哈希公式补范围句——事件表按 001，JSONL 按 L52（A5 裁决，采纳推荐）**
+- **冲突**：`L52` 写 `hash=sha256(prev_hash+"\n"+canonical_json)`，而 `001_audit_entitlement_events.sql`（已封版、证据已引用）是 `sha256(整行 canonical，prev_hash 作为键含在内)`。同一行摘要不同（DB `c4617fa5…` vs L52 式 `4766ceb2…`）。
+- **裁定**：**`L52` 只约束 A1/A2 的 JSONL manifest 链；`audit.entitlement_events` 事件表按 `001` 的定义**（`prev_hash` 作为键含在 canonical JSON 内）。
+- **理由**：改事件表 = 重写历史 hash + 重锚 + **推翻已交证据**（A11 #6 已 PASS 41 条、H4/H5 双方核一致），**S0 不做**。范围句补清即可，无需改 DDL。
+
+**2) 11-12 的 compliance 纯 DDL 即可，不加最小服务（A5 裁定，我确认）**
+- `clause_review` 只是事件行，H4/H3 按 L62 用运维角色 psql 插入（**11-12 不做函数**）；门禁里的 clause_review 是标明 TEST 的 seed。
+- H3 签字记录 = `clause_review` 的 `doc_sha` + `locator` + `operator` + `verdict` + `valid_until`，**不需要服务**。
+- `apr_<uuidv7>`（L51）属 **P1/A4**，S0 无审批写入口；`001` 的 `approval_ref` CHECK 兼容但 DB 尚未拒绝非 UUIDv7——**建议 P1 随 A4 加 003，现在加会误杀现有 seed/证据。**
+
+**3) 序列化稳定（A5 已验）**：41/41 行用 DB canonical 文本外部重算 sha256 = 存储 hash；键序（`COLLATE "C"`）、无空白、UTF-8 原样、控制字符转义均稳定。**但数字有 jsonb 语义（`1.00` 保留两位、`1e2→100`），外部校验必须哈希 DB canonical 文本，不得用 Python 重排 float。**
+
+**4) copy 版本裁定（A7 问 b/a，裁 b）**：`copy.entitlement` 死常量**不触发任何门禁红灯**（A7 实证：渲染路径 0 引用、构建链在保留该常量下全绿、无脚本扫它当出口）。
+- **受限页时效显示是 bug，现在删**（H4 拦住）：受限页不渲染「滞后 24833.4 小时」——没有行情却显示时效 = 暗示「有数据只是旧的」。**H4 阈值 24 小时**：只有「已授权但延时」才需要时效文案，超 24h 归「非实时/已过期」。**删渲染 ≠ 新增 copy 字符串，copy.ts 不动。**
+- **死常量清理 + 滞后文案 + 「收盘/延时」口径统一**：记 **2026.11.5 文案迭代清单**，等 go-live 前 H3 在席时一次做（H4/H5 明确不以 H3 身份代签）。**f56 保持 go-live 文案版本。**
+- 替代门禁（H4 给的可执行版）：静态断言「渲染路径 0 引用本地 403 文案」+ e2e 逐字节比对，**不依赖删常量，不卡 11-12**。
+
+**5) A3 证据哈希已解释（H5-R21）**：申报 `730cddf5…` = 同文件去掉末行（自指哈希行）后的 sha256；全文 `f80562ca…`；两个值都真实可复算。**定性：自指哈希是坏模式——哈希不能写在被哈希文件里。** 处理：证据字节不改（改字节=事后编辑证据），receipt 记差异，manifest 带 `errata`。**A3 已归档 `services/market/evidence/MANIFEST.json`**（receipt 作 artifact 带 sha `310b3286…`）。H5 收窄为：① 生成器只写 sidecar/manifest，禁止把哈希写回被哈希文件（靠模板+review）；② CI 只校验 manifest 覆盖 100% + 每条 sha 由 CI 独立复算，**不扫内容里的十六进制串**（否则误伤引用其他哈希的 transcript）。
+
+**6) M04 时点 ST（L80 维持裁 ②）**：A1 纠偏——**上游（stock_basic）与下游（DWD/ODS）都无历史名称源**，A1 只存导入时点快照非按日快照。L80 ② 维持（ST 判定=当前名称快照，历史未还原），事实依据更硬。**namechange 是 P1 数据依赖。**
+
+**7) C01 正向清单扩 `services/ingest/tests/**`**（L81）：单元测试里的合成报文属测试输入非对外契约；`channel="tushare"`（H4 强制渠道名）一并进正向清单。残留 `samples/h4-audit/` 清掉。

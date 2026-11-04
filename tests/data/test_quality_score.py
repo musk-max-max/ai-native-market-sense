@@ -15,7 +15,7 @@ import pytest
 from quality_lib import Violation, compute_score, grade_for, load_policy
 
 # 各类别规则数（policy.rules 的派生量；改规则清单必须同步这里）
-RULE_COUNTS = {"struct": 6, "business": 2, "completeness": 3, "consistency": 2}
+RULE_COUNTS = {"struct": 6, "business": 3, "completeness": 3, "consistency": 2}
 
 # evaluated 在 L9 下不参与算分；保留非零值以证明「分母不是评估条数」
 EVAL = {rule_id: 100 for rule_id in ("STRUCT-01", "BIZ-01", "COMP-02", "CONS-01")}
@@ -44,9 +44,9 @@ def test_hitting_multiple_rules_accumulates(policy):
     violations = _blocker("STRUCT-01") + _blocker("STRUCT-02") + _blocker("BIZ-01")
     score, category_scores = compute_score(EVAL, violations, policy)
     assert category_scores["struct"] == pytest.approx(100 * (1 - 2 / 6))
-    assert category_scores["business"] == pytest.approx(50.0)
-    # 0.2*66.666… + 0.3*50 + 0.3*100 + 0.2*100 = 78.33
-    assert score == pytest.approx(78.33)
+    assert category_scores["business"] == pytest.approx(100 * (1 - 1 / RULE_COUNTS["business"]))
+    # 0.2*66.666… + 0.3*66.666… + 0.3*100 + 0.2*100 = 83.33
+    assert score == pytest.approx(83.33)
 
 
 def test_same_rule_hit_by_many_bars_counts_once(policy):
@@ -66,8 +66,9 @@ def test_all_rules_in_a_category_hit_scores_zero(policy):
 
 
 def test_warn_never_enters_score(policy):
-    """L9：warn 不进分子分母（BIZ-02 是唯一 warn 规则，命中多少次分都不动）。"""
+    """L9：warn 不进分子分母（BIZ-02/BIZ-03 是 warn 规则，命中多少次分都不动）。"""
     warnings_only = [Violation("BIZ-02", "warn", f"missing prev_close {i}") for i in range(10)]
+    warnings_only += [Violation("BIZ-03", "warn", f"st snapshot {i}") for i in range(5)]
     score, category_scores = compute_score(EVAL, warnings_only, policy)
     assert category_scores["business"] == pytest.approx(100.0)
     assert score == pytest.approx(100.0)

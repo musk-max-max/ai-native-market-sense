@@ -12,7 +12,7 @@
     "content-type": "application/problem+json; charset=utf-8",
     "cache-control": "no-store",
     "content-length": "225",
-    "date": "Wed, 04 Nov 2026 01:22:49 GMT",
+    "date": "Wed, 04 Nov 2026 02:37:23 GMT",
     "connection": "close"
   },
   "instrument_status": 200,
@@ -30,7 +30,7 @@
       "source": {
         "source": "platform_eod",
         "as_of": "2026-11-04T08:55:00+08:00",
-        "staleness_ms": 1668506,
+        "staleness_ms": 6142170,
         "source_id": "fixture"
       },
       "entitlement": {

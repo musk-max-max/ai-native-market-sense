@@ -1,6 +1,6 @@
 {
   "label": "expired",
-  "generated_at": "2026-11-04T09:22:53+08:00",
+  "generated_at": "2026-11-04T10:37:27+08:00",
   "rules": {
     "quote_403": {
       "ok": true,
@@ -13,11 +13,11 @@
       "detail": "当前版本暂不提供该标的行情数据"
     },
     "page_copy_matches_api": {
-      "ok": false,
-      "page_notice": "数据暂不可用当前版本暂不提供该标的行情数据，本页不会展示任何价格数字。该数据在当前版本中不提供。",
-      "missing_title": true,
+      "ok": true,
+      "page_notice": "行情数据暂不可用当前版本暂不提供该标的行情数据",
+      "missing_title": false,
       "missing_detail": false,
-      "extra_text": "数据暂不可用，本页不会展示任何价格数字。该数据在当前版本中不提供。"
+      "extra_text": ""
     },
     "dom_no_numeric_leak": {
       "ok": true,
@@ -31,19 +31,31 @@
         "text": "免责声明本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。"
       },
       "entitlement_notice": {
-        "text": "数据暂不可用当前版本暂不提供该标的行情数据，本页不会展示任何价格数字。该数据在当前版本中不提供。",
-        "innerText": "数据暂不可用\n\n当前版本暂不提供该标的行情数据，本页不会展示任何价格数字。\n\n该数据在当前版本中不提供。"
+        "text": "行情数据暂不可用当前版本暂不提供该标的行情数据",
+        "innerText": "行情数据暂不可用\n\n当前版本暂不提供该标的行情数据"
       }
     },
     "playwright_P0_06_P0_12": {
-      "ok": false,
-      "exit_code": 1,
+      "ok": true,
+      "exit_code": 0,
       "report": "playwright-expired.json"
     }
   },
-  "skipped_scenarios": {
-    "hold_active": "BLOCKED：E2E 原生库未跑 A13 db-migrate（A5 control 表不存在），不冒领",
-    "hold_stale": "BLOCKED：同上"
-  },
-  "overall": "FAIL"
+  "overall": "PASS",
+  "scenario": "expired",
+  "coverage": {
+    "expected": [
+      "expired",
+      "hold_active",
+      "hold_stale",
+      "unauthorized_config"
+    ],
+    "covered": {
+      "expired": "PASS",
+      "hold_active": "PASS",
+      "hold_stale": "PASS",
+      "unauthorized_config": "PASS"
+    },
+    "blocked": {}
+  }
 }

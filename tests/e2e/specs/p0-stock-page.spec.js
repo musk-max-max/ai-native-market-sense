@@ -487,9 +487,16 @@ test('E2E-P0-11 [hop:api.compliance+db+web] hold 冻结：行情 403、基础信
         + '禁止 compose 手写 DDL；且 api 需 ENTITLEMENT_HOLD_CHECK=1：' + err.message);
     }
 
-    const blocked = await api(page, 'GET', QUOTE_PATH);
+    // A3 的 gate 对「未 hold」control 行有 30s 缓存（正常放行态缓存、hold 态不缓存），
+    // raise_hold 后要等缓存过期才能看到 403；这是真实语义，不能用一次请求碰运气。
+    const holdDeadline = Date.now() + 40_000;
+    let blocked = await api(page, 'GET', QUOTE_PATH);
+    while (blocked.status() !== 403 && Date.now() < holdDeadline) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      blocked = await api(page, 'GET', QUOTE_PATH);
+    }
     await assertNoLeakyHeaders(blocked, 'hold quote');
-    expect(blocked.status(), 'hold 期间 quote 必须 403（fail-closed，A3 真栈证据）').toBe(403);
+    expect(blocked.status(), 'hold 期间 quote 必须 403（fail-closed，A3 真栈证据；40s 内未生效）').toBe(403);
     const blockedBody = await blocked.json();
     assertProblemShape(blockedBody);
     expect(blockedBody.code, '403 应为 ENTITLEMENT_RESTRICTED 类错误（AC-5）')
@@ -515,7 +522,12 @@ test('E2E-P0-11 [hop:api.compliance+db+web] hold 冻结：行情 403、基础信
     }
   }
 
-  const recovered = await api(page, 'GET', QUOTE_PATH);
+  const recoverDeadline = Date.now() + 40_000;
+  let recovered = await api(page, 'GET', QUOTE_PATH);
+  while (recovered.status() !== 200 && Date.now() < recoverDeadline) {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    recovered = await api(page, 'GET', QUOTE_PATH);
+  }
   await assertNoLeakyHeaders(recovered, 'clear-hold quote');
   expect(recovered.status(), 'clear_hold 后 quote 应立即恢复 200（A3 真栈证据）').toBe(200);
   const recoveredBody = await recovered.json();

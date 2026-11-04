@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* global console, process, URL, document, NodeFilter, Navigator */
+/* global console, process, URL, fetch, document, NodeFilter, Navigator */
 /**
  * DOM 出口检查（生产构建 + Playwright，H3 m00870 / ADR D4/D5）。
  *
@@ -234,7 +234,45 @@ async function main() {
         ok = false;
       }
     }
+    // H4：受限页没有数据，就不得出现任何时效文案（「滞后 X 小时」会暗示有数据只是旧的）。
+    const restrictedStale = await page.locator('[data-testid="quote-stale-badge"]').count();
+    const restrictedBody = await page.locator('[data-testid="stock-page"]').innerText();
+    if (restrictedStale !== 0) {
+      console.error('[dom] 受限页不应渲染 quote-stale-badge');
+      ok = false;
+    }
+    const stalePrefix = copy.quote.stalePrefix.trim();
+    if (restrictedBody.includes(stalePrefix) || /\d+\s*小时/.test(restrictedBody)) {
+      console.error('[dom] 受限页出现时效/滞后时长文案');
+      ok = false;
+    }
     consoleErrors = consoleErrors.filter((text) => !/403/.test(text));
+
+    // 403 结构异常（无合法 Problem body）：走中性整页错误态，不得回退成自造 notice、
+    // 更不得出现任何数值或时效文案。
+    await page.route('**/v1/instruments/*/quote*', (route) =>
+      route.fulfill({
+        status: 403,
+        contentType: 'application/problem+json',
+        body: JSON.stringify({ type: 'about:blank', status: 403, title: '' }),
+      }),
+    );
+    await page.goto(`${BASE_URL}/stocks/SSE%3A600519`, { waitUntil: 'networkidle' });
+    await page.waitForSelector('[data-testid="error-banner"]', { timeout: 10_000 });
+    const malformedNotice = await page.locator('[data-testid="entitlement-notice"]').count();
+    const malformedPrice = await page.locator('[data-testid="quote-price"]').count();
+    const malformedStale = await page.locator('[data-testid="quote-stale-badge"]').count();
+    if (malformedNotice !== 0 || malformedPrice !== 0 || malformedStale !== 0) {
+      console.error('[dom] 403 结构异常页不应出现 notice/价格/时效节点');
+      ok = false;
+    }
+    if (await page.locator('[data-testid="stock-page"]').count() !== 1) {
+      console.error('[dom] 403 结构异常页缺少 stock-page');
+      ok = false;
+    }
+    ok = (await inspectPage(page, 'restricted-malformed-403')) && ok;
+    consoleErrors = consoleErrors.filter((text) => !/403/.test(text));
+    await page.unroute('**/v1/instruments/*/quote*');
 
     // 429：只拦截 quote，instrument 正常 200，验证限流文案不暴露内部原因。
     consoleErrors = [];

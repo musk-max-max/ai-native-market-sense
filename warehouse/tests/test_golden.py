@@ -1,4 +1,4 @@
-"""golden dataset 门禁：21 条正例全绿、9 条负例必须红灯阻断（task-6 验收）。"""
+"""golden dataset 门禁：22 条正例全绿、9 条负例必须红灯阻断（task-6 验收）。"""
 
 from __future__ import annotations
 
@@ -17,6 +17,7 @@ BOUNDARY_CASES = {
     "G08": "主板跌停",
     "G13": "新股首日",
     "G21": "ST 恰好 +5.00% 边界",
+    "G22": "ST 限价取整边界（10.5525→10.55）",
 }
 
 
@@ -24,11 +25,11 @@ def _results():
     return {r.case_id: r for r in run_fixture(FIXTURE)}
 
 
-def test_fixture_has_21_positive_and_9_negative():
+def test_fixture_has_22_positive_and_9_negative():
     cases = load_fixture(FIXTURE)["cases"]
     positive = [c for c in cases if c["id"].startswith("G")]
     negative = [c for c in cases if c["id"].startswith("N")]
-    assert len(positive) == 21, f"golden 正例应为 21 条，实际 {len(positive)}"
+    assert len(positive) == 22, f"golden 正例应为 22 条，实际 {len(positive)}"
     assert len(negative) == 9, f"golden 负例应为 9 条，实际 {len(negative)}"
 
 

@@ -1,7 +1,7 @@
 meta:
   version: 1
   owner: A2
-  description: P0 竖切片 golden dataset：21 条正例（含 ST/停牌/除权除息/涨跌停/新股首日/ST 恰好 5% 边界）+ 9 条负例；由 warehouse.golden_runner 走 ODS→DWD→质量 全链路回归。
+  description: P0 竖切片 golden dataset：22 条正例（含 ST/停牌/除权除息/涨跌停/新股首日/ST 恰好 5%/ST 限价取整边界）+ 9 条负例；由 warehouse.golden_runner 走 ODS→DWD→质量 全链路回归。
   ods_format: warehouse/README.md §ODS 交换格式 v1
   decision_refs:
   - H4-D6
@@ -224,7 +224,8 @@ cases:
   expect:
     grade: green
     blocked: false
-    violations: []
+    violations:
+    - BIZ-03
 - id: G06
   title: 主板 *ST：5% 幅度内（+4.9%），is_st 由 name 派生
   instrument:
@@ -267,7 +268,8 @@ cases:
   expect:
     grade: green
     blocked: false
-    violations: []
+    violations:
+    - BIZ-03
 - id: G07
   title: 主板涨停：前收 10.47 → 涨停价 11.52（+10.03%，2 位小数舍入）
   instrument:
@@ -929,6 +931,34 @@ cases:
     volume: '1000000'
     amount: '10920000.00'
     prev_close: '10.40'
+  expect:
+    grade: green
+    blocked: false
+    violations:
+    - BIZ-03
+- id: G22
+  title: 主板 ST 限价取整边界：10.05×1.05=10.5525→10.55，收盘 10.55 为涨停（涨幅 4.9751%，不得按 >5% 误判）
+  instrument:
+    instrument_id: SSE:600704
+    exchange: SSE
+    code: '600704'
+    name: ST物贸
+    board: main
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '1994-02-04'
+  as_of: '2026-10-09T20:05:00+08:00'
+  fetched_at: '2026-10-09T20:06:00+08:00'
+  bars:
+  - trade_date: '2026-10-09'
+    open: '10.20'
+    high: '10.55'
+    low: '10.18'
+    close: '10.55'
+    volume: '1000000'
+    amount: '10550000.00'
+    prev_close: '10.05'
   expect:
     grade: green
     blocked: false

@@ -27,3 +27,11 @@ A1 读这个目录，A2 读 `services/ingest/var/audit-demo`，双向通过才�
 
 回归锁：`warehouse/tests/test_display_safe.py::test_read_side_fixture_is_valid_and_documents_expected_hashes`
 （fixture 被改坏或链口径漂移时 CI 直接红）。
+
+## BOARD 登记（L79）
+
+本目录是合成 fixture（非 11-12 授权件），按 L79 需把 path+sha256 登记进 `agents/BOARD.md`
+（BOARD 归 lead；A2 不自写）。逐文件哈希见同目录 `SHA256SUMS`（不含自身）；
+BOARD 登记 `SHA256SUMS` 的 sha256（登记时实算，不写回本 README——否则自引用）。
+任何文件改动都会使汇总哈希变化；改 fixture 必须同步 A1 的只读引用测试
+（`test_verify_manifest_accepts_a2_read_side_fixture`）与本目录 README 的期望值。

@@ -751,16 +751,19 @@ export async function runBackdoorGuardChecks({ results, cfg, spawnLogDir }) {
     });
   }
 
-  // G3：生产 profile（APP_PROFILE 缺省、无任何 E2E env）正常启动，但 dev-token 不被接受
+  // G3：生产 profile（APP_PROFILE 缺省=prod、发布流水线注入 DEPLOYMENT_UID、无任何 E2E env）
+  // 正常启动，但 dev-token 不被接受。注意 prod 必须 DEPLOYMENT_UID（config.ts:205 L65），
+  // 不注入时属"配置不全拒绝启动"，不能用来证明固定身份入口关闭——那是另一种守卫。
   {
     const base = `http://127.0.0.1:${cfg.ports.backdoorApi}`;
     const logFile = path.join(spawnLogDir, 'api-prod-profile.log');
+    const deploymentUid = `a19-prod-profile-${Date.now()}`;
     const handle = spawnService({
       name: 'api-prod-profile',
       command: 'node',
       args: ['--import', 'tsx', 'src/server.ts'],
       cwd: path.join(cfg.workspace, 'services', 'api'),
-      env: mkEnv({}),
+      env: mkEnv({ DEPLOYMENT_UID: deploymentUid }),
       logFile,
     });
     try {
@@ -770,17 +773,30 @@ export async function runBackdoorGuardChecks({ results, cfg, spawnLogDir }) {
         started = true;
       } catch { started = false; }
       let watchlist = null;
+      let healthzStatus = null;
       if (started) {
+        healthzStatus = (await http(`${base}/healthz`)).status;
         watchlist = await http(`${base}/v1/watchlist`, { headers: { authorization: 'Bearer dev-token' } });
       }
-      const ok = started && watchlist?.status === 401;
+      const internalLeak = INTERNAL_REASON_RE.test(watchlist?.text ?? '');
+      const ok = started && healthzStatus === 200 && watchlist?.status === 401 && !internalLeak;
       addCheck(results, {
         id: 'G3',
         title: '生产 profile 实例正常启动，但 dev-token 不被接受（固定身份入口关闭）',
-        clause: ['decisions.md L28', 'config.ts:158-176 L44/L46'],
-        attempt: 'APP_PROFILE 缺省（=prod）、无 E2E env 启动；用 Authorization: Bearer dev-token 访问 /v1/watchlist',
-        expectation: '实例健康，watchlist 返回 401（无 dev 身份）',
-        observed: { started, watchlistStatus: watchlist?.status ?? null, watchlistBody: watchlist?.text?.slice(0, 300) ?? null },
+        clause: ['decisions.md L28', 'config.ts:158-176 L44/L46', 'config.ts:205 L65'],
+        attempt: 'APP_PROFILE 缺省（=prod）+ DEPLOYMENT_UID 注入、无 E2E env 启动；用 Authorization: Bearer dev-token 访问 /v1/watchlist',
+        expectation: '实例健康，watchlist 返回 401 且 body 无内部原因码',
+        observed: {
+          started,
+          deploymentUidInjected: true,
+          e2eEnvPresent: false,
+          appProfile: 'prod（APP_PROFILE 缺省）',
+          healthzStatus,
+          watchlistStatus: watchlist?.status ?? null,
+          watchlistBody: watchlist?.text?.slice(0, 300) ?? null,
+          internalReasonCodeInBody: internalLeak,
+          logTail: fs.readFileSync(logFile, 'utf8').split('\n').filter(Boolean).slice(-1)[0]?.slice(0, 300) ?? null,
+        },
         status: ok ? 'PASS' : 'FAIL',
         severity: ok ? null : 'P1',
         evidence: { log: rel(logFile) },

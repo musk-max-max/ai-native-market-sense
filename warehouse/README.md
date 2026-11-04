@@ -97,7 +97,7 @@ A1 的 raw payload（tushare 原始响应）**不进入我的读取路径**—�
 python3 -m warehouse.pipeline --ods-root <ODS_DISPLAY_ROOT> --internal-ods-root <ODS_INTERNAL_ROOT> --json   # L34 双 root；质量分 + 是否阻断
 # 也可只给一个 root（其下含 display/ + internal/ 标准布局时自动识别）；旧平铺目录保持兼容：
 python3 -m warehouse.pipeline --ods-root services/ingest/var/ods-smoke --json
-python3 -m warehouse.pipeline --golden data/golden/p0_bars20.yaml  # 21 正例 + 9 负例回归（30/30）
+python3 -m warehouse.pipeline --golden data/golden/p0_bars20.yaml  # 22 正例 + 9 负例回归（31/31）
 python3 -m pytest warehouse/tests -q                               # 单测：格式/复权/评分/落库/文档一致性
 # A1 录播冒烟批次端到端（ODS→DWD→质量→落库计划；仅 dry-run，不连库）：
 python3 -m warehouse.load --ods-root services/ingest/var/ods-smoke --dry-run

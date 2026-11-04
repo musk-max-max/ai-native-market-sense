@@ -72,7 +72,9 @@ def test_audit_rejects_orphan_recording(tmp_path: Path) -> None:
     recordings = tmp_path / "recordings"
     recordings.mkdir()
     (recordings / "orphan.json").write_text("{}", encoding="utf-8")
-    _write_manifest(tmp_path)  # manifest 登记 0 条，但磁盘多一条
+    listed = recordings / "listed.json"
+    listed.write_text("{}", encoding="utf-8")
+    _write_manifest(tmp_path, files=[listed])  # 登记 1 条，磁盘多一条孤儿
     _, problems = tool.audit(tmp_path)
     assert any("orphan" in problem for problem in problems)
 

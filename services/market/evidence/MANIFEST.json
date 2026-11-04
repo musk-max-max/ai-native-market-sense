@@ -5,14 +5,15 @@
   "artifacts": [
     {
       "path": "services/market/evidence/hold-unreachable-raw-20261104.txt",
-      "role": "evidence-artifact",
+      "role": "evidence-artifact-v3-frozen",
       "sha256": "f80562cab1225e2790805154bc1459210d0b1b681eaf8d018adf144bfabdaf67",
       "bytes": 2506,
       "mtime_local": "2026-11-04T09:21:36+08:00",
       "profile": "APP_PROFILE=test",
       "frozen": true,
       "recompute": "shasum -a 256 services/market/evidence/hold-unreachable-raw-20261104.txt",
-      "errata": "最后一行是生成时追加的陈旧自指哈希（730cddf5…），对应“去掉该行前的字节”，永不可能是全文哈希；为保留证据原字节不做删除，权威值以本 manifest 与本 artifact 的 receipt 为准。"
+      "errata": "最后一行是生成时追加的陈旧自指哈希（730cddf5…），对应“去掉该行前的字节”，永不可能是全文哈希；为保留证据原字节不做删除，权威值以本 manifest 与本 artifact 的 receipt 为准。",
+      "erratum_note": "v3 包记 rejected：提交值 730cddf5 vs 实算 f80562ca；不改 v3 字节，按“内容变则换名”用 v4 入包。"
     },
     {
       "path": "services/market/evidence/RECEIPT-hold-unreachable-20261104.md",
@@ -21,6 +22,19 @@
       "bytes": 1655,
       "recompute": "shasum -a 256 services/market/evidence/RECEIPT-hold-unreachable-20261104.md",
       "notes": "含复算命令/人/时间/输出与 730cddf5 的前缀字节解释；本文件为凭证，改动即需重发并对账。"
+    },
+    {
+      "path": "services/market/evidence/hold-unreachable-raw-20261104-v4.txt",
+      "role": "evidence-artifact-v4-package",
+      "sha256": "259a54e9a53534fe7b018dfd4d053e7a71c2477411b9dc4a13e8d75cfbfddc2a",
+      "bytes": 2534,
+      "profile": "APP_PROFILE=test",
+      "frozen": true,
+      "derived_from": "services/market/evidence/hold-unreachable-raw-20261104.txt",
+      "derivation": "sed '$d' <v3> 后前置两行 provenance；仅去掉陈旧末行自指哈希，数据行不变",
+      "recompute": "shasum -a 256 services/market/evidence/hold-unreachable-raw-20261104-v4.txt",
+      "note": "v4 为入包 artifact；无自指哈希行；因前置 provenance 头，sha 与 730cddf5 前缀值刻意不同，避免与 v3 rejected 值混淆。"
     }
-  ]
+  ],
+  "updated_at": "2026-11-04T10:38+08:00"
 }

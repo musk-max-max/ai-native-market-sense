@@ -7,7 +7,7 @@
 # 依据：
 #   - H4-D8：质量分 ≥95 green / [90,95) yellow / [85,90) red / <85 black
 #   - task-6 指定四类权重：结构 0.2 / 业务规则 0.3 / 完整性及时性 0.3 / 一致性 0.2
-#   - docs/metrics/P0-metrics.md §6 规则清单（STRUCT-01..06 / BIZ-01..02 / COMP-01..03 / CONS-01..02）
+#   - docs/metrics/P0-metrics.md §6 规则清单（STRUCT-01..06 / BIZ-01..03 / COMP-01..03 / CONS-01..02）
 #   - ADR-002 C01–C20、H4-D6/D7/D9
 #
 # 变更流程：改本文件 = 改口径，必须 H4 签字并同步 docs/metrics/P0-metrics.md；
@@ -16,7 +16,7 @@ version: 1
 owner: A11
 reviewers: [H4]
 approved_by: H4
-decision_refs: [H4-D8, H4-D9, task-6, L9]
+decision_refs: [H4-D8, H4-D9, task-6, L9, L80]
 
 weights:
   struct: 0.2
@@ -73,6 +73,9 @@ rules:
   STRUCT-06: {category: struct, severity: blocker, label: 复权因子 > 0 且每根 bar 有因子}
   BIZ-01: {category: business, severity: blocker, label: 涨跌幅在板块限内}
   BIZ-02: {category: business, severity: warn, label: prev_close 缺失（告警，上市首日豁免）}
+  # L80：P0 只有 dim_instrument.name 当期快照，历史 ST 状态未还原；跨戴帽/摘帽窗口只告警，
+  # 不拖绿不阻断（P1 namechange 到位后按 L80 升 blocker）。ST 为时点性限制，不是数据错误。
+  BIZ-03: {category: business, severity: warn, label: ST 判定时点性限制（当前名称快照 vs 历史交易日）}
   COMP-01: {category: completeness, severity: blocker, label: 不生成周末 bar}
   COMP-02: {category: completeness, severity: blocker, label: as_of 属当日收盘后（≥15:00）}
   COMP-03: {category: completeness, severity: blocker, label: 工作日覆盖（bar ∪ 停牌证据）}

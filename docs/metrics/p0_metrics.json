@@ -3,9 +3,17 @@
   "owner": "A2",
   "reviewer": "H4",
   "sign_off": {
-    "status": "pending_h4_signature",
-    "approved_by": null,
-    "approved_at": null
+    "status": "signed",
+    "approved_by": "H4（数据负责人）",
+    "approved_at": "2026-11-04",
+    "review_ref": "H4 m01482 批注 + A2 m01496 落改（#3 时点ST已知限制/G22、#6 L3 三件、#7 分母提示、#10 22+9）",
+    "conditions": [
+      "L3 锚变更=口径变更，必须重新会签；anchor_date/factor_version 随输出下发，hfq 绝对价不得直接进 C 端。",
+      "M04 ST 为当前名称快照（L80），跨戴帽/摘帽/退市窗口不适用，BIZ-03 warn 单列；P1 接 namechange 后转 blocker。",
+      "质量规则集变更导致类别分变化须在变更记录里写明 before/after；新增 warn 规则不得用于跨阈值'改善'，阈值与一票否决不变。",
+      "M03/M05/M06/M07 P0 只立法，数据未到不得出现在 C 端接口。"
+    ],
+    "note": "H4 以数据口径负责人身份会签；口径否决权见 agents/README.md。"
   },
   "metrics": [
     {
@@ -13,7 +21,9 @@
       "name": "行情主口径（不复权）",
       "status": "executable",
       "sql_file": "warehouse/metrics/m01_bars_none.sql",
-      "depends_on": ["dwd_stock_bar_daily"],
+      "depends_on": [
+        "dwd_stock_bar_daily"
+      ],
       "decision_ref": "H4-D6"
     },
     {
@@ -21,15 +31,32 @@
       "name": "区间收益率（后复权 hfq）",
       "status": "executable",
       "sql_file": "warehouse/metrics/m02_return_hfq.sql",
-      "depends_on": ["dwd_stock_bar_daily", "dwd_adj_factor"],
-      "decision_ref": "H4-D6"
+      "depends_on": [
+        "dwd_stock_bar_daily",
+        "dwd_adj_factor"
+      ],
+      "decision_ref": "H4-D6",
+      "outputs": [
+        "start_date",
+        "end_date",
+        "return_pct",
+        "anchor_date",
+        "factor_version",
+        "factor_as_of"
+      ],
+      "constraints": [
+        "因子锚=最早可得因子日（L3），锚变则 factor_version 变、须重新会签",
+        "hfq 绝对价不得直接进 C 端，仅用于收益；展示 hfq 绝对价需另立口径"
+      ]
     },
     {
       "metric_id": "M03",
       "name": "资金流（主力净流入，不含大宗）",
       "status": "pending-data",
       "sql_file": null,
-      "depends_on": ["dwd_moneyflow_daily"],
+      "depends_on": [
+        "dwd_moneyflow_daily"
+      ],
       "decision_ref": "H4-D6"
     },
     {
@@ -37,15 +64,34 @@
       "name": "涨跌停状态（按板块）",
       "status": "executable",
       "sql_file": "warehouse/metrics/m04_limit_status.sql",
-      "depends_on": ["dwd_stock_bar_daily", "dim_instrument"],
-      "decision_ref": "H4-D6"
+      "depends_on": [
+        "dwd_stock_bar_daily",
+        "dim_instrument"
+      ],
+      "decision_ref": "H4-D6",
+      "outputs": [
+        "limit_pct",
+        "limit_up_price",
+        "limit_down_price",
+        "limit_status",
+        "st_by_current_name",
+        "st_status_source",
+        "known_limitation"
+      ],
+      "known_limitations": [
+        "ST 判定=当前 dim_instrument.name 快照，历史交易日未还原；跨戴帽/摘帽/退市窗口不适用（L80）",
+        "未知/空 board → limit_pct/limit_status 为 NULL（fail-closed），质量规则 BIZ-01 blocker",
+        "P1 依赖 tushare namechange 进 ODS 后按交易日状态重算，并把 BIZ-03 转 blocker"
+      ]
     },
     {
       "metric_id": "M05",
       "name": "龙虎榜（保留上榜原因）",
       "status": "pending-data",
       "sql_file": null,
-      "depends_on": ["dwd_dragon_tiger"],
+      "depends_on": [
+        "dwd_dragon_tiger"
+      ],
       "decision_ref": "H4-D6"
     },
     {
@@ -53,7 +99,9 @@
       "name": "财务（reported + restated 两套）",
       "status": "pending-data",
       "sql_file": null,
-      "depends_on": ["dwd_fundamental_report"],
+      "depends_on": [
+        "dwd_fundamental_report"
+      ],
       "decision_ref": "H4-D6"
     },
     {
@@ -61,7 +109,9 @@
       "name": "指数/概念成分（按日快照）",
       "status": "pending-data",
       "sql_file": null,
-      "depends_on": ["dwd_index_member_daily"],
+      "depends_on": [
+        "dwd_index_member_daily"
+      ],
       "decision_ref": "H4-D6"
     },
     {
@@ -69,16 +119,30 @@
       "name": "涨跌幅（基准=前收盘价/除权参考价）",
       "status": "executable",
       "sql_file": "warehouse/metrics/m08_change_pct.sql",
-      "depends_on": ["dwd_stock_bar_daily"],
+      "depends_on": [
+        "dwd_stock_bar_daily"
+      ],
       "decision_ref": "H4-D6"
     }
   ],
   "quality": {
     "config": "warehouse/quality/quality_config.json",
-    "weights": {"struct": 0.2, "business": 0.3, "completeness": 0.3, "consistency": 0.2},
-    "thresholds": {"green": 95, "yellow": 90, "red": 85},
+    "weights": {
+      "struct": 0.2,
+      "business": 0.3,
+      "completeness": 0.3,
+      "consistency": 0.2
+    },
+    "thresholds": {
+      "green": 95,
+      "yellow": 90,
+      "red": 85
+    },
     "blocker_blocks_downstream": true,
-    "sign_off": {"status": "pending_h4_signature", "approved_by": null}
+    "sign_off": {
+      "status": "pending_h4_signature",
+      "approved_by": null
+    }
   },
   "change_process": "先改 docs/metrics/P0-metrics.md → H4 签字 → 再改 SQL/代码；docs 与 SQL 由 warehouse/tests/test_docs_sql_sync.py 强制一致"
 }

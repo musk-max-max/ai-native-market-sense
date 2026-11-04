@@ -128,11 +128,41 @@ def test_same_rule_hit_twice_counts_once(tmp_path):
     assert len([v for v in report.blocker_violations if v.rule_id == "STRUCT-03"]) == 2
 
 
-def test_business_rule_denominator_is_two(tmp_path):
-    # 业务规则总数 2（BIZ-01 blocker + BIZ-02 warn）：命中 BIZ-01 → 类别分 50，总分 85
+def test_business_rule_denominator_is_three(tmp_path):
+    # 业务规则总数 3（BIZ-01/BIZ-02/BIZ-03，后两个 warn）：命中 BIZ-01 → 类别分 66.67，总分 90
+    # L80 新增 BIZ-03（warn）使业务类分母 2→3；阈值不变，blocker 一票否决仍 black。
     bars = [bar_row(trade_date=DAYS[-1], high="11.20", close="11.10", low="10.00",
                     open="10.10", prev_close="10.00")]
     report = run_quality_checks(_state(tmp_path, bars=bars))
-    assert report.category_scores["business"] == 50.0
-    assert report.score == 85.0
+    assert round(report.category_scores["business"], 2) == round(100 * (1 - 1 / 3), 2)
+    assert report.score == 90.0
     assert report.grade == "black" and report.blocked is True
+
+def test_unknown_board_is_fail_closed_not_silent(tmp_path):
+    # M04 fail-closed：未知板块不得被静默映射成"没涨跌停"，BIZ-01 必须 blocker。
+    # ODS loader 已在入口拒收未知 board；这里模拟"绕过 loader 的脏维表"（DWD 直连/历史库），
+    # 质量层必须再兜一次（defense in depth）。
+    bars = [bar_row(trade_date=DAYS[-1], prev_close="10.30")]
+    state = _state(tmp_path, bars=bars)
+    state.instruments["SSE:600519"]["board"] = "other"
+    report = run_quality_checks(state)
+    hits = [v for v in report.blocker_violations if v.rule_id == "BIZ-01"]
+    assert hits, [v.rule_id for v in report.violations]
+    assert "未知板块" in hits[0].detail
+    assert report.grade == "black" and report.blocked is True
+
+
+def test_st_historical_bar_gets_biz03_warn_not_block(tmp_path):
+    # L80：当前 ST 名称 + trade_date 早于 dim.as_of → BIZ-03 warn（不拖绿、不阻断）
+    report = run_quality_checks(_state(tmp_path, instrument=instrument_row(name="ST测试")))
+    warns = [v for r in report.results for v in r.violations if v.rule_id == "BIZ-03"]
+    assert warns and all(v.severity == "warn" for v in warns)
+    assert report.grade == "green" and report.blocked is False
+    assert report.score == 100.0
+
+
+def test_st_same_day_bar_has_no_biz03(tmp_path):
+    # 同一交易日（trade_date == dim.as_of 日期）不需要"历史还原"，不应告警
+    bars = [bar_row(trade_date=DAYS[-1], prev_close="10.30")]
+    report = run_quality_checks(_state(tmp_path, instrument=instrument_row(name="ST测试"), bars=bars))
+    assert not [v for r in report.results for v in r.violations if v.rule_id == "BIZ-03"]

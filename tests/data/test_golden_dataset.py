@@ -86,13 +86,17 @@ def test_case_matches_expected_verdict(case: CaseData, reports):
 
 
 def test_positive_cases_have_no_blocker(pack, reports):
-    """正例必须是「干净数据」：任何 blocker 都意味着 golden 本身在教坏数据。"""
+    """正例不得出现 blocker（golden 本身不能教坏数据）。
+
+    L80 例外：ST 时点性 warn（BIZ-03）是 known limitation 的**标注**，不是数据错误；
+    正例允许 warn，blocker 仍一票否决。"""
     dirty = [
-        f"{case.case_id}: {sorted(reports[case.case_id].rule_ids)}"
+        f"{case.case_id}: {sorted(v.rule_id for v in reports[case.case_id].violations if v.severity == 'blocker')}"
         for case in pack.cases
-        if case.case_id.startswith("G") and reports[case.case_id].violations
+        if case.case_id.startswith("G")
+        and any(v.severity == "blocker" for v in reports[case.case_id].violations)
     ]
-    assert not dirty, "正例出现违规: " + "; ".join(dirty)
+    assert not dirty, "正例出现 blocker: " + "; ".join(dirty)
 
 
 def test_p0_boundary_classes_are_covered(pack):

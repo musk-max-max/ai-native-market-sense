@@ -266,11 +266,21 @@ python -m market_ingest sync-bars --start 2026-10-28 --end 2026-11-03 \
 - adapter 可注入点：`create_adapter(options, *, transport=..., guard=..., ledger=...)`；
   测试用 `ReplayTransport(entries)` / `ReplayTransport.from_file(path)`（JSONL）。
 
+## 合成 fixture 审计（L32 / L44）
+
+`tools/audit_synthetic_fixtures.py` 只读 `tests/fixtures/tushare/`（A12 写域），校验
+manifest 声明合成、无未登记孤儿文件，并由脚本重算 path+sha256 清单（不许手抄）：
+
+    python3 tools/audit_synthetic_fixtures.py                       # 表格到 stdout
+    python3 tools/audit_synthetic_fixtures.py --write var/fixture-inventory.md
+
+清单交给 Lead 贴 `agents/BOARD.md`；脚本退出码 1 = 有真实报文/孤儿/清单不一致。
+
 ## 测试
 
 ```bash
 cd services/ingest
-PYTHONPATH=src /opt/anaconda3/bin/python3 -m pytest -q      # 133 tests
+PYTHONPATH=src /opt/anaconda3/bin/python3 -m pytest -q      # 139 tests
 PYTHONPATH=src /opt/anaconda3/bin/python3 -m mypy           # 22 files clean
 ```
 

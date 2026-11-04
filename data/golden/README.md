@@ -12,16 +12,20 @@
 
 | 约定 | 说明 |
 | --- | --- |
-| 单一文件 | `p0_bars20.yaml`（文件名保留历史，现含 21 正例 + 9 负例；**不改名**，外部引用已固定） |
-| 用例 id | `G01`…`G21` = 正例（必须 green、score=100、不被阻断）；`N01`…`N09` = 负例（必须按 `expect` 精确命中） |
-| 边界标记 | 正例中 ST / 停牌 / 除权除息 / 涨跌停 / 新股首日 / ST 恰好 5% 等边界在 `title` 写明，`warehouse/tests/test_golden.py::BOUNDARY_CASES` 登记 |
+| 单一文件 | `p0_bars20.yaml`（文件名保留历史，现含 22 正例 + 9 负例；**不改名**，外部引用已固定） |
+| 用例 id | `G01`…`G22` = 正例（必须 green、score=100、不被阻断）；`N01`…`N09` = 负例（必须按 `expect` 精确命中） |
+| 边界标记 | 正例中 ST / 停牌 / 除权除息 / 涨跌停 / 新股首日 / ST 恰好 5% / ST 限价取整 等边界在 `title` 写明，`warehouse/tests/test_golden.py::BOUNDARY_CASES` 登记 |
 | 编号只增 | 不回收编号；删条目不删语义，用新编号覆盖场景 |
 
 ## 正例（G*）语义
 
-- `expect.grade: green`、`blocked: false`、`violations: []` → 数据合法，质量分必须 100。
+- `expect.grade: green`、`blocked: false`、质量分必须 100；`violations` 一般为 `[]`。
+  例外：ST 正例（G05/G06/G21）含历史 bar（`trade_date < dim.as_of`）→ 允许且必须精确命中
+  `["BIZ-03"]`（L80：ST 判定时点性限制，warn 不拖绿、不阻断）。
 - 额外可断言：`score_min/score_max`、`revisions`（历史修正留痕，如 G19）、`hfq`/`qfq`（复权价格，如 G17）。
 - 边界用例的意义是**钉住容易写错的方向**，例如：
+  - `G22` 主板 ST **限价取整**：`10.05×1.05=10.5525→10.55`，收盘 10.55 即涨停（涨幅 4.9751%），
+    锁死"用百分比直接判涨跌停"的错误；与 G21 合起来覆盖"恰好 5%"与"取整后触发"两个边界。
   - `G21` 主板 ST **恰好 +5.00%**：若实现把规则写成"严格 ≥ 上限即违规"，恰好 5% 会被误杀；
     若容差被滥用（例如对 +5.6% 也放行），`N05`（ST +6%）会失败。两条样本合起来锁死边界。
 
@@ -62,13 +66,13 @@
 ## 门禁命令
 
 ```bash
-python3 -m warehouse.pipeline --golden data/golden/p0_bars20.yaml  # 期望 30/30 通过
+python3 -m warehouse.pipeline --golden data/golden/p0_bars20.yaml  # 期望 31/31 通过
 python3 -m pytest warehouse/tests -q                              # 含 golden 门禁测试
 ```
 
 当前清单：G01 主板正常 / G02 创业板 +15% / G03 科创 / G04 北交所 30% / G05 主板 ST / G06 *ST 5.05% 容差 /
 G07 主板涨停 10.02% / G08 跌停 / G09 创业板 20% / G10 北交所 30% / G11 除权除息 / G12 停牌无 bar /
 G13 新股首日 / G14 低价股涨停 / G15 跨周末 / G16 退市历史 bar / G17 qfq/hfq 连续 / G18 多批次幂等 /
-G19 历史修正 revision=1 / G20 +9.98% 未涨停 / **G21 ST 恰好 +5.00% 涨停边界**；
+G19 历史修正 revision=1 / G20 +9.98% 未涨停 / **G21 ST 恰好 +5.00% 涨停边界** / **G22 ST 限价取整边界**；
 N01 high<low / N02 high<max(open,close) / N03 非正价格或负量 / N04 主板 +11% / N05 ST +6% /
 N06 因子≤0 / N07 缺 prev_close(warn) / N08 除权日缺参考价 / N09 内部缺日。
