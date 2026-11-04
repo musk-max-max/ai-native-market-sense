@@ -2,7 +2,7 @@
   "schema_version": "0.1",
   "owner": "A13",
   "generated_by": "a13-sre",
-  "generated_at": "2026-11-04T06:06:00Z",
+  "generated_at": "2026-11-04T06:17:00Z",
   "rule": "artifact 不内嵌自身哈希；哈希只进 manifest；内容改动必须换新文件名（UTC 时间戳），旧 artifact 保留；CI 独立复算每条 sha。",
   "authority_values": [
     "authoritative",
@@ -133,6 +133,34 @@
         "H5-R19"
       ],
       "notes": "H5 签字 #4 PASS 的伴随 residual（connect 阶段黑洞未真验、首请求延迟未单测、范围仅 c_end_display test profile）；#3 不写 closed。"
+    },
+    {
+      "path": "infra/evidence/exposure-static-guard-20261104T0615Z.txt",
+      "sha256": "ff29f7f5c69f04cb3b25063e9e263a3f0d9c64d1113ccfabba5899a4a4112ddc",
+      "bytes": 2531,
+      "recompute": "sha256sum infra/evidence/exposure-static-guard-20261104T0615Z.txt",
+      "role": "static-guard",
+      "authority": "authoritative",
+      "phase": "post-fix",
+      "case_ids": [
+        "H5-R10",
+        "H5-R19"
+      ],
+      "notes": "ingress 只 /v1、禁 / /healthz /metrics /docs /openapi.json /readyz /internal；NetworkPolicy 5 条（default-deny ingress/egress、ingress-controller→8080、monitoring 命名空间→http、DNS）；无 metrics 独立端口；集群外 404 未验证（无 PUBLIC_BASE_URL）。"
+    },
+    {
+      "path": "infra/evidence/tools/capture-exposure.sh",
+      "sha256": "a40249857847e6625c69ff5306e9eb9386c2781ccf4cb650b3df021cea2f0f60",
+      "bytes": 6038,
+      "recompute": "sha256sum infra/evidence/tools/capture-exposure.sh",
+      "role": "evidence-tool",
+      "authority": "authoritative",
+      "phase": "post-fix",
+      "case_ids": [
+        "H5-R10",
+        "H5-R19"
+      ],
+      "notes": "H5 #7 ④ 暴露面采集模板：外部 /healthz、/metrics 非 200 且 body 无内部状态；Pod 内 /healthz 200 字段完整；--dry-run 可预演。入口到位后按此取证。"
     }
   ],
   "related_manifests": [

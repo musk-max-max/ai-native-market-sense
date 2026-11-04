@@ -45,3 +45,18 @@
 - **静态守卫：已过**（证据 `infra/evidence/exposure-static-guard-20261104T0615Z.txt`，入 evidence-manifest）：`helm template` 渲染后 Ingress 路径只有 `/v1`；`/`、`/healthz`、`/metrics`、`/docs`、`/openapi.json`、`/readyz`、`/internal` 均不在 ingress；NetworkPolicy 5 条（default-deny ingress/egress、allow ingress-controller、allow monitoring 限定命名空间且只 http 端口、DNS）；Service 未暴露 metrics 端口。
 - **集群外 `/healthz`、`/metrics` 实测：UNVERIFIED**。阻塞：缺真实 ingress host / `PUBLIC_BASE_URL` 与公网可达（安全组/入口）——需 Lead/用户确认开入口或提供 staging 集群；不在 A13 代码侧。拿到入口后 30–60 分钟内出「外部 404（含响应头/时间戳/执行人）+ Pod 内 200」两条证据。
 - **`/metrics` 口径**：当前未实现。实现时必须二选一：①独立端口（不复用 8080）；②A11 断言仅 monitoring 命名空间可达 8080。在此之前，`allow-monitoring` 的 8080 放行是命名空间受限的临时口径，不得视为永久豁免；`check-network-policy.mjs` 会在出现 metrics 端口/路径时要求 `METRICS_ISOLATION_APPROVED=1` 并应走上述二选一评审。
+
+## 入口到位后的执行模板（脚本，勿现写）
+
+前置：拿到真实 ingress host（`EXPOSURE_HOST`）、运行中的 api pod（`POD`）、命名空间（`NS`，默认 `market-sense-dev`）、执行人（`EXECUTOR`）。
+
+```sh
+# 预演（不联网）：
+infra/evidence/tools/capture-exposure.sh --dry-run
+
+# 正式取证：
+EXPOSURE_HOST=<ingress-host> NS=<namespace> POD=<api-pod> EXECUTOR="A13 (a13-sre)" \
+  infra/evidence/tools/capture-exposure.sh
+```
+
+脚本一次产出 `infra/evidence/exposure-live-<UTC>.txt`，内含：命令原文、commit、时间戳、执行人、runtime、四条请求的响应头/状态码/body，以及断言结果（external `/healthz`、`/metrics` 必须非 200 且 body 不含 `entitlement_degraded|hold_reason|data_ready_reason`；internal `/healthz` 必须 200 且含 `data_ready`+`entitlement_degraded`）。退出码：0 PASS / 3 外部失败 / 4 内部失败。跑完把文件 path/bytes/sha256/authority/phase/case_ids 加进 `infra/evidence/evidence-manifest.json`（新文件名，不覆盖旧证据）。
