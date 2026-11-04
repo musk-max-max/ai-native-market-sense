@@ -72,4 +72,6 @@ COMMIT=<sha> sh infra/evidence/tools/capture-exposure.sh --mode public \
 3. **NetworkPolicy 真集群验证 = 历史项**：当前无集群/无公网入口，降为历史；**一旦重新引入公网入口（LB/ingress/端口发布），立即重开**该项并按旧四件套（外部 404 + Pod 200 + 静态 + NP 三命名空间实测）验收。
 4. **容器 restart 策略**：`restart=no` 只允许 e2e/一次性临时栈；**任何生产部署（compose 或 k8s）必须 `unless-stopped`/`always` 或 k8s 自愈**，否则进程崩溃不自愈，availability SLO（交易时段 99.9%）直接破。发布前由 A13 检查 `docker inspect`/Helm values，e2e 栈除外。
 
-> 记录口径：**「④ PASS（L91 内网口径）」**，不写「④ 全清」。
+5. **A19 红队复核补证（2026-11-04，`infra/evidence/internal-exposure-redteam-20261104T2356Z.txt`，sha256 `afbeaf52…`）**：本 runbook 的「公网不可达」证据是「**当时无业务监听**」，**不等于网络层拒绝**。A19 实测：外网 80/8888 为 RST（refused）而非 filtered，在 ECS 临时绑定 0.0.0.0:80/8888 后外网均 200 → **云 SG + ufw 仍对 Internet 放行 80/8888**；`ms-nginx` 虽 exited/restart=no，仍保留 `PortBindings={"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"80"}]}`，root 执行 `docker start` 即可恢复公网 Basic Auth 入口；ufw 还放行 20/21/888/25730/39000-40000（当前被 SG 挡住）。另有 R2（22 开放 root 密码登录、无 fail2ban）、R3（运行容器 `ENTITLEMENT_AUDIT=0`/`HOLD_CHECK=0` 与 compose `1/1` 漂移、audit events=0）、R4（root/docker→psql 绕过 403）、R5（限流共享桶 600/120）、R6（多用户再分发）见 artifact。**④ 的 PASS 只覆盖「某一时刻无监听 + 内网门禁」；网络层纵深与 ms-nginx 0.0.0.0 绑定按 H5 residual 跟踪。** 不重签已冻结证据；以本条与 A19 artifact 作为 errata。
+
+> 记录口径：**「④ PASS（L91 内网口径）」**，不写「④ 全清」；A19 复核后补注：网络层未拒绝（SG/ufw 放行 80/8888），当前不可达仅因无监听。
