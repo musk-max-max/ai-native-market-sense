@@ -109,6 +109,8 @@ ALTER TABLE audit.entitlement_events
 -- audit_gap 最小留痕完整性（缺字段 = 无法审计 = fail-closed 拒绝）：
 --   - deployment_uid、operator 必填；reason 必须 NULL（结构性断口不占 6 值业务枚举）；
 --   - new_value 对象必须含 gap_from / gap_to / lost_count / reason / owner；
+--     gap_from 的语义 = 链上最后一条成功事件的 occurred_at（由写入方计算；DDL 只校验
+--     非空与 gap_to >= gap_from，不替写入方猜窗口）；
 --   - gap_from/gap_to 必须是 UTC ISO-8601（Z 或 +00:00）；gap_to >= gap_from；
 --   - lost_count：null（恢复时无法确知）或正整数；**0 拒绝**（写"丢了 0 条"是自欺）；
 --   - reason 仅 transient_write_failure / process_restart；owner 非空。

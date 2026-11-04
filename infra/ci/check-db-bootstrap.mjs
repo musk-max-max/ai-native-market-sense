@@ -12,7 +12,7 @@
  * 注：H4/H5 的「写权限三分 + hold control 表」在 A5 DDL 落地后扩展断言（本检查先覆盖已交付文件）。
  */
 
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -506,6 +506,23 @@ if (auditMigration) {
     'audit: 撤销 PUBLIC 权限（具体角色由 20_grants 授）',
     /REVOKE ALL ON audit\.entitlement_events FROM PUBLIC/i.test(auditMigration),
   );
+}
+
+// ---- 002_audit_gap（A5 m…，H4 的 gap 判定依赖）--------------------------------
+const auditGapPath = 'services/compliance/migrations/002_audit_gap.sql';
+const auditGap = existsSync(resolve(ROOT, auditGapPath)) ? readFileSync(resolve(ROOT, auditGapPath), 'utf8') : '';
+check('audit_gap: 002 迁移存在', auditGap.length > 0);
+if (auditGap) {
+  check(
+    'audit_gap: 新增 recorded_at 且触发器强制 now()',
+    /ADD COLUMN IF NOT EXISTS recorded_at/i.test(auditGap) && /now\(\)/.test(auditGap),
+  );
+  check(
+    'audit_gap: 第 10 类事件 audit_gap 已加入 CHECK',
+    /audit_gap/.test(auditGap) && /event_type/i.test(auditGap),
+  );
+  check('audit_gap: schema_version 放宽为 1/2 共存', /schema_version/i.test(auditGap) && /1.*2|2.*1/s.test(auditGap));
+  check('audit_gap: 不修改 001（canonical hash 不变）', !/UPDATE audit\.entitlement_events SET hash/i.test(auditGap));
 }
 
 // ---- 输出 ---// ---- 输出 -------------------------------------------------------------------

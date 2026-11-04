@@ -19,14 +19,14 @@ DDL 单一真源在 `warehouse/dwd/schema.sql` 与 `warehouse/serving/schema.sql
 
 ## 权限模型（按「进程」切，不按「服务」切）
 
-| 角色               | 能做什么                                                                                                                                                   | 不能做什么                                                                            |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `market_app`       | `serving.*` SELECT；`public.watchlist_items` DML；`audit.entitlement_events` **列级** INSERT（排除 prev_hash/hash）；`audit.entitlement_hold_state` SELECT | 读/写 `dwd_*`/`dim_*`（含 SELECT）；CREATE；TRUNCATE；读审计事件；写 hash 列；改 hold |
-| `warehouse_loader` | `public.dwd_*` / `public.dim_*` SELECT/INSERT/UPDATE/DELETE（仅 load 进程）                                                                                | 读 serving、读/写 watchlist、读/写 audit；DDL；TRUNCATE/REFERENCES/TRIGGER            |
-| `ci_deploy_writer` | 审计事件列级 INSERT（deploy/tier_switch，从不可变产物写）                                                                                                  | 读事件、改/删事件；hold 任何权限；DWD/serving 读写                                    |
-| `reconciler`       | EXECUTE `raise_hold(text,text)` / `mark_reconciled(timestamptz)`；SELECT hold 视图                                                                         | 表级读写；`clear_hold`（只有人能清 hold）                                             |
-| `human_hold_clear` | 仅 EXECUTE `clear_hold(text,text,text)`（NOLOGIN，T2 工单 + H5 签字后 SET ROLE）                                                                           | 其他任何权限                                                                          |
-| `audit_reader`     | SELECT `audit.entitlement_events` / `entitlement_hold` / `_state`；EXECUTE `verify_entitlement_chain()`                                                    | 任何写；任何写函数 EXECUTE（NOLOGIN，经 SET ROLE）                                    |
+| 角色               | 能做什么                                                                                                                                                               | 不能做什么                                                                            |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `market_app`       | `serving.*` SELECT；`public.watchlist_items` DML；`audit.entitlement_events` **列级** INSERT（排除 prev_hash/hash/recorded_at）；`audit.entitlement_hold_state` SELECT | 读/写 `dwd_*`/`dim_*`（含 SELECT）；CREATE；TRUNCATE；读审计事件；写 hash 列；改 hold |
+| `warehouse_loader` | `public.dwd_*` / `public.dim_*` SELECT/INSERT/UPDATE/DELETE（仅 load 进程）                                                                                            | 读 serving、读/写 watchlist、读/写 audit；DDL；TRUNCATE/REFERENCES/TRIGGER            |
+| `ci_deploy_writer` | 审计事件列级 INSERT（deploy/tier_switch，从不可变产物写）                                                                                                              | 读事件、改/删事件；hold 任何权限；DWD/serving 读写                                    |
+| `reconciler`       | EXECUTE `raise_hold(text,text)` / `mark_reconciled(timestamptz)`；SELECT hold 视图                                                                                     | 表级读写；`clear_hold`（只有人能清 hold）                                             |
+| `human_hold_clear` | 仅 EXECUTE `clear_hold(text,text,text)`（NOLOGIN，T2 工单 + H5 签字后 SET ROLE）                                                                                       | 其他任何权限                                                                          |
+| `audit_reader`     | SELECT `audit.entitlement_events` / `entitlement_hold` / `_state`；EXECUTE `verify_entitlement_chain()`                                                                | 任何写；任何写函数 EXECUTE（NOLOGIN，经 SET ROLE）                                    |
 
 为什么不给一个「读写角色」：API 同时要读行情与写自选；若合成一个角色，一次注入就能改 DWD，而 DWD 是所有展示的口径源头。分割后越权会变成运行时 `permission denied`，而不是评审记忆。
 
@@ -71,7 +71,10 @@ infra/scripts/db-migrate.sh --env production --dsn "$PROD_DSN" --dry-run
 
 - 本机无 `psql`、无 PostgreSQL 实例时，`bootstrap.sh` 只验证到 `--dry-run` + 静态门禁（当前 CI 也是这么跑）；**不等于真库执行成功**。
 - 真库验证：`bootstrap.sh --verify` + `infra/scripts/db-migrate.sh`（迁移后强制重跑 20_grants/90_verify）。2026-11-04 已在 PG16@55432 scratch 库验证：越权=0、append-only 生效、列级 INSERT 生效、reconciler 重复 raise_hold 不新增事件。
-- 审计 canonical DDL 是 `services/compliance/migrations/001_audit_entitlement_events.sql`（A5 写、A5/H3 review）；**禁止在 infra 复制**，详见 `infra/db/migrations/README.md`。
+- 审计 canonical DDL 是 `services/compliance/migrations/001_audit_entitlement_events.sql` + `002_audit_gap.sql`（A5 写、A5/H3 review）；**禁止在 infra 复制**，详见 `infra/db/migrations/README.md`。
+- 002 新增 `recorded_at`（DB 写入时间，触发器强制 `now()`；不参与链 hash）与第 10 类 `audit_gap`；`schema_version` 放宽为 1/2 共存。`market_app` / `ci_deploy_writer` 的列级 INSERT **排除 recorded_at**（自证列）。
+- deploy 事件必须写 `new_value.target_tier`（来自发布参数/审批记录，值域 `internal_eval|c_end_display`）；`target_tier != internal_eval` 时必须有同 `deployment_uid` 的 `tier_switch`，否则 A11 的 gap 规则失效。release-gate 已加 SQL 断言，缺了按失败。
+- Helm 的 `config.DEPLOYMENT_UID` 必须由发布流水线注入（`deploy.sh` 缺了 exit 6；prod 渲染缺了直接 fail）；它就是 deploy 事件/ gap 去重键，不许手填。
 - `audit_reader` 是 NOLOGIN 角色：H3/A16/A14 的**具名身份**经受控 membership 后 `SET ROLE`，不建共享登录账号、不设密码；谁在何时读审计走身份审计，不做人人可用的公共角色。
 - seed 事件只允许进**一次性验收库**（`a13_verify`/`a5_l49_final`/…`_e2e`/…`_test`）；脚本对其它库名 `exit 4` 拒绝，确需覆盖必须 `SEED_ALLOW_NON_SCRATCH=1` 且 H4/Lead 批准。保留事件的 `trace_id` 一律 `seed:` 前缀，避免 H3 把假事件当成真实复核签字。
 - release 栈 seed 的 `last_reconciled_at=now()-16min` **只服务 A11 #4 的 stale 用例**；用例结束必须 `infra/db/seed-entitlement-audit.sh --restore-fresh`（release-gate 已用 always 步骤兜底），否则默认环境会一直 fail-closed。
