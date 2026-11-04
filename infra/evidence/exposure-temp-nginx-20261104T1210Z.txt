@@ -1,0 +1,187 @@
+# 暴露面取证（Lead 临时 nginx 层，非 staging k8s ingress）
+# executor: A13 (a13-sre)   time_utc: 2026-11-04T12:10:10Z
+# host: http://47.120.16.239 (ECS, cn-hechi)  dir: /opt/ms-nginx (owner: Lead)
+# scope: 临时 nginx 层（Docker，0.0.0.0:80）；Basic Auth 拦匿名；/healthz,/metrics,/readyz 在 nginx 层 return 404。
+# NOT: k8s staging ingress；无 NetworkPolicy 可验；本文件仅 ④ 的补充证据，不构成 PASS。
+# auth: -u $MS_AUTH（凭证不落盘；用户名 market_admin，密码来自 /root/.ms-nginx-credentials 第 1 行）
+
+## A. 外部匿名（无凭证）
+--- GET http://47.120.16.239/healthz (anonymous)
+http=404 time=0.091623s
+[response headers]
+HTTP/1.1 404 Not Found
+Server: nginx/1.27.5
+Date: Wed, 04 Nov 2026 12:10:10 GMT
+Content-Type: text/html; charset=utf-8
+Content-Length: 153
+Connection: keep-alive
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Referrer-Policy: no-referrer
+
+[body sha256] cf9be91f18e11cf4bf9caf1181753266a2b7f159327bb3d0081bcc02260d27c2 bytes=     153
+[body head]
+<html>
+<head><title>404 Not Found</title></head>
+<body>
+<center><h1>404 Not Found</h1></center>
+<hr><center>nginx/1.27.5</center>
+</body>
+</html>
+
+--- GET http://47.120.16.239/metrics (anonymous)
+http=404 time=0.088170s
+[response headers]
+HTTP/1.1 404 Not Found
+Server: nginx/1.27.5
+Date: Wed, 04 Nov 2026 12:10:10 GMT
+Content-Type: text/html; charset=utf-8
+Content-Length: 153
+Connection: keep-alive
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Referrer-Policy: no-referrer
+
+[body sha256] cf9be91f18e11cf4bf9caf1181753266a2b7f159327bb3d0081bcc02260d27c2 bytes=     153
+[body head]
+<html>
+<head><title>404 Not Found</title></head>
+<body>
+<center><h1>404 Not Found</h1></center>
+<hr><center>nginx/1.27.5</center>
+</body>
+</html>
+
+--- GET http://47.120.16.239/readyz (anonymous)
+http=404 time=0.090162s
+[response headers]
+HTTP/1.1 404 Not Found
+Server: nginx/1.27.5
+Date: Wed, 04 Nov 2026 12:10:10 GMT
+Content-Type: text/html; charset=utf-8
+Content-Length: 153
+Connection: keep-alive
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Referrer-Policy: no-referrer
+
+[body sha256] cf9be91f18e11cf4bf9caf1181753266a2b7f159327bb3d0081bcc02260d27c2 bytes=     153
+[body head]
+<html>
+<head><title>404 Not Found</title></head>
+<body>
+<center><h1>404 Not Found</h1></center>
+<hr><center>nginx/1.27.5</center>
+</body>
+</html>
+
+--- GET http://47.120.16.239/ (anonymous)
+http=401 time=0.085873s
+[response headers]
+HTTP/1.1 401 Unauthorized
+Server: nginx/1.27.5
+Date: Wed, 04 Nov 2026 12:10:10 GMT
+Content-Type: text/html; charset=utf-8
+Content-Length: 179
+Connection: keep-alive
+WWW-Authenticate: Basic realm="market-sense restricted"
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Referrer-Policy: no-referrer
+
+[body sha256] 1778a7c632b59de25149ff2faaaf3ebaf8e7872547dc773eccb252f0b64cabcd bytes=     179
+[body head]
+<html>
+<head><title>401 Authorization Required</title></head>
+<body>
+<center><h1>401 Authorization Required</h1></center>
+<hr><center>nginx/1.27.5</center>
+</body>
+</html>
+
+## B. 外部带 Basic Auth
+--- GET http://47.120.16.239/healthz (auth)
+http=404 time=0.117889s
+[response headers]
+HTTP/1.1 404 Not Found
+Server: nginx/1.27.5
+Date: Wed, 04 Nov 2026 12:10:10 GMT
+Content-Type: text/html; charset=utf-8
+Content-Length: 153
+Connection: keep-alive
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Referrer-Policy: no-referrer
+
+[body sha256] cf9be91f18e11cf4bf9caf1181753266a2b7f159327bb3d0081bcc02260d27c2 bytes=     153
+[body head]
+<html>
+<head><title>404 Not Found</title></head>
+<body>
+<center><h1>404 Not Found</h1></center>
+<hr><center>nginx/1.27.5</center>
+</body>
+</html>
+
+--- GET http://47.120.16.239/metrics (auth)
+http=404 time=0.084230s
+[response headers]
+HTTP/1.1 404 Not Found
+Server: nginx/1.27.5
+Date: Wed, 04 Nov 2026 12:10:11 GMT
+Content-Type: text/html; charset=utf-8
+Content-Length: 153
+Connection: keep-alive
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Referrer-Policy: no-referrer
+
+[body sha256] cf9be91f18e11cf4bf9caf1181753266a2b7f159327bb3d0081bcc02260d27c2 bytes=     153
+[body head]
+<html>
+<head><title>404 Not Found</title></head>
+<body>
+<center><h1>404 Not Found</h1></center>
+<hr><center>nginx/1.27.5</center>
+</body>
+</html>
+
+--- GET http://47.120.16.239/v1/instruments/SSE:600519 (auth)
+http=200 time=0.108333s
+[response headers]
+HTTP/1.1 200 OK
+Server: nginx/1.27.5
+Date: Wed, 04 Nov 2026 12:10:11 GMT
+Content-Type: application/json; charset=utf-8
+Content-Length: 358
+Connection: keep-alive
+cache-control: no-store
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Referrer-Policy: no-referrer
+
+[body sha256] af48d494efb28a533a8d7b8a53da90cff149acc21d7ab48351be09f8cd4143fd bytes=     358
+[body head]
+{"data":{"instrument_id":"SSE:600519","exchange":"SSE","name":"贵州茅台","board":"main","security_type":"stock","list_status":"listed","listed_at":"2001-08-27"},"meta":{"source":{"source":"platform_eod","as_of":"2026-11-04T15:00:00+08:00","staleness_ms":18611168,"source_id":"exchange_master"},"entitlement":{"tier":"internal_eval","is_entitled":false}}}
+--- GET http://47.120.16.239/v1/instruments/SSE:600519/quote (auth)
+http=403 time=0.089611s
+[response headers]
+HTTP/1.1 403 Forbidden
+Server: nginx/1.27.5
+Date: Wed, 04 Nov 2026 12:10:11 GMT
+Content-Type: application/problem+json; charset=utf-8
+Content-Length: 227
+Connection: keep-alive
+cache-control: no-store
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Referrer-Policy: no-referrer
+
+[body sha256] f4d03aef34ddf02341512ea834814aa7f3c4f884feb5fd50513a329945ee8972 bytes=     227
+[body head]
+{"type":"https://errors.market-sense.invalid/entitlement-restricted","title":"行情数据暂不可用","status":403,"code":"ENTITLEMENT_RESTRICTED","trace_id":"req-5by","detail":"当前版本暂不提供该标的行情数据"}
+## C. 断言
+PASS: 外部 /healthz,/metrics body 不含 entitlement_degraded|hold_reason|data_ready_reason|market-sense
+## D. 容器内（non-k8s Pod；镜像无 curl，用 node fetch 等价端点调用）
+http=200
+{"status":"ok","service":"market-sense-api","version":"0.1.0","uptime_s":21827,"domains":["market"],"data_ready":false,"data_ready_reason":"INGEST_REPORT_INVALID","entitlement_degraded":false}
