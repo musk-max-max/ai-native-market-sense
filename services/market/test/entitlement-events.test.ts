@@ -96,3 +96,73 @@ describe('EntitlementEventWriter：重试与失败上报', () => {
     assert.ok(warnings.some((line) => line.includes('entitlement 事件写入失败')));
   });
 });
+
+describe('audit_gap：写失败窗口恢复补记（L63/L65，H4 m01784/m01800）', () => {
+  it('gap = gap|<deployment_uid>|<window_start>，window_start 取链上最后一条成功事件 occurred_at（含 gap 自身），不重放丢失事件', async () => {
+    const inserted: EntitlementEventRecord[] = [];
+    let failNext = true;
+    const repo: EntitlementEventRepo = {
+      async insert(event) {
+        if (failNext) {
+          failNext = false;
+          throw new Error('连接重置（transient）');
+        }
+        inserted.push(event);
+      },
+    };
+    const writer = new EntitlementEventWriter(repo, {
+      retryDelaysMs: [],
+      deploymentUid: 'deploy-1',
+      operator: 'market-app',
+    });
+
+    const observed = record(observedEventKey('boot-1'));
+    assert.equal(await writer.write(observed), false, '首次写失败');
+
+    const next = { ...record(unauthorizedEventKey('fp', 'boot-1')), eventType: 'unauthorized_config' as const };
+    assert.equal(await writer.write(next), true);
+
+    const gap = inserted.find((event) => event.eventType === 'audit_gap');
+    assert.ok(gap, '恢复后必须先补 audit_gap');
+    assert.equal(gap?.eventKey, 'gap|deploy-1|2026-11-04T02:00:00.000Z');
+    assert.equal(gap?.schemaVersion, 2);
+    assert.equal(gap?.reason, undefined, 'reason 列置 NULL');
+    const value = gap?.newValue ?? {};
+    assert.deepEqual(Object.keys(value).sort(), [
+      'deployment_uid',
+      'lost_count',
+      'operator',
+      'owner',
+      'reason',
+      'window_end',
+      'window_start',
+    ]);
+    assert.equal(value.window_start, '2026-11-04T02:00:00.000Z');
+    assert.equal(value.lost_count, 1);
+    assert.equal(value.reason, 'transient_write_failure');
+    assert.equal(value.deployment_uid, 'deploy-1');
+    // gap 在正常事件之前写；丢失的 observed 不重放。
+    assert.deepEqual(inserted.map((event) => event.eventType), ['audit_gap', 'unauthorized_config']);
+  });
+});
+
+describe('audit_gap：缺 DEPLOYMENT_UID 时不写 gap（H4 m01880）', () => {
+  it('deployment_uid 缺失 → 抑制 gap 写入（避免多个 dev/preview 共库同 key 被吞），只告警', async () => {
+    const inserted: EntitlementEventRecord[] = [];
+    let failNext = true;
+    const repo: EntitlementEventRepo = {
+      async insert(event) {
+        if (failNext) {
+          failNext = false;
+          throw new Error('连接重置（transient）');
+        }
+        inserted.push(event);
+      },
+    };
+    const writer = new EntitlementEventWriter(repo, { retryDelaysMs: [] });
+    assert.equal(await writer.write(record(observedEventKey('boot-1'))), false);
+    assert.equal(await writer.write(record(unauthorizedEventKey('fp', 'boot-1'))), true);
+    assert.equal(inserted.some((event) => event.eventType === 'audit_gap'), false);
+    assert.equal(inserted.length, 1, '只写下一条正常事件，不补 gap、不重放丢失事件');
+  });
+});

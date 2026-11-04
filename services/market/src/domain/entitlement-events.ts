@@ -41,6 +41,7 @@ export class EntitlementEventWriter {
   /** 最近一次最终失败（调用方据此区分确定性/瞬态写错误，H4 m01741）。 */
   lastFailure: EventWriteFailure | undefined;
   private gap: GapWindow | undefined;
+  private gapSuppressedReported = false;
   /** 失败前最后一条成功事件的 occurred_at（L63/H4：服务与 reconciler 能重算出同一个 gap_from）。 */
   private lastSuccessAt: Date | undefined;
 
@@ -70,7 +71,13 @@ export class EntitlementEventWriter {
     const gap = this.gap;
     if (gap === undefined) return;
     const windowEnd = new Date();
-    const deploymentUid = this.options.deploymentUid ?? 'unknown';
+    const deploymentUid = this.options.deploymentUid?.trim();
+    // H4 m01880：缺 DEPLOYMENT_UID 时不能写 gap——多个 dev/preview 共库会算出同一
+    // `gap|unknown|<window_start>`，第二次断口被唯一索引吞掉。证据链键不完整 → 断口不可写。
+    if (deploymentUid === undefined || deploymentUid === '') {
+      this.reportGapSuppressed();
+      return;
+    }
     const record: EntitlementEventRecord = {
       // H4 m01784：用 deployment_uid 而非 boot_id，service 与 reconciler 才能算同一个去重键。
       eventKey: `gap|${deploymentUid}|${gap.from.toISOString()}`,
@@ -95,6 +102,18 @@ export class EntitlementEventWriter {
       this.lastSuccessAt = record.occurredAt;
       this.gap = undefined;
     }
+  }
+
+  private reportGapSuppressed(): void {
+    if (this.gapSuppressedReported) return;
+    this.gapSuppressedReported = true;
+    const payload = JSON.stringify({
+      event: 'audit_gap_suppressed',
+      reason: 'deployment_uid_missing',
+      detail: '证据链键不完整，断口不可写；请注入 DEPLOYMENT_UID 后重启',
+    });
+    console.error(payload);
+    process.emitWarning(`[market] ${payload}`);
   }
 
   private async attempt(record: EntitlementEventRecord): Promise<boolean> {

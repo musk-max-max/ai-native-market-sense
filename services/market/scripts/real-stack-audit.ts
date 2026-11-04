@@ -11,6 +11,7 @@
  * 用法：cd services/market && node --import tsx scripts/real-stack-audit.ts
  */
 process.env.APP_PROFILE = 'test';
+process.env.DEPLOYMENT_UID = 'deploy-a3-real-stack';
 process.env.NODE_ENV = 'test';
 process.env.E2E_MODE = '1';
 const APP_DSN = process.env.MARKET_TEST_DATABASE_URL ?? 'postgresql://market_app@127.0.0.1:55432/market_a3_test';

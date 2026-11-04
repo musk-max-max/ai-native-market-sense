@@ -106,11 +106,12 @@ async function installMarketPlugin(
     options.eventRepo ??
     (pool !== null && (config.entitlementAuditEnabled ?? true) ? new PgEntitlementEventRepo(pool) : null);
   const bootId = options.bootId ?? randomUUID();
-  const deploymentUid = options.deploymentUid ?? process.env.DEPLOYMENT_UID ?? 'unknown';
+  const deploymentUid =
+    options.deploymentUid ?? config.deploymentUid ?? env.DEPLOYMENT_UID?.trim() ?? undefined;
   const eventWriter =
     eventRepo !== null
       ? new EntitlementEventWriter(eventRepo, {
-          deploymentUid,
+          ...(deploymentUid !== undefined ? { deploymentUid } : {}),
           operator: 'market-app',
         })
       : null;

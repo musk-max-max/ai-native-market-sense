@@ -12,6 +12,10 @@ metadata:
 {{- if and (ne (toString $tier) "internal_eval") (not .Values.config.ENTITLEMENT_EXPIRES_AT) }}
 {{- fail "config.ENTITLEMENT_TIER != internal_eval 时必须设置 config.ENTITLEMENT_EXPIRES_AT（fail-closed 时间盒，H3 要求）" }}
 {{- end }}
+{{- /* H4 m01649：prod 必须显式注入 DEPLOYMENT_UID（发布事件/ gap 去重键），空值拒绝渲染 */ -}}
+{{- if and (eq (toString .Values.config.APP_PROFILE) "prod") (not .Values.config.DEPLOYMENT_UID) }}
+{{- fail "config.DEPLOYMENT_UID 必须由发布流水线注入（prod 不允许为空；gap 去重键依赖它）" }}
+{{- end }}
 data:
   {{- range $key, $value := .Values.config }}
   {{ $key }}: {{ $value | quote }}

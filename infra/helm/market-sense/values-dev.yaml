@@ -26,6 +26,8 @@ config:
   RELEASE_GRAY_STAGE: "100"
   # dev 也不默认给 C 端展示行情权限；需要展示的演练显式覆盖 tier + expires。
   ENTITLEMENT_TIER: "internal_eval"
+  # 非生产兜底值；发布流水线会 --set 覆盖成真实 deployment uid。
+  DEPLOYMENT_UID: "dev-local"
   ENTITLEMENT_EXPIRES_AT: ""
 
 monitoring:

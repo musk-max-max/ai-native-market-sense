@@ -14,6 +14,13 @@ set -euo pipefail
 
 DSN="${A11_AUDIT_DSN:-}"
 SEED_ENVIRONMENT="${SEED_ENVIRONMENT:-dev}"
+# H4 m01651：deploy 事件必须带 new_value.target_tier（gap 规则依赖；缺了规则失效）。
+# 值来自发布参数/审批记录，不许手填/推测——seed 只允许两个合法 tier，且与 tier_switch 的 new_value 一致。
+SEED_TARGET_TIER="${SEED_TARGET_TIER:-c_end_display}"
+case "$SEED_TARGET_TIER" in
+  internal_eval|c_end_display) ;;
+  *) echo "✗ SEED_TARGET_TIER 非法：$SEED_TARGET_TIER（只允许 internal_eval|c_end_display）" >&2; exit 2 ;;
+esac
 DRY_RUN=0
 RESTORE_FRESH=0
 case "${1:-}" in
@@ -40,7 +47,7 @@ SQL
   exit 2
 fi
 
-psql_q() { psql -X -q -v ON_ERROR_STOP=1 "$DSN" "$@"; }
+psql_q() { psql -X -q -v ON_ERROR_STOP=1 -v target_tier="$SEED_TARGET_TIER" "$DSN" "$@"; }
 
 # H4 m01558：seed 事件只允许进一次性验收库；禁止 preload 到长期环境。
 # 审计表里出现「看起来像真实复核」的假事件比空表更坏（H3 会当成已复核）。
@@ -106,11 +113,12 @@ SELECT GREATEST(
 INSERT INTO audit.entitlement_events
   (event_type, occurred_at, deployment_uid, release_id, manifest_hash,
    executor, approver, approval_ref, approval_read_at, approval_read_by,
-   config_fingerprint, trace_id)
+   config_fingerprint, new_value, trace_id)
 VALUES
   ('deploy', :'base_ts'::timestamptz + interval '0 seconds', :'deploy_uid', 'seed-release', repeat('a', 64),
    'A13', 'H5', 'seed-approval-ref-' || substr(md5(random()::text), 1, 8),
-   now() - interval '21 minutes', 'ci:seed', repeat('b', 64), 'seed:trace-deploy');
+   now() - interval '21 minutes', 'ci:seed', repeat('b', 64),
+   jsonb_build_object('target_tier', :'target_tier'), 'seed:trace-deploy');
 
 INSERT INTO audit.entitlement_events
   (event_type, occurred_at, deployment_uid, reason, hold_id, old_value, new_value, trace_id)
@@ -158,11 +166,11 @@ INSERT INTO audit.entitlement_events
    old_value, new_value, trace_id)
 VALUES
   ('tier_switch', :'base_ts'::timestamptz + interval '5 seconds',
-   'seed-switch-' || substr(md5(random()::text), 1, 12), 'manual_signoff',
+   :'deploy_uid', 'manual_signoff',
    'seed-approval-switch-' || substr(md5(random()::text), 1, 16),
    'A13', 'H5',
    '{"effective_tier": "internal_eval"}'::jsonb,
-   '{"effective_tier": "c_end_display"}'::jsonb,
+   jsonb_build_object('effective_tier', :'target_tier'),
    'seed:trace-tier-switch');
 
 INSERT INTO audit.entitlement_events

@@ -119,6 +119,19 @@ def probe_config(extra_env: dict[str, str]) -> tuple[dict, str]:
         return {}, f"配置探针输出无法解析: {completed.stdout[-500:]!r}"
 
 
+def check_prod_requires_deployment_uid() -> list[str]:
+    """H4 m01967 / L65：prod 缺 DEPLOYMENT_UID 必须拒绝启动（audit_gap 去重键与审计归属）。"""
+    result, error = probe_config({"APP_PROFILE": "prod", "DEPLOYMENT_UID": ""})
+    if error:
+        return [error]
+    if result.get("ok") is not False:
+        return ["配置层：APP_PROFILE=prod 且缺 DEPLOYMENT_UID 应拒绝启动，实际启动成功"]
+    message = str(result.get("message", ""))
+    if "DEPLOYMENT_UID" not in message:
+        return [f"配置层：拒绝原因未指向 DEPLOYMENT_UID：{message!r}"]
+    return []
+
+
 def check_config_layer(mode: str) -> list[str]:
     """L18/L19：未设置时 tier!=internal_eval 必须拒绝启动；tier=internal_eval 可启动。"""
     problems: list[str] = []
@@ -304,6 +317,7 @@ def main() -> int:
 
     problems: list[str] = []
     problems += check_config_layer(mode)
+    problems += check_prod_requires_deployment_uid()
     if mode == "unset":
         problems += check_startup_refusal()
     problems += check_market_data_denied(base_url)

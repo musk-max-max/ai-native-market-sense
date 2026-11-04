@@ -34,6 +34,8 @@ config:
   INGEST_FALLBACK: fixture
   # preview 默认受限档：fixture/mock 不是授权依据。
   ENTITLEMENT_TIER: "internal_eval"
+  # 非生产兜底值；发布流水线会 --set 覆盖成真实 deployment uid。
+  DEPLOYMENT_UID: "preview-local"
   ENTITLEMENT_EXPIRES_AT: ""
 
 monitoring:

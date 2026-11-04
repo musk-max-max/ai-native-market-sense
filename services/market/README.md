@@ -70,14 +70,14 @@ export const domainPlugins = [marketPlugin];
 - **瞬态故障**（连接断/超时/PG 不可用）→ 不 crash：`degraded_unauthorized`，行情/财务 403、基础信息照常、`/healthz`
   输出 `entitlement_degraded: true`，5s 负缓存 + 3 次失败熔断 30s，恢复后回 env tier；
 - 内部原因只进日志/health/事件，对外 403 文案统一中性；**不发 `X-Entitlement-Cause` 响应头**（H3 m01357 / Lead L56：
-  响应头属客户端可达出口，不做单一原因区分；诊断靠事件 + `trace_id` 反查）。`hold_stale`/`control_unreachable`
+  响应头属客户端可达出口，不做单一原因区分；诊断靠事件 + `trace_id` 反查）。`control_stale`/`control_unavailable`
   只活在 `DegradedReason` 内部，不进任何 HTTP 出口；
 - 到期降档与留痕同一件事（L20/L59）：启动时先算 effective tier（到期→`internal_eval`）→ 写
   `entitlement_expired`（reason=`expires_at_passed`，event_key=`exp|<tier>|<expiresAt UTC 毫秒 ISO>|<reason>`，
   不含 boot_id，重启幂等）→ 才开始服务；写失败保持低权限并记 degraded，不回滚；
 - 事件只写 A3 的 4 类（`tier_state_observed`/`entitlement_expired`/`entitlement_flip`/`unauthorized_config`；
   `hold_set`/`hold_clear` 由 A5 的 `audit.raise_hold`/`audit.clear_hold` 函数写，`tier_switch` 由 CI 写），
-  schema owner=A5、迁移/GRANT=A13；reason 词表按 L49 的 6 值，runtime degrade reason（hold_stale/control_*）只进日志/health。
+  schema owner=A5、迁移/GRANT=A13；reason 词表按 L49 的 6 值，runtime degrade reason（control_*/hold_active）只进日志/health。
 
 ## 响应缓存（H4 m00830/m00840）
 
@@ -116,7 +116,7 @@ export const domainPlugins = [marketPlugin];
 
 ```bash
 pnpm --filter @market-sense/market typecheck   # tsc --noEmit（依赖 A0 修 packages/api-client/src/index.ts 的 SharedComponents 编译错误）
-pnpm --filter @market-sense/market test        # node:test + fastify.inject，75 条，无需 PG
+pnpm --filter @market-sense/market test        # node:test + fastify.inject，81 条，无需 PG
 ```
 
 测试覆盖：F1 三接口 403 / instrument 200+internal_eval / watchlist platform_user_data、存在性 404 先于 403、

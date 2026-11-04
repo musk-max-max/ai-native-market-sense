@@ -19,9 +19,14 @@
 --   3. schema_version CHECK 由 =1 放宽为 IN (1,2)：历史行保留 1，A3 新写事件
 --      与 seed 均写 2（Lead L64：默认值应等于当前正确值）；
 --   4. 触发器 event_key 增加 audit_gap 分支：gap|<deployment_uid>|<gap_from ISO>；
---   5. deploy 事件 new_value.target_tier 必填且限于 DataTier 枚举（H5-R14 / L67）：
---      reconciler 只在 target_tier != internal_eval 且缺 tier_switch 时才判 gap，
---      缺它会把首次 internal_eval 部署误报成断口（H4 m00579）；
+--   5. 检测侧 fail-open 的结构约束（H5-R14 / L67 / L68）：
+--      - deploy 事件 new_value.target_tier 必填且限于 DataTier 枚举：reconciler 只在
+--        target_tier != internal_eval 且缺 tier_switch 时才判 gap，缺它会把首次
+--        internal_eval 部署误报成断口（H4 m00579）；
+--      - tier_switch 必带 old_value.from / new_value.to（否则"该部署有没有
+--        tier_switch"永远判不成立，hold 会误伤）；
+--      - tier_state_observed 必填 deployment_uid + configured_tier；
+--        configured_tier != internal_eval 时 expires_at 必填；
 --   6. 给 entitlement_expired 的 expires_at 建部分索引（H5-R14 / L67：
 --      "链上是否已存在绑定该 expires_at 的 expired" 必须可索引查询，不能藏 JSON）；
 --   7. 链（prev_hash/hash）与 append-only 触发器天然覆盖 audit_gap，不需改动：
@@ -41,6 +46,11 @@
 --       infra/db/sql/20_grants.sql 须在列级 INSERT 清单里**排除 recorded_at**
 --       （与 prev_hash/hash 同等对待）；90_verify_privileges.sql 增加对应断言。
 -- 禁止：不得在 infra/db/migrations/ 复制本文件；不得改写 001。
+--
+-- 兼容性：新 CHECK 是 validated 的。若某个旧库在 002 之前已存在缺 target_tier 的
+-- deploy、缺 from/to 的 tier_switch、或缺 configured_tier 的 observed（append-only
+-- 无法回填），002 会 fail-closed 失败。11-12 尚未上真栈，a13_verify 是 scratch：
+-- 重建后由 seed 直接写入合规形态即可；不提供静默跳过/降级开关。
 -- =============================================================================
 
 -- ---------------------------------------------------------------------------
@@ -113,8 +123,8 @@ ALTER TABLE audit.entitlement_events
         AND new_value IS NOT NULL AND jsonb_typeof(new_value) = 'object'
         AND new_value ? 'gap_from' AND new_value ? 'gap_to'
         AND new_value ? 'lost_count' AND new_value ? 'reason' AND new_value ? 'owner'
-        AND (new_value->>'gap_from') ~ '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|\+00:00)$'
-        AND (new_value->>'gap_to') ~ '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|\+00:00)$'
+        AND coalesce(new_value->>'gap_from', '') ~ '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|\+00:00)$'
+        AND coalesce(new_value->>'gap_to', '') ~ '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|\+00:00)$'
         AND (new_value->>'gap_to')::timestamptz >= (new_value->>'gap_from')::timestamptz
         AND (jsonb_typeof(new_value->'lost_count') = 'null'
              OR (jsonb_typeof(new_value->'lost_count') = 'number'
@@ -135,9 +145,78 @@ ALTER TABLE audit.entitlement_events
 ALTER TABLE audit.entitlement_events
     ALTER COLUMN schema_version SET DEFAULT 2;
 
--- 说明：既有行保持 1；A13 的 seed 必须显式写 schema_version=1（历史/验收样本），
--- A3 runtime 不写该列即得 2；clause_review 由运维 psql 插入时按 2（新事件）。
--- 002 生效后新 insert 若不显式指定，默认 2。
+-- 说明：既有行保持 1；A3 runtime 不写该列即得 2；A13 的 seed 在 002 之后也写 2
+-- （Lead L64：「默认值应当等于当前正确值」，只有历史行留 1）；clause_review /
+-- audit_gap 由运维或 reconciler 写入时也按 2（新事件）。002 生效后新 insert
+-- 若不显式指定 schema_version，默认 2。
+
+-- ---------------------------------------------------------------------------
+-- 3b. deploy 事件必须自带 new_value.target_tier（H5-R14 / L67 + H4 m00579）
+--     取值 = 服务端 DataTier 枚举：internal_eval / c_end_display / research_only /
+--     platform_user_data（services/market/src/config.ts:9）。H4 m00579 原话「三档」
+--     但同一段又用 internal_eval 做比较，故按代码的 4 值闭集落；若产品口径只允许
+--     三档（排除 internal_eval），那是新规则，需 H5 另发改动，不由 A5 放宽。
+--     reconciler 只在 target_tier != internal_eval 且缺对应 tier_switch 时才判 gap，
+--     所以本字段用来避免把首次 internal_eval 部署误报成断口；缺 = fail-closed。
+--     注意：本 CHECK 是 validated 的。若某个已存在的库在 002 之前已有缺 target_tier
+--     的 deploy 事件（append-only 无法回填），本迁移会失败——11-12 尚未跑真栈，
+--     a13_verify 是 scratch，A13 重建后 seed 直接带 target_tier 即可。
+-- ---------------------------------------------------------------------------
+ALTER TABLE audit.entitlement_events
+    DROP CONSTRAINT IF EXISTS entitlement_events_require_deploy_tier_chk;
+ALTER TABLE audit.entitlement_events
+    ADD CONSTRAINT entitlement_events_require_deploy_tier_chk
+    CHECK (event_type <> 'deploy' OR (
+        new_value IS NOT NULL AND jsonb_typeof(new_value) = 'object'
+        AND coalesce(jsonb_typeof(new_value->'target_tier'), '') = 'string'
+        AND (new_value->>'target_tier') IN
+            ('internal_eval', 'c_end_display', 'research_only', 'platform_user_data')
+    ));
+
+-- ---------------------------------------------------------------------------
+-- 3d. tier_switch 必须带 from/to（H4 m00599 + Lead L68）
+--     旧版只看 deployment_uid/approval_ref，漏字段时 reconciler 的"是否有对应
+--     tier_switch"规则会静默失效；这里把语义写进 DB。
+-- ---------------------------------------------------------------------------
+ALTER TABLE audit.entitlement_events
+    DROP CONSTRAINT IF EXISTS entitlement_events_tier_switch_from_to_chk;
+ALTER TABLE audit.entitlement_events
+    ADD CONSTRAINT entitlement_events_tier_switch_from_to_chk
+    CHECK (event_type <> 'tier_switch' OR (
+        old_value IS NOT NULL AND jsonb_typeof(old_value) = 'object'
+        AND coalesce(jsonb_typeof(old_value->'from'), '') = 'string'
+        AND btrim(old_value->>'from') <> ''
+        AND new_value IS NOT NULL AND jsonb_typeof(new_value) = 'object'
+        AND coalesce(jsonb_typeof(new_value->'to'), '') = 'string'
+        AND btrim(new_value->>'to') <> ''
+    ));
+
+-- ---------------------------------------------------------------------------
+-- 3e. tier_state_observed 必填集（H4 m00599 + Lead L68）
+--     deployment_uid、configured_tier 恒必填；configured_tier != internal_eval 时
+--     expires_at 必填（internal_eval 恒 403，可无时间盒）。001 只强制了
+--     boot_id/state_version/effective_tier；缺这三项会让 reconciler 无法把
+--     "observed" 与部署对上，进而漏判断口——检测侧 fail-open。
+-- ---------------------------------------------------------------------------
+ALTER TABLE audit.entitlement_events
+    DROP CONSTRAINT IF EXISTS entitlement_events_observed_required_chk;
+ALTER TABLE audit.entitlement_events
+    ADD CONSTRAINT entitlement_events_observed_required_chk
+    CHECK (event_type <> 'tier_state_observed' OR (
+        deployment_uid IS NOT NULL AND btrim(deployment_uid) <> ''
+        AND configured_tier IS NOT NULL AND btrim(configured_tier) <> ''
+        AND (configured_tier = 'internal_eval' OR expires_at IS NOT NULL)
+    ));
+
+-- ---------------------------------------------------------------------------
+-- 3c. expired 事件按 expires_at 可索引（H5-R14 / L67）
+--     判定「链上是否已存在绑定该 expires_at 的 expired」= 查
+--     event_type='entitlement_expired' AND expires_at=<值>；expires_at 是真实列，
+--     不藏在 JSON 里，这里补部分索引避免全表扫。
+-- ---------------------------------------------------------------------------
+CREATE INDEX IF NOT EXISTS entitlement_events_expired_expires_at_idx
+    ON audit.entitlement_events (expires_at)
+    WHERE event_type = 'entitlement_expired';
 
 -- ---------------------------------------------------------------------------
 -- 4. event_key：新增 audit_gap 分支

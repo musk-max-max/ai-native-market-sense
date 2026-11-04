@@ -54,6 +54,8 @@ jobs:
           # 没有 commit 引用的镜像，两周后无法回答「这个镜像是哪版代码」（Lead m01563）。
           IMAGE_TAG: ${{ inputs.image_tag || github.sha }}
           COMMIT_SHA: ${{ github.sha }}
+          # 流水线生成，不用手填；deploy 事件与 gap 去重键依赖它。
+          DEPLOYMENT_UID: dev-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
           STAGE: ${{ inputs.stage }}
         run: |
           bash infra/scripts/deploy.sh dev "$IMAGE_TAG" --stage "$STAGE"

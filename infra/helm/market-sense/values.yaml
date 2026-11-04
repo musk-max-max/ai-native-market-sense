@@ -113,6 +113,9 @@ config:
   # 数据授权（F1 未落地，H3 fail-closed 时间盒）：默认 internal_eval = 受限展示，不向 C 端展示行情。
   # 非 internal_eval 时必须显式设置 ENTITLEMENT_EXPIRES_AT，否则模板渲染直接失败（代码侧 A3 启动也拒绝）。
   ENTITLEMENT_TIER: "internal_eval"
+  # H4 m01649：deploy 事件的部署锚点（gap 去重键）。必须由发布流水线注入，不许手填；
+  # PROD 缺失时 configmap 渲染失败（A3 代码同时启动失败）。
+  DEPLOYMENT_UID: ""
   ENTITLEMENT_EXPIRES_AT: ""
 
 # H5-R10：网络边界默认拒绝；externalEgress 必须按环境显式声明（AI provider / tushare 等），

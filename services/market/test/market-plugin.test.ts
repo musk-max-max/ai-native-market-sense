@@ -707,6 +707,30 @@ describe('market 插件：fail-open 默认值（H5 P0 卡点）', () => {
     await app.close();
   });
 
+  it('tier_state_observed 必带 deployment_uid + configured_tier；c_end_display 时必带 expires_at（H4 m01853）', async () => {
+    const observed: EntitlementEventRecord[] = [];
+    const repo: EntitlementEventRepo = {
+      async insert(record) {
+        observed.push(record);
+      },
+    };
+    const plugin = createMarketPlugin({
+      config: marketConfig({ deploymentUid: 'deploy-1' }),
+      servingRepo: new FakeServing(),
+      watchlistRepo: new FakeWatchlist(),
+      eventRepo: repo,
+      bootId: '66666666-6666-4666-8666-666666666666',
+    });
+    const app = buildApp({ config: appConfig, domainPlugins: [plugin], logger: false });
+    await app.inject({ method: 'GET', url: '/healthz' });
+    const record = observed.find((event) => event.eventType === 'tier_state_observed');
+    assert.ok(record);
+    assert.equal(record?.deploymentUid, 'deploy-1');
+    assert.equal(record?.configuredTier, 'c_end_display');
+    assert.equal(record?.expiresAt, '2099-12-31T23:59:59+08:00');
+    await app.close();
+  });
+
   it('到期后 meta.tier 回显 effective tier（internal_eval），而不是配置原文', async () => {
     const expired = loadMarketConfig({
       ENTITLEMENT_TIER: 'c_end_display',

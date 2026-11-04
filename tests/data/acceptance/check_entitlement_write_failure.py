@@ -71,7 +71,9 @@ def http_json(base_url: str, path: str) -> tuple[int, dict]:
             return error.code, {"raw": raw}
 
 
-def spawn_harness(extra_env: dict[str, str], timeout_seconds: float = 90) -> tuple[int, str | None, str]:
+def spawn_harness(
+    extra_env: dict[str, str], timeout_seconds: float = 90
+) -> tuple[subprocess.Popen | None, str | None, str]:
     env = {key: value for key, value in os.environ.items() if not key.startswith("ENTITLEMENT_") and key != "MARKET_NOW"}
     env.update(extra_env)
     process = subprocess.Popen(
@@ -86,13 +88,13 @@ def spawn_harness(extra_env: dict[str, str], timeout_seconds: float = 90) -> tup
         line = process.stdout.readline() if process.stdout else ""
         if not line.strip():
             stderr = process.stderr.read() if process.stderr else ""
-            status = process.wait(timeout=timeout_seconds)
-            return status, None, stderr
+            process.wait(timeout=timeout_seconds)
+            return None, None, stderr
         payload = json.loads(line)
-        return 0, str(payload["baseUrl"]), ""
+        return process, str(payload["baseUrl"]), ""
     except (subprocess.TimeoutExpired, json.JSONDecodeError, KeyError) as error:
         process.kill()
-        return 1, None, f"harness 启动失败：{error}"
+        return None, None, f"harness 启动失败：{error}"
 
 
 def stop(process: subprocess.Popen | None) -> None:
@@ -130,11 +132,10 @@ def check_vocabulary(problems: list[str]) -> None:
 
 
 def check_transient_valid(problems: list[str]) -> None:
-    status, base_url, stderr = spawn_harness({**VALID_TIER, "A11_EVENT_WRITE": "transient"})
+    process, base_url, stderr = spawn_harness({**VALID_TIER, "A11_EVENT_WRITE": "transient"})
     if base_url is None:
-        problems.append(f"瞬态写失败不应阻止启动（有效期内 c_end_display），实际 rc={status}：{stderr.strip()[:300]}")
+        problems.append(f"瞬态写失败不应阻止启动（有效期内 c_end_display）：{stderr.strip()[:300]}")
         return
-    process = getattr(check_transient_valid, "process", None)
     try:
         http_status, quote = http_json(base_url, f"/v1/instruments/{INSTRUMENT}/quote")
         if http_status != 200:
@@ -153,40 +154,42 @@ def check_transient_valid(problems: list[str]) -> None:
         if reason != "audit_write_failed":
             problems.append(f"/healthz degraded reason 期望 audit_write_failed，实际 {reason!r}")
     finally:
-        # 通过 spawn 的进程句柄无法直接拿到（readline 后仍在运行）；用端口回收兜底。
-        pass
+        stop(process)
 
 
 def check_transient_expired(problems: list[str]) -> None:
-    status, base_url, stderr = spawn_harness({**EXPIRED_TIER, "A11_EVENT_WRITE": "transient"})
+    process, base_url, stderr = spawn_harness({**EXPIRED_TIER, "A11_EVENT_WRITE": "transient"})
     if base_url is None:
-        problems.append(f"到期档 + 瞬态写失败不应启动失败，实际 rc={status}：{stderr.strip()[:300]}")
+        problems.append(f"到期档 + 瞬态写失败不应启动失败：{stderr.strip()[:300]}")
         return
-    for path, label in (
-        (f"/v1/instruments/{INSTRUMENT}/quote", "quote"),
-        (f"/v1/instruments/{INSTRUMENT}/bars", "bars"),
-        (f"/v1/instruments/{INSTRUMENT}/fundamental-summary", "fundamental"),
-    ):
-        http_status, payload = http_json(base_url, path)
-        if http_status != 403:
-            problems.append(f"到期档 {label} 期望 403（阻断=expired），实际 {http_status}")
-        elif (payload.get("code")) != "ENTITLEMENT_RESTRICTED":
-            problems.append(f"到期档 {label} 403 code 期望 ENTITLEMENT_RESTRICTED，实际 {payload.get('code')!r}")
-    _, health = http_json(base_url, "/healthz")
-    if health.get("entitlement_degraded") is not True:
-        problems.append(f"到期档写失败 /healthz 未标记 degraded：{health!r}")
-    if health.get("entitlement_degraded_reason") != "expired_event_write_failed":
-        problems.append(
-            f"到期档写失败 reason 期望 expired_event_write_failed，实际 {health.get('entitlement_degraded_reason')!r}"
-        )
+    try:
+        for path, label in (
+            (f"/v1/instruments/{INSTRUMENT}/quote", "quote"),
+            (f"/v1/instruments/{INSTRUMENT}/bars", "bars"),
+            (f"/v1/instruments/{INSTRUMENT}/fundamental-summary", "fundamental"),
+        ):
+            http_status, payload = http_json(base_url, path)
+            if http_status != 403:
+                problems.append(f"到期档 {label} 期望 403（阻断=expired），实际 {http_status}")
+            elif (payload.get("code")) != "ENTITLEMENT_RESTRICTED":
+                problems.append(f"到期档 {label} 403 code 期望 ENTITLEMENT_RESTRICTED，实际 {payload.get('code')!r}")
+        _, health = http_json(base_url, "/healthz")
+        if health.get("entitlement_degraded") is not True:
+            problems.append(f"到期档写失败 /healthz 未标记 degraded：{health!r}")
+        if health.get("entitlement_degraded_reason") != "expired_event_write_failed":
+            problems.append(
+                "到期档写失败 reason 期望 expired_event_write_failed，"
+                f"实际 {health.get('entitlement_degraded_reason')!r}"
+            )
+    finally:
+        stop(process)
 
 
 def check_deterministic_blocks(problems: list[str]) -> None:
-    status, base_url, stderr = spawn_harness({**VALID_TIER, "A11_EVENT_WRITE": "deterministic"})
+    process, base_url, stderr = spawn_harness({**VALID_TIER, "A11_EVENT_WRITE": "deterministic"})
+    stop(process)
     if base_url is not None:
         problems.append("确定性写错误（42501）未阻断：服务仍启动（会被当成记账抖动继续放行）")
-    elif status == 0:
-        problems.append("确定性写错误应启动失败，实际 rc=0 但也没有 baseUrl")
     expected = "确定性错误"
     if expected not in stderr:
         problems.append(f"确定性写错误启动失败信息未标注原因（期望含「{expected}」）：{stderr.strip()[:300]}")

@@ -24,12 +24,16 @@ terraform -chdir="${ENV_DIR}" apply -input=false -auto-approve -no-color \
   -state="${STATE}" \
   -var "pr_number=${PR_NUMBER}"
 
-echo "▶ [2/2] Helm：release ${RELEASE}"
+# preview 的 deployment uid 由脚本生成（流水线产物），不手填；每次起环境唯一。
+DEPLOYMENT_UID="${DEPLOYMENT_UID:-preview-pr-${PR_NUMBER}-$(date -u +%Y%m%d%H%M%S)}"
+
+echo "▶ [2/2] Helm：release ${RELEASE}（deployment_uid=${DEPLOYMENT_UID}）"
 helm upgrade --install "${RELEASE}" "${CHART_DIR}" \
   -n "${NAMESPACE}" -f "${CHART_DIR}/values-preview.yaml" \
   --set "image.api.tag=${IMAGE_TAG}" \
   --set "image.worker.tag=${IMAGE_TAG}" \
   --set "preview.prNumber=${PR_NUMBER}" \
+  --set "config.DEPLOYMENT_UID=${DEPLOYMENT_UID}" \
   --atomic --wait --timeout 5m --history-max 5
 
 echo "✅ preview 就绪：https://pr-${PR_NUMBER}.preview.market-sense.invalid"

@@ -75,6 +75,33 @@ jobs:
         run: |
           # 缺 DSN 时脚本 exit 2；按失败处理，不 skip。
           bash infra/db/seed-entitlement-audit.sh
+      - name: 校验 deploy 事件 target_tier（gap 规则依赖；缺了按失败，不 skip）
+        env:
+          A11_AUDIT_DSN: ${{ secrets.A11_AUDIT_DSN }}
+        run: |
+          set -euo pipefail
+          bad=$(psql -X -At "$A11_AUDIT_DSN" -c "
+            select count(*) from audit.entitlement_events e
+            where e.event_type = 'deploy'
+              and coalesce(e.new_value->>'target_tier','') not in ('internal_eval','c_end_display')")
+          echo "deploy 事件缺/非法 target_tier 行数：$bad"
+          if [ "$bad" != "0" ]; then
+            echo "::error::deploy 事件必须写 new_value.target_tier（来自发布参数/审批记录）；缺失即 gap 规则失效"
+            exit 1
+          fi
+          missing_switch=$(psql -X -At "$A11_AUDIT_DSN" -c "
+            select count(*)
+            from audit.entitlement_events d
+            where d.event_type = 'deploy'
+              and d.new_value->>'target_tier' <> 'internal_eval'
+              and not exists (
+                select 1 from audit.entitlement_events s
+                where s.event_type = 'tier_switch' and s.deployment_uid = d.deployment_uid)")
+          echo "非 internal_eval 但缺 tier_switch 的 deploy 行数：$missing_switch"
+          if [ "$missing_switch" != "0" ]; then
+            echo "::error::deploy 的 target_tier != internal_eval 时必须有同 deployment_uid 的 tier_switch"
+            exit 1
+          fi
 
       # ---- §7.1 Entitlement 桶（顺序即口径；任一非 0 即失败）----
       - name: §7.1-1 到期 fail-closed（expired）

@@ -126,6 +126,28 @@ check(
   /APP_PROFILE:\s*["']?e2e["']?/.test(compose) && !/APP_PROFILE:\s*\$\{/.test(compose),
 );
 
+// 5c. DEPLOYMENT_UID（H4 m01649/m01651）：prod 必填、流水线注入、不许手填。
+const deploySh = read('infra/scripts/deploy.sh');
+const previewUpSh = read('infra/scripts/preview-up.sh');
+const deployDevWf = read('.github/workflows/deploy-dev.yml');
+check('values.yaml 声明 config.DEPLOYMENT_UID（空串占位）', /DEPLOYMENT_UID:\s*""/.test(values));
+check('values-dev.yaml 显式 DEPLOYMENT_UID', /DEPLOYMENT_UID:\s*"dev-/.test(valuesDev));
+check('values-preview.yaml 显式 DEPLOYMENT_UID', /DEPLOYMENT_UID:\s*"preview-/.test(valuesPreview));
+check(
+  'configmap：APP_PROFILE=prod 且 DEPLOYMENT_UID 为空时 fail',
+  /APP_PROFILE.*prod/s.test(configmap) &&
+    /not \.Values\.config\.DEPLOYMENT_UID/.test(configmap) &&
+    /\{\{-? ?fail /s.test(configmap),
+);
+check('deploy.sh 缺 DEPLOYMENT_UID 时拒绝执行', /缺少 DEPLOYMENT_UID/.test(deploySh) && /exit 6/.test(deploySh));
+check('deploy.sh 通过 --set 注入 DEPLOYMENT_UID', /--set "config\.DEPLOYMENT_UID=\$\{DEPLOYMENT_UID\}"/.test(deploySh));
+check(
+  'preview-up.sh 生成并注入 DEPLOYMENT_UID',
+  /DEPLOYMENT_UID="\$\{DEPLOYMENT_UID:-preview-pr-/.test(previewUpSh) &&
+    /--set "config\.DEPLOYMENT_UID=\$\{DEPLOYMENT_UID\}"/.test(previewUpSh),
+);
+check('deploy-dev 流水线注入 DEPLOYMENT_UID（非手填）', /DEPLOYMENT_UID:\s*dev-\$\{\{ github\.sha \}\}/.test(deployDevWf));
+
 // 6. Helm 渲染验证
 function helm(args) {
   return execFileSync(HELM, args, {
@@ -147,6 +169,26 @@ try {
       'helm template dev 渲染出 ENTITLEMENT_EXPIRES_AT',
       /ENTITLEMENT_EXPIRES_AT:/.test(rendered),
     );
+    check('helm template dev 渲染出 DEPLOYMENT_UID', /DEPLOYMENT_UID:/.test(rendered));
+    // 反向：默认 values（APP_PROFILE=prod）不带 DEPLOYMENT_UID 必须渲染失败。
+    let prodDefaultFailed = false;
+    try {
+      helm(['template', 'ent-prod-guard', chart]);
+    } catch (err) {
+      prodDefaultFailed = /DEPLOYMENT_UID/.test(String(err.stderr || err.message));
+    }
+    check('helm 渲染 prod 且缺 DEPLOYMENT_UID 必须失败', prodDefaultFailed);
+    // 正向：流水线注入后 prod 可渲染。
+    let prodWithUid = '';
+    try {
+      prodWithUid = helm([
+        'template', 'ent-prod', chart,
+        '--set', 'config.DEPLOYMENT_UID=prod-test-run-1',
+      ]);
+    } catch {
+      prodWithUid = '';
+    }
+    check('helm 渲染 prod + 注入 DEPLOYMENT_UID 成功', /DEPLOYMENT_UID:\s*"?prod-test-run-1"?/.test(prodWithUid));
     check(
       'helm 渲染结果显式出现 APP_PROFILE=prod（缺失即失败，不允许继承 entrypoint）',
       /APP_PROFILE:\s*"?prod"?/.test(rendered),

@@ -86,7 +86,14 @@ print(deployed[-1]["updated"] if deployed else "")
   fi
 fi
 
-echo "▶ 部署 ${ENV_NAME}/${RELEASE}：image tag=${IMAGE_TAG}，灰度 stage=${STAGE}%"
+# H4 m01649：DEPLOYMENT_UID 必须由发布流水线注入（它是 deploy 事件/ gap 去重的锚点）。
+# 本脚本不是流水线，缺了就拒绝，避免手填一个看起来像真的 uid。
+if [[ -z "${DEPLOYMENT_UID:-}" ]]; then
+  echo "✗ 缺少 DEPLOYMENT_UID：必须由发布流水线注入（例如 <env>-<commit>-<run_id>），不允许手填" >&2
+  exit 6
+fi
+
+echo "▶ 部署 ${ENV_NAME}/${RELEASE}：image tag=${IMAGE_TAG}，灰度 stage=${STAGE}%，deployment_uid=${DEPLOYMENT_UID}"
 helm upgrade --install "${RELEASE}" "${CHART_DIR}" \
   -n "${NAMESPACE}" --create-namespace \
   -f "${VALUES}" \
@@ -94,6 +101,7 @@ helm upgrade --install "${RELEASE}" "${CHART_DIR}" \
   --set "image.worker.tag=${IMAGE_TAG}" \
   --set "config.RELEASE_GRAY_STAGE=${STAGE}" \
   --set "global.environment=${ENV_NAME}" \
+  --set "config.DEPLOYMENT_UID=${DEPLOYMENT_UID}" \
   --atomic --wait --timeout 5m --history-max 10
 
 echo "✅ 部署完成：stage=${STAGE}%。下一档需间隔 ≥30min，且观察错误率/P95/AI 四项。"
