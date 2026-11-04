@@ -59,7 +59,11 @@
 ## 门禁 #7 红队（2026-11-04）
 
 - 结果：46 checks → 44 BLOCKED / 1 LEAK（R4，条件性）/ 1 INFO；**无 BYPASS**。
-- **状态：#7 = `PASS（R4 已修复复跑）`**，2026-11-04 09:14 A19 用同一条命令复跑：条件 1 从 0/4 → **4/4 PASS**（四条均为 config 层拒启、`listenedPort=false`、stderr 点名 `TRUST_PROXY`）；R4 从 FAIL(P2) → **PASS**（`TRUST_PROXY=127.0.0.0/8` 现在拒启，无监听、无换桶）。
+- **状态：#7 = `PARTIAL`（`L74` 四列清单）**
+  - 已证：A19 动态攻击 46 项机器结果（44 BLOCKED / 1 LEAK→R4 已修 / 1 INFO，每项含 observed 响应）+ 5 张截图 + REPORT §3 样例；R4 修复后 `TRUST_PROXY` 启动拒绝 4/4、R4 FAIL→PASS。
+  - 缺① 原始 HTTP 日志：`artifacts/http-attempts.jsonl` 现为 0 字节（`cases/api.mjs:17-20` 每次 run truncate；且被删前仅 2 行）→ **需 A19 全量重跑重建，owner A19，证据入 v3 后记 path+sha256**。
+  - 缺② 公网 ingress（`/v1` 之外外部 404）→ owner A13，需 staging。
+  - **release note 措辞**：「46 项机器结果 + 截图；原始日志重建中（residual, owner A19）」。**不得写「100+ 条原始往返」——那是我未经核实给出的数字，已作废。**
 - **仍未覆盖**：条件 2（ingress 覆写而非追加 XFF）需 staging；条件 3（helm 静态守卫）不在攻击环境，已由 A0/A13 单测+helm 4.3.1 交叉验证替代，**不记为攻击侧证据**。
 - 证据口径：受限态判定只认隔离栈（18182–18187/3200–3201）+ 独立库 `market_sense_a19`；本机 8081 为有效态 demo，不得作未授权证据。
 

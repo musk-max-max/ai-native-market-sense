@@ -104,6 +104,24 @@ async function assertNoNumericLeak(page, label = 'fail-closed') {
   await expect(page.getByTestId(tid('entitlementNotice')), `${label}：必须显示数据不可用/无权限提示`).toBeVisible();
 }
 
+/**
+ * H4 m01421 / H3：掩盖式文案等同未做 403。
+ * 四类原因（expired / hold_active / hold_stale / unauthorized_config）的 403 Problem copy 已由 A11
+ * 验证 4/4 逐字节一致（check_entitlement_copy.py）；页面必须**原样渲染** Problem 的 title + detail，
+ * 不得改写、不得追加自造语句（多一句即 FAIL）。
+ */
+async function assertEntitlementCopyMatchesProblem(page, problem, label = 'fail-closed') {
+  const title = String(problem.title || '').trim();
+  const detail = String(problem.detail || '').trim();
+  expect(title, `${label}：403 Problem 必须有 title（A12 无法比对自造文案）`).not.toBe('');
+  expect(detail, `${label}：403 Problem 必须有 detail`).not.toBe('');
+  const notice = (await page.getByTestId(tid('entitlementNotice')).innerText()).replace(/\s+/g, ' ').trim();
+  expect(notice, `${label}：页面文案必须原样包含 API Problem title`).toContain(title);
+  expect(notice, `${label}：页面文案必须原样包含 API Problem detail`).toContain(detail);
+  const leftover = notice.replace(title, '').replace(detail, '').trim();
+  expect(leftover, `${label}：页面不得在 API copy 之外自造文案（H4 逐字节口径）`).toBe('');
+}
+
 // Lead m01002 / A0 m01022 / decisions.md L56：403 响应头不得把「为什么被拒」还回去，也不得暴露指纹。
 const F1_FORBIDDEN_HEADER_NAMES = new Set(['x-entitlement-cause']);
 const F1_FORBIDDEN_HEADER_VALUES = /expired|hold|stale|unauthorized/i;
@@ -324,6 +342,8 @@ test('E2E-P0-06 [hop:web+api F1 否决线] entitlement=false 时不渲染可判�
     expect(leaked, `基础信息响应泄露行情数值字段（F1 否决线）：${JSON.stringify(leaked)}`).toEqual([]);
     // A11/F1 页面渲染层：DOM 白名单。restricted 与 expired（到期→403）走同一分支。
     await assertNoNumericLeak(page);
+    // H4 m01421：页面文案必须逐字节来自 API Problem（不得自造/改写/追加）。
+    await assertEntitlementCopyMatchesProblem(page, json, 'E2E-P0-06');
   } else {
     await expect(price).toBeVisible();
     expect(parseDisplayedNumber(await price.innerText())).toBeGreaterThan(0);
@@ -531,6 +551,8 @@ test('E2E-P0-12 [hop:web+api F1 fail-closed] 受限档整页：数字不存在�
   await waitForSettled(page);
   // 5) 免责 + 「数据不可用」提示必须可见；1-4) DOM 不得有数字/占位（含 hidden/伪元素/骨架屏）。
   await assertNoNumericLeak(page, 'E2E-P0-12 fail-closed');
+  // H4 m01421：四类原因共用同一 Problem copy，页面必须原样渲染 title + detail。
+  await assertEntitlementCopyMatchesProblem(page, quoteBody, 'E2E-P0-12');
 });
 
 test.afterAll(async ({ browser }) => {
