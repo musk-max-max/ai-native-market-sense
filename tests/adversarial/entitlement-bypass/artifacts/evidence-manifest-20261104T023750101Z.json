@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-04T05:56:11.144625+00:00",
+  "generatedAt": "2026-11-04T05:57:54.984360+00:00",
   "revision": 3,
   "runId": "20261104T023750101Z",
   "command": "node tests/adversarial/entitlement-bypass/run.mjs",
@@ -59,7 +59,20 @@
       "run": "20261104T023750101Z",
       "bytes": 86255,
       "sha256": "7f8f419252c4f6dc71885337e0bc2fdef62d61519e721c4f06aff4c8d4880568",
-      "mtime": "2026-11-04T02:40:29.320246+00:00"
+      "mtime": "2026-11-04T02:40:29.320246+00:00",
+      "supersedes": {
+        "path": "artifacts/results-prefix-g3-20261104T012350680Z.json",
+        "previousSha256": "46dac6158c1e13d044be33befa9f7119d9d595bb5adcf8c1cfdce518028eedaa",
+        "previousRunId": "20261104T012350680Z",
+        "previousSummary": {
+          "total": 46,
+          "pass": 44,
+          "fail": 1,
+          "info": 1,
+          "verdict": "BYPASS_FOUND"
+        },
+        "note": "同一路径 artifacts/results.json 的原内容（pre-fix baseline，G3=FAIL）未删除，归档为 path 所示文件；本条目 bytes/sha256 指替换后的 post-fix canonical。"
+      }
     },
     {
       "path": "artifacts/results-g3-postfix-20261104T023750101Z.json",
@@ -70,7 +83,7 @@
       "run": "20261104T023750101Z",
       "bytes": 3033,
       "sha256": "ac945d2e26a6446a320283a78800c54109d877658170e4391f479cdd50472985",
-      "mtime": "2026-11-04T05:56:11.130702+00:00"
+      "mtime": "2026-11-04T05:57:54.966747+00:00"
     },
     {
       "path": "artifacts/results-prefix-g3-20261104T012350680Z.json",
@@ -165,9 +178,9 @@
       "role": "report",
       "caseIds": [],
       "run": "post-fix",
-      "bytes": 25616,
-      "sha256": "bed8501e9ff6962b3d39c70d079dd8876d9746c09f1e8b2f5cc5e36232790689",
-      "mtime": "2026-11-04T05:56:11.086543+00:00"
+      "bytes": 26319,
+      "sha256": "d6edd89159a7913fed78eeec1e2971af8a0f8683279a156f5a55123e3343b69d",
+      "mtime": "2026-11-04T05:57:54.912200+00:00"
     },
     {
       "path": "README.md",
@@ -183,9 +196,9 @@
       "role": "manifest generator (this script)",
       "caseIds": [],
       "run": "post-fix",
-      "bytes": 6842,
-      "sha256": "c5bfbe4f19e973bc601bdc7a844d161e636f43af99eb61054c511050e4241dd2",
-      "mtime": "2026-11-04T05:55:16.520839+00:00"
+      "bytes": 7726,
+      "sha256": "a23094321a1d5dd817a738cf607c3b8ed5446ab424dcb70b1e23f2214f7f178f",
+      "mtime": "2026-11-04T05:57:47.293285+00:00"
     },
     {
       "path": "artifacts/logs/20261104T023750101Z/api-backdoor-default.log",
@@ -554,6 +567,6 @@
       "h4-data",
       "h5-security-ops"
     ],
-    "note": "按 L82：manifest 不内嵌自身哈希；新文件名、不覆盖旧证据。run-scoped 与根目录历史 0 字节日志均已补 provenance 头（未伪造输出）；0 字节墓碑移入 tombstones、不计入 files。"
+    "note": "按 L82：manifest 不内嵌自身哈希；新文件名、不覆盖旧证据。run-scoped 与根目录历史 0 字节日志均已补 provenance 头（未伪造输出）；0 字节墓碑移入 tombstones、不计入 files；results.json 同路径替换已用 supersedes 标注（H4 m00748）。"
   }
 }

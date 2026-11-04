@@ -77,8 +77,18 @@ def main():
         runid = p.parent.name if p.parent.name != 'logs' else 'pre-fix'
         logs.append(info(p.relative_to(BASE), 'service stderr/stdout', cases, runid))
 
+    # H4 m00748：results.json 同路径内容由 pre-fix baseline 被替换为 post-fix canonical，
+    # 必须在 manifest 内显式 supersedes（旧 sha256 + 归档路径），否则读者/签字引用会误判。
+    results_entry = info('artifacts/results.json', 'canonical machine result (post-fix)', ['ALL'], run)
+    results_entry['supersedes'] = {
+        'path': 'artifacts/results-prefix-g3-20261104T012350680Z.json',
+        'previousSha256': sha(BASE / 'artifacts/results-prefix-g3-20261104T012350680Z.json'),
+        'previousRunId': '20261104T012350680Z',
+        'previousSummary': {'total': 46, 'pass': 44, 'fail': 1, 'info': 1, 'verdict': 'BYPASS_FOUND'},
+        'note': '同一路径 artifacts/results.json 的原内容（pre-fix baseline，G3=FAIL）未删除，归档为 path 所示文件；本条目 bytes/sha256 指替换后的 post-fix canonical。',
+    }
     files = [
-        info('artifacts/results.json', 'canonical machine result (post-fix)', ['ALL'], run),
+        results_entry,
         info('artifacts/results-g3-postfix-%s.json' % run, 'G3 post-fix focused result', ['G3'], run),
         info('artifacts/results-prefix-g3-20261104T012350680Z.json', 'pre-fix result archive (G3 FAIL)', ['G3'], '20261104T012350680Z'),
         tr_ev,
@@ -117,7 +127,7 @@ def main():
         'receipts': {
             'generatedBy': 'A19 red-team',
             'deliveredTo': ['a11-qa-contract-data (v4 证据包)', 'h4-data', 'h5-security-ops'],
-            'note': '按 L82：manifest 不内嵌自身哈希；新文件名、不覆盖旧证据。run-scoped 与根目录历史 0 字节日志均已补 provenance 头（未伪造输出）；0 字节墓碑移入 tombstones、不计入 files。',
+            'note': '按 L82：manifest 不内嵌自身哈希；新文件名、不覆盖旧证据。run-scoped 与根目录历史 0 字节日志均已补 provenance 头（未伪造输出）；0 字节墓碑移入 tombstones、不计入 files；results.json 同路径替换已用 supersedes 标注（H4 m00748）。',
         },
     }
     out = ART / ('evidence-manifest-%s.json' % run)
