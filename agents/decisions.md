@@ -1074,3 +1074,20 @@ A13 如实交了失败记录（本机无 iptables、pf 无权限），**没有�
 **未阻塞项 A2 现在就改**：M04 未知 board fail-closed、M02 注释/L3 anchor_date+factor_version、§8 批注。改完回 H4 签，**不自宣已签**。
 
 **另（A0 转）`lot_size` waiver 消解**：baseline sha 在 A11 写域、签字在 H2——A0 只能出 sha/oasdiff 证据。我协调：**A0 出新 baseline sha → A11 接收并挂门禁 → H2 签字 → A0 记 path+sha256**，四方各一段，到期 2026-12-15。
+
+### L81 两条口径落地裁定（2026-11-04）
+
+**1) C01 正向清单扩 `services/ingest/tests/**` + 合成报文迁 fixtures（A1 问 (a)/(b)，裁 (b) 为主 + 顺手迁）**
+- **(b) 采纳**：`L14` 正向清单**扩 `services/ingest/tests/**`**。理由：单元测试里的合成报文（`support.py`/`test_*.py`/`samples/_synthetic/replay/stock_basic.jsonl`）**属测试输入，不是对外契约**，把它们迁到 `tests/fixtures/tushare/**`（A12 写域）会**人为拆开"测试与其输入"**——单测引用跨目录 fixture 更脆，且 C01 的扫描面本就应覆盖「对外契约与生成产物」，不该把测试代码当成泄漏面。
+- `manifest.py`/`instruments_import.py` 的 `channel="tushare"`（H4 m00801 强制渠道名）**一并进正向清单**——渠道标识是内部溯源字段，不在 C 端词表，不算厂商标识泄漏。
+- 残留 `samples/h4-audit/` 清掉。**A12 需把 `tests/fixtures/tushare/README.md` 里「录制需真实 token」改为「合成生成，不录真实报文」（L32）**。
+- **正向清单的边界不变**：`services/ingest/src/market_ingest/adapters/tushare/**`、`warehouse/ods/` raw 列、`tests/fixtures/tushare/**`、`tests/e2e/tushare-replay/recordings/**`、`services/ingest/tests/**`。新增豁免须签字（L14）。
+
+**2) 修正 L80 的事实前提：A1 只存导入时点 instrument 快照，不是按日名称快照（A1 纠偏）**
+- A2 报「需要 A1 加 namechange 才能实现当日 ST」是**双向误判**：A1 侧本来也给不了历史名称（`stock_basic` 只有当前值）。
+- **L80 裁定 ② 维持不变**（ST 判定 = 当前名称快照，历史未还原，跨 ST 变更窗口不适用），但现在**事实依据更硬**：上游与下游都无历史名称源。
+- **namechange 是 P1 数据依赖**（非 S0 范围）。若 P1 要做历史 ST 还原，**A1 需新增 `instrument_name_history`（tushare namechange 接口）+ ODS schema 扩展**，届时按 L80 从 warn 升 blocker。
+
+**另（A0 转）`lot_size` waiver 四方路径已在 L80 记录**：A0 出新 baseline sha → A11 接收挂门禁 → H2 签字 → A0 记 path+sha256。到期 2026-12-15。
+
+**另（H4 转）§8 会签条件**：A5 需明确第三项「待条件才签」的具体条件/owner/是否阻塞 S0。

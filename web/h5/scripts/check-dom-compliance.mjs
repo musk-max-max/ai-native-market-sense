@@ -81,8 +81,11 @@ async function inspectPage(page, label, { requireStockPage = true } = {}) {
     }
     // 服务端数据（证券名/代码）与 <noscript> 不走 copy.ts：
     // 前者来自 API（展示时必须与契约一致），后者在 JS 未启用时无法读取 copy。
+    // 403 notice 的文案来自服务端 copy.ts 的 Problem（H4 #5：前端不得自造），
+    // 与证券名一样属于「API 数据」而非前端文案快照；其逐字一致性由下方受限断言单独校验。
     const DATA_NODES = [
       '[data-testid="disclaimer-text"]',
+      '[data-testid="entitlement-notice"]',
       '[data-testid="stock-name"]',
       '[data-testid="stock-instrument-id"]',
       '.breadcrumb__current',
@@ -210,6 +213,27 @@ async function main() {
     await page.goto(`${BASE_URL}/stocks/SSE%3A601398`, { waitUntil: 'networkidle' });
     await page.waitForSelector('[data-testid="entitlement-notice"]', { timeout: 10_000 });
     ok = (await inspectPage(page, 'restricted-403')) && ok;
+
+    // H4 #5：notice 必须原样包含 API Problem 的 title + detail，去掉两段后不得剩任何文案。
+    const problemResponse = await fetch(`${BASE_URL}/v1/instruments/SSE%3A601398/quote`);
+    if (problemResponse.status !== 403) {
+      console.error(`[dom] 受限场景预期 403，实际 ${problemResponse.status}`);
+      ok = false;
+    } else {
+      const problem = await problemResponse.json();
+      const expected = [problem.title, problem.detail]
+        .filter((part) => typeof part === 'string' && part.trim().length > 0)
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      const actual = (await page.locator('[data-testid="entitlement-notice"]').innerText())
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (actual !== expected) {
+        console.error(`[dom] 403 notice 与 API Problem 不一致：页面「${actual}」/ API「${expected}」`);
+        ok = false;
+      }
+    }
     consoleErrors = consoleErrors.filter((text) => !/403/.test(text));
 
     // 429：只拦截 quote，instrument 正常 200，验证限流文案不暴露内部原因。

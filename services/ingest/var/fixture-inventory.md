@@ -1,0 +1,21 @@
+| fixture | api_name | sha256 |
+|---|---|---|
+| `tests/fixtures/tushare/recordings/04a3ffabec184bd338e2d78a2a8b2ae1aa6b1f56e75574e0ed8ec885ab5ce2af.json` | adj_factor | `ad04a5c4b7122e4f793e91cd963960469b9fcf1e8512c81004b66b4f6bf95255` |
+| `tests/fixtures/tushare/recordings/0a2ca9dca3c9a4126b39ec96d8155f7773db5241e42f1225ea8f2202c9ff96dd.json` | adj_factor | `4c03e4c9c752f0363837fbd2b037f8b694a579d74a9479e329ca69ecdd4d7f1e` |
+| `tests/fixtures/tushare/recordings/0ae7dc087bd86820e49d2001be7ace399c2fd12ccb1da207836d235eb3d59782.json` | fina_indicator | `72e58c3fca92847062c1f5e35670a26107c23c7a7a692e7e505a64d290ab6b1c` |
+| `tests/fixtures/tushare/recordings/2cf5d268358d32b58159ba2f22262701f495e6af9fa15e0eabe16a5f3c5baa24.json` | adj_factor | `6cc03880049cc55f7fab8802458b31fd190102a60e8f8dd73197ab3212a8d7fd` |
+| `tests/fixtures/tushare/recordings/312c2e11b1cddcbde6c1f1210ede76bb4e549e2ee4344bbd62528a71f39e5cba.json` | daily | `52305678a79ae14b16e78cac9adb06e035b78025315b1b0ebb1228b0745f6cf4` |
+| `tests/fixtures/tushare/recordings/3b3fd9ed20bf59764fec5a90807f940dc7971430a0f3bc311e4f54bbaeb5fef9.json` | daily | `18994128df2b67d52e47acdc54ac84e258b4f8fbcfc31319ec94b09bf3d52938` |
+| `tests/fixtures/tushare/recordings/4a77fc0248be236995fbbae3149f0a300fd2be684f3dd1dc93e2a3e791680e1e.json` | adj_factor | `c6bdd8f8357f8afb8732621194e6889403931203878043bdf311569932f1163e` |
+| `tests/fixtures/tushare/recordings/6da7e82d3bf14ad4002e8e9c4cb9166a44451d9530cd89215feac8296d0593db.json` | trade_cal | `0d09d33c838603761d56e452d717c21bdca1b2feaec03fa0baf53eaa12db564d` |
+| `tests/fixtures/tushare/recordings/6e1066079f9c76f08d47e0adbaeed17923778f67c290c47437730f75a183e82c.json` | adj_factor | `65c78394910982b3b4eb38d8c643b7b0049d44193e15b261c9cae97ffec88cec` |
+| `tests/fixtures/tushare/recordings/7486f9344fea06eeb2341f4cee9ad745790dfc0dc2d47c826ab5fbe930d93725.json` | adj_factor | `003276b8ddd786b7bdfee1d6c617014a295e6a0d31c29f921c08bb15f498511f` |
+| `tests/fixtures/tushare/recordings/79e6b18bf0bcb334527f9f1e2c5673c84a9ad5a123a3ec268f578f1c265ba382.json` | income | `6e4116674b345828d88c279b6d199910d0b2122a90eeb316d46f29fd31019553` |
+| `tests/fixtures/tushare/recordings/af478374feda1eb9b221e22f7aaa364371f1da9fd6dba8653246d600382da655.json` | income | `75a68064084eafc86f17f8ac04a9ab570ff30706eeb12cabcb3b69844f5c5283` |
+| `tests/fixtures/tushare/recordings/cd50539d55fedb251a4dc85b8935127ea125f0d357c780a0465e1b8fb27ad3b5.json` | daily | `9f88c13ebe5d34944b0b3bf5c67122494e7de6da6876aa0426c9639f878b65b3` |
+| `tests/fixtures/tushare/recordings/cebe0c04e312edd0cb92ec74f978f5ee8c20ba4dcc2ac0c9a84284c97d1bc993.json` | adj_factor | `6f3585766e1604a63135b0e69968697b78d81753c929b692b41e75316148de83` |
+| `tests/fixtures/tushare/recordings/d1900dd866ad79ea3a684a118f7d4dfcbaccc0faf3b605ba17a7bb7a733787a0.json` | adj_factor | `0aea26ea3cc87454b3db399e868d2d9ccfc089da44ac9bad51f949a16c76cef9` |
+| `tests/fixtures/tushare/recordings/d386da8f3ba4121923f3dbbc01688cef3aecde032f836d83347b62fa55eeecfb.json` | income | `ba41808035a7f859677b70e3597fd75f29727616844bdf2457dd0c002aba57f4` |
+| `tests/fixtures/tushare/recordings/df300c0367c5b44ed71fd9e5f46a33a69d328e81627832dc7c30e38e19237718.json` | adj_factor | `73d48128caa2aa57fa9b91c07abfcbf8dcacc79b84ff170a4bd366037dc7612f` |
+| `tests/fixtures/tushare/recordings/f42c58c27c2b3e9e682b1dd368fbf61869320ed0c62d74dd854e856813906092.json` | fina_indicator | `baa750801bf38e027bd74d23e0c356abb67ef85f5f4d7134e90687b754230353` |
+| `tests/fixtures/tushare/recordings/fed09e20baec509c4fe61588d292b7ba1e7e265f56f853d2850bf99567a5b1c9.json` | fina_indicator | `7ad4e006dfef9f1fc73ba2e40d71948aa4f765f1fd40dd429bb307ae2351ce3f` |

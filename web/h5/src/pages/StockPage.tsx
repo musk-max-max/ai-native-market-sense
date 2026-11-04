@@ -140,7 +140,8 @@ export function StockPage({ instrumentId }: { instrumentId: string }) {
 
       {compliant && granted && data.quote && data.source ? (
         <QuoteBlock quote={data.quote} source={data.source} />
-      ) : compliant ? (
+      ) : compliant && data.access === 'restricted' && data.restrictedProblem ? (
+        // 403 的文案原样来自 API Problem（H4 #5）；前端不自造受限文案。
         <EntitlementNotice problem={data.restrictedProblem} />
       ) : (
         <ErrorState

@@ -1,0 +1,26 @@
+{
+  "generated_at": "2026-11-04T10:35+08:00",
+  "generated_by": "a3-backend-market",
+  "rule": "artifact 不内嵌自身哈希；哈希外置到 receipt/manifest；receipt 本身也作为 artifact 记录 sha256。",
+  "artifacts": [
+    {
+      "path": "services/market/evidence/hold-unreachable-raw-20261104.txt",
+      "role": "evidence-artifact",
+      "sha256": "f80562cab1225e2790805154bc1459210d0b1b681eaf8d018adf144bfabdaf67",
+      "bytes": 2506,
+      "mtime_local": "2026-11-04T09:21:36+08:00",
+      "profile": "APP_PROFILE=test",
+      "frozen": true,
+      "recompute": "shasum -a 256 services/market/evidence/hold-unreachable-raw-20261104.txt",
+      "errata": "最后一行是生成时追加的陈旧自指哈希（730cddf5…），对应“去掉该行前的字节”，永不可能是全文哈希；为保留证据原字节不做删除，权威值以本 manifest 与本 artifact 的 receipt 为准。"
+    },
+    {
+      "path": "services/market/evidence/RECEIPT-hold-unreachable-20261104.md",
+      "role": "receipt",
+      "sha256": "310b3286ed2407af6ae689194bb38ddd20eae094915f5cff8d2f149a46bee054",
+      "bytes": 1655,
+      "recompute": "shasum -a 256 services/market/evidence/RECEIPT-hold-unreachable-20261104.md",
+      "notes": "含复算命令/人/时间/输出与 730cddf5 的前缀字节解释；本文件为凭证，改动即需重发并对账。"
+    }
+  ]
+}

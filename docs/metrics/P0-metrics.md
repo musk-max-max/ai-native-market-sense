@@ -60,16 +60,31 @@ ORDER BY trade_date;
 同一区间不同 `as_of` 重算结果一致（可复现）；③前复权 qfq 以「最新因子」归一，历史价会随新除权跳动，
 只能用于画图（契约 `AdjType=qfq`），不能进入收益/回测口径。
 
-**因子语义**：累计复权因子，归一化 `1.0` = 该证券首个上市交易日（待 A1/H4 确认，见 §7）。
-因子口径变更属于 `must_escalate`（复权算法变更），须 H4 签字并补 golden。
+**因子语义（L3）**：累计复权因子，归一化 `1.0` = 该证券**最早可得因子日**（不是"首个上市交易日"）；
+1990-12-19 前上市的老股锚定 1990-12-19。DWD 不二次归一。区间收益在两种锚下等价，但 hfq 绝对价
+随锚变化，因此**锚一变即口径变更**：`factor_version` 随之改变，必须重新会签；hfq 绝对价不得直接进 C 端
+（仅收益用途），要展示 hfq 绝对价需另立口径并会签。
 
 ```sql
 -- M02 区间收益率（口径：后复权 hfq）
--- 依据：H4-D6 已批准「后复权算收益」；前复权只用于画图（qdq 依赖 as_of，不能用于收益比较）。
+-- 依据：H4-D6 已批准「后复权算收益」；前复权只用于画图（qfq 依赖 as_of，不能用于收益比较）。
 -- 公式：hfq_close = close × factor；return_pct = (末 hfq_close / 首 hfq_close − 1) × 100
--- 说明：因子为累计因子（1.0 = 首个上市交易日），区间两端都用因子归一，除权不改变收益。
+-- 说明：因子为累计因子，1.0 = 该标的**最早可得因子日**（L3），不是"首个上市交易日"；
+--       1990-12-19 前上市的老股锚定 1990-12-19。区间内 hfq 收益与锚选择无关，但 hfq 绝对价
+--       随锚变化——锚一变即口径变更，必须重新会签。
+-- 输出：anchor_date（该标的因子序列起点）、factor_version（含锚的版本串，锚变则串变）、
+--       factor_as_of（因子批次 as_of，用于追溯数据来源）。hfq 绝对价不得直接进 C 端展示，
+--       仅用于收益；要展示 hfq 绝对价需另立口径并会签。
 -- 参数：:instrument_id, :start_date, :end_date
-WITH adj AS (
+WITH factor_meta AS (
+    SELECT instrument_id,
+           MIN(trade_date) AS anchor_date,
+           MAX(as_of) AS factor_as_of
+    FROM dwd_adj_factor
+    WHERE instrument_id = :instrument_id
+    GROUP BY instrument_id
+),
+adj AS (
     SELECT b.trade_date,
            b.close * f.factor AS hfq_close
     FROM dwd_stock_bar_daily AS b
@@ -92,7 +107,11 @@ SELECT (SELECT trade_date FROM ranked WHERE rn_first = 1) AS start_date,
            ((SELECT hfq_close FROM ranked WHERE rn_last = 1)
             / (SELECT hfq_close FROM ranked WHERE rn_first = 1) - 1) * 100,
            4
-       ) AS return_pct
+       ) AS return_pct,
+       m.anchor_date,
+       'L3:anchor=' || m.anchor_date::text AS factor_version,
+       m.factor_as_of
+FROM factor_meta AS m
 WHERE EXISTS (SELECT 1 FROM ranked);
 ```
 
@@ -108,18 +127,35 @@ WHERE EXISTS (SELECT 1 FROM ranked);
 | 科创板 star | SSE:688xxx | ±20% |
 | 北交所 bse | BSE:8xxxxx / 4xxxxx | ±30% |
 
-涨跌停价 = `prev_close × (1 ± limit_pct)` 四舍五入到分（人民币最小价位）；`limit_status` 取
-`limit_up | limit_down | none`。**不得硬编码 10%**（C11）。
+涨跌停价 = `prev_close × (1 ± limit_pct)` **四舍五入到分**后再比较；`limit_status` 取
+`limit_up | limit_down | none`。取整是交易所规则，不能用涨跌幅百分比直接判：例如主板 ST
+`prev_close=10.05`，`10.05×1.05=10.5525→10.55`，收盘 10.55 即涨停（当日涨幅 4.9751%，仍 ≤5%）。
+**不得硬编码 10%**（C11）。
+
+**fail-closed（不可静默）**：板块未知/为空 → `limit_pct=NULL`、`limit_status=NULL`（"不知道"≠"没涨跌停"），
+质量规则 BIZ-01 对未知板块直接 blocker。
+
+**ST 时点性（L80，P0 known limitation）**：ST 判定只用 `dim_instrument.name` 当前名称快照，历史交易日
+未还原；跨戴帽/摘帽/退市窗口的结果不适用。SQL 逐行输出 `st_by_current_name`、`st_status_source`、
+`known_limitation`；质量规则 BIZ-03（warn）对「当前 ST 名称且 `trade_date < dim.as_of` 日期」的 bar 出告警，
+不拖绿、不阻断。P1 接入 tushare namechange 后按交易日状态重算并转 blocker（已记 P1 数据依赖）。
 
 **依据**：①H4-D6 已批准「涨跌停按板块」；②ST 判定用展示名派生（name 以 `ST`/`*ST` 开头），
 `dim_instrument` 不落 `is_st`（ADR-002：派生字段不落库）；③基准用 M08 的 `prev_close`，
 除权日由适配层写除权参考价，否则除权会被误判为跌停。
 
 ```sql
--- M04 涨跌停状态（口径：按板块）
--- 依据：H4-D6 已批准「涨跌停按板块」，C11 禁止硬编码 10%。
+-- M04 涨跌停状态（口径：按板块；P0 ST 判定=当前名称快照，L80）
+-- 依据：H4-D6 已批准「涨跌停按板块」，C11 禁止硬编码 10%；L80 裁定 P0 不还原历史 ST 状态。
 -- 幅度：主板 10% / 创业板 20% / 科创板 20% / 北交所 30%；主板 ST、*ST 5%（st_limit_boards）。
--- 基准：M08 的 prev_close（除权日由适配层写入除权参考价，避免除权误判涨跌停）。
+-- 基准：M08 的 prev_close（除权日为除权参考价，由适配层写入，避免除权误判涨跌停）。
+-- fail-closed：板块未知/为空时 limit_pct=NULL、limit_status=NULL，禁止 CASE 静默落到 'none'
+--             （"不知道"≠"没涨跌停"）；质量规则 BIZ-01 对未知板块直接 blocker。
+-- ST 时点性（L80）：P0 只有 dim_instrument.name 当前快照，历史交易日未还原；
+--             输出 st_by_current_name / st_status_source / known_limitation，跨戴帽、摘帽、
+--             退市窗口的结果不适用。P1 接入 namechange 后改按交易日状态并转 blocker。
+-- 限价取整：按交易所规则先用 prev_close×(1±幅度) 算理论价，再四舍五入到分（如
+--             10.05×1.05=10.5525→10.55），比较用取整后的限价，不用涨跌幅百分比直接判。
 -- 参数：:start_date, :end_date
 WITH base AS (
     SELECT b.instrument_id,
@@ -127,11 +163,13 @@ WITH base AS (
            b.close,
            b.prev_close,
            i.board,
+           i.name,
            CASE
                WHEN i.board = 'main' AND (i.name LIKE 'ST%' OR i.name LIKE '*ST%') THEN 5.0
                WHEN i.board = 'main' THEN 10.0
                WHEN i.board IN ('gem', 'star') THEN 20.0
                WHEN i.board = 'bse' THEN 30.0
+               ELSE NULL
            END AS limit_pct
     FROM dwd_stock_bar_daily AS b
     JOIN dim_instrument AS i
@@ -143,9 +181,16 @@ priced AS (
     SELECT instrument_id,
            trade_date,
            board,
+           name,
            limit_pct,
-           ROUND(prev_close * (1 + limit_pct / 100.0), 2) AS limit_up_price,
-           ROUND(prev_close * (1 - limit_pct / 100.0), 2) AS limit_down_price,
+           CASE
+               WHEN limit_pct IS NULL THEN NULL
+               ELSE ROUND(prev_close * (1 + limit_pct / 100.0), 2)
+           END AS limit_up_price,
+           CASE
+               WHEN limit_pct IS NULL THEN NULL
+               ELSE ROUND(prev_close * (1 - limit_pct / 100.0), 2)
+           END AS limit_down_price,
            close
     FROM base
 )
@@ -156,10 +201,22 @@ SELECT instrument_id,
        limit_up_price,
        limit_down_price,
        CASE
+           WHEN limit_pct IS NULL THEN NULL
            WHEN close >= limit_up_price THEN 'limit_up'
            WHEN close <= limit_down_price THEN 'limit_down'
            ELSE 'none'
-       END AS limit_status
+       END AS limit_status,
+       CASE
+           WHEN board = 'main' AND (name LIKE 'ST%' OR name LIKE '*ST%') THEN true
+           ELSE false
+       END AS st_by_current_name,
+       'dim_instrument.name@as_of' AS st_status_source,
+       CASE
+           WHEN board IS NULL THEN 'board 未知：fail-closed，不判涨跌停'
+           WHEN board = 'main' AND (name LIKE 'ST%' OR name LIKE '*ST%')
+               THEN 'ST 判定=当前名称快照，历史交易日未还原；跨戴帽/摘帽/退市窗口不适用（L80；P1 接 namechange 后转 blocker）'
+           ELSE NULL
+       END AS known_limitation
 FROM priced
 ORDER BY instrument_id, trade_date;
 ```
@@ -219,7 +276,7 @@ ORDER BY trade_date;
 - 计分（L9 裁定，待 H4 会签）：`类别分 = 100 × (1 − 该类别命中 blocker 的不同规则数 / 该类别规则总数)`；
   `总分 = Σ 权重 × 类别分`，保留 2 位。
   - 分子**按规则去重**：同一规则命中多条违规只算 1（避免样本量放大/缩小分数）；分母 = 该类别在
-    `quality_config.json::rules` 声明的规则总数（结构 6 / 业务规则 2 / 完整性及时性 3 / 一致性 2）。
+    `quality_config.json::rules` 声明的规则总数（结构 6 / 业务规则 3 / 完整性及时性 3 / 一致性 2；L80 新增 BIZ-03 warn 后业务类为 3）。
   - `warn`（如 BIZ-02 缺基准）**不进分子**，但计入该类规则总数；`warn` 条数单列为告警指标。
   - 报告输出两个独立指标：`score`（质量分）与 `violation_counts`（blocker/warn 逐条计数）。
   - 理由：P0 只有 21 条正例样本；warn 若参与计分会让整批从绿转黄，从而诱使团队调阈值，
@@ -236,7 +293,7 @@ ORDER BY trade_date;
 | 类别 | 规则 |
 | --- | --- |
 | 结构 struct | STRUCT-01 必填/类型；STRUCT-02 主键唯一；STRUCT-03 OHLC 关系 `high ≥ max(open,close) ≥ min(open,close) ≥ low`；STRUCT-04 价格 > 0、volume/amount ≥ 0；STRUCT-05 价格小数位 ≤ 2；STRUCT-06 因子 > 0 且每根 bar 有因子 |
-| 业务 business | BIZ-01 涨跌幅在板块限内（容差 0.5pp，上市首日豁免）；BIZ-02 prev_close 缺失（warn） |
+| 业务 business | BIZ-01 涨跌幅在板块限内（容差 0.5pp，上市首日豁免；未知板块 fail-closed）；BIZ-02 prev_close 缺失（warn）；BIZ-03 ST 时点性限制（warn，L80） |
 | 完整性/及时性 completeness | COMP-01 无周末 bar；COMP-02 as_of 属当日 ≥15:00（T 日收盘后取数）；COMP-03 工作日覆盖（bar ∪ 停牌证据） |
 | 一致性 consistency | CONS-01 prev_close = 前一交易日 close（除权日因因子变化豁免 / 首日豁免）；CONS-02 bar/因子引用的 instrument 必须在 dim_instrument |
 
@@ -262,6 +319,10 @@ ORDER BY trade_date;
    `bar.v1 + adj_factor.v1`，故 `python3 -m warehouse.pipeline --ods-root` 在缺 instrument 批次时
    **fail-closed（退出码 2）**，不拿空维表出质量分；golden 夹具自带 instrument 不受影响。
    需列为 A1 下一任务输入依赖（最小集：stock_basic 的 instrument_id/name/board/listed_at/lot_size）。
+9. **ST 历史时点性（L80，P1 数据依赖）**：P0 的 M04 只用当前名称快照判 ST，历史交易日不还原；
+   输出 `known_limitation`，质量规则 BIZ-03（warn）对「当前 ST 名称且早于 `dim.as_of`」的 bar 告警。
+   **P1 依赖 tushare namechange 进 ODS**（`instrument_name_history`），到位后按交易日状态重算并把
+   BIZ-03 收紧为 blocker；在此之前禁止把退市/摘帽标的历史涨跌停结论用于回测或对外解释。
 
 ## 8. H4 会签请求（待签；签字前按本文实现）
 

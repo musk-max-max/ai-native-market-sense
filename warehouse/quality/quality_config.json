@@ -47,6 +47,9 @@
     "BIZ-02": {
       "severity": "warn"
     },
+    "BIZ-03": {
+      "severity": "warn"
+    },
     "COMP-01": {
       "severity": "blocker"
     },

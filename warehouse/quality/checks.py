@@ -44,6 +44,7 @@ RULE_META: dict[str, tuple[str, str]] = {
     "STRUCT-06": ("struct", "复权因子 > 0 且每根 bar 都有因子"),
     "BIZ-01": ("business", "涨跌幅在板块限内（主板 10% / ST 5% / 创业科创 20% / 北交所 30%）"),
     "BIZ-02": ("business", "涨跌幅基准 prev_close 缺失（告警，上市首日豁免）"),
+    "BIZ-03": ("business", "ST 判定时点性限制（warn：当前名称快照 vs 历史交易日，L80）"),
     "COMP-01": ("completeness", "不生成周末 bar"),
     "COMP-02": ("completeness", "as_of 属当日收盘后（≥15:00）且不早于交易日"),
     "COMP-03": ("completeness", "工作日覆盖：bar 或停牌证据必须覆盖每个工作日"),
@@ -306,6 +307,32 @@ def _check_bar_business(c: _Collector, state: DwdState, bar: dict[str, Any], con
         return  # CONS-02 负责报缺维表
     if instrument.get("security_type") != "stock":
         return  # P0 只对个股校验涨跌停
+
+    # M04 fail-closed：未知板块不得静默映射成 limit_status='none'（"不知道"≠"没涨跌停"）。
+    board = instrument.get("board")
+    if board not in config["board_limit_pct"]:
+        c.bump("BIZ-01")
+        c.flag(
+            "BIZ-01",
+            iid,
+            td,
+            f"未知板块 {board!r}（允许 {sorted(config['board_limit_pct'])}）：fail-closed，不做涨跌停判定",
+        )
+        return
+
+    # L80：ST 判定只有"当前名称快照"，历史交易日未还原；不许静默，warn 标出（不拖绿、不阻断）。
+    if is_st(instrument):
+        c.bump("BIZ-03")
+        as_of = instrument.get("as_of")
+        as_of_date = as_of.date() if isinstance(as_of, datetime) else None
+        if as_of_date is not None and td < as_of_date:
+            c.flag(
+                "BIZ-03",
+                iid,
+                td,
+                f"ST 判定按当前名称（dim.as_of={as_of_date}），该交易日早于快照且未还原历史 ST 状态；"
+                "跨戴帽/摘帽窗口不适用（P0 known limitation，P1 namechange 到位后转 blocker）",
+            )
 
     prev_close = bar.get("prev_close")
     first_day = instrument.get("listed_at") == td
