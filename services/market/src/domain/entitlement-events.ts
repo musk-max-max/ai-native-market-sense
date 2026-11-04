@@ -17,15 +17,72 @@ export interface EntitlementEventWriterOptions {
 
 const DEFAULT_RETRY_DELAYS_MS = [100, 500, 2_000] as const;
 
+export interface EventWriteFailure {
+  readonly error: unknown;
+  readonly at: Date;
+  readonly eventType: string;
+  readonly eventKey: string;
+}
+
+/** 写失败窗口（H4 m01741）：恢复后补一条 audit_gap，不重放丢失事件。 */
+interface GapWindow {
+  readonly from: Date;
+  lostCount: number;
+}
+
 function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
 export class EntitlementEventWriter {
+  /** 最近一次最终失败（调用方据此区分确定性/瞬态写错误，H4 m01741）。 */
+  lastFailure: EventWriteFailure | undefined;
+  private gap: GapWindow | undefined;
+
   constructor(private readonly repo: EntitlementEventRepo, private readonly options: EntitlementEventWriterOptions = {}) {}
 
-  /** 返回是否最终写入成功；失败不抛（调用方决定是否降级为 internal_eval）。 */
+  /**
+   * 返回是否最终写入成功；失败不抛（调用方决定阻断/非阻断）。
+   * 若存在未补的写失败窗口，先写 audit_gap（event_key=`gap|<boot>|<gap_from ISO>`，幂等），
+   * 再写下一条正常事件；不重放丢失事件本身。
+   */
   async write(record: EntitlementEventRecord): Promise<boolean> {
+    if (this.gap !== undefined && record.eventType !== 'audit_gap') {
+      await this.flushGap(record.bootId);
+    }
+    const ok = await this.attempt(record);
+    if (!ok) {
+      const now = record.occurredAt;
+      this.gap ??= { from: now, lostCount: 0 };
+      this.gap.lostCount += 1;
+    }
+    return ok;
+  }
+
+  private async flushGap(bootId: string): Promise<void> {
+    const gap = this.gap;
+    if (gap === undefined) return;
+    const gapTo = new Date();
+    const record: EntitlementEventRecord = {
+      eventKey: `gap|${bootId}|${gap.from.toISOString()}`,
+      eventType: 'audit_gap',
+      schemaVersion: 2,
+      occurredAt: gapTo,
+      bootId,
+      stateVersion: 0,
+      reason: 'audit_write_failed',
+      newValue: {
+        gap_from: gap.from.toISOString(),
+        gap_to: gapTo.toISOString(),
+        lost_count: gap.lostCount,
+        reason: 'audit_write_failed',
+        owner: 'market',
+      },
+    };
+    if (await this.attempt(record)) this.gap = undefined;
+  }
+
+  private async attempt(record: EntitlementEventRecord): Promise<boolean> {
     const delays = this.options.retryDelaysMs ?? DEFAULT_RETRY_DELAYS_MS;
     const attempts = delays.length + 1;
     let lastError: unknown;
@@ -39,6 +96,12 @@ export class EntitlementEventWriter {
         if (delay !== undefined) await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
+    this.lastFailure = {
+      error: lastError,
+      at: new Date(),
+      eventType: record.eventType,
+      eventKey: record.eventKey,
+    };
     this.report(record, attempts, lastError);
     return false;
   }

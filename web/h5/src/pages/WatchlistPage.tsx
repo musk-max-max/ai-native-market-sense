@@ -6,6 +6,7 @@
 import { useWatchlistList } from '../components/WatchlistToggle';
 import { copy } from '../lib/copy';
 import { Link } from '../lib/router';
+import { TID } from '../lib/testids';
 
 export function WatchlistPage() {
   const state = useWatchlistList();
@@ -29,7 +30,7 @@ export function WatchlistPage() {
       )}
 
       {state.status === 'ready' && state.ids.length === 0 && (
-        <div className="empty-note">
+        <div className="empty-note" data-testid={TID.stockPageEmpty}>
           <p>{copy.watchlist.empty}</p>
           <Link href="/stocks/SSE%3A600519">{copy.watchlist.emptyLink}</Link>
         </div>

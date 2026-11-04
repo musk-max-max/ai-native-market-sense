@@ -789,4 +789,57 @@ export async function runBackdoorGuardChecks({ results, cfg, spawnLogDir }) {
       await handle.cleanup();
     }
   }
+
+  // G4 裸启动（L36 第 8 条）：不设任何 ENTITLEMENT_* 环境变量启动 → 默认 internal_eval、行情全 403
+  {
+    const base = `http://127.0.0.1:${cfg.ports.backdoorApi}`;
+    const logFile = path.join(spawnLogDir, 'api-bare-start.log');
+    const handle = spawnService({
+      name: 'api-bare-start',
+      command: 'node',
+      args: ['--import', 'tsx', 'src/server.ts'],
+      cwd: path.join(cfg.workspace, 'services', 'api'),
+      env: {
+        PORT: String(cfg.ports.backdoorApi),
+        APP_PROFILE: 'test',
+        E2E_MODE: '1',
+        E2E_AUTH_TOKEN: 'dev-token',
+        NODE_ENV: 'test',
+        LOG_LEVEL: 'warn',
+        DATABASE_URL: cfg.dbUrl,
+      },
+      logFile,
+    });
+    try {
+      let started = false;
+      try {
+        await waitFor('裸启动实例健康', async () => (await fetch(`${base}/healthz`)).ok, { timeoutMs: 40_000 });
+        started = true;
+      } catch { started = false; }
+      const quote = started ? await http(`${base}/v1/instruments/SSE:600519/quote`) : null;
+      const instrument = started ? await http(`${base}/v1/instruments/SSE:600519`) : null;
+      logRaw('G4 bare-start quote', quote ?? { url: base, status: 0, headers: {}, text: 'not-started' });
+      const ent = instrument?.json?.meta?.entitlement ?? null;
+      const ok =
+        started &&
+        quote?.status === 403 &&
+        quote?.json?.code === 'ENTITLEMENT_RESTRICTED' &&
+        instrument?.status === 200 &&
+        ent?.tier === 'internal_eval' &&
+        ent?.is_entitled === false;
+      addCheck(results, {
+        id: 'G4',
+        title: '裸启动（无任何 ENTITLEMENT_* env）默认 internal_eval：行情 403、meta.tier=internal_eval',
+        clause: ['decisions.md L36-8', 'config.ts:80-87 parseTier 缺省 internal_eval'],
+        attempt: `不设 ENTITLEMENT_TIER/ENTITLEMENT_EXPIRES_AT/ENTITLEMENT_CONFIG_EXPECTED_SHA256 启动（port ${cfg.ports.backdoorApi}）后请求 quote/instrument`,
+        expectation: '进程正常启动；quote 403 ENTITLEMENT_RESTRICTED；instrument 200 且 meta.tier=internal_eval,is_entitled=false',
+        observed: { started, quoteStatus: quote?.status ?? null, quoteCode: quote?.json?.code ?? null, entitlement: ent },
+        status: ok ? 'PASS' : 'FAIL',
+        severity: ok ? null : 'P0',
+        evidence: { log: rel(logFile) },
+      });
+    } finally {
+      await handle.cleanup();
+    }
+  }
 }

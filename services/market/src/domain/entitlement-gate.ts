@@ -20,14 +20,44 @@ import {
 import { resolveEntitlement, type EntitlementResolution } from './entitlement.js';
 
 export type DegradedReason =
-  | 'control_unavailable'
+  | 'control_unreachable'
   | 'control_stale'
+  | 'reconciler_stalled'
   | 'hold_active'
   | 'control_missing'
   | 'config_mismatch'
   | 'audit_write_failed'
   | 'expired_event_write_failed'
   | 'expired';
+
+/**
+ * H4 m01713：降级分两类。
+ *  - 阻断（改 resolution：effective=internal_eval、blocked=true）：授权判定本身不成立；
+ *  - 非阻断（只标记 healthz/stderr/指标，不改 resolution）：审计写失败不扩大授权，
+ *    安全由 reconciler 的 observed 缺失兜底（H3「写失败不阻止翻转，先安全后告警」）。
+ */
+export const BLOCKING_DEGRADED_REASONS = new Set<DegradedReason>([
+  'control_unreachable',
+  'control_stale',
+  'control_missing',
+  'hold_active',
+  'config_mismatch',
+  'expired',
+  'reconciler_stalled',
+]);
+
+export const NON_BLOCKING_DEGRADED_REASONS = new Set<DegradedReason>([
+  'audit_write_failed',
+  'expired_event_write_failed',
+]);
+
+/**
+ * 非阻断的判据（可测不变量，H4 m01741）：**该事件缺失不改变 resolution** 才可非阻断；
+ * 任何"缺失会改变放行"的新事件类型默认归阻断，不要顺手放进 NON_BLOCKING。
+ */
+export function isBlockingDegradedReason(reason: DegradedReason): boolean {
+  return BLOCKING_DEGRADED_REASONS.has(reason);
+}
 
 export interface GateDecision {
   readonly resolution: EntitlementResolution;
@@ -70,6 +100,10 @@ export class EntitlementGate {
   private degraded = false;
   private degradedReason: DegradedReason | undefined;
   private startupConfigError: unknown;
+  /** 审计写失败标记：非阻断，但 reconciler 心跳缺失时自动升级为阻断（Lead L60）。 */
+  private auditFailure: DegradedReason | undefined;
+  /** 确定性写错误（权限/表/列/类型/schema）：不依赖 reconciler，直接阻断（H4 m01741）。 */
+  private auditWriteBlocked = false;
   private warnedReasons = new Set<DegradedReason>();
 
   constructor(
@@ -95,8 +129,8 @@ export class EntitlementGate {
     if (this.repo === null) return { resolution: base, degraded: false };
 
     const nowMs = now.getTime();
-    if (nowMs < this.breakerUntilMs) return this.degrade(base, 'control_unavailable');
-    if (nowMs < this.negativeUntilMs) return this.degrade(base, 'control_unavailable');
+    if (nowMs < this.breakerUntilMs) return this.degrade(base, 'control_unreachable');
+    if (nowMs < this.negativeUntilMs) return this.degrade(base, 'control_unreachable');
 
     // 正常放行态缓存 30s（H4，避免每请求打 PG）；但 hold 生效态不缓存：
     // 清 hold 必须"立即恢复"（task-8 验收），且 403 路径流量低，多一次读可接受。
@@ -121,7 +155,7 @@ export class EntitlementGate {
       this.failures += 1;
       this.negativeUntilMs = nowMs + this.negativeCacheMs();
       if (this.failures >= this.breakerThreshold()) this.breakerUntilMs = nowMs + this.breakerMs();
-      return this.degrade(base, 'control_unavailable');
+      return this.degrade(base, 'control_unreachable');
     }
   }
 
@@ -131,21 +165,48 @@ export class EntitlementGate {
       : { degraded: this.degraded, reason: this.degradedReason };
   }
 
-  /** 启动/状态变更路径写事件失败 → effective=internal_eval（H4）。 */
+  /**
+   * 非阻断降级标记（仅 audit/事件写失败用）：不改 resolution，不置 blocked。
+   * 阻断原因必须走 degrade()，避免"写失败=降权"与 H3 冻结口径冲突（H4 m01713）。
+   */
   markDegraded(reason: DegradedReason): void {
+    if (!NON_BLOCKING_DEGRADED_REASONS.has(reason)) {
+      throw new Error(`非阻断标记不接受阻断原因：${reason}`);
+    }
     this.degraded = true;
     this.degradedReason = reason;
+    this.auditFailure = reason;
     this.warnOnce(reason);
   }
 
+  /**
+   * 确定性写错误：INSERT 权限/表/列/类型/schema 配错，重启也不会自愈 → 直接阻断并寻呼。
+   * 启动路径由调用方决定"拒绝以 c_end_display 启动"（H4 m01741）。
+   */
+  markWriteBlocked(reason: DegradedReason): void {
+    if (!NON_BLOCKING_DEGRADED_REASONS.has(reason)) {
+      throw new Error(`写阻断标记只接受审计原因：${reason}`);
+    }
+    this.auditWriteBlocked = true;
+    this.degraded = true;
+    this.degradedReason = reason;
+    this.page(reason);
+  }
+
   private fromRow(base: EntitlementResolution, row: EntitlementControlRow | null, now: Date): GateDecision {
+    // Lead L60：非阻断的前提是 reconciler 还活着（它负责 observed 缺失兜底）。
+    // 心跳缺失/过期 = 补偿控制停摆 → audit 写失败自动升级为阻断，保持原 reason 以便告警定位。
+    if (this.auditWriteBlocked) return this.blockAudit(base, 'audit_write_failed');
+    if (this.auditFailure !== undefined && !this.reconcilerAlive(row, now)) {
+      return this.blockAudit(base, this.auditFailure);
+    }
     if (row === null) {
       // H4：无 control 行 = 未留痕，按 hold=true 处理（fail-closed），不 crash。
       return this.degrade(base, 'control_missing');
     }
     const last = row.lastReconciledAt;
     if (last === null || Number.isNaN(last.getTime()) || now.getTime() - last.getTime() > this.stalenessLimitMs()) {
-      return this.degrade(base, 'control_stale');
+      return this.degrade(base, 'reconciler_stalled');
     }
     if (row.hold) return this.degrade(base, 'hold_active');
     this.degraded = false;
@@ -153,7 +214,31 @@ export class EntitlementGate {
     return { resolution: base, degraded: false };
   }
 
+  private reconcilerAlive(row: EntitlementControlRow | null, now: Date): boolean {
+    if (row === null) return false;
+    const last = row.lastReconciledAt;
+    if (last === null || Number.isNaN(last.getTime())) return false;
+    return now.getTime() - last.getTime() <= this.stalenessLimitMs();
+  }
+
+  /** 审计失败 + 补偿控制停摆：不改 reason，但强制 effective=internal_eval/blocked=true。 */
+  private blockAudit(base: EntitlementResolution, reason: DegradedReason): GateDecision {
+    return {
+      resolution: {
+        ...base,
+        effectiveTier: 'internal_eval',
+        isEntitled: false,
+        blocked: true,
+      },
+      degraded: true,
+      reason,
+    };
+  }
+
   private degrade(base: EntitlementResolution, reason: DegradedReason): GateDecision {
+    if (!BLOCKING_DEGRADED_REASONS.has(reason)) {
+      throw new Error(`阻断降级只接受阻断原因：${reason}`);
+    }
     this.degraded = true;
     this.degradedReason = reason;
     this.warnOnce(reason);
@@ -173,7 +258,21 @@ export class EntitlementGate {
     if (this.warnedReasons.has(reason)) return;
     this.warnedReasons.add(reason);
     const warn = this.options.warn ?? ((message: string) => process.emitWarning(message));
-    warn(`[market] entitlement 已降级为 internal_eval（reason=${reason}），行情/财务将返回 403`);
+    const blocking = BLOCKING_DEGRADED_REASONS.has(reason);
+    if (blocking) {
+      warn(`[market] entitlement 已降级为 internal_eval（reason=${reason}），行情/财务将返回 403`);
+      return;
+    }
+    // Lead L60：audit 写失败必须 page（不是普通 log），且是"非阻断"成立的前提条件之一。
+    // A3 无寻呼通道，这里输出带 severity=page 的结构化告警，由 A13/H5 的日志告警规则接寻呼。
+    const payload = JSON.stringify({
+      event: 'entitlement_audit_write_failed',
+      severity: 'page',
+      reason,
+      effective_tier: 'internal_eval',
+    });
+    warn(`[PAGE] ${payload}`);
+    process.stderr.write(`${payload}\n`);
   }
 
   private cacheMs(): number {

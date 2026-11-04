@@ -770,3 +770,75 @@ fail-closed 是对的，但**现象具有欺骗性**：部署突然失败，报�
 5. 反向断言：**到期但事件缺失** 必须能被 A11 查红（不只看"有没有降档"，要看"降档有没有留痕"）。
 
 **给 A3**：这是 A11 第 1 条唯一 FAIL，也是 H4「缺一样不交付」的卡口；修完 A11 复跑即可放行 11-12 的第 1 条。
+
+### L60 降级原因分「阻断 / 非阻断」两类（2026-11-04，A3 与 H5 的分歧收口）
+
+**分歧**：H5 认为写审计事件失败也应降 `internal_eval`；A3 认为那会把一次 PG 抖动打成全站 403（自伤式 DoS），且违反 H3 冻结的「写失败不阻止翻转，先安全后告警」。
+
+> **状态：名单部分已被 L61 取代（2026-11-04，H5-R12 指出两版并存）。本节保留理由，词表只认 L61。**
+
+**裁定：A3 对，但要加一个条件。**
+
+- **阻断类**（effective 降 `internal_eval` + 行情 403）：~~`control_unreachable` / `control_deterministic_error` / `hold_active` / `hold_stale` / `config_mismatch` / `expired`~~ **名单已由 L61 取代，以 L61 为准**（本节只保留「为何分两类」的理由）。
+- **非阻断类**（不降档，只 `degraded=true` + 告警）：`audit_write_failed` / `expired_event_write_failed`。
+
+理由：**这两类回答的不是同一个问题**。阻断类是"我们不知道现在该不该展示"——不知道就必须收；非阻断类是"我们知道该展示，但记账没写成"——记账失败不该让用户看不见行情，该让值班的人立刻知道。
+
+**但有个条件**：非阻断类**必须有补偿控制且补偿是硬的**——reconciler 2 分钟 raise hold 兜底，是它让"未记账的放行"有一个上界。所以：
+1. `audit_write_failed` 必须 **page（寻呼/电话），不是 log**。**告警级别决定了它还叫不叫"非阻断"。**
+2. 该窗口（≤2 分钟）记入 known limitation，与 L26 的 2/15min 同一口气。
+3. 若某天 reconciler 停摆（L23 已把它推到 P1），**`audit_write_failed` 必须自动升级为阻断类**——补偿控制没了，非阻断的前提也就没了。
+
+**给 A3**：把 reason 拆成两个集合常量（`BLOCKING_REASONS` / `NON_BLOCKING_REASONS`），健康检查与 403 判定只读前者。
+**给 A11**：两类分开断言——非阻断类下 `200 + degraded=true + 告警在`；阻断类下 `403 + 无数字`。
+
+### L61 降级原因 canonical 名单 + 审计缺口事件（2026-11-04，H5-R11 收口）
+
+**H5 更正并接受 L60**（"写失败不降 tier" = 不改变 resolution）。以下为**唯一 canonical 名单**，A3 的常量、healthz 字段、A11 的断言、文档与验收表一律只引用这一份；出现别名（如 `control_unavailable` 与 `control_unreachable` 并存）即为漂移，按缺陷处理。
+
+**阻断（effective=internal_eval、blocked=true、行情 403）**
+`control_unreachable` | `control_stale` | `control_missing` | `hold_active` | `config_mismatch` | `expired` | `reconciler_stalled`
+
+**非阻断（resolution 不变，仅 degraded=true + 告警）**
+`audit_write_failed` | `expired_event_write_failed`
+
+**三条新规则（H5 提，我采纳）**
+1. **非阻断仅限"缺失证据不参与判定"**：新增事件类型若其缺失会改变判定，则**必须**归阻断。A3 写进注释与单测名，A11 建断言——**这条让"以后新增一类"不会默认掉进非阻断。**
+2. **写路径也要分确定性/瞬态**：`42501`/`42P01`/schema 不符 → 阻断（与启动失败同类）；仅连接/超时/序列化冲突 → 非阻断。`classifyControlError` 必须覆盖**写**路径，不能只管读。
+3. **三层兜底都要注入测试**：0–2min 放行 + 寻呼到人；2min reconciler raise hold → 403；15min staleness → 403 且**不依赖 reconciler 存活**（responder 自己算时间，不能等别人来救）。
+
+**审计缺口事件（新增，A5 出 DDL 增量）**
+- `occurred_at`（可补，业务发生时间）与 `recorded_at`（DB `now()`，不可伪造）**分两列**。
+- 写失败后补记：若窗口内事件无法补齐，**追加 `audit_gap` 事件**，写明 `时间窗口 / 原因码 / 责任人 / 证据指针`；**禁止静默续链**。
+- 理由：哈希链能证明"没被篡改"，**不能证明"没被遗漏"**。一条显式的 gap 事件，比一条无缝的链更可信——因为它把"我们知道这里丢了东西"写进了历史。
+
+**给 A5**：`audit_gap` 进 `event_type` 枚举（9→10 类），A11 双源校验清单同步更新并签字。
+**给 A3**：两个集合常量 + `classifyControlError` 覆盖写路径 + `reconciler_stalled` 的派生条件。
+
+### L62 `audit_gap` 走 002 增量迁移，不改 001（2026-11-04）
+
+**结论：新增 `002_audit_gap.sql`，001 一个字不动。**
+
+理由不是"规范要求"，是**证据链**：`services/compliance/migrations/001_audit_entitlement_events.sql` 的 sha256 `c8116e4f…` 已经被 A11 钉进 `tests/contract/CI_MOUNT.md §7.4`、被 A3 真栈重建引用、被 H4 写进 11-12 的证据表。**改 001 等于让所有已发布的引用同时失效**，而我们改它的理由是"这样更整齐"。
+
+002 内容（additive，不改既有列语义）：
+1. `audit_gap` 进 `event_type` 枚举（9 → 10 类）；CHECK 约束用 `ALTER ... DROP/ADD CONSTRAINT` 替换，不动其他约束。
+2. 新增 `occurred_at`（业务发生时间，可补）与 `recorded_at`（DB `now()`，不可伪造）；既有行按 001 的 `created_at` 回填，语义不变。
+3. `audit_gap` 的必填：`window_start` / `window_end` / `lost_count` / `reason` / `owner`；`lost_count` 必须 > 0（gap 事件写 0 条丢失是自欺）。
+4. `schema_version` 记为 2，`verify_entitlement_chain()` 兼容 1/2 两种行。
+
+**不做补记重放**（A3 提，我采纳）：回填会打乱链序，且让补记看起来像真实发生。**断口必须可见，不能靠"补得像没断过"。**
+
+**给 A5**：出 002；**给 A13**：在 a13_verify 上从 001 重放到 002，`verify_entitlement_chain()` 仍须 0；**给 A11**：双源清单 9→10 类、并加一条断言「`audit_gap` 的 `lost_count` 为 0 即红」。
+
+### L63 `audit_gap` 的窗口必须落在 PG 里，不能只活在服务内存（2026-11-04，H5-R12）
+
+**问题**：gap 事件由服务写；但 pod 在 PG 恢复前被杀，**gap 就永远写不出来**——而这恰恰是"恢复前"最可能发生的事。
+
+**裁定三条：**
+1. `audit.tier_state_observed` 增 `boot_id` + `last_written_event_seq`；**reconciler 发现 seq 不连续即补写 `audit_gap`**。窗口的事实来源是"最后一笔写进库的事"和"库恢复时间"，两者都在库里，不在服务内存里。
+2. **`gap_from` 定义为失败前最后一条成功事件的 `occurred_at`**（不是"第一次失败的时刻"）。理由：服务与 reconciler 都能从链上重算同一个值，`event_key` 才能一致、唯一索引才能去重；定义成"第一次失败的时刻"两边必然对不上，会写两条。
+3. `recorded_at` `NOT NULL DEFAULT now()` + `REVOKE UPDATE`，**永不接受客户端传入**（否则"可伪造的记录时间"等于没有记录时间）；`occurred_at` 加 **±5min 时钟偏差告警**——时钟漂移会直接毁掉链的顺序语义。
+
+**给 A13**：002 里带上这三项的 DDL 与 reconciler 补 gap 的分支；不加人日（在原 0.5 内）。
+**给 A11**：链校验须覆盖"含 gap 事件的链"，并断言 gap 的 `lost_count > 0`。

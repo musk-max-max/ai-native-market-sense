@@ -40,6 +40,7 @@ export const TID = {
 
   errorBanner: 'error-banner',
   stockPageError: 'stock-page-error',
+  stockPageEmpty: 'stock-page-empty',
   loading: 'stock-page-loading',
 } as const;
 

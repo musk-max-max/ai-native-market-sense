@@ -71,7 +71,7 @@ function findForbidden(text) {
   return found;
 }
 
-async function inspectPage(page, label) {
+async function inspectPage(page, label, { requireStockPage = true } = {}) {
   const result = await page.evaluate(() => {
     const attrs = [];
     for (const element of document.querySelectorAll('*')) {
@@ -108,10 +108,32 @@ async function inspectPage(page, label) {
       notice: document.querySelector('[data-testid="entitlement-notice"]')?.innerText ?? null,
       price: document.querySelector('[data-testid="quote-price"]')?.innerText ?? null,
       errorBanner: document.querySelector('[data-testid="error-banner"]')?.innerText ?? null,
+      stockPageCount: document.querySelectorAll('[data-testid="stock-page"]').length,
+      disclaimerCount: document.querySelectorAll('[data-testid="disclaimer"]').length,
+      disclaimerText:
+        document.querySelector('[data-testid="disclaimer-text"]')?.innerText?.trim() ?? null,
     };
   });
 
   const failures = [];
+
+  // 状态分支（loading/error/受限）必须与正常态共用同一个 stock-page testid；
+  // 免责声明无论是常规模块还是「元数据缺失」兜底块，都必须能被同一个 disclaimer testid 取到。
+  if (requireStockPage) {
+    if (result.stockPageCount !== 1) {
+      failures.push(`stock-page testid 应恰好 1 个（各状态共用），实际 ${result.stockPageCount}`);
+    }
+    // 正常态与受限 403 是「页面有内容」的两条路径，都必须能取到同一免责声明；
+    // 429/断网等整页错误态不属于免责声明展示路径（页面不展示任何行情内容）。
+    if (result.notice !== null || result.price !== null) {
+      if (result.disclaimerCount !== 1) {
+        failures.push(`disclaimer testid 应恰好 1 个（含兜底块），实际 ${result.disclaimerCount}`);
+      }
+      if (result.disclaimerText === null || result.disclaimerText.length === 0) {
+        failures.push('disclaimer-text 为空，免责声明不可见或未接入 testid');
+      }
+    }
+  }
 
   const bodyHits = findForbidden(result.bodyText);
   if (bodyHits.length) failures.push(`页面文本含内部标识：${bodyHits.join('; ')}`);
@@ -342,7 +364,7 @@ async function main() {
     await page.unroute('**/v1/instruments/*/quote');
 
     await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
-    ok = (await inspectPage(page, 'home')) && ok;
+    ok = (await inspectPage(page, 'home', { requireStockPage: false })) && ok;
   } finally {
     await browser.close();
   }

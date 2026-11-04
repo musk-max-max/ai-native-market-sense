@@ -67,7 +67,7 @@ export function StockPage({ instrumentId }: { instrumentId: string }) {
 
   if (load.status === 'loading') {
     return (
-      <div className="page">
+      <div className="page stock-page" data-testid={TID.stockPage}>
         <nav className="breadcrumb" aria-label={copy.stock.breadcrumbAria}>
           <Link href="/">{copy.stock.breadcrumbHome}</Link>
         </nav>
@@ -79,7 +79,7 @@ export function StockPage({ instrumentId }: { instrumentId: string }) {
   if (load.status === 'error') {
     const text = errorCopy(load.error.status, load.error.network);
     return (
-      <div className="page">
+      <div className="page stock-page" data-testid={TID.stockPage}>
         <nav className="breadcrumb" aria-label={copy.stock.breadcrumbAria}>
           <Link href="/">{copy.stock.breadcrumbHome}</Link>
         </nav>

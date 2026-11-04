@@ -1,6 +1,6 @@
 {
   "meta": {
-    "startedAt": "2026-11-04T00:55:21.371Z",
+    "startedAt": "2026-11-04T00:58:07.053Z",
     "node": "v23.11.0",
     "platform": "darwin",
     "dbUrl": "postgresql://ms@localhost:55432/market_sense_a19",
@@ -19,15 +19,15 @@
     "rawHttpLog": "tests/adversarial/entitlement-bypass/artifacts/http-attempts.jsonl",
     "distMtime": "2026-11-04T00:53:55.335Z",
     "browser": "156.0.8078.4",
-    "expiresAt": "2026-11-04T00:57:27.125Z",
-    "transitionStartedAt": "2026-11-04T00:55:28.535Z",
-    "expiredObservedAt": "2026-11-04T00:57:28.252Z",
-    "expiryWaitMs": 118315,
-    "finishedAt": "2026-11-04T00:57:29.908Z"
+    "expiresAt": "2026-11-04T01:00:12.614Z",
+    "transitionStartedAt": "2026-11-04T00:58:14.097Z",
+    "expiredObservedAt": "2026-11-04T01:00:13.695Z",
+    "expiryWaitMs": 118265,
+    "finishedAt": "2026-11-04T01:00:15.331Z"
   },
   "summary": {
-    "total": 43,
-    "pass": 41,
+    "total": 45,
+    "pass": 43,
     "fail": 1,
     "info": 1,
     "verdict": "BYPASS_FOUND",
@@ -347,9 +347,9 @@
         "decisions.md L28",
         "decisions.md L36-1"
       ],
-      "attempt": "baseline | X-Entitlement-Tier: c_end_display | X-Entitlement: granted | X-Debug: 1 | X-Forwarded-For: 8.8.8.8 | X-Forwarded-For: 127.0.0.1 | X-Real-IP: 8.8.8.8 | X-Original-URL | X-Rewrite-URL | X-Forwarded-Host: localhost | X-Forwarded-Proto: https | X-HTTP-Method-Override: GET | Authorization: Bearer dev-token | Authorization: Bearer admin | Cookie: entitlement=c_end_display; tier=c_end_display | X-User-Tier: c_end_display | X-Admin: 1 | 组合伪造（XFF + entitlement + debug + bearer）",
+      "attempt": "baseline | X-Entitlement-Tier: c_end_display | X-Entitlement: granted | X-Debug: 1 | X-Forwarded-For: 8.8.8.8 | X-Forwarded-For: 127.0.0.1 | X-Real-IP: 8.8.8.8 | X-Original-URL | X-Rewrite-URL | X-Forwarded-Host: localhost | X-Forwarded-Proto: https | X-HTTP-Method-Override: GET | Authorization: Bearer dev-token | Authorization: Bearer admin | Cookie: entitlement=c_end_display; tier=c_end_display | X-User-Tier: c_end_display | X-Admin: 1 | Instrumentation / X-Instrumentation | X-Entitlement-Expires-At: 2030-12-31 | Accept: text/html（内容协商绕过） | 组合伪造（XFF + entitlement + debug + bearer）",
       "expectation": "全部 403 ENTITLEMENT_RESTRICTED；problem+json；cache-control: no-store；无行情字段数值；无内部原因码",
-      "observed": "全部 18 条被正确挡住",
+      "observed": "全部 21 条被正确挡住",
       "status": "PASS",
       "severity": null,
       "evidence": {
@@ -474,11 +474,32 @@
             "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-i\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
           },
           {
-            "attempt": "组合伪造（XFF + entitlement + debug + bearer）",
+            "attempt": "Instrumentation / X-Instrumentation",
             "status": 403,
             "code": "ENTITLEMENT_RESTRICTED",
             "cacheControl": "no-store",
             "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-j\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "X-Entitlement-Expires-At: 2030-12-31",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-k\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "Accept: text/html（内容协商绕过）",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-l\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+          },
+          {
+            "attempt": "组合伪造（XFF + entitlement + debug + bearer）",
+            "status": 403,
+            "code": "ENTITLEMENT_RESTRICTED",
+            "cacheControl": "no-store",
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-m\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
           }
         ]
       }
@@ -501,70 +522,70 @@
             "status": 403,
             "code": "ENTITLEMENT_RESTRICTED",
             "cacheControl": "no-store",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-k\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-n\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
           },
           {
             "attempt": "?entitlement=c_end_display",
             "status": 403,
             "code": "ENTITLEMENT_RESTRICTED",
             "cacheControl": "no-store",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-l\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-o\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
           },
           {
             "attempt": "?is_entitled=true",
             "status": 403,
             "code": "ENTITLEMENT_RESTRICTED",
             "cacheControl": "no-store",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-m\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-p\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
           },
           {
             "attempt": "?entitled=1",
             "status": 403,
             "code": "ENTITLEMENT_RESTRICTED",
             "cacheControl": "no-store",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-n\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-q\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
           },
           {
             "attempt": "?debug=1",
             "status": 403,
             "code": "ENTITLEMENT_RESTRICTED",
             "cacheControl": "no-store",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-o\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-r\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
           },
           {
             "attempt": "?mock=1",
             "status": 403,
             "code": "ENTITLEMENT_RESTRICTED",
             "cacheControl": "no-store",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-p\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-s\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
           },
           {
             "attempt": "?demo=1",
             "status": 403,
             "code": "ENTITLEMENT_RESTRICTED",
             "cacheControl": "no-store",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-q\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-t\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
           },
           {
             "attempt": "?include=quote",
             "status": 403,
             "code": "ENTITLEMENT_RESTRICTED",
             "cacheControl": "no-store",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-r\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-u\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
           },
           {
             "attempt": "?format=full",
             "status": 403,
             "code": "ENTITLEMENT_RESTRICTED",
             "cacheControl": "no-store",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-s\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-v\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
           },
           {
             "attempt": "?e2e=1",
             "status": 403,
             "code": "ENTITLEMENT_RESTRICTED",
             "cacheControl": "no-store",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-t\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-w\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
           }
         ]
       }
@@ -588,56 +609,56 @@
             "status": 404,
             "code": "NOT_FOUND",
             "cacheControl": "no-store",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-u\",\"detail\":\"GET /v1/instruments/SSE:600519/quote/\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-x\",\"detail\":\"GET /v1/instruments/SSE:600519/quote/\"}"
           },
           {
             "attempt": "encoded colon %3A",
             "status": 403,
             "code": "ENTITLEMENT_RESTRICTED",
             "cacheControl": "no-store",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-v\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-y\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
           },
           {
             "attempt": "uppercase /QUOTE",
             "status": 404,
             "code": "NOT_FOUND",
             "cacheControl": "no-store",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-w\",\"detail\":\"GET /v1/instruments/SSE:600519/QUOTE\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-z\",\"detail\":\"GET /v1/instruments/SSE:600519/QUOTE\"}"
           },
           {
             "attempt": "semicolon /quote;x=1",
             "status": 404,
             "code": "NOT_FOUND",
             "cacheControl": "no-store",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-x\",\"detail\":\"GET /v1/instruments/SSE:600519/quote;x=1\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-10\",\"detail\":\"GET /v1/instruments/SSE:600519/quote;x=1\"}"
           },
           {
             "attempt": "dot-dot /v1/../v1/...",
             "status": 403,
             "code": "ENTITLEMENT_RESTRICTED",
             "cacheControl": "no-store",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-y\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-11\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
           },
           {
             "attempt": "double slash //v1/...",
             "status": 404,
             "code": "NOT_FOUND",
             "cacheControl": null,
-            "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-z\",\"detail\":\"GET //v1/instruments/SSE:600519/quote\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-12\",\"detail\":\"GET //v1/instruments/SSE:600519/quote\"}"
           },
           {
             "attempt": "double slash 在路径中 /v1//instruments",
             "status": 404,
             "code": "NOT_FOUND",
             "cacheControl": "no-store",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-10\",\"detail\":\"GET /v1//instruments/SSE:600519/quote\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-13\",\"detail\":\"GET /v1//instruments/SSE:600519/quote\"}"
           },
           {
             "attempt": "尾部空格编码 %20",
             "status": 404,
             "code": "NOT_FOUND",
             "cacheControl": "no-store",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-11\",\"detail\":\"GET /v1/instruments/SSE:600519/quote%20\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-14\",\"detail\":\"GET /v1/instruments/SSE:600519/quote%20\"}"
           }
         ]
       }
@@ -659,31 +680,31 @@
             "attempt": "POST",
             "status": 404,
             "code": "NOT_FOUND",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-12\",\"detail\":\"POST /v1/instruments/SSE:600519/quote\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-15\",\"detail\":\"POST /v1/instruments/SSE:600519/quote\"}"
           },
           {
             "attempt": "PUT",
             "status": 404,
             "code": "NOT_FOUND",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-13\",\"detail\":\"PUT /v1/instruments/SSE:600519/quote\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-16\",\"detail\":\"PUT /v1/instruments/SSE:600519/quote\"}"
           },
           {
             "attempt": "PATCH",
             "status": 404,
             "code": "NOT_FOUND",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-14\",\"detail\":\"PATCH /v1/instruments/SSE:600519/quote\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-17\",\"detail\":\"PATCH /v1/instruments/SSE:600519/quote\"}"
           },
           {
             "attempt": "DELETE",
             "status": 404,
             "code": "NOT_FOUND",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-15\",\"detail\":\"DELETE /v1/instruments/SSE:600519/quote\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-18\",\"detail\":\"DELETE /v1/instruments/SSE:600519/quote\"}"
           },
           {
             "attempt": "OPTIONS",
             "status": 400,
             "code": "VALIDATION_ERROR",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/validation-error\",\"title\":\"请求参数校验失败\",\"status\":400,\"code\":\"VALIDATION_ERROR\",\"trace_id\":\"req-16\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/validation-error\",\"title\":\"请求参数校验失败\",\"status\":400,\"code\":\"VALIDATION_ERROR\",\"trace_id\":\"req-19\"}"
           }
         ]
       }
@@ -706,28 +727,28 @@
             "status": 403,
             "code": "ENTITLEMENT_RESTRICTED",
             "cacheControl": "no-store",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-17\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-1a\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
           },
           {
             "attempt": "SSE:600519/fundamental-summary",
             "status": 403,
             "code": "ENTITLEMENT_RESTRICTED",
             "cacheControl": "no-store",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-18\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-1b\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
           },
           {
             "attempt": "SZSE:000001/bars?limit=5",
             "status": 403,
             "code": "ENTITLEMENT_RESTRICTED",
             "cacheControl": "no-store",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-19\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-1c\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
           },
           {
             "attempt": "SZSE:000001/fundamental-summary",
             "status": 403,
             "code": "ENTITLEMENT_RESTRICTED",
             "cacheControl": "no-store",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-1a\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-1d\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
           }
         ]
       }
@@ -763,7 +784,7 @@
               "is_entitled": false
             },
             "forbidden": [],
-            "body": "{\"data\":{\"instrument_id\":\"SSE:600519\",\"exchange\":\"SSE\",\"name\":\"贵州茅台\",\"board\":\"main\",\"security_type\":\"stock\",\"list_status\":\"listed\",\"listed_at\":\"2001-08-27\"},\"meta\":{\"source\":{\"source\":\"platform_eod\",\"as_of\":\"2026-11-04T08:23:59+08:00\",\"staleness_ms\":1882875,\"source_id\":\"tushare\"},\"entitlement\":{\"tier\":\"internal_eval\",\"is_entitled\":false}}}"
+            "body": "{\"data\":{\"instrument_id\":\"SSE:600519\",\"exchange\":\"SSE\",\"name\":\"贵州茅台\",\"board\":\"main\",\"security_type\":\"stock\",\"list_status\":\"listed\",\"listed_at\":\"2001-08-27\"},\"meta\":{\"source\":{\"source\":\"platform_eod\",\"as_of\":\"2026-11-04T08:23:59+08:00\",\"staleness_ms\":2048545,\"source_id\":\"tushare\"},\"entitlement\":{\"tier\":\"internal_eval\",\"is_entitled\":false}}}"
           },
           {
             "instrument": "SZSE:000001",
@@ -782,7 +803,7 @@
               "is_entitled": false
             },
             "forbidden": [],
-            "body": "{\"data\":{\"instrument_id\":\"SZSE:000001\",\"exchange\":\"SZSE\",\"name\":\"平安银行\",\"board\":\"main\",\"security_type\":\"stock\",\"list_status\":\"listed\",\"listed_at\":\"1991-04-03\"},\"meta\":{\"source\":{\"source\":\"platform_eod\",\"as_of\":\"2026-11-04T08:23:59+08:00\",\"staleness_ms\":1882876,\"source_id\":\"tushare\"},\"entitlement\":{\"tier\":\"internal_eval\",\"is_entitled\":false}}}"
+            "body": "{\"data\":{\"instrument_id\":\"SZSE:000001\",\"exchange\":\"SZSE\",\"name\":\"平安银行\",\"board\":\"main\",\"security_type\":\"stock\",\"list_status\":\"listed\",\"listed_at\":\"1991-04-03\"},\"meta\":{\"source\":{\"source\":\"platform_eod\",\"as_of\":\"2026-11-04T08:23:59+08:00\",\"staleness_ms\":2048546,\"source_id\":\"tushare\"},\"entitlement\":{\"tier\":\"internal_eval\",\"is_entitled\":false}}}"
           }
         ]
       }
@@ -804,7 +825,7 @@
         "devMeta": {
           "source": {
             "source": "platform_watchlist",
-            "as_of": "2026-11-04T08:55:22+08:00",
+            "as_of": "2026-11-04T08:58:07+08:00",
             "staleness_ms": 0
           },
           "entitlement": {
@@ -831,37 +852,37 @@
         {
           "path": "/openapi.json",
           "status": 404,
-          "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-1i\",\"detail\":\"GET /openapi.json\"}"
+          "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-1l\",\"detail\":\"GET /openapi.json\"}"
         },
         {
           "path": "/docs",
           "status": 404,
-          "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-1j\",\"detail\":\"GET /docs\"}"
+          "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-1m\",\"detail\":\"GET /docs\"}"
         },
         {
           "path": "/metrics",
           "status": 404,
-          "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-1k\",\"detail\":\"GET /metrics\"}"
+          "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-1n\",\"detail\":\"GET /metrics\"}"
         },
         {
           "path": "/v1/admin",
           "status": 404,
-          "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-1l\",\"detail\":\"GET /v1/admin\"}"
+          "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-1o\",\"detail\":\"GET /v1/admin\"}"
         },
         {
           "path": "/v1/internal/entitlement",
           "status": 404,
-          "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-1m\",\"detail\":\"GET /v1/internal/entitleme"
+          "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-1p\",\"detail\":\"GET /v1/internal/entitleme"
         },
         {
           "path": "/v1/entitlement",
           "status": 404,
-          "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-1n\",\"detail\":\"GET /v1/entitlement\"}"
+          "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-1q\",\"detail\":\"GET /v1/entitlement\"}"
         },
         {
           "path": "/v1/config",
           "status": 404,
-          "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-1o\",\"detail\":\"GET /v1/config\"}"
+          "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-1r\",\"detail\":\"GET /v1/config\"}"
         },
         {
           "path": "/healthz",
@@ -871,17 +892,17 @@
         {
           "path": "/v1/healthz",
           "status": 404,
-          "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-1q\",\"detail\":\"GET /v1/healthz\"}"
+          "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-1t\",\"detail\":\"GET /v1/healthz\"}"
         },
         {
           "path": "/.env",
           "status": 404,
-          "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-1r\",\"detail\":\"GET /.env\"}"
+          "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-1u\",\"detail\":\"GET /.env\"}"
         },
         {
           "path": "/debug/pprof",
           "status": 404,
-          "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-1s\",\"detail\":\"GET /debug/pprof\"}"
+          "body": "{\"type\":\"https://errors.market-sense.invalid/not-found\",\"title\":\"资源不存在\",\"status\":404,\"code\":\"NOT_FOUND\",\"trace_id\":\"req-1v\",\"detail\":\"GET /debug/pprof\"}"
         }
       ],
       "status": "PASS",
@@ -904,7 +925,7 @@
           "title": "行情数据暂不可用",
           "status": 403,
           "code": "ENTITLEMENT_RESTRICTED",
-          "trace_id": "req-1t",
+          "trace_id": "req-1w",
           "detail": "当前版本暂不提供该标的行情数据"
         },
         "internal": false,
@@ -927,8 +948,63 @@
         "status": 403,
         "code": "ENTITLEMENT_RESTRICTED",
         "cacheControl": "no-store, no-cache, must-revalidate",
-        "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-1u\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+        "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-1x\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
       },
+      "status": "PASS",
+      "severity": null,
+      "evidence": {}
+    },
+    {
+      "id": "H11",
+      "title": "条件请求/缓存探测不能让 403 变 304 或复用历史 200",
+      "clause": [
+        "decisions.md L35",
+        "decisions.md L36-4"
+      ],
+      "attempt": "If-None-Match W/\"deadbeef\" | If-None-Match * | If-Modified-Since | Cache-Control: only-if-cached, max-stale=600 | Pragma: no-cache + ETag 条件",
+      "expectation": "全部 403 + ENTITLEMENT_RESTRICTED + no-store；不得出现 304/200/ETag",
+      "observed": [
+        {
+          "name": "If-None-Match W/\"deadbeef\"",
+          "status": 403,
+          "code": "ENTITLEMENT_RESTRICTED",
+          "cacheControl": "no-store",
+          "etag": null,
+          "lastModified": null
+        },
+        {
+          "name": "If-None-Match *",
+          "status": 403,
+          "code": "ENTITLEMENT_RESTRICTED",
+          "cacheControl": "no-store",
+          "etag": null,
+          "lastModified": null
+        },
+        {
+          "name": "If-Modified-Since",
+          "status": 403,
+          "code": "ENTITLEMENT_RESTRICTED",
+          "cacheControl": "no-store",
+          "etag": null,
+          "lastModified": null
+        },
+        {
+          "name": "Cache-Control: only-if-cached, max-stale=600",
+          "status": 403,
+          "code": "ENTITLEMENT_RESTRICTED",
+          "cacheControl": "no-store",
+          "etag": null,
+          "lastModified": null
+        },
+        {
+          "name": "Pragma: no-cache + ETag 条件",
+          "status": 403,
+          "code": "ENTITLEMENT_RESTRICTED",
+          "cacheControl": "no-store",
+          "etag": null,
+          "lastModified": null
+        }
+      ],
       "status": "PASS",
       "severity": null,
       "evidence": {}
@@ -970,7 +1046,7 @@
             "connection": "keep-alive",
             "content-length": "172",
             "content-type": "application/problem+json; charset=utf-8",
-            "date": "Wed, 04 Nov 2026 00:55:22 GMT",
+            "date": "Wed, 04 Nov 2026 00:58:07 GMT",
             "keep-alive": "timeout=72",
             "retry-after": "1"
           },
@@ -1063,7 +1139,7 @@
       "expectation": "进程退出，日志含「E2E 模式在生产不可用」与 APP_PROFILE",
       "observed": {
         "exited": true,
-        "log": "{\"level\":50,\"time\":1793753723425,\"pid\":61974,\"hostname\":\"ly-2.local\",\"err\":{\"type\":\"MarketConfigError\",\"message\":\"E2E 模式在生产不可用（L44/L46）：APP_PROFILE=\\\"\\\"（缺省=prod）下禁止 E2E_MODE=1、E2E_AUTH_TOKEN\",\"stack\":\"MarketConfigError: E2E 模式在生产不可用（L44/L46）：APP_PROFILE=\\\"\\\"（缺省=prod）下禁止 E2E_MODE=1、E2E_AUTH_TOKEN\\n    at assertNoE2EBackdoorInProduction (/Users/leiyu/Documents/deepseek-harness/default-workspace/serv"
+        "log": "{\"level\":50,\"time\":1793753888908,\"pid\":63487,\"hostname\":\"ly-2.local\",\"err\":{\"type\":\"MarketConfigError\",\"message\":\"E2E 模式在生产不可用（L44/L46）：APP_PROFILE=\\\"\\\"（缺省=prod）下禁止 E2E_MODE=1、E2E_AUTH_TOKEN\",\"stack\":\"MarketConfigError: E2E 模式在生产不可用（L44/L46）：APP_PROFILE=\\\"\\\"（缺省=prod）下禁止 E2E_MODE=1、E2E_AUTH_TOKEN\\n    at assertNoE2EBackdoorInProduction (/Users/leiyu/Documents/deepseek-harness/default-workspace/serv"
       },
       "status": "PASS",
       "severity": null,
@@ -1082,7 +1158,7 @@
       "expectation": "进程退出，日志点名 E2E_AUTH_TOKEN",
       "observed": {
         "exited": true,
-        "log": "{\"level\":50,\"time\":1793753723859,\"pid\":61977,\"hostname\":\"ly-2.local\",\"err\":{\"type\":\"MarketConfigError\",\"message\":\"E2E 模式在生产不可用（L44/L46）：APP_PROFILE=\\\"\\\"（缺省=prod）下禁止 E2E_AUTH_TOKEN\",\"stack\":\"MarketConfigError: E2E 模式在生产不可用（L44/L46）：APP_PROFILE=\\\"\\\"（缺省=prod）下禁止 E2E_AUTH_TOKEN\\n    at assertNoE2EBackdoorInProduction (/Users/leiyu/Documents/deepseek-harness/default-workspace/services/market/src/config"
+        "log": "{\"level\":50,\"time\":1793753889311,\"pid\":63491,\"hostname\":\"ly-2.local\",\"err\":{\"type\":\"MarketConfigError\",\"message\":\"E2E 模式在生产不可用（L44/L46）：APP_PROFILE=\\\"\\\"（缺省=prod）下禁止 E2E_AUTH_TOKEN\",\"stack\":\"MarketConfigError: E2E 模式在生产不可用（L44/L46）：APP_PROFILE=\\\"\\\"（缺省=prod）下禁止 E2E_AUTH_TOKEN\\n    at assertNoE2EBackdoorInProduction (/Users/leiyu/Documents/deepseek-harness/default-workspace/services/market/src/config"
       },
       "status": "PASS",
       "severity": null,
@@ -1162,6 +1238,33 @@
       "evidence": {}
     },
     {
+      "id": "V3",
+      "title": "分页参数超限被 400 拒绝，不 clamp 后放行超量数据",
+      "clause": [
+        "decisions.md L35",
+        "decisions.md L28"
+      ],
+      "attempt": "bars?limit=600 / bars?limit=500 / bars?limit=1&offset=1001（有效态实例）",
+      "expectation": "limit>500 与 offset 越界 → 400 VALIDATION_ERROR 且无 bars 数据；limit=500 → 200 且 rows≤500",
+      "observed": {
+        "overLimit": {
+          "status": 400,
+          "code": "VALIDATION_ERROR"
+        },
+        "overOffset": {
+          "status": 400,
+          "code": "VALIDATION_ERROR"
+        },
+        "maxLimit": {
+          "status": 200,
+          "rows": 3
+        }
+      },
+      "status": "PASS",
+      "severity": null,
+      "evidence": {}
+    },
+    {
       "id": "C7",
       "title": "有效态页面正常显示价格（对照基线）",
       "clause": [
@@ -1173,7 +1276,7 @@
         "priceVisible": true,
         "priceText": "10.30 元",
         "disclaimerVisible": true,
-        "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n最新行情\n\n最新价 · 收盘快照\n\n10.30 元\n-1.90%\n-0.20 元\n\n数据截止（北京时间）\n2024-01-04T15:00:00+08:00\n数据来源\n平台行情（收盘）\n价格口径\n不复权（快照）\n交易日\n2024-01-04\n\n延时数据 · 非实时（滞后约 24833.9小时）\n\n☆\n加入自选\n登录后可加自选\n免责声明\n\n本页面数据仅供参考，不构成任何投资建议或买卖依据。数据可能存在延迟，请"
+        "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n最新行情\n\n最新价 · 收盘快照\n\n10.30 元\n-1.90%\n-0.20 元\n\n数据截止（北京时间）\n2024-01-04T15:00:00+08:00\n数据来源\n平台行情（收盘）\n价格口径\n不复权（快照）\n交易日\n2024-01-04\n\n延时数据 · 非实时（滞后约 24834.0小时）\n\n☆\n加入自选\n登录后可加自选\n免责声明\n\n本页面数据仅供参考，不构成任何投资建议或买卖依据。数据可能存在延迟，请"
       },
       "status": "PASS",
       "severity": null,
@@ -1215,7 +1318,7 @@
       ],
       "attempt": "首屏前注入 13 个 entitlement/tier/mock 类存储键 + cookie + window.__*；再试 ?mock/?tier/?demo/#hash；最后运行时二次注毒并 reload",
       "expectation": "所有变体 priceVisible=false、无货币数字、不含有效态价格",
-      "observed": "全部 6 个变体被挡住",
+      "observed": "全部 8 个变体被挡住",
       "status": "PASS",
       "severity": null,
       "evidence": {
@@ -1230,6 +1333,22 @@
           },
           {
             "variant": "?mock=1",
+            "priceVisible": false,
+            "priceCount": 0,
+            "containsValidPrice": false,
+            "noticeVisible": true,
+            "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n数据暂不可用\n\n当前版本暂不提供该标的行情数据，本页不会展示任何价格数字。\n\n该数据在当前版本中不提供。\n\n☆\n加入自选\n未自选\n免责声明\n\n本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。\n\n基本面摘要\n\n财报为报告期口径，与上方行情时点不同，请勿混读。\n\n基本面数据暂时无法取得；页面不会用 0 或猜测值填充。\n\n本页行情为收盘快照，非盘中实时；如上方出现「延时数据」标记，请"
+          },
+          {
+            "variant": "?mock=normal",
+            "priceVisible": false,
+            "priceCount": 0,
+            "containsValidPrice": false,
+            "noticeVisible": true,
+            "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n数据暂不可用\n\n当前版本暂不提供该标的行情数据，本页不会展示任何价格数字。\n\n该数据在当前版本中不提供。\n\n☆\n加入自选\n未自选\n免责声明\n\n本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。\n\n基本面摘要\n\n财报为报告期口径，与上方行情时点不同，请勿混读。\n\n基本面数据暂时无法取得；页面不会用 0 或猜测值填充。\n\n本页行情为收盘快照，非盘中实时；如上方出现「延时数据」标记，请"
+          },
+          {
+            "variant": "?data_mode=mock&mock=normal",
             "priceVisible": false,
             "priceCount": 0,
             "containsValidPrice": false,
@@ -1350,7 +1469,7 @@
       "observed": {
         "status": 403,
         "cacheControl": "no-store, no-cache, must-revalidate",
-        "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-34\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+        "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-3k\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
       },
       "status": "PASS",
       "severity": null,
@@ -1511,56 +1630,56 @@
             "status": 403,
             "code": "ENTITLEMENT_RESTRICTED",
             "cacheControl": "no-store",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-22\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-25\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
           },
           {
             "attempt": "X-Entitlement-Tier: c_end_display",
             "status": 403,
             "code": "ENTITLEMENT_RESTRICTED",
             "cacheControl": "no-store",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-23\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-26\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
           },
           {
             "attempt": "X-Entitlement: granted",
             "status": 403,
             "code": "ENTITLEMENT_RESTRICTED",
             "cacheControl": "no-store",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-24\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-27\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
           },
           {
             "attempt": "X-Debug: 1",
             "status": 403,
             "code": "ENTITLEMENT_RESTRICTED",
             "cacheControl": "no-store",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-25\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-28\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
           },
           {
             "attempt": "X-Forwarded-For: 8.8.8.8",
             "status": 403,
             "code": "ENTITLEMENT_RESTRICTED",
             "cacheControl": "no-store",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-26\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-29\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
           },
           {
             "attempt": "X-Forwarded-For: 127.0.0.1",
             "status": 403,
             "code": "ENTITLEMENT_RESTRICTED",
             "cacheControl": "no-store",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-27\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-2a\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
           },
           {
             "attempt": "X-Real-IP: 8.8.8.8",
             "status": 403,
             "code": "ENTITLEMENT_RESTRICTED",
             "cacheControl": "no-store",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-28\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-2b\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
           },
           {
             "attempt": "X-Original-URL",
             "status": 403,
             "code": "ENTITLEMENT_RESTRICTED",
             "cacheControl": "no-store",
-            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-29\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
+            "body": "{\"type\":\"https://errors.market-sense.invalid/entitlement-restricted\",\"title\":\"行情数据暂不可用\",\"status\":403,\"code\":\"ENTITLEMENT_RESTRICTED\",\"trace_id\":\"req-2c\",\"detail\":\"当前版本暂不提供该标的行情数据\"}"
           }
         ]
       }

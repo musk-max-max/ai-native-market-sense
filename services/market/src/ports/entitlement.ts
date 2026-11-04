@@ -24,7 +24,9 @@ export type EntitlementEventType =
   | 'entitlement_expired'
   | 'entitlement_flip'
   | 'tier_state_observed'
-  | 'unauthorized_config';
+  | 'unauthorized_config'
+  // A5 增量（m01741/H4）：审计窗口断口补记，schema_version=2；DDL 未落地前运行时写入会失败。
+  | 'audit_gap';
 
 export interface EntitlementEventRecord {
   readonly eventKey: string;
@@ -33,6 +35,7 @@ export interface EntitlementEventRecord {
   readonly bootId: string;
   readonly deploymentUid?: string;
   readonly stateVersion: number;
+  readonly schemaVersion?: number;
   readonly reason?: string;
   readonly oldValue?: Record<string, unknown>;
   readonly newValue?: Record<string, unknown>;
@@ -72,4 +75,23 @@ function errorCode(error: unknown): string | undefined {
 export function classifyControlError(error: unknown): 'config' | 'transient' {
   const code = errorCode(error);
   return code !== undefined && DETERMINISTIC_PG_CODES.has(code) ? 'config' : 'transient';
+}
+
+/**
+ * 写路径错误分类（H4 m01741）：确定性写错误（权限/表/列/类型/schema 版本）→ 阻断降级；
+ * 连接断/超时/序列化冲突/5xx → 非阻断。只分类读不分类写 = INSERT 权限配错能静默跑一晚。
+ */
+export function classifyWriteError(error: unknown): 'deterministic' | 'transient' {
+  const code = errorCode(error);
+  if (code !== undefined && DETERMINISTIC_PG_CODES.has(code)) return 'deterministic';
+  if (code === '42804') return 'deterministic'; // 类型不匹配
+  if (isSchemaVersionMismatch(error)) return 'deterministic';
+  return 'transient';
+}
+
+function isSchemaVersionMismatch(error: unknown): boolean {
+  const name = typeof error === 'object' && error !== null ? (error as { name?: unknown }).name : undefined;
+  if (name === 'SchemaVersionMismatchError') return true;
+  const message = error instanceof Error ? error.message : typeof error === 'string' ? error : '';
+  return /schema[_ ]version/i.test(message);
 }

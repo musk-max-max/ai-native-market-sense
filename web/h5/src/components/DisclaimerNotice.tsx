@@ -39,13 +39,16 @@ export function DisclaimerUnavailable() {
   return (
     <section
       className="disclaimer disclaimer--unavailable"
+      data-testid={TID.disclaimer}
       role="note"
       aria-labelledby="disclaimer-unavailable-heading"
     >
       <h2 id="disclaimer-unavailable-heading" className="disclaimer__heading">
         {copy.disclaimer.title}
       </h2>
-      <p className="disclaimer__text">{copy.disclaimer.unavailable}</p>
+      <p className="disclaimer__text" data-testid={TID.disclaimerText}>
+        {copy.disclaimer.unavailable}
+      </p>
     </section>
   );
 }
