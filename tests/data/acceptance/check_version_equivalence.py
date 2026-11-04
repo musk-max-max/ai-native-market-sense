@@ -15,10 +15,10 @@ import sys
 import tarfile
 from pathlib import Path
 
+# 证据范围：不含工具脚本（check_*/build_* 会随门禁演进，不属于被复核的证据字节）
 DEFAULT_SCOPE = (
     "a19-artifacts/", "transcripts/", "services/", "infra/",
-    "docs/reference/", "tests/data/acceptance/", "tests/data/quality_policy.yaml",
-    "tests/data/acceptance/artifacts/",
+    "docs/reference/", "tests/data/acceptance/artifacts/",
 )
 ROOT_TAR_SUFFIX = ".tar.gz"
 
