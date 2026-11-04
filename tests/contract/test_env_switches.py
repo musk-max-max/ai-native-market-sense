@@ -90,7 +90,7 @@ def test_ledger_has_no_fourth_class() -> None:
     ledger = load_ledger()
     assert set(ledger) >= set(CLASSES)
     # 只允许三类 + 元数据键；出现别的列表键即视为第四类
-    meta_keys = {"scan_targets", "sources"}
+    meta_keys = {"scan_targets", "sources", "decision_refs"}
     unknown = {
         key
         for key, value in ledger.items()

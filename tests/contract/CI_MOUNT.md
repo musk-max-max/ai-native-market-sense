@@ -150,7 +150,8 @@ G-IMPL 本体现在对 stub 自证通过；对真实实现的首跑等 A3/A7 服
 | 1 | 到期 fail-closed（quote/bars/fundamental **分别** 403、无任何判读数值；getInstrument 200、`meta.tier=internal_eval`、`is_entitled=false`；到期启动写**恰好 1 条** `entitlement_expired`、重启幂等） | `A11_IMPL_BASE_URL=… A11_EXPIRY_MODE=expired A11_AUDIT_DSN=… ENTITLEMENT_EXPIRES_AT=… python3 tests/data/acceptance/check_entitlement_expiry.py` | **PASS（真实栈，A3 修复后 2026-11-04 08:58）**：三接口分别 403、getInstrument 200/tier=internal_eval/is_entitled=false；启动拒绝 rc=1 且端口未监听；事件 `exp|c_end_display|2026-10-31T16:00:00.000Z|expires_at_passed` 两次启动后 exact count=1（不同 boot_id，幂等），reason=`expires_at_passed` |
 | 2 | 启动拒绝：c_end_display 且无 `ENTITLEMENT_EXPIRES_AT` → 退出码非 0 且健康端口未监听 | 同上 `A11_EXPIRY_MODE=unset`（含启动子进程断言） | **PASS**（真实进程 rc=1，无监听；`MarketConfigError` 文案含「拒绝启动」） |
 | 3 | 白名单：data ⊆ 7 字段，出现 price/close/volume/pe/pb/概念板块即红；`lot_size` 出现即红 | `A11_IMPL_BASE_URL=… python3 tests/data/acceptance/check_base_info_whitelist.py` | **PASS**（真实 API，恰 7 字段：instrument_id/exchange/name/board/security_type/list_status/listed_at；lot_size 按 D5 删除，契约 market 0.3.0） |
-| 4 | hold/stale/control 不可达 → 403；**所有 `/v1/*` 响应无条件 `Cache-Control: no-store`**；SW/PWA 不缓存、SSR 不烤数值 | `A11_HOLD_MODE=stale|hold|unreachable … python3 tests/data/acceptance/check_entitlement_hold.py`；`python3 tests/data/acceptance/check_no_store_all.py` | **PASS（真实栈）**：stale（服务日志 `reason=control_stale`）→ 三接口 403；hold=true → 403 且 instrument 200/tier=internal_eval；control 不可达 → 三接口 403、P95=1.9ms（阈值 1500）；no-store 8 调用/7 operation 全 PASS（含 200 与 403，`services/api/src/app.ts:41-45` 外壳无条件加）；跑完已 `seed-entitlement-audit.sh --restore-fresh` |
+| 4 | hold/stale/control 不可达 → 403；**所有 `/v1/*` 响应无条件 `Cache-Control: no-store`**；SW/PWA 不缓存、SSR 不烤数值。**residual（H4 m02910）**：getInstrument 在 control+serving 双黑洞时 1s 后返回 500 `INTERNAL_ERROR` 且 body 无任何行情数值（已知行为，不改为 403、不掩盖）；getInstrument 内 control 只读一次，由 `check_entitlement_ordering.py` 静态断言 | `A11_HOLD_MODE=stale|hold|unreachable … python3 tests/data/acceptance/check_entitlement_hold.py`；`python3 tests/data/acceptance/check_no_store_all.py` | **PASS（真实栈）**：stale（服务日志 `reason=control_stale`）→ 三接口 403；hold=true → 403 且 instrument 200/tier=internal_eval；control 不可达 → 三接口 403、P95=1.9ms（阈值 1500）；no-store 8 调用/7 operation 全 PASS（含 200 与 403，`services/api/src/app.ts:41-45` 外壳无条件加）；跑完已 `seed-entitlement-audit.sh --restore-fresh` |
+| 4b | **顺序/存在性泄漏（H4 m02822 + L83 语义）**：受限/降级档 403 **短路在存在性检查之前**——未收录标的也 403，body（title/detail/code/status）与已收录**逐字节相同**、仅 trace_id 可不同、不得出现 `INSTRUMENT_NOT_FOUND`；正常档（c_end_display+gate fresh）未收录仍 404 `INSTRUMENT_NOT_FOUND`；受限档请求日志/埋点不含存在性字段 | `python3 tests/data/acceptance/check_entitlement_ordering.py` | **PASS（2026-11-04，live_harness）**：3 接口 × 已收录/未收录 403 body 逐字节一致；正常档 404 INSTRUMENT_NOT_FOUND + 已收录 200；静态 `evaluate → requireEntitled → loadInstrument` 顺序成立、受限分支无存在性日志字段 |
 | 5 | 渲染无占位（0/--/骨架屏、DOM 数值暗示）；四原因对外文案逐字节相同、内部事件原因可区分 | `python3 tests/data/acceptance/check_entitlement_copy.py`（API 文案）；DOM 部分 A12 `tests/e2e` | **PASS 4/4（真实栈）**：expired/unauthorized_config/hold_active/hold_stale 四种 403 的 title+detail 逐字节一致，无原因/渠道/供应商/数字；DOM 待 A12 |
 | 6 | 事件可回指 `doc_sha256+locator`（locator 仅 clause_review，H4 m01638）、链 hash 一致、append-only、`event_key` 幂等；**10 类抽样（含 audit_gap）** | `A11_AUDIT_DSN=… python3 tests/data/acceptance/check_entitlement_events.py` | **PASS（真实库 a13_verify，35 条 / 10 类）**：audit_gap/clause_review/deploy/entitlement_expired/entitlement_flip/hold_clear/hold_set/tier_state_observed/tier_switch/unauthorized_config 齐；`verify_entitlement_chain()`=0；双源（DDL 001+002 vs 已批准 10 类/6 reason）= 一致；audit_gap exact-key 恰 5 键、event_key 逐字 `gap|<uid>|<window_start>`；append-only 三触发器、按类型证据字段全过 |
 | 7 | 前端无可绕开关；A19 "前端绕过 403" 攻击用例必须失败；TRUST_PROXY 守卫 | `check_frontend_render_gate.py`（静态）；A19 `tests/adversarial/entitlement-bypass/`（动态） | **PASS（行为，R4 修复后复跑）+ residual**：静态 PASS（23 文件）；A19 46 项 = 44 PASS / 1 FAIL（G3，见下）/ 1 INFO，`run.mjs --only=R4` 修复后 PASS、TRUST_PROXY 4/4（A0 修 `services/api/src/config.ts`，A19 同命令/隔离库/新进程复验，作者≠验证者）；原始往返日志已由 A19 重建 `http-attempts-20261104T012350680Z.jsonl`（175 条，sha256 `9ed2b522a2afeac0b2875dbe33cc772e4fea8c24156aa0d4869ed895dbc86160`），随 v3 入包（旧 0 字节 `http-attempts.jsonl` 不冒充 transcript）。**residual（不阻塞本行判定，随 v3 记录）**：①公网 ingress `/v1` 外 404 未验证（owner A13，需 staging `PUBLIC_BASE_URL`，截止 11-12）②H5 书面签字（owner H5，11-12 前）。G3（prod profile 实例未起）保留为 FAIL，不删记录；A19 负向结果不因修复而消失。 |
@@ -165,8 +166,8 @@ G-IMPL 本体现在对 stub 自证通过；对真实实现的首跑等 A3/A7 服
 | 3 | 伪造 `X-Forwarded-For` 不换桶 | 同上 | **PASS**（换 XFF 仍 429） |
 | 4 | 429 文案不露内部码/阈值/桶 key | 同上 | **PASS** |
 
-**当前汇总（2026-11-04 10:35，证据包 v3）**：数据侧第 1–6、8 条 **PASS**（#1 expired 事件 exact 1 条+重启幂等；#4 行为层 PASS + 真实网络不可达 residual 归 H5；#6 10 类/41 条、链 verify=0、双源一致、audit_gap 负向 23514）；**#7 = 行为 PASS（R4 修复后复跑）+ residual（公网 ingress 未验证、H5 签字）**，不写「五组完整 transcript」；#5 DOM 归 A12。限流桶 4/4 **PASS**；写失败分层 5/5 **PASS**；display_safe 三条 **PASS**；L73 授权开关清单见 §7.8；L74 红队产物索引见 §7.9。日常 136 passed/1 warning。证据包 **v3**（v2 冻结后补 L73/L74）：`11-12-evidence-20261104-v3.tar.gz`，sha 见 `SHA256SUMS-v3`，manifest 见包内 `manifest-20261104T0235Z.json`（每文件存在+size>0+sha 匹配，`check_evidence_manifest.py` 机械校验）。**A11 数据侧：7 PASS + #7 行为 PASS（residual：公网 ingress/H5 签字）；11-12 是否放行由 H4/H5 决定**。
-### 7.4 证据钉版本（2026-11-04 09:18 最终复跑 / 证据包 v2）
+**当前汇总（2026-11-04 14:10，证据包 v4；shared 0.2.2 `0732adf`，contract 61 passed）**：数据侧第 1–6、8 条 **PASS**（#1 expired 事件 exact 1 条+重启幂等；#4 行为层 PASS + 真实网络不可达 residual 归 H5；#6 10 类/41 条、链 verify=0、双源一致、audit_gap 负向 23514）；**#7 = 行为 PASS（R4 修复后复跑）+ residual（公网 ingress 未验证、H5 签字）**，不写「五组完整 transcript」；#5 DOM 归 A12。限流桶 4/4 **PASS**；写失败分层 5/5 **PASS**；display_safe 三条 **PASS**；L73 授权开关清单见 §7.8；L74 红队产物索引见 §7.9。日常 **157 passed / 1 failed（C01 门禁保持红，等 H2 签署 L83 的 `services/*/test/**` 测试宿主豁免；见 §7.10）/ 1 warning**（2026-11-04 14:10；`pytest tests/contract` 单跑 61 passed）。证据包 **v4**（A19 run `20261104T023750101Z` + A3 L77 四件 + A2 fixture + v3 链式留存）：`11-12-evidence-20261104-v4.tar.gz`，tar sha `fbc353cc7276dc3de76dd094e7e2077245239db9c359ed4fefc520a099ef9391`，manifest `evidence-manifest-v4-20261104T0600Z.json` sha `8ac7e62589b3f3548b517b4be8bfc28517717e34f1d6445c006b62335c463e50`（包内 97 条 / 1,485,950B；每文件存在+size>0+sha 匹配；evidence 指针命中包内条目；A19 manifest rev3 `40fb117d…`），`SHA256SUMS-v4` 两行。v3 冻结不动。**A11 数据侧：7 PASS + #7 行为 PASS（residual：公网 ingress/H5 签字）；11-12 是否放行由 H4/H5 决定**。
+### 7.4 证据钉版本（2026-11-04 14:10 / 证据包 v4）
 
 **版本锚点**：仓库已有 git（Lead 首提交 `eb10d21`，之后 A13/L 提交继续推进；本表引用时的 HEAD 见下表）。
 三层钉版：**commit 锚整棵树 + 关键文件 sha256 锚内容 + 运行时版本**；工作树脏（dirty）时 commit 不足以复现，
@@ -181,10 +182,12 @@ G-IMPL 本体现在对 stub 自证通过；对真实实现的首跑等 A3/A7 服
 | seed | `infra/db/seed-entitlement-audit.sh` `febc9f77a239a9e290ef4b4359d9b42a93b54d18a685cf6ff698b95c04f35168`；`infra/db/seed-serving-fixture.sh` `72692a628e5f68fd47cf0b4fc1bcdb990ca3fad414d9b7e1cb829eaf59d1ac3c` |
 | 基线清单 | `tests/contract/baselines/v1/baseline_manifest.json` `0740ea4e1c1cbf0343774c34d2271539928af6e20340e7b73fa69e9ba96d287e` |
 | 工具链 | node v23.11.0；Python 3.12.2（pytest 7.4.4）；oasdiff 1.35.0；PostgreSQL 16.15 |
+| 契约版本 | shared 0.2.2（description-only，commit `0732adf`；403 短路/不泄露存在性）+ market 0.3.0；`pytest tests/contract` = 61 passed |
 | 数据库 | `postgresql://ms@127.0.0.1:55432/a13_verify`（本机 PG16；35 条 / 10 类；跑完 `seed-entitlement-audit.sh --restore-fresh`，`audit.entitlement_hold.hold=f`） |
 | 验收脚本 sha256（全量） | audit_gap `bf399b973ead2187…`；base_info `b68d9c4022168a29…`；display_safe `3b1110919370f464…`；copy `92e82e80fd81fb07…`；events `3257ac8a612cd932…`；expiry `cc35e739ec793d4e…`；hold `b9adadefd6a736af…`；killswitch `0161ec4de4febe38…`；write_failure `51c4b9bcd94d9f0c…`；frontend `efb9895eb49ceec0…`；no_store `6286b83cbff427cb…`；rate_limit `5ac35c9228e2c967…`；probe `28a1c4779b4eef1c…`（完整值见 `sha256sum tests/data/acceptance/*`） |
 | 证据包 | **v3**（2026-11-04 10:35，v2 冻结后的增量）：在 v2 基础上补 L73 `env-switch-inventory.md`、L74 `ADVERSARIAL.md`、A19 产物（含重建的 run-scoped `http-attempts-20261104T012350680Z.jsonl` 175 条）与 `manifest-20261104T0235Z.json`；v1、v2 冻结不动。sha256 见 `SHA256SUMS-v3`（tar 内不嵌自身哈希）。收件校验脚本 `tests/data/acceptance/check_evidence_manifest.py` |
-| 日常门禁 | `pytest tests/contract tests/data` → **136 passed, 1 warning**（waiver 提示；2026-11-04 09:16） |
+| 日常门禁 | `pytest tests/contract tests/data` → **157 passed, 1 failed（C01 待 H2 签 L83）, 1 warning**（2026-11-04 14:10）；`pytest tests/contract` = 61 passed |
+| A2 display fixture（L44 登记） | `warehouse/tests/fixtures/display_manifest/` bundle digest（SHA256SUMS sha256）= `7f2a19491b38826d15c90f460033014b6de016c805e6d8a52994108879af6cb4`；旧 `a4bfd648…` 作废；`pytest warehouse/tests/test_display_safe.py` = 31 passed |
 
 **8+4 复核路径表**（每条 = 命令 → 断言 → 本次结果 → 证据位置）：
 
@@ -213,6 +216,20 @@ G-IMPL 本体现在对 stub 自证通过；对真实实现的首跑等 A3/A7 服
 静态扫描 `services/ web/h5/src/ tests/ infra/ warehouse/` 的 `ENTITLEMENT_*` / `*_CHECK` / `*_DISABLE` / `*_BYPASS` / `E2E_MODE` / `DEV_AUTH`。完整表见 `tests/contract/env-switch-inventory.md`。
 
 结论：**prod 铁门覆盖三类授权旁路**——`ENTITLEMENT_HOLD_CHECK=0`（`services/market/src/config.ts:173`）、`ENTITLEMENT_AUDIT=0`（`:180`，H5/L73 裁定后 A3 已补，关审计链同样拒启）、`MARKET_NOW`（`:186-190`，冻结时钟可停在 expires_at 之前，L73 自查补洞）；`E2E_MODE=1`/`WATCHLIST_DEV_AUTH=1`/`E2E_AUTH_TOKEN` 在 prod 同样拒启（`:163-165`）。残余未锁：`EVENT_PAYLOADS_PATH` 可指向宽松契约（待 H5/H4 裁，建议限只读镜像内路径）。`TRUST_PROXY` 只影响 XFF→IP 桶，且 A0 已加网段守卫（`/24–/32`）。
+
+### 7.10 L76 开关三分台账（2026-11-04）
+
+`tests/contract/env_switches.yaml` 把 `services/*/src` 实际读取的环境变量分成且只分成三类：
+**拒启**（`ENTITLEMENT_HOLD_CHECK`/`ENTITLEMENT_AUDIT`/`MARKET_NOW`/`E2E_MODE`/`E2E_AUTH_TOKEN`/`WATCHLIST_DEV_AUTH`）、
+**权威但不可关**（`ENTITLEMENT_TIER`/`ENTITLEMENT_EXPIRES_AT`/`ENTITLEMENT_CONFIG_EXPECTED_SHA256`/`APP_PROFILE`/`EVENT_PAYLOADS_PATH`/`TRUST_PROXY`）、
+**与判定无关**（DB/端口/限流/展示/watchlist 等）。
+
+机械门禁 `tests/contract/test_env_switches.py`（4 passed）：实现里每个 env 必须被分类且只属一类；
+拒启项必须在 `services/market/src/config.ts` 有守卫证据；权威项描述不得出现「关闭门禁/放行/跳过判定」；出现第四类即红。
+
+C01 门禁（L81/L83）：`tests/contract/test_c01_source_format.py` 按 ADR-002 D2a G1 扫 245 文件；
+当前唯一红灯是 `services/market/test/market-plugin.test.ts:396/:563` 的负向输入样本，L83 裁定为扫描面 bug
+（`test/` 单数未与 `/tests/` 同等排除），H2 签字后只加 `services/*/test/**` 测试宿主排除，`services/*/src/**` 强度不变。
 
 ### 7.7 最终全量复跑记录（2026-11-04 09:14–09:16，a13_verify @ 002 `c118eeb3`）
 

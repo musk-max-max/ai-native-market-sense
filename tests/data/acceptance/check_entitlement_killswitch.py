@@ -91,12 +91,16 @@ def main() -> int:
     if set(data) & NUMERIC_LEAK_KEYS:
         problems.append(f"{INSTRUMENT_PATH}: 基础信息出现受授权约束字段 {sorted(set(data) & NUMERIC_LEAK_KEYS)}")
 
+    # L83/H4 m02822 语义变更：受限/降级档 403 短路先于存在性检查。
+    # 本脚本是早期版本，新口径以 check_entitlement_ordering.py 为准；这里同步保持不误导。
     status, body = request(base_url, UNKNOWN_PATH)
-    if status != 404 or body.get("code") != "INSTRUMENT_NOT_FOUND":
+    if status != 403 or body.get("code") != "ENTITLEMENT_RESTRICTED":
         problems.append(
-            f"{UNKNOWN_PATH}: 未知标的期望 404 INSTRUMENT_NOT_FOUND（存在性先于授权），"
+            f"{UNKNOWN_PATH}: 受限档未收录标的期望 403 ENTITLEMENT_RESTRICTED（403 短路，不泄漏存在性），"
             f"实际 {status}/{body.get('code')!r}"
         )
+    elif "INSTRUMENT_NOT_FOUND" in json.dumps(body, ensure_ascii=False):
+        problems.append(f"{UNKNOWN_PATH}: 受限档泄漏 INSTRUMENT_NOT_FOUND（存在性可被判读）")
 
     verdict = "PASS" if not problems else "FAIL"
     print(f"[{verdict}] 11-12/第1项 受限档 fail-closed（可执行部分）")

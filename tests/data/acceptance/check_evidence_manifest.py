@@ -202,9 +202,27 @@ def _resolve_pointer(ref: str, entries: list[dict]) -> dict | None:
             return entry
         if value.endswith("/" + entry["path"]) or entry["path"].endswith("/" + value):
             return entry
+    # repo 路径 .../artifacts/logs/x.log ↔ 包内 a19-artifacts/logs/x.log（A19 evidence 指针格式）
+    if value.startswith("artifacts/"):
+        value = "x/artifacts/" + value[len("artifacts/"):]
+    if "/artifacts/" in value:
+        suffix = value.split("/artifacts/", 1)[1]
+        hits = [e for e in entries if e["path"].endswith("/" + suffix) or e["path"] == "a19-artifacts/" + suffix]
+        if len(hits) == 1:
+            return hits[0]
     basename = Path(value).name
     hits = [e for e in entries if Path(e["path"]).name == basename]
     return hits[0] if len(hits) == 1 else None
+
+
+_PATH_REF = __import__("re").compile(r"^(?:[A-Za-z]:)?[\w./-]+\.(?:log|jsonl?|txt)$")
+
+
+def _looks_like_path(value: str) -> bool:
+    """observed.log 有时是日志文本而不是路径；只有「短、单行、以文件后缀结尾」才当指针。"""
+    if not value or len(value) > 300 or "\n" in value or " " in value:
+        return False
+    return bool(_PATH_REF.match(value))
 
 
 def _walk_evidence_refs(node, path: str = "") -> list[tuple[str, str]]:
@@ -216,7 +234,7 @@ def _walk_evidence_refs(node, path: str = "") -> list[tuple[str, str]]:
             if key in ("log", "logs", "rawHttpLog"):
                 values = value if isinstance(value, list) else [value]
                 for item in values:
-                    if isinstance(item, str):
+                    if isinstance(item, str) and _looks_like_path(item):
                         found.append((child, item))
             else:
                 found.extend(_walk_evidence_refs(value, child))
@@ -232,6 +250,7 @@ def verify_evidence_pointers(manifest: dict, archive: Path) -> list[Failure]:
     if int(manifest.get("schema_version", 1)) < 2:
         return failures
     referenced: set[str] = set()
+    excluded_names = {str(entry.get("path", "")) for entry in manifest.get("excluded", [])}
     try:
         with tarfile.open(archive, "r:*") as tar:
             members = {m.name: m for m in tar.getmembers() if m.isfile()}
@@ -253,6 +272,12 @@ def verify_evidence_pointers(manifest: dict, archive: Path) -> list[Failure]:
                         continue
                     target = _resolve_pointer(ref, manifest["entries"])
                     if target is None:
+                        normalised = _normalise_ref(ref)
+                        if any(
+                            normalised.endswith(name) or name.endswith(normalised) or Path(normalised).name == Path(name).name
+                            for name in excluded_names
+                        ):
+                            continue  # 指向已声明 excluded 的占位文件（带 reason），不算悬空
                         failures.append(
                             Failure(entry["path"], f"{label} 指向的 evidence 不在包内：{ref!r}（悬空指针）")
                         )
@@ -284,11 +309,13 @@ def verify_authority(manifest: dict) -> list[Failure]:
     """权威版本标注（H5-R18 第 3 条）。"""
     failures: list[Failure] = []
     by_path = {e["path"]: e for e in manifest["entries"]}
+    if int(manifest.get("schema_version", 1)) < 2:
+        return failures  # v3 冻结包（schema 1）按当时口径，不追溯改判
     expected = {
-        "a19-artifacts/results.json": "pre_fix_baseline",
+        # H5-R22：A19 新 run 后 results.json 为 post-fix 权威；修复前基线以新文件名保留。
+        "a19-artifacts/results.json": "post_fix_authoritative",
         "a19-artifacts/results-r4.json": "post_fix_authoritative",
         "a19-artifacts/trustproxy-guard.json": "post_fix_authoritative",
-        "a19-artifacts/http-attempts-20261104T012350680Z.jsonl": "post_fix_run_scoped_raw_log",
     }
     required = bool(manifest.get("a19_authority_required", False))
     for path, authority in expected.items():
@@ -299,6 +326,24 @@ def verify_authority(manifest: dict) -> list[Failure]:
             continue
         if entry.get("authority") != authority:
             failures.append(Failure(path, f"authority 应为 {authority}，实际 {entry.get('authority')!r}"))
+
+    # 以下 A19 专属断言只在声明了 a19_authority_required 的包上生效（合成自检包不误报）
+    if not required:
+        return failures
+    # pre-fix 必须保留（不覆盖、不删）：G3 基线 + R4/TRUST_PROXY 修复前控制组
+    prefix = [e for e in manifest["entries"] if e["path"].startswith("a19-artifacts/results-prefix-g3-")]
+    if not prefix:
+        failures.append(Failure("a19-artifacts/results-prefix-g3-*", "缺 G3 修复前基线（不得覆盖/删除 pre-fix）"))
+    else:
+        for entry in prefix:
+            if entry.get("authority") != "pre_fix_baseline" or entry.get("phase") != "pre_fix":
+                failures.append(Failure(entry["path"], "G3 修复前基线必须标 pre_fix_baseline/pre_fix"))
+    for path in ("a19-artifacts/r4-before-fix.json", "a19-artifacts/trustproxy-guard-before-fix.json"):
+        entry = by_path.get(path)
+        if entry is not None and (entry.get("authority") != "pre_fix_control" or entry.get("phase") != "pre_fix"):
+            failures.append(Failure(path, "修复前控制组必须标 pre_fix_control/pre_fix"))
+    if not any(e["path"].startswith("a19-artifacts/http-attempts-") for e in manifest["entries"]):
+        failures.append(Failure("a19-artifacts/http-attempts-*", "缺 raw HTTP 往返日志（run-scoped）"))
     return failures
 
 

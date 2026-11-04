@@ -40,7 +40,8 @@ def _make_package(tmp_path: Path, *, dangling: bool = False, extra: bool = False
         _write(root / "a19-artifacts" / "stale.jsonl", "{}\n")
     entries = {
         "a19-artifacts/results.json": {
-            "authority": "pre_fix_baseline", "phase": "pre_fix", "case_ids": ["G3"],
+            # H5-R22：A19 新 run 后 results.json 为 post-fix 权威；pre-fix 基线另存新文件名
+            "authority": "post_fix_authoritative", "phase": "post_fix", "case_ids": ["G3"],
             "source_path": "tests/adversarial/entitlement-bypass/artifacts/results.json",
         },
         "a19-artifacts/logs/api-prod.log": {
