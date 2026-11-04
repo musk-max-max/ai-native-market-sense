@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -28,6 +29,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--commit", default="HEAD")
     parser.add_argument("--allow-prefix", action="append", default=[],
                         help="包内-only 路径前缀（可多次），如 a19-artifacts/")
+    parser.add_argument("--map", type=Path, default=None,
+                        help="package-path -> repo-path 映射 JSON（重定位但可追溯的文件，如 a19-REPORT.md -> tests/.../REPORT.md）")
     args = parser.parse_args(argv)
 
     root, repo = args.root.resolve(), args.repo.resolve()
@@ -40,6 +43,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"FAIL 配置：commit 不可解析 {args.commit}: {exc.stderr.strip()}", file=sys.stderr)
         return 2
 
+    path_map = json.loads(args.map.read_text(encoding="utf-8")) if args.map else {}
     checked = allowed = 0
     failures: list[str] = []
     for path in sorted(p for p in root.rglob("*") if p.is_file()):
@@ -47,14 +51,15 @@ def main(argv: list[str] | None = None) -> int:
         if any(rel.startswith(prefix) for prefix in args.allow_prefix):
             allowed += 1
             continue
-        repo_path = repo / rel
+        repo_rel = path_map.get(rel, rel)
+        repo_path = repo / repo_rel
         if not repo_path.exists():
             failures.append(f"{rel}: 包内文件在 repo 不存在，也不是已声明的包内-only（加 --allow-prefix）")
             continue
         try:
-            committed = git(repo, "rev-parse", f"{sha}:{rel}").strip()
+            committed = git(repo, "rev-parse", f"{sha}:{repo_rel}").strip()
         except subprocess.CalledProcessError:
-            failures.append(f"{rel}: 不在 commit {sha[:12]} 中（工作树新文件不得入包）")
+            failures.append(f"{rel}: 不在 commit {sha[:12]} 中（repo 路径 {repo_rel}；工作树新文件不得入包）")
             continue
         with path.open("rb") as fh:
             actual = subprocess.run(
@@ -65,7 +70,7 @@ def main(argv: list[str] | None = None) -> int:
             failures.append(f"{rel}: 包内 blob {actual[:12]} != {sha[:12]}:{rel} {committed[:12]}（打包竞态）")
             continue
         diff = subprocess.run(
-            ["git", "-C", str(repo), "diff", "--quiet", sha, "--", rel],
+            ["git", "-C", str(repo), "diff", "--quiet", sha, "--", repo_rel],
             capture_output=True,
         )
         if diff.returncode != 0:

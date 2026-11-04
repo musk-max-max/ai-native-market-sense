@@ -59,3 +59,18 @@ def test_package_only_prefix_must_be_declared(tmp_path: Path) -> None:
     assert undeclared.returncode == 1 and "已声明的包内-only" in undeclared.stdout
     declared = _run(staging, repo, "--allow-prefix", "transcripts/")
     assert declared.returncode == 0, declared.stdout + declared.stderr
+
+
+def test_relocated_file_is_traceable_via_map(tmp_path: Path) -> None:
+    repo, staging = _make_repo(tmp_path)
+    (staging / "report.md").write_text('{"a":1}\n', encoding="utf-8")
+    (staging / "package-only.log").write_text("gen\n", encoding="utf-8")
+    mapping = tmp_path / "map.json"
+    mapping.write_text('{"report.md": "evidence/a.json"}\n', encoding="utf-8")
+    result = subprocess.run(
+        [sys.executable, str(CHECKER), "--root", str(staging), "--repo", str(repo),
+         "--map", str(mapping), "--allow-prefix", "package-only.log"],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "repo-mapped" in result.stdout
