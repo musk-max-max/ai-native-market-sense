@@ -16,10 +16,15 @@
 --   1. audit.entitlement_events 增加 recorded_at（DB 写入时间；触发器强制 now()，
 --      调用方不可指定、不可 UPDATE，也不在列级 INSERT 授权里）；
 --   2. event_type 增加第 10 类 audit_gap，并加其最小留痕完整性 CHECK；
---   3. schema_version CHECK 由 =1 放宽为 IN (1,2)：历史/seed 行保留 1，
---      A3 新写事件用 2；
+--   3. schema_version CHECK 由 =1 放宽为 IN (1,2)：历史行保留 1，A3 新写事件
+--      与 seed 均写 2（Lead L64：默认值应等于当前正确值）；
 --   4. 触发器 event_key 增加 audit_gap 分支：gap|<deployment_uid>|<gap_from ISO>；
---   5. 链（prev_hash/hash）与 append-only 触发器天然覆盖 audit_gap，不需改动：
+--   5. deploy 事件 new_value.target_tier 必填且限于 DataTier 枚举（H5-R14 / L67）：
+--      reconciler 只在 target_tier != internal_eval 且缺 tier_switch 时才判 gap，
+--      缺它会把首次 internal_eval 部署误报成断口（H4 m00579）；
+--   6. 给 entitlement_expired 的 expires_at 建部分索引（H5-R14 / L67：
+--      "链上是否已存在绑定该 expires_at 的 expired" 必须可索引查询，不能藏 JSON）；
+--   7. 链（prev_hash/hash）与 append-only 触发器天然覆盖 audit_gap，不需改动：
 --      audit_gap 是正常链环，prev_hash 指向前一条；UPDATE/DELETE 照旧拒绝。
 --
 -- 刻意不做：

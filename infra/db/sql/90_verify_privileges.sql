@@ -133,7 +133,8 @@ BEGIN
       RAISE EXCEPTION 'market_app 持有事件表级 INSERT（应为列级，排除 event_key/prev_hash/hash）';
     END IF;
     IF has_column_privilege('market_app', 'audit.entitlement_events', 'prev_hash', 'INSERT')
-     OR has_column_privilege('market_app', 'audit.entitlement_events', 'hash', 'INSERT') THEN
+     OR has_column_privilege('market_app', 'audit.entitlement_events', 'hash', 'INSERT')
+     OR has_column_privilege('market_app', 'audit.entitlement_events', 'recorded_at', 'INSERT') THEN
     RAISE EXCEPTION 'market_app 可写 prev_hash/hash（可伪造哈希链）';
   END IF;
   IF NOT has_column_privilege('market_app', 'audit.entitlement_events', 'event_type', 'INSERT')
@@ -274,6 +275,11 @@ BEGIN
   -- ci_deploy_writer：事件列级 INSERT；无读/改/删；无 hold 任何权限。
   IF NOT has_column_privilege('ci_deploy_writer', 'audit.entitlement_events', 'event_type', 'INSERT') THEN
     violations := array_append(violations, 'ci_deploy_writer 缺事件列级 INSERT（发布留痕写不进去）');
+  END IF;
+  IF has_column_privilege('ci_deploy_writer', 'audit.entitlement_events', 'prev_hash', 'INSERT')
+     OR has_column_privilege('ci_deploy_writer', 'audit.entitlement_events', 'hash', 'INSERT')
+     OR has_column_privilege('ci_deploy_writer', 'audit.entitlement_events', 'recorded_at', 'INSERT') THEN
+    violations := array_append(violations, 'ci_deploy_writer 不应能写 prev_hash/hash/recorded_at（自证列）');
   END IF;
   IF has_table_privilege('ci_deploy_writer', 'audit.entitlement_events', 'INSERT')
      OR has_table_privilege('ci_deploy_writer', 'audit.entitlement_events', 'SELECT')

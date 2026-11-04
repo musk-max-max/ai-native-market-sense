@@ -1,6 +1,6 @@
 {
   "meta": {
-    "startedAt": "2026-11-04T00:58:07.053Z",
+    "startedAt": "2026-11-04T01:00:54.170Z",
     "node": "v23.11.0",
     "platform": "darwin",
     "dbUrl": "postgresql://ms@localhost:55432/market_sense_a19",
@@ -17,17 +17,17 @@
     },
     "expiryLeadMs": 120000,
     "rawHttpLog": "tests/adversarial/entitlement-bypass/artifacts/http-attempts.jsonl",
-    "distMtime": "2026-11-04T00:53:55.335Z",
+    "distMtime": "2026-11-04T01:00:21.048Z",
     "browser": "156.0.8078.4",
-    "expiresAt": "2026-11-04T01:00:12.614Z",
-    "transitionStartedAt": "2026-11-04T00:58:14.097Z",
-    "expiredObservedAt": "2026-11-04T01:00:13.695Z",
-    "expiryWaitMs": 118265,
-    "finishedAt": "2026-11-04T01:00:15.331Z"
+    "expiresAt": "2026-11-04T01:03:00.874Z",
+    "transitionStartedAt": "2026-11-04T01:01:02.643Z",
+    "expiredObservedAt": "2026-11-04T01:03:02.520Z",
+    "expiryWaitMs": 118493,
+    "finishedAt": "2026-11-04T01:03:04.510Z"
   },
   "summary": {
-    "total": 45,
-    "pass": 43,
+    "total": 46,
+    "pass": 44,
     "fail": 1,
     "info": 1,
     "verdict": "BYPASS_FOUND",
@@ -59,7 +59,7 @@
       "severity": null,
       "evidence": {
         "assets": [
-          "index-Dd2y022e.js",
+          "index-BV-LW5VG.js",
           "vendor-hNU1DSyb.js",
           "vendor-react-CrowJ5J7.js"
         ],
@@ -165,7 +165,7 @@
         "hasState": false,
         "hasName": false,
         "scriptSrcs": [
-          "/assets/index-Dd2y022e.js"
+          "/assets/index-BV-LW5VG.js"
         ]
       },
       "status": "PASS",
@@ -193,7 +193,7 @@
         "hasState": false,
         "hasName": false,
         "scriptSrcs": [
-          "/assets/index-Dd2y022e.js"
+          "/assets/index-BV-LW5VG.js"
         ]
       },
       "status": "PASS",
@@ -221,7 +221,7 @@
         "hasState": false,
         "hasName": false,
         "scriptSrcs": [
-          "/assets/index-Dd2y022e.js"
+          "/assets/index-BV-LW5VG.js"
         ]
       },
       "status": "PASS",
@@ -249,7 +249,7 @@
         "hasState": false,
         "hasName": false,
         "scriptSrcs": [
-          "/assets/index-Dd2y022e.js"
+          "/assets/index-BV-LW5VG.js"
         ]
       },
       "status": "PASS",
@@ -324,8 +324,8 @@
       "expectation": "-",
       "observed": [
         {
-          "file": "index-Dd2y022e.js",
-          "bytes": 28471
+          "file": "index-BV-LW5VG.js",
+          "bytes": 28668
         },
         {
           "file": "vendor-hNU1DSyb.js",
@@ -784,7 +784,7 @@
               "is_entitled": false
             },
             "forbidden": [],
-            "body": "{\"data\":{\"instrument_id\":\"SSE:600519\",\"exchange\":\"SSE\",\"name\":\"贵州茅台\",\"board\":\"main\",\"security_type\":\"stock\",\"list_status\":\"listed\",\"listed_at\":\"2001-08-27\"},\"meta\":{\"source\":{\"source\":\"platform_eod\",\"as_of\":\"2026-11-04T08:23:59+08:00\",\"staleness_ms\":2048545,\"source_id\":\"tushare\"},\"entitlement\":{\"tier\":\"internal_eval\",\"is_entitled\":false}}}"
+            "body": "{\"data\":{\"instrument_id\":\"SSE:600519\",\"exchange\":\"SSE\",\"name\":\"贵州茅台\",\"board\":\"main\",\"security_type\":\"stock\",\"list_status\":\"listed\",\"listed_at\":\"2001-08-27\"},\"meta\":{\"source\":{\"source\":\"platform_eod\",\"as_of\":\"2026-11-04T08:23:59+08:00\",\"staleness_ms\":2215882,\"source_id\":\"tushare\"},\"entitlement\":{\"tier\":\"internal_eval\",\"is_entitled\":false}}}"
           },
           {
             "instrument": "SZSE:000001",
@@ -803,7 +803,7 @@
               "is_entitled": false
             },
             "forbidden": [],
-            "body": "{\"data\":{\"instrument_id\":\"SZSE:000001\",\"exchange\":\"SZSE\",\"name\":\"平安银行\",\"board\":\"main\",\"security_type\":\"stock\",\"list_status\":\"listed\",\"listed_at\":\"1991-04-03\"},\"meta\":{\"source\":{\"source\":\"platform_eod\",\"as_of\":\"2026-11-04T08:23:59+08:00\",\"staleness_ms\":2048546,\"source_id\":\"tushare\"},\"entitlement\":{\"tier\":\"internal_eval\",\"is_entitled\":false}}}"
+            "body": "{\"data\":{\"instrument_id\":\"SZSE:000001\",\"exchange\":\"SZSE\",\"name\":\"平安银行\",\"board\":\"main\",\"security_type\":\"stock\",\"list_status\":\"listed\",\"listed_at\":\"1991-04-03\"},\"meta\":{\"source\":{\"source\":\"platform_eod\",\"as_of\":\"2026-11-04T08:23:59+08:00\",\"staleness_ms\":2215883,\"source_id\":\"tushare\"},\"entitlement\":{\"tier\":\"internal_eval\",\"is_entitled\":false}}}"
           }
         ]
       }
@@ -825,7 +825,7 @@
         "devMeta": {
           "source": {
             "source": "platform_watchlist",
-            "as_of": "2026-11-04T08:58:07+08:00",
+            "as_of": "2026-11-04T09:00:55+08:00",
             "staleness_ms": 0
           },
           "entitlement": {
@@ -1046,7 +1046,7 @@
             "connection": "keep-alive",
             "content-length": "172",
             "content-type": "application/problem+json; charset=utf-8",
-            "date": "Wed, 04 Nov 2026 00:58:07 GMT",
+            "date": "Wed, 04 Nov 2026 01:00:55 GMT",
             "keep-alive": "timeout=72",
             "retry-after": "1"
           },
@@ -1139,7 +1139,7 @@
       "expectation": "进程退出，日志含「E2E 模式在生产不可用」与 APP_PROFILE",
       "observed": {
         "exited": true,
-        "log": "{\"level\":50,\"time\":1793753888908,\"pid\":63487,\"hostname\":\"ly-2.local\",\"err\":{\"type\":\"MarketConfigError\",\"message\":\"E2E 模式在生产不可用（L44/L46）：APP_PROFILE=\\\"\\\"（缺省=prod）下禁止 E2E_MODE=1、E2E_AUTH_TOKEN\",\"stack\":\"MarketConfigError: E2E 模式在生产不可用（L44/L46）：APP_PROFILE=\\\"\\\"（缺省=prod）下禁止 E2E_MODE=1、E2E_AUTH_TOKEN\\n    at assertNoE2EBackdoorInProduction (/Users/leiyu/Documents/deepseek-harness/default-workspace/serv"
+        "log": "{\"level\":50,\"time\":1793754056760,\"pid\":65431,\"hostname\":\"ly-2.local\",\"err\":{\"type\":\"MarketConfigError\",\"message\":\"E2E 模式在生产不可用（L44/L46）：APP_PROFILE=\\\"\\\"（缺省=prod）下禁止 E2E_MODE=1、E2E_AUTH_TOKEN\",\"stack\":\"MarketConfigError: E2E 模式在生产不可用（L44/L46）：APP_PROFILE=\\\"\\\"（缺省=prod）下禁止 E2E_MODE=1、E2E_AUTH_TOKEN\\n    at assertNoE2EBackdoorInProduction (/Users/leiyu/Documents/deepseek-harness/default-workspace/serv"
       },
       "status": "PASS",
       "severity": null,
@@ -1158,7 +1158,7 @@
       "expectation": "进程退出，日志点名 E2E_AUTH_TOKEN",
       "observed": {
         "exited": true,
-        "log": "{\"level\":50,\"time\":1793753889311,\"pid\":63491,\"hostname\":\"ly-2.local\",\"err\":{\"type\":\"MarketConfigError\",\"message\":\"E2E 模式在生产不可用（L44/L46）：APP_PROFILE=\\\"\\\"（缺省=prod）下禁止 E2E_AUTH_TOKEN\",\"stack\":\"MarketConfigError: E2E 模式在生产不可用（L44/L46）：APP_PROFILE=\\\"\\\"（缺省=prod）下禁止 E2E_AUTH_TOKEN\\n    at assertNoE2EBackdoorInProduction (/Users/leiyu/Documents/deepseek-harness/default-workspace/services/market/src/config"
+        "log": "{\"level\":50,\"time\":1793754057168,\"pid\":65434,\"hostname\":\"ly-2.local\",\"err\":{\"type\":\"MarketConfigError\",\"message\":\"E2E 模式在生产不可用（L44/L46）：APP_PROFILE=\\\"\\\"（缺省=prod）下禁止 E2E_AUTH_TOKEN\",\"stack\":\"MarketConfigError: E2E 模式在生产不可用（L44/L46）：APP_PROFILE=\\\"\\\"（缺省=prod）下禁止 E2E_AUTH_TOKEN\\n    at assertNoE2EBackdoorInProduction (/Users/leiyu/Documents/deepseek-harness/default-workspace/services/market/src/config"
       },
       "status": "PASS",
       "severity": null,
@@ -1184,6 +1184,30 @@
       "severity": null,
       "evidence": {
         "log": "tests/adversarial/entitlement-bypass/artifacts/logs/api-prod-profile.log"
+      }
+    },
+    {
+      "id": "G4",
+      "title": "裸启动（无任何 ENTITLEMENT_* env）默认 internal_eval：行情 403、meta.tier=internal_eval",
+      "clause": [
+        "decisions.md L36-8",
+        "config.ts:80-87 parseTier 缺省 internal_eval"
+      ],
+      "attempt": "不设 ENTITLEMENT_TIER/ENTITLEMENT_EXPIRES_AT/ENTITLEMENT_CONFIG_EXPECTED_SHA256 启动（port 18187）后请求 quote/instrument",
+      "expectation": "进程正常启动；quote 403 ENTITLEMENT_RESTRICTED；instrument 200 且 meta.tier=internal_eval,is_entitled=false",
+      "observed": {
+        "started": true,
+        "quoteStatus": 403,
+        "quoteCode": "ENTITLEMENT_RESTRICTED",
+        "entitlement": {
+          "tier": "internal_eval",
+          "is_entitled": false
+        }
+      },
+      "status": "PASS",
+      "severity": null,
+      "evidence": {
+        "log": "tests/adversarial/entitlement-bypass/artifacts/logs/api-bare-start.log"
       }
     },
     {

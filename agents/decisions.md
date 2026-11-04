@@ -904,3 +904,15 @@ fail-closed 是对的，但**现象具有欺骗性**：部署突然失败，报�
 **状态：此版定稿，后续改动走变更单，不再在对话里改。** H5 的验收项不变：两桶 CI（entitlement 8 + 限流 4）、四样证据（runbook / 具名值班 / 寻呼回执 / 15min 降级演练）、`/healthz` 与 `/metrics` 外部 404 + Pod 内 200 + `helm template` 静态守卫。
 
 **L67 补充（2026-11-04，A3 提，采纳）**：去抖实现用**时间**（条件持续 ≥60s），不用"连续两次对账"——CronJob 无状态，"连续两次"要额外持久化标记，等价效果却多一份状态。**能少一个状态就少一个状态：多出来的状态迟早会和事实不一致。**
+
+### L68 002 补两类 CHECK：让"漏字段"变成写入失败（2026-11-04，H5-R15 定稿）
+
+**问题**：`new_value` 是 jsonb，无约束时漏字段**不报错**。reconciler 的 `deploy`/`tier_switch`/链级 `expired` 判定全都依赖这些字段——漏一个，判定就**永远不触发**，而所有人都看到"没检测到问题"。**这是检测侧的 fail-open，比数据侧更隐蔽：它让监控本身变成哑的。**
+
+**002 增加：**
+1. `deploy` 事件必须 `new_value->>'target_tier'` 为非空字符串；`tier_switch` 必须带 `from`/`to`。
+2. `tier_state_observed` 必填 `deployment_uid` + `configured_tier` + `expires_at`（001 的 CHECK 只强制了 boot_id/state_version/effective_tier）。
+
+**为什么可以加**：002 是新增迁移、尚未被证据链引用；001 不动，符合 L62。
+
+**给 A5**：CHECK 写进 002；**给 A11**：加断言"缺 `target_tier` 的 deploy 写入必须失败"——**这条不是测数据，是测"约束还在"。**

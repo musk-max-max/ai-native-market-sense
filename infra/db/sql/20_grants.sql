@@ -51,7 +51,7 @@ END
 $$;
 
 -- ---------------------------------------------------------------------------
--- 3) market_app：audit 事件列级 INSERT（排除 event_id/event_key/prev_hash/hash 自证列）
+-- 3) market_app：audit 事件列级 INSERT（排除 event_id/prev_hash/hash/recorded_at 自证列）
 --    hold 只给只读视图（A5 canonical：audit.entitlement_hold_state），不给基表写权。
 DO $$
 DECLARE
@@ -69,7 +69,7 @@ BEGIN
       FROM information_schema.columns
      WHERE table_schema = 'audit'
        AND table_name = 'entitlement_events'
-       AND column_name NOT IN ('event_id', 'prev_hash', 'hash');
+       AND column_name NOT IN ('event_id', 'prev_hash', 'hash', 'recorded_at');
     EXECUTE format('GRANT INSERT (%s) ON TABLE audit.entitlement_events TO market_app', cols);
     RAISE NOTICE 'granted market_app: column-level INSERT on audit.entitlement_events (no hash columns)';
 
@@ -101,7 +101,7 @@ BEGIN
     FROM information_schema.columns
    WHERE table_schema = 'audit'
      AND table_name = 'entitlement_events'
-     AND column_name NOT IN ('event_id', 'prev_hash', 'hash');
+     AND column_name NOT IN ('event_id', 'prev_hash', 'hash', 'recorded_at');
   EXECUTE format('GRANT INSERT (%s) ON TABLE audit.entitlement_events TO ci_deploy_writer', cols);
   EXECUTE 'REVOKE ALL ON audit.entitlement_hold FROM ci_deploy_writer';
   EXECUTE 'REVOKE ALL ON audit.entitlement_hold_state FROM ci_deploy_writer';

@@ -199,6 +199,7 @@ class FakeWatchlist implements WatchlistRepo {
 function marketConfig(overrides: Partial<MarketConfig> = {}): MarketConfig {
   return {
     entitlementTier: 'c_end_display',
+    deploymentUid: 'deploy-test-1',
     entitlementExpiresAt: '2099-12-31T23:59:59+08:00',
     disclaimer: { text: '本页面数据仅供参考，不构成任何投资建议或买卖依据。', version: '2026.11.1' },
     watchlistLimit: 2,
@@ -585,7 +586,11 @@ describe('market 插件：fail-open 默认值（H5 P0 卡点）', () => {
 
   it('tier≠internal_eval 却没有 ENTITLEMENT_EXPIRES_AT → 拒绝启动（不是"不启用时间盒"）', () => {
     assert.throws(
-      () => loadMarketConfig({ ENTITLEMENT_TIER: 'c_end_display' } as NodeJS.ProcessEnv),
+      () =>
+        loadMarketConfig({
+          ENTITLEMENT_TIER: 'c_end_display',
+          DEPLOYMENT_UID: 'deploy-test-1',
+        } as NodeJS.ProcessEnv),
       (error: unknown) => error instanceof MarketConfigError && /ENTITLEMENT_EXPIRES_AT/.test(error.message),
     );
     const { entitlementExpiresAt: _omitted, ...configWithoutExpiry } = marketConfig();
@@ -595,7 +600,9 @@ describe('market 插件：fail-open 默认值（H5 P0 卡点）', () => {
       '注入 config 也必须过同一道校验',
     );
     // internal_eval 不强制时间盒（本来就恒 403）
-    assert.doesNotThrow(() => loadMarketConfig({ ENTITLEMENT_TIER: 'internal_eval' } as NodeJS.ProcessEnv));
+    assert.doesNotThrow(() =>
+      loadMarketConfig({ ENTITLEMENT_TIER: 'internal_eval', DEPLOYMENT_UID: 'deploy-test-1' } as NodeJS.ProcessEnv),
+    );
   });
 
   it('生产守卫 fail-closed（L44/L46）：APP_PROFILE 缺省=prod，仅 dev/test/e2e 放行 E2E 后门', () => {
@@ -638,6 +645,7 @@ describe('market 插件：fail-open 默认值（H5 P0 卡点）', () => {
     };
     const expiredConfig = marketConfig({
       entitlementTier: 'c_end_display',
+    deploymentUid: 'deploy-test-1',
       entitlementExpiresAt: '2026-11-01T00:00:00+08:00',
     });
     const start = async (bootId: string): Promise<void> => {
@@ -679,6 +687,7 @@ describe('market 插件：fail-open 默认值（H5 P0 卡点）', () => {
     const plugin = createMarketPlugin({
       config: marketConfig({
         entitlementTier: 'c_end_display',
+    deploymentUid: 'deploy-test-1',
         entitlementExpiresAt: '2026-11-01T00:00:00+08:00',
       }),
       servingRepo: new FakeServing(),
@@ -719,6 +728,7 @@ describe('market 插件：fail-open 默认值（H5 P0 卡点）', () => {
         loadMarketConfig({
           ENTITLEMENT_TIER: 'c_end_display',
           ENTITLEMENT_EXPIRES_AT: '2099-12-31T23:59:59+08:00',
+          DEPLOYMENT_UID: 'deploy-test-1',
         } as NodeJS.ProcessEnv),
       (error: unknown) => error instanceof MarketConfigError && /ENTITLEMENT_CONFIG_EXPECTED_SHA256/.test(error.message),
     );
@@ -734,7 +744,7 @@ describe('market 插件：fail-open 默认值（H5 P0 卡点）', () => {
   });
 
   it('免责文案仍是 A5 占位：A5 正式文案上线后本测试应变红提醒替换（Lead m00677 允许保留到 E2E）', () => {
-    const config = loadMarketConfig({} as NodeJS.ProcessEnv);
+    const config = loadMarketConfig({ APP_PROFILE: 'test' } as NodeJS.ProcessEnv);
     assert.equal(config.disclaimer.version, '2026.11.1');
     assert.equal(config.disclaimer.text, DEFAULT_DISCLAIMER_TEXT, '默认文案仍是占位常量；A5 定稿后请更新此断言');
     assert.ok(config.disclaimer.text.includes('仅供参考'), '占位文案必须带"仅供参考"合规提示');
@@ -834,11 +844,19 @@ describe('market 插件：授权到期 fail-closed（H3 时间盒，ADR-004）',
 
   it('expires_at 配置非法：loadMarketConfig 快速失败（不允许线上带脏时间盒启动）', () => {
     assert.throws(
-      () => loadMarketConfig({ ENTITLEMENT_EXPIRES_AT: '2026-11-12' } as NodeJS.ProcessEnv),
+      () =>
+        loadMarketConfig({
+          ENTITLEMENT_EXPIRES_AT: '2026-11-12',
+          DEPLOYMENT_UID: 'deploy-test-1',
+        } as NodeJS.ProcessEnv),
       /ENTITLEMENT_EXPIRES_AT/,
     );
     assert.throws(
-      () => loadMarketConfig({ ENTITLEMENT_EXPIRES_AT: 'not-a-date+08:00' } as NodeJS.ProcessEnv),
+      () =>
+        loadMarketConfig({
+          ENTITLEMENT_EXPIRES_AT: 'not-a-date+08:00',
+          DEPLOYMENT_UID: 'deploy-test-1',
+        } as NodeJS.ProcessEnv),
       /ENTITLEMENT_EXPIRES_AT/,
     );
   });

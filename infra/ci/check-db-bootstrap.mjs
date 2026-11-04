@@ -189,8 +189,8 @@ if (grants) {
     ),
   );
   check(
-    'grants: market_app 对 events 为列级 INSERT（排除 event_id/prev_hash/hash）',
-    /column_name NOT IN \('event_id', 'prev_hash', 'hash'\)/i.test(grants) &&
+    "grants: market_app 对 events 为列级 INSERT（排除 event_id/prev_hash/hash/recorded_at）",
+    /column_name NOT IN \('event_id', 'prev_hash', 'hash', 'recorded_at'\)/i.test(grants) &&
       /GRANT INSERT \(%s\) ON TABLE audit\.entitlement_events TO market_app/i.test(grants),
   );
   check(
