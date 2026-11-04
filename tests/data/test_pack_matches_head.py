@@ -95,7 +95,7 @@ def _build_a19_repo(tmp_path: Path) -> tuple[Path, Path]:
     import hashlib
     log_sha = hashlib.sha256(b"log\n").hexdigest()
     manifest.write_text(
-        '{"files":[{"path":"artifacts/results.json","bytes":11,"sha256":"'
+        '{"files":[{"path":"artifacts/results.json","bytes":12,"sha256":"'
         + hashlib.sha256(b'{"ok":true}\n').hexdigest()
         + '"},{"path":"artifacts/run.log","bytes":4,"sha256":"' + log_sha + '"}]}\n',
         encoding="utf-8",
