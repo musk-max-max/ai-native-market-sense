@@ -112,12 +112,13 @@ def expected_start(case_id: str) -> bool:
 
 
 @pytest.fixture(scope="module")
-def matrix() -> dict[str, dict]:
+def matrix(tmp_path_factory) -> dict[str, dict]:
     if not TSX.is_file():
         pytest.fail(f"缺少 tsx：{TSX}")
     cases = build_cases()
     assert len(cases) >= 12, f"启动矩阵至少 12 组合，实际 {len(cases)}"
-    payload = Path(__file__).resolve().parent / "acceptance" / ".startup-matrix-cases.json"
+    # 用例文件写临时目录：门禁不得在仓库工作树留下未跟踪文件（H5 m03552 要求干净工作树）
+    payload = tmp_path_factory.mktemp("kd-ent-01") / "cases.json"
     payload.write_text(json.dumps(cases, ensure_ascii=False), encoding="utf-8")
     proc = subprocess.run(
         [str(TSX), str(RUNNER), "--cases", str(payload)],
