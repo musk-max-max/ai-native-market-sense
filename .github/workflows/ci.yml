@@ -456,6 +456,9 @@ jobs:
       - name: 告警 ↔ runbook（IaC 侧同步）
         run: node infra/ci/check-runbooks.mjs
 
+      - name: 证据包 manifest（H5-R19：文件存在/size>0/sha 独立复算/覆盖 100%）
+        run: node infra/ci/check-evidence-manifest.mjs
+
   ci-gate:
     name: ci-gate
     runs-on: ubuntu-24.04
@@ -501,9 +504,42 @@ jobs:
             fi
           done
           E2E_RESULT="${{ needs.e2e.result }}"
+          E2E_STATIC_RESULT="${{ needs['e2e-static'].result }}"
+          if [[ "$E2E_RESULT" == "success" ]]; then
+            STATUS="PASS"
+          else
+            STATUS="PARTIAL"
+          fi
           if [[ "$E2E_RESULT" == "failure" || "$E2E_RESULT" == "cancelled" ]]; then
             echo "::warning::e2e=$E2E_RESULT（docker 真栈未验证/失败）——按 S0 政策不阻塞合并，但绝不算 e2e 通过"
           else
             echo "e2e=$E2E_RESULT（若为 success，仅代表该次 runner 跑过，仍需连续 3 次观察）"
           fi
-          echo "✅ CI 通过（e2e 例外，见上）"
+          mkdir -p .ci
+          printf '{"status":"%s","run_id":"%s","run_attempt":"%s","sha":"%s","event":"%s","ref":"%s","e2e_result":"%s","e2e_static_result":"%s","recorded_at":"%s"}\n' \
+            "$STATUS" "${{ github.run_id }}" "${{ github.run_attempt }}" "${{ github.sha }}" "${{ github.event_name }}" "${{ github.ref }}" \
+            "$E2E_RESULT" "$E2E_STATIC_RESULT" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> .ci/e2e-ledger.jsonl
+          {
+            echo "## CI 状态：**$STATUS**"
+            echo
+            if [[ "$STATUS" != "PASS" ]]; then
+              echo "> PARTIAL ≠ 通过：e2e=$E2E_RESULT（docker 真栈）；本次不代表 e2e 已验证，也不得对外写「CI 通过」。"
+              echo
+            fi
+            echo "| job | result |"
+            echo "|---|---|"
+            for pair in "lint:${{ needs.lint.result }}" "typecheck:${{ needs.typecheck.result }}" "unit:${{ needs.unit.result }}" "contracts:${{ needs.contracts.result }}" "path-guard:${{ needs['path-guard'].result }}" "runbooks:${{ needs.runbooks.result }}" "web-quality:${{ needs['web-quality'].result }}" "db-schema:${{ needs['db-schema'].result }}" "iac:${{ needs.iac.result }}" "e2e-static:${{ needs['e2e-static'].result }}" "e2e:${{ needs.e2e.result }}"; do
+              echo "| ${pair%%:*} | ${pair#*:} |"
+            done
+            echo
+            echo "e2e 台账：run_id=${{ github.run_id }} attempt=${{ github.run_attempt }} sha=${{ github.sha }}（artifact \`e2e-ledger\`，每 run 一行、可机读）。"
+            echo "转必绿规则：e2e 连续 3 次 success（以台账为准）后，S1 起 e2e failure 计入红灯；S0 期间本流程只允许出现 PARTIAL，不允许打印 PASS。"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "CI 状态：$STATUS（e2e=$E2E_RESULT，e2e-static=$E2E_STATIC_RESULT）"
+      - name: 保存 e2e 可机读台账
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-ledger
+          path: .ci/e2e-ledger.jsonl
+          if-no-files-found: error

@@ -115,3 +115,16 @@ actionlint                           # 需本地安装（见 docs/adr 或 /tmp/t
 
 本机无 docker，无法用 `act` 跑 GitHub Actions；workflow 的正确性由 `actionlint` + 手工重放各 step 命令
 保证，首次 CI 运行以 GitHub 上的实际结果为准。
+
+## 证据包 manifest（H5-R19，11-12 硬门禁）
+
+- `infra/evidence/manifest.json` 是唯一索引：每条 `path/sha256/bytes/authority/phase/case_ids/recompute`。
+- `node infra/ci/check-evidence-manifest.mjs`：文件存在 + size>0 + sha256 **由脚本独立复算** + 目录覆盖 100%；`--tarball <pkg>` 时校验 tar 内文件集合与 manifest 一一对应。
+- 不扫描 artifact 内容里的十六进制串（H5-R21：会误伤引用其他哈希的 transcript）；自指哈希只允许以 `errata` 记差异，权威值在 manifest。
+- 内容一改必须换新文件名（UTC 时间戳）并保留旧文件；manifest 不内嵌自身哈希。
+
+## ci-gate 状态口径（H2 L79/H5 L74）
+
+- 只允许 `PASS / PARTIAL / FAIL / PENDING-H5`；不允许无条件打印「CI 通过」。
+- 当前 ci-gate：e2e 非 success → 状态固定 `PARTIAL`（明确写「不代表 e2e 已验证」）；台账 `.ci/e2e-ledger.jsonl`（run_id/attempt/sha/event/ref/e2e result）每 run 一行，artifact `e2e-ledger`。
+- S1 转必绿：连续 3 次 success（以台账为准）后，e2e failure 计入红灯；在此之前的任何发布说明只能写 `PARTIAL`。

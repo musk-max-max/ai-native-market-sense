@@ -27,3 +27,6 @@ docs/metrics/
 docs/p0-acceptance.md
 # A5 的 schema/理由枚举参考文档（非 A13 校验域；各自 owner 接入）
 docs/reference/
+
+# 证据 artifact：字节即证据，禁止格式化（改动=换新文件名并更新 manifest）
+infra/evidence/

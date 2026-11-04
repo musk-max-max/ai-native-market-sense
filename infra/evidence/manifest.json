@@ -1,0 +1,63 @@
+{
+  "schema_version": "0.1",
+  "owner": "A13",
+  "generated_by": "a13-sre",
+  "generated_at": "2026-11-04T02:40:00Z",
+  "rule": "artifact 不内嵌自身哈希；哈希只进 manifest；内容改动必须换新文件名（UTC 时间戳），旧 artifact 保留；CI 独立复算每条 sha。",
+  "authority_values": ["authoritative", "historical"],
+  "phase_values": ["pre-fix", "post-fix"],
+  "artifacts": [
+    {
+      "path": "infra/evidence/slow-failure-tcp-sink-20261104T0234Z.md",
+      "sha256": "9038d25a2c56964a5e1c144c6de6fb88eb3f78b34b33559694a1940ed31bb49b",
+      "bytes": 3345,
+      "recompute": "sha256sum infra/evidence/slow-failure-tcp-sink-20261104T0234Z.md",
+      "role": "evidence-artifact-v2",
+      "authority": "authoritative",
+      "phase": "post-fix",
+      "case_ids": ["L77"],
+      "notes": "#4 TCP sink 复跑：#1/#2/#4 PASS，#3 熔断后 P95 1011ms FAIL；healthz reason 缺失 UNVERIFIED（待 A3）。"
+    },
+    {
+      "path": "infra/evidence/slow-failure-tcp-sink-transcript-20261104T0234Z.txt",
+      "sha256": "568c35a589a876f0373a4faddd37975b071899aa86b2f7b485115812685bbdc2",
+      "bytes": 2542,
+      "recompute": "sha256sum infra/evidence/slow-failure-tcp-sink-transcript-20261104T0234Z.txt",
+      "role": "transcript",
+      "authority": "authoritative",
+      "phase": "post-fix",
+      "case_ids": ["L77"],
+      "notes": "原始 transcript（未编辑）；#4 四证复算源。"
+    },
+    {
+      "path": "infra/evidence/slow-failure-timeouts-20261104.txt",
+      "sha256": "55c7c3f5fd2c7083ab0e75c55c88b9293f0678b51761954b4b68e6333930c243",
+      "bytes": 4632,
+      "recompute": "sha256sum infra/evidence/slow-failure-timeouts-20261104.txt",
+      "role": "evidence-artifact-v1",
+      "authority": "historical",
+      "phase": "pre-fix",
+      "case_ids": ["L74", "L77"],
+      "notes": "DROP 不可构造的失败记录；静态发现 Pool/DB 无超时、probeStartup 挂死；不计入 #4 PASS。"
+    },
+    {
+      "path": "infra/evidence/tools/tcp-blackhole-proxy.py",
+      "sha256": "6a1a92aa9cb50de90bf3b174970587083c167fcf296c9e6752c72f53d4d2fec3",
+      "bytes": 2145,
+      "recompute": "sha256sum infra/evidence/tools/tcp-blackhole-proxy.py",
+      "role": "injection-tool",
+      "authority": "authoritative",
+      "phase": "post-fix",
+      "case_ids": ["L77"],
+      "notes": "无 root TCP sink：drop=接受缓冲不转发；pass=splice 转发；模式文件热切换。"
+    }
+  ],
+  "related_manifests": [
+    {
+      "path": "services/market/evidence/MANIFEST.json",
+      "sha256": "ced607bf92e59d78c0ae4f8671ea437a02f84831dd4dd1edb8a7b83f6037a803",
+      "owner": "a3-backend-market",
+      "notes": "A3 的 hold-unreachable 证据包；其 v3 申报 730cddf5 与实算 f80562ca 差异已由其 MANIFEST errata 解释（自指哈希），权威值 f80562ca；本包不重复覆盖 services/ 域 artifact，整包时并入。"
+    }
+  ]
+}
