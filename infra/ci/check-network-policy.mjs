@@ -89,6 +89,33 @@ if (!helmAvailable) {
         /allow-monitoring/.test(rendered) &&
         /port: 53/.test(rendered),
     );
+    // H5 m02701 口径：/metrics 未实现前，monitoring 放行只允许来自 monitoring 命名空间、
+    // 且不得对全网/所有命名空间开整端口；补 /metrics 时必须独立端口或 A11 命名空间断言。
+    const npDocs = rendered.split(/^---$/m).filter((d) => /kind:\s*NetworkPolicy\b/.test(d));
+    const monitoringDoc =
+      npDocs.find((d) => /name:\s*market-sense-[a-z]+-allow-monitoring/.test(d)) || '';
+    check(
+      `${profile} allow-monitoring 限定 monitoring 命名空间（不得 namespaceSelector: {}）`,
+      monitoringDoc.length > 0 &&
+        !/namespaceSelector:\s*\{\s*\}/.test(monitoringDoc) &&
+        /namespaceSelector:\s*\n\s+matchLabels:/.test(monitoringDoc) &&
+        /kubernetes\.io\/metadata\.name:/.test(monitoringDoc),
+    );
+    check(
+      `${profile} allow-monitoring 只放行 http 端口（8080），不额外开 metrics 端口`,
+      monitoringDoc.length > 0 &&
+        /port:\s*http/.test(monitoringDoc) &&
+        !/port:\s*metrics/.test(monitoringDoc),
+    );
+    // 公网 ingress 不得出现 metrics/healthz 相关 rewrite 或注解偷放
+    check(
+      `${profile} Ingress 注解不含 metrics/healthz 路径放行`,
+      !/nginx\.ingress\.kubernetes\.io\/.*(metrics|healthz)/i.test(ingressDoc),
+    );
+    check(
+      `${profile} Service 未把 /metrics 暴露为独立公网端口（当前未实现）`,
+      !/name:\s*metrics\b/.test(rendered) || process.env.METRICS_ISOLATION_APPROVED === '1',
+    );
     void ingressPaths;
   }
 }

@@ -39,3 +39,9 @@
 ## 当前阻塞
 
 `PUBLIC_BASE_URL`（staging 域名 + 可达性）未提供 → 外部 404 与 Pod 200 无法实测；在 `docs/release` 与释放说明中必须写 `UNVERIFIED`，不得计入 PASS。
+
+## 当前状态（2026-11-04T06:15Z，A13）
+
+- **静态守卫：已过**（证据 `infra/evidence/exposure-static-guard-20261104T0615Z.txt`，入 evidence-manifest）：`helm template` 渲染后 Ingress 路径只有 `/v1`；`/`、`/healthz`、`/metrics`、`/docs`、`/openapi.json`、`/readyz`、`/internal` 均不在 ingress；NetworkPolicy 5 条（default-deny ingress/egress、allow ingress-controller、allow monitoring 限定命名空间且只 http 端口、DNS）；Service 未暴露 metrics 端口。
+- **集群外 `/healthz`、`/metrics` 实测：UNVERIFIED**。阻塞：缺真实 ingress host / `PUBLIC_BASE_URL` 与公网可达（安全组/入口）——需 Lead/用户确认开入口或提供 staging 集群；不在 A13 代码侧。拿到入口后 30–60 分钟内出「外部 404（含响应头/时间戳/执行人）+ Pod 内 200」两条证据。
+- **`/metrics` 口径**：当前未实现。实现时必须二选一：①独立端口（不复用 8080）；②A11 断言仅 monitoring 命名空间可达 8080。在此之前，`allow-monitoring` 的 8080 放行是命名空间受限的临时口径，不得视为永久豁免；`check-network-policy.mjs` 会在出现 metrics 端口/路径时要求 `METRICS_ISOLATION_APPROVED=1` 并应走上述二选一评审。
