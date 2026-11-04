@@ -168,6 +168,14 @@ export function assertNoE2EBackdoorInProduction(env: NodeJS.ProcessEnv): void {
       `E2E 模式在生产不可用（L44/L46）：APP_PROFILE=${JSON.stringify(rawProfile)}（缺省=prod）下禁止 ${offenders.join('、')}`,
     );
   }
+  // L73/H5 m02052：hold 检查不允许被配置关闭——prod 设 0 是"放行 flag"换了字段名，
+  // 必须启动失败（要么永远开，要么这个开关不该存在）。
+  if (env.ENTITLEMENT_HOLD_CHECK?.trim() === '0') {
+    throw new MarketConfigError(
+      `生产禁止关闭 hold 检查（L73）：APP_PROFILE=${JSON.stringify(rawProfile)}（缺省=prod）下 ` +
+        'ENTITLEMENT_HOLD_CHECK=0 会被视为放行 flag，服务拒绝启动。',
+    );
+  }
 }
 
 export function isProductionProfile(env: NodeJS.ProcessEnv): boolean {

@@ -635,6 +635,44 @@ describe('market 插件：fail-open 默认值（H5 P0 卡点）', () => {
     assert.doesNotThrow(() => loadMarketConfig({ APP_PROFILE: 'e2e', E2E_MODE: '1' } as NodeJS.ProcessEnv));
   });
 
+  it('L73：生产禁止关闭 hold 检查——ENTITLEMENT_HOLD_CHECK=0 在 prod 拒启，仅显式 dev/test/e2e 放行', () => {
+    assert.throws(
+      () =>
+        loadMarketConfig({
+          ENTITLEMENT_HOLD_CHECK: '0',
+          DEPLOYMENT_UID: 'deploy-test-1',
+        } as NodeJS.ProcessEnv),
+      (error: unknown) => error instanceof MarketConfigError && /ENTITLEMENT_HOLD_CHECK=0/.test(error.message),
+    );
+    for (const profile of ['prod', 'prodd', '']) {
+      assert.throws(
+        () =>
+          loadMarketConfig({
+            APP_PROFILE: profile,
+            ENTITLEMENT_HOLD_CHECK: '0',
+            DEPLOYMENT_UID: 'deploy-test-1',
+          } as NodeJS.ProcessEnv),
+        (error: unknown) => error instanceof MarketConfigError && /ENTITLEMENT_HOLD_CHECK=0/.test(error.message),
+        `APP_PROFILE=${JSON.stringify(profile)} 必须拒启`,
+      );
+    }
+    assert.doesNotThrow(() =>
+      loadMarketConfig({
+        APP_PROFILE: 'e2e',
+        E2E_MODE: '1',
+        ENTITLEMENT_HOLD_CHECK: '0',
+        DEPLOYMENT_UID: 'deploy-test-1',
+      } as NodeJS.ProcessEnv),
+    );
+    assert.doesNotThrow(() =>
+      loadMarketConfig({
+        APP_PROFILE: 'test',
+        ENTITLEMENT_HOLD_CHECK: '0',
+        DEPLOYMENT_UID: 'deploy-test-1',
+      } as NodeJS.ProcessEnv),
+    );
+  });
+
   it('到期启动写恰好 1 条 entitlement_expired，event_key 逐字 UTC 毫秒且重启幂等（L20/L59）', async () => {
     const records: EntitlementEventRecord[] = [];
     const repo: EntitlementEventRepo = {
