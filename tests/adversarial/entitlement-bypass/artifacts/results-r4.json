@@ -1,0 +1,64 @@
+{
+  "meta": {
+    "startedAt": "2026-11-04T01:05:58.018Z",
+    "node": "v23.11.0",
+    "platform": "darwin",
+    "dbUrl": "postgresql://ms@localhost:55432/market_sense_a19",
+    "webDist": "/Users/leiyu/Documents/deepseek-harness/default-workspace/web/h5/dist",
+    "ports": {
+      "restrictedApi": 18182,
+      "expiringApi": 18183,
+      "limitedApi": 18184,
+      "trustProxyApi": 18185,
+      "trustProxyCidrApi": 18186,
+      "backdoorApi": 18187,
+      "restrictedWeb": 3200,
+      "expiringWeb": 3201
+    },
+    "expiryLeadMs": 120000,
+    "rawHttpLog": "tests/adversarial/entitlement-bypass/artifacts/http-attempts.jsonl",
+    "distMtime": "2026-11-04T01:00:21.048Z",
+    "mode": "only:R4",
+    "finishedAt": "2026-11-04T01:05:58.803Z"
+  },
+  "summary": {
+    "total": 1,
+    "pass": 0,
+    "fail": 1,
+    "info": 0,
+    "verdict": "BYPASS_FOUND",
+    "failures": [
+      {
+        "id": "R4",
+        "title": "TRUST_PROXY 覆盖直连网段时：伪造 X-Forwarded-For 可换限流桶（条件性）",
+        "severity": "P2",
+        "observed": {
+          "beforeSpoof": 429,
+          "afterSpoof": 403,
+          "afterSpoofCode": "ENTITLEMENT_RESTRICTED"
+        }
+      }
+    ]
+  },
+  "checks": [
+    {
+      "id": "R4",
+      "title": "TRUST_PROXY 覆盖直连网段时：伪造 X-Forwarded-For 可换限流桶（条件性）",
+      "clause": [
+        "decisions.md L28"
+      ],
+      "attempt": "实例 TRUST_PROXY=127.0.0.0/8；耗尽桶后带 X-Forwarded-For: 8.8.8.8",
+      "expectation": "条件性 LEAK 记录：若 429→403 则证明按 XFF 换桶；仅当客户端可直连 pod 且网段被信任时成立",
+      "observed": {
+        "beforeSpoof": 429,
+        "afterSpoof": 403,
+        "afterSpoofCode": "ENTITLEMENT_RESTRICTED"
+      },
+      "status": "FAIL",
+      "severity": "P2",
+      "evidence": {
+        "note": "部署必须保证只有 ingress 能连 pod，且 TRUST_PROXY 只列 ingress 网段"
+      }
+    }
+  ]
+}

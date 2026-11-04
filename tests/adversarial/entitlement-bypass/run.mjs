@@ -20,7 +20,7 @@ import {
   http, addCheck, summarize, chromium, isoNow, rel,
 } from './lib.mjs';
 import { runStaticAudit } from './cases/static.mjs';
-import { runRestrictedApiMatrix, runValidPhaseApi, runExpiredApiMatrix, runRateLimitAttack, runBackdoorGuardChecks, initRawLog } from './cases/api.mjs';
+import { runRestrictedApiMatrix, runValidPhaseApi, runExpiredApiMatrix, runRateLimitAttack, runTrustProxyCidrCheck, runBackdoorGuardChecks, initRawLog } from './cases/api.mjs';
 import { runRestrictedClient, startTransition } from './cases/client.mjs';
 
 const requireMarket = createRequire(path.join(WORKSPACE, 'services', 'market', 'package.json'));
@@ -44,9 +44,9 @@ const cfg = {
   webBases: {},
 };
 
-async function preflight() {
+async function preflight({ onlyR4 = false } = {}) {
   const problems = [];
-  if (!fs.existsSync(path.join(cfg.webDist, 'index.html'))) {
+  if (!onlyR4 && !fs.existsSync(path.join(cfg.webDist, 'index.html'))) {
     problems.push(`web dist 不存在：${rel(cfg.webDist)}/index.html（先 cd web/h5 && pnpm build）`);
   }
   let pg;
@@ -69,7 +69,8 @@ async function preflight() {
       await pool.end().catch(() => {});
     }
   }
-  for (const [name, port] of Object.entries(cfg.ports)) {
+  const portEntries = onlyR4 ? [['trustProxyCidrApi', cfg.ports.trustProxyCidrApi]] : Object.entries(cfg.ports);
+  for (const [name, port] of portEntries) {
     if (await portInUse(port)) problems.push(`端口被占用：${name}=${port}`);
   }
   if (problems.length > 0) throw new Error(`preflight 失败：\n- ${problems.join('\n- ')}`);
@@ -124,9 +125,37 @@ async function main() {
     distMtime: fs.existsSync(path.join(cfg.webDist, 'index.html')) ? fs.statSync(path.join(cfg.webDist, 'index.html')).mtime.toISOString() : null,
   };
 
+  // 单条复跑（lead 裁定后：修完只用同一 case 复跑 R4，不用全量）
+  const onlyArg = process.argv.find((a) => a.startsWith('--only='));
+  const only = onlyArg ? onlyArg.slice('--only='.length).split(',').map((x) => x.trim().toUpperCase()).filter(Boolean) : null;
+  if (only && !(only.length === 1 && only[0] === 'R4')) {
+    console.error(`仅支持 --only=R4，收到：${only.join(',')}`);
+    process.exit(2);
+  }
+  if (only) meta.mode = `only:${only.join(',')}`;
+
   let browser;
   try {
-    await preflight();
+    await preflight({ onlyR4: Boolean(only) });
+    if (only) {
+      // R4 单条：只需 DB + TRUST_PROXY CIDR 实例（18186），不起 web/其他 API，不覆盖全量 results.json。
+      console.log(`隔离目标：DB=${cfg.dbUrl}  API=${cfg.ports.trustProxyCidrApi}（R4 单条复跑）`);
+      await runTrustProxyCidrCheck({ results, cfg, spawnLogDir: logDir, tag: 'R4' });
+      const summary = summarize(results);
+      meta.finishedAt = isoNow();
+      const outFile = path.join(ARTIFACTS_DIR, 'results-r4.json');
+      fs.writeFileSync(outFile, JSON.stringify({ meta, summary, checks: results }, null, 2));
+      console.log('\n=== R4 复跑摘要 ===');
+      console.log(JSON.stringify(summary, null, 2));
+      console.log(`\n证据：${rel(outFile)}；原始 HTTP：${rel(rawLog)}；实例日志：${rel(path.join(logDir, 'api-trustproxy-cidr.log'))}`);
+      if (summary.fail > 0) {
+        console.log('\nR4 仍为 FAIL：换桶仍成立（见上表 / results-r4.json）。');
+        process.exitCode = 1;
+      } else {
+        console.log('\nR4 复跑通过（PASS=配置守卫拒绝启动或不换桶）。');
+      }
+      return;
+    }
     console.log(`隔离目标：DB=${cfg.dbUrl}  API=${cfg.ports.restrictedApi}/${cfg.ports.expiringApi}  Web=${cfg.ports.restrictedWeb}/${cfg.ports.expiringWeb}`);
     cfg.apiBases = {
       restricted: `http://127.0.0.1:${cfg.ports.restrictedApi}`,

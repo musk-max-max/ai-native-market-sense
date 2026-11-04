@@ -189,7 +189,7 @@ if (grants) {
     ),
   );
   check(
-    "grants: market_app 对 events 为列级 INSERT（排除 event_id/prev_hash/hash/recorded_at）",
+    'grants: market_app 对 events 为列级 INSERT（排除 event_id/prev_hash/hash/recorded_at）',
     /column_name NOT IN \('event_id', 'prev_hash', 'hash', 'recorded_at'\)/i.test(grants) &&
       /GRANT INSERT \(%s\) ON TABLE audit\.entitlement_events TO market_app/i.test(grants),
   );
@@ -510,7 +510,9 @@ if (auditMigration) {
 
 // ---- 002_audit_gap（A5 m…，H4 的 gap 判定依赖）--------------------------------
 const auditGapPath = 'services/compliance/migrations/002_audit_gap.sql';
-const auditGap = existsSync(resolve(ROOT, auditGapPath)) ? readFileSync(resolve(ROOT, auditGapPath), 'utf8') : '';
+const auditGap = existsSync(resolve(ROOT, auditGapPath))
+  ? readFileSync(resolve(ROOT, auditGapPath), 'utf8')
+  : '';
 check('audit_gap: 002 迁移存在', auditGap.length > 0);
 if (auditGap) {
   check(
@@ -521,8 +523,14 @@ if (auditGap) {
     'audit_gap: 第 10 类事件 audit_gap 已加入 CHECK',
     /audit_gap/.test(auditGap) && /event_type/i.test(auditGap),
   );
-  check('audit_gap: schema_version 放宽为 1/2 共存', /schema_version/i.test(auditGap) && /1.*2|2.*1/s.test(auditGap));
-  check('audit_gap: 不修改 001（canonical hash 不变）', !/UPDATE audit\.entitlement_events SET hash/i.test(auditGap));
+  check(
+    'audit_gap: schema_version 放宽为 1/2 共存',
+    /schema_version/i.test(auditGap) && /1.*2|2.*1/s.test(auditGap),
+  );
+  check(
+    'audit_gap: 不修改 001（canonical hash 不变）',
+    !/UPDATE audit\.entitlement_events SET hash/i.test(auditGap),
+  );
 }
 
 // ---- 输出 ---// ---- 输出 -------------------------------------------------------------------

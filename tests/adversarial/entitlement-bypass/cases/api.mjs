@@ -625,63 +625,94 @@ export async function runRateLimitAttack({ results, cfg, spawnLogDir }) {
   }
 
   // R4 条件性 LEAK：TRUST_PROXY 配成可信直连网段时，伪造 XFF 可换桶（部署前提）
-  {
-    const logFile = path.join(spawnLogDir, 'api-trustproxy-cidr.log');
-    const handle = spawnService({
-      name: 'api-trustproxy-cidr',
-      command: 'node',
-      args: ['--import', 'tsx', 'src/server.ts'],
-      cwd: path.join(cfg.workspace, 'services', 'api'),
-      env: {
-        PORT: String(cfg.ports.trustProxyCidrApi),
-        ENTITLEMENT_TIER: 'internal_eval',
-        E2E_MODE: '1',
-        APP_PROFILE: 'test',
-        NODE_ENV: 'test',
-        LOG_LEVEL: 'warn',
-        DATABASE_URL: cfg.dbUrl,
-        TRUST_PROXY: '127.0.0.0/8',
-      },
-      logFile,
-    });
-    try {
-      const cidrBase = `http://127.0.0.1:${cfg.ports.trustProxyCidrApi}`;
-      await waitFor('trustProxyCidr 健康', async () => (await fetch(`${cidrBase}/healthz`)).ok, { timeoutMs: 30_000 });
-      // 先耗尽默认桶（同 127.0.0.1 socket IP）
-      for (let i = 0; i < 12; i += 1) await http(`${cidrBase}/v1/instruments/SSE:600519/quote`);
-      const beforeSpoof = await http(`${cidrBase}/v1/instruments/SSE:600519/quote`);
-      const afterSpoof = await http(`${cidrBase}/v1/instruments/SSE:600519/quote`, { headers: { 'X-Forwarded-For': '8.8.8.8' } });
-      logRaw('R4 cidr before', beforeSpoof);
-      logRaw('R4 cidr after XFF', afterSpoof);
-      const switched = beforeSpoof.status === 429 && afterSpoof.status === 403;
-      addCheck(results, {
-        id: 'R4',
-        title: 'TRUST_PROXY 覆盖直连网段时：伪造 X-Forwarded-For 可换限流桶（条件性）',
-        clause: ['decisions.md L28'],
-        attempt: '实例 TRUST_PROXY=127.0.0.0/8；耗尽桶后带 X-Forwarded-For: 8.8.8.8',
-        expectation: '条件性 LEAK 记录：若 429→403 则证明按 XFF 换桶；仅当客户端可直连 pod 且网段被信任时成立',
-        observed: { beforeSpoof: beforeSpoof.status, afterSpoof: afterSpoof.status, afterSpoofCode: afterSpoof.json?.code ?? null },
-        status: switched ? 'FAIL' : 'PASS',
-        severity: switched ? 'P2' : null,
-        evidence: { note: '部署必须保证只有 ingress 能连 pod，且 TRUST_PROXY 只列 ingress 网段' },
-      });
-    } catch (error) {
-      addCheck(results, {
-        id: 'R4',
-        title: 'TRUST_PROXY CIDR 条件性换桶测试',
-        clause: [],
-        attempt: 'TRUST_PROXY=127.0.0.0/8 实例',
-        expectation: '-',
-        observed: { error: String(error.message) },
-        status: 'INFO',
-      });
-    } finally {
-      await handle.cleanup();
-    }
-  }
+  await runTrustProxyCidrCheck({ results, cfg, spawnLogDir, tag: 'R4' });
 
   // 清理桶对后续测试的影响：本 API 为独立实例，无需处理
   await sleep(30);
+}
+
+
+/**
+ * R4 条件性 LEAK 的单条用例（也可由 run.mjs --only=R4 单独复跑）：
+ * TRUST_PROXY 配成覆盖直连客户端 IP 的网段时，耗尽桶后伪造 X-Forwarded-For 能否换桶。
+ * 修复后期望形态有两种，均按 PASS 记录：
+ *   1) 配置层拒绝 loopback/宽网段（进程拒绝启动，日志含 TRUST_PROXY 说明）；
+ *   2) 实例启动但桶耗尽后伪造 XFF 仍 429（不换桶）。
+ */
+export async function runTrustProxyCidrCheck({ results, cfg, spawnLogDir, tag = 'R4' }) {
+  const logFile = path.join(spawnLogDir, 'api-trustproxy-cidr.log');
+  const handle = spawnService({
+    name: 'api-trustproxy-cidr',
+    command: 'node',
+    args: ['--import', 'tsx', 'src/server.ts'],
+    cwd: path.join(cfg.workspace, 'services', 'api'),
+    env: {
+      PORT: String(cfg.ports.trustProxyCidrApi),
+      ENTITLEMENT_TIER: 'internal_eval',
+      E2E_MODE: '1',
+      APP_PROFILE: 'test',
+      NODE_ENV: 'test',
+      LOG_LEVEL: 'warn',
+      DATABASE_URL: cfg.dbUrl,
+      TRUST_PROXY: '127.0.0.0/8',
+    },
+    logFile,
+  });
+  try {
+    const cidrBase = `http://127.0.0.1:${cfg.ports.trustProxyCidrApi}`;
+    const healthy = await waitFor('trustProxyCidr 健康', async () => (await fetch(`${cidrBase}/healthz`)).ok, { timeoutMs: 30_000 })
+      .then(() => true)
+      .catch(() => false);
+    const log = fs.readFileSync(logFile, 'utf8');
+
+    if (!healthy) {
+      // 修复后的配置守卫：loopback CIDR 被拒绝启动
+      const refused = handle.child.exitCode !== null && /TRUST_PROXY/i.test(log);
+      addCheck(results, {
+        id: tag,
+        title: 'TRUST_PROXY 覆盖直连网段时：loopback CIDR 被配置层拒绝启动（XFF 换桶不可达）',
+        clause: ['decisions.md L28'],
+        attempt: 'TRUST_PROXY=127.0.0.0/8 node --import tsx src/server.ts',
+        expectation: '进程拒绝启动且日志点名 TRUST_PROXY（宽/回环网段守卫）；启动成功则继续换桶探测',
+        observed: { refused, exitCode: handle.child.exitCode, log: log.slice(0, 800) },
+        status: refused ? 'PASS' : 'INFO',
+        severity: null,
+        evidence: { log: rel(logFile) },
+      });
+      return;
+    }
+
+    // 先耗尽默认桶（同 127.0.0.1 socket IP）
+    for (let i = 0; i < 12; i += 1) await http(`${cidrBase}/v1/instruments/SSE:600519/quote`);
+    const beforeSpoof = await http(`${cidrBase}/v1/instruments/SSE:600519/quote`);
+    const afterSpoof = await http(`${cidrBase}/v1/instruments/SSE:600519/quote`, { headers: { 'X-Forwarded-For': '8.8.8.8' } });
+    logRaw('R4 cidr before', beforeSpoof);
+    logRaw('R4 cidr after XFF', afterSpoof);
+    const switched = beforeSpoof.status === 429 && afterSpoof.status === 403;
+    addCheck(results, {
+      id: tag,
+      title: 'TRUST_PROXY 覆盖直连网段时：伪造 X-Forwarded-For 可换限流桶（条件性）',
+      clause: ['decisions.md L28'],
+      attempt: '实例 TRUST_PROXY=127.0.0.0/8；耗尽桶后带 X-Forwarded-For: 8.8.8.8',
+      expectation: '条件性 LEAK 记录：若 429→403 则证明按 XFF 换桶；仅当客户端可直连 pod 且网段被信任时成立',
+      observed: { beforeSpoof: beforeSpoof.status, afterSpoof: afterSpoof.status, afterSpoofCode: afterSpoof.json?.code ?? null },
+      status: switched ? 'FAIL' : 'PASS',
+      severity: switched ? 'P2' : null,
+      evidence: { note: '部署必须保证只有 ingress 能连 pod，且 TRUST_PROXY 只列 ingress 网段' },
+    });
+  } catch (error) {
+    addCheck(results, {
+      id: tag,
+      title: 'TRUST_PROXY CIDR 条件性换桶测试',
+      clause: [],
+      attempt: 'TRUST_PROXY=127.0.0.0/8 实例',
+      expectation: '-',
+      observed: { error: String(error.message) },
+      status: 'INFO',
+    });
+  } finally {
+    await handle.cleanup();
+  }
 }
 
 /**

@@ -139,14 +139,23 @@ check(
     /not \.Values\.config\.DEPLOYMENT_UID/.test(configmap) &&
     /\{\{-? ?fail /s.test(configmap),
 );
-check('deploy.sh 缺 DEPLOYMENT_UID 时拒绝执行', /缺少 DEPLOYMENT_UID/.test(deploySh) && /exit 6/.test(deploySh));
-check('deploy.sh 通过 --set 注入 DEPLOYMENT_UID', /--set "config\.DEPLOYMENT_UID=\$\{DEPLOYMENT_UID\}"/.test(deploySh));
+check(
+  'deploy.sh 缺 DEPLOYMENT_UID 时拒绝执行',
+  /缺少 DEPLOYMENT_UID/.test(deploySh) && /exit 6/.test(deploySh),
+);
+check(
+  'deploy.sh 通过 --set 注入 DEPLOYMENT_UID',
+  /--set "config\.DEPLOYMENT_UID=\$\{DEPLOYMENT_UID\}"/.test(deploySh),
+);
 check(
   'preview-up.sh 生成并注入 DEPLOYMENT_UID',
   /DEPLOYMENT_UID="\$\{DEPLOYMENT_UID:-preview-pr-/.test(previewUpSh) &&
     /--set "config\.DEPLOYMENT_UID=\$\{DEPLOYMENT_UID\}"/.test(previewUpSh),
 );
-check('deploy-dev 流水线注入 DEPLOYMENT_UID（非手填）', /DEPLOYMENT_UID:\s*dev-\$\{\{ github\.sha \}\}/.test(deployDevWf));
+check(
+  'deploy-dev 流水线注入 DEPLOYMENT_UID（非手填）',
+  /DEPLOYMENT_UID:\s*dev-\$\{\{ github\.sha \}\}/.test(deployDevWf),
+);
 
 // 6. Helm 渲染验证
 function helm(args) {
@@ -182,13 +191,19 @@ try {
     let prodWithUid = '';
     try {
       prodWithUid = helm([
-        'template', 'ent-prod', chart,
-        '--set', 'config.DEPLOYMENT_UID=prod-test-run-1',
+        'template',
+        'ent-prod',
+        chart,
+        '--set',
+        'config.DEPLOYMENT_UID=prod-test-run-1',
       ]);
     } catch {
       prodWithUid = '';
     }
-    check('helm 渲染 prod + 注入 DEPLOYMENT_UID 成功', /DEPLOYMENT_UID:\s*"?prod-test-run-1"?/.test(prodWithUid));
+    check(
+      'helm 渲染 prod + 注入 DEPLOYMENT_UID 成功',
+      /DEPLOYMENT_UID:\s*"?prod-test-run-1"?/.test(prodWithUid),
+    );
     check(
       'helm 渲染结果显式出现 APP_PROFILE=prod（缺失即失败，不允许继承 entrypoint）',
       /APP_PROFILE:\s*"?prod"?/.test(rendered),

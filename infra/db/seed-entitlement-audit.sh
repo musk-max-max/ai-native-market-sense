@@ -18,9 +18,11 @@ SEED_ENVIRONMENT="${SEED_ENVIRONMENT:-dev}"
 # 值来自发布参数/审批记录，不许手填/推测——seed 只允许两个合法 tier，且与 tier_switch 的 new_value 一致。
 SEED_TARGET_TIER="${SEED_TARGET_TIER:-c_end_display}"
 case "$SEED_TARGET_TIER" in
-  internal_eval|c_end_display) ;;
-  *) echo "✗ SEED_TARGET_TIER 非法：$SEED_TARGET_TIER（只允许 internal_eval|c_end_display）" >&2; exit 2 ;;
+  internal_eval|c_end_display|research_only|platform_user_data) ;;
+  *) echo "✗ SEED_TARGET_TIER 非法：$SEED_TARGET_TIER（DataTier 四值：internal_eval|c_end_display|research_only|platform_user_data）" >&2; exit 2 ;;
 esac
+# 002 引入 schema_version=2 的新写法（历史行保留 1）；seed 全部按 2 写。
+SEED_SCHEMA_VERSION=2
 DRY_RUN=0
 RESTORE_FRESH=0
 case "${1:-}" in

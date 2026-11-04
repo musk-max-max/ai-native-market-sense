@@ -20,9 +20,12 @@ tests/adversarial/entitlement-bypass/provision-db.sh
 
 # 2) 全量攻击（自动起停隔离栈；含 120 秒的到期转换窗口，约 2.5–3 分钟）
 node tests/adversarial/entitlement-bypass/run.mjs
+
+# 3) 只复跑 R4 一条（修完 trustProxy 后使用；约 20–40 秒，只需 DB + 18186）
+node tests/adversarial/entitlement-bypass/run.mjs --only=R4
 ```
 
-退出码：`0` = 全部 BLOCKED；`1` = 存在 FAIL（BYPASS/LEAK）；`2` = harness/preflight 失败（环境问题，不是产品结论）。
+退出码：`0` = 全部 BLOCKED（`--only=R4` 时 = 配置层拒绝 loopback CIDR 或伪造 XFF 不换桶）；`1` = 存在 FAIL（BYPASS/LEAK）；`2` = harness/preflight 失败（环境问题，不是产品结论）。`--only=R4` 的单条结果写 `artifacts/results-r4.json`，不覆盖全量 `artifacts/results.json`；若修复方式改为"拒绝启动"，日志 `artifacts/logs/api-trustproxy-cidr.log` 会带 `TRUST_PROXY` 拒绝原文，同样按 PASS 记录。
 
 隔离边界：只监听 `127.0.0.1:18182-18187`/`3200`/`3201`，只连 `market_sense_a19`；不碰 lead 的 8081/3000、生产、真实用户数据。端口被占时 preflight 直接失败，不会复用别人的进程。
 
