@@ -64,3 +64,12 @@ COMMIT=<sha> sh infra/evidence/tools/capture-exposure.sh --mode public \
 ```
 
 退出码：0 全部断言通过 / 2 用法错误 / 3 公网暴露 / 4 内网不可达 / 5 其他断言失败。证据文件不覆盖旧文件（H4 m02216：内容变则换新文件名）。
+
+## 8. 随 ④ 签字记录的 residual（H5 m03398，不阻断但要跟踪）
+
+1. **安全组是控制面**：ECS 侧证据只证「某一外部观察点、某一时刻不可达」。需用户从云控制台导出一份 SG 规则截图/JSON 补进 manifest，或明确「由用户负责、H5 不验」；A13 无云 API 凭证，不能自证。
+2. **发布时重跑公网探针**：`vars.PUBLIC_HOST` 的 public 模式必须在每次发布时执行一次，时间戳写入 release 记录；`infra/evidence/exposure-public-20261104T234826Z.txt` 只是 2026-11-04 的快照，不是永久结论。
+3. **NetworkPolicy 真集群验证 = 历史项**：当前无集群/无公网入口，降为历史；**一旦重新引入公网入口（LB/ingress/端口发布），立即重开**该项并按旧四件套（外部 404 + Pod 200 + 静态 + NP 三命名空间实测）验收。
+4. **容器 restart 策略**：`restart=no` 只允许 e2e/一次性临时栈；**任何生产部署（compose 或 k8s）必须 `unless-stopped`/`always` 或 k8s 自愈**，否则进程崩溃不自愈，availability SLO（交易时段 99.9%）直接破。发布前由 A13 检查 `docker inspect`/Helm values，e2e 栈除外。
+
+> 记录口径：**「④ PASS（L91 内网口径）」**，不写「④ 全清」。

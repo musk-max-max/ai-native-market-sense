@@ -202,6 +202,7 @@ jobs:
           path: |
             commit-sha.txt
             evidence-dist/*.tar.gz
+            public-exposure.txt
             .e2e-status.json
             tests/e2e/.e2e-status.json
             tests/e2e/stack.log
@@ -221,6 +222,8 @@ jobs:
           cat public-exposure.txt
           {
             echo "## 公网不可达 Probe（L91）"
+            echo "- probe_timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "- PUBLIC_HOST: ${PUBLIC_HOST}  PUBLIC_PORTS: ${PUBLIC_PORTS}"
             sed 's/^/    /' public-exposure.txt
           } >> "$GITHUB_STEP_SUMMARY"
           if [ "$rc" -ne 0 ]; then
