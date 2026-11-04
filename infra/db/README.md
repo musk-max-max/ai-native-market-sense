@@ -73,5 +73,6 @@ infra/scripts/db-migrate.sh --env production --dsn "$PROD_DSN" --dry-run
 - 真库验证：`bootstrap.sh --verify` + `infra/scripts/db-migrate.sh`（迁移后强制重跑 20_grants/90_verify）。2026-11-04 已在 PG16@55432 scratch 库验证：越权=0、append-only 生效、列级 INSERT 生效、reconciler 重复 raise_hold 不新增事件。
 - 审计 canonical DDL 是 `services/compliance/migrations/001_audit_entitlement_events.sql`（A5 写、A5/H3 review）；**禁止在 infra 复制**，详见 `infra/db/migrations/README.md`。
 - `audit_reader` 是 NOLOGIN 角色：H3/A16/A14 的**具名身份**经受控 membership 后 `SET ROLE`，不建共享登录账号、不设密码；谁在何时读审计走身份审计，不做人人可用的公共角色。
+- seed 事件只允许进**一次性验收库**（`a13_verify`/`a5_l49_final`/…`_e2e`/…`_test`）；脚本对其它库名 `exit 4` 拒绝，确需覆盖必须 `SEED_ALLOW_NON_SCRATCH=1` 且 H4/Lead 批准。保留事件的 `trace_id` 一律 `seed:` 前缀，避免 H3 把假事件当成真实复核签字。
 - release 栈 seed 的 `last_reconciled_at=now()-16min` **只服务 A11 #4 的 stale 用例**；用例结束必须 `infra/db/seed-entitlement-audit.sh --restore-fresh`（release-gate 已用 always 步骤兜底），否则默认环境会一直 fail-closed。
 - 生产迁移需 A13 在流水线执行、H5 批准；S0 生产发布尚未启用（`deploy.sh` production 分支直接拒绝）。

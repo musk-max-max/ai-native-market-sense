@@ -5,7 +5,7 @@
 // 公网只暴露 /v1。NetworkPolicy 五条：默认拒绝 ingress、只放行 ingress-controller、
 // 默认拒绝 egress、放行 DNS、放行监控（以及显式声明的 DB/Redis/外部队列）。
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
