@@ -54,6 +54,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--archive", required=True, help="包文件名（tar 内不含 manifest 自己）")
     parser.add_argument("--meta", required=True, type=Path, help="逐文件 authority/phase/case_ids 登记表")
     parser.add_argument("--out", required=True, type=Path)
+    parser.add_argument("--packed-from-commit", default=None,
+                        help="打包所依据的 git commit（H5/H4：证据包必须可追溯到单一 commit）")
     parser.add_argument("--created-at", default=None)
     args = parser.parse_args(argv)
 
@@ -111,6 +113,7 @@ def main(argv: list[str] | None = None) -> int:
 
     manifest = {
         "schema_version": 2,
+        "packed_from_commit": args.packed_from_commit,
         "created_at": args.created_at or datetime.now().astimezone().isoformat(timespec="seconds"),
         "archive": args.archive,
         "archive_sha256": "external:SHA256SUMS（tar 内不能嵌自身哈希；收件时单独复算）",
