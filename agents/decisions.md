@@ -871,3 +871,24 @@ fail-closed 是对的，但**现象具有欺骗性**：部署突然失败，报�
 5. `DEPLOYMENT_UID` 在 prod 缺失即启动失败；reconciler 双向判定（无 observed / 有 observed 无事件，都要补 gap + hold）。
 
 **教训写在这里**：**能被解析的东西才配当标准，其余都是会议纪要。**
+
+### L66 gap 判定只认两条确定性条件 + commit 台账（2026-11-04）
+
+**A5 提、我采纳**：reconciler 补 `audit_gap` 的触发条件**不扩到"observed 之后没有事件"**，只认两条可确定性判定的：
+
+1. `tier_state_observed` 显示时间盒已过期，但链上**缺 `expired` 事件**；
+2. 有 `deploy` + `approval_ref`，但**缺 `tier_switch`**。
+
+其余"observed 之后没事件"属**"没发生"与"写失败"不可区分的区域**，硬判会把正常静默误报成 gap——**误报一旦多，真断口就被淹掉，信号等于没有。** 宁可漏报少量、保住信号的可信度，也不要把 gap 变成噪声。
+
+**commit 台账（A11 钉版本用，按时间序）**
+
+| commit | 内容 |
+|---|---|
+| `eb10d21` | 首次提交：P0 竖切片基线（485 文件） |
+| `d2192ab` | A13：ingress 收敛 `/v1` + NetworkPolicy 五条 + 仓库卫生/网络边界门禁 + 审计 seed 边界 + 发布链路 commit sha |
+| `912d4fb` | A13：文档与 lint 收口（网络边界/仓库卫生/seed 边界） |
+| `d23d96d` | Lead：L59–L63 降级分类、canonical 词表、audit_gap 迁移与窗口落库 |
+| `ebe169e` | Lead：`docs/reference/entitlement-reasons.json` 单一真源 + L65 词表收口 |
+
+**钉版本口径**：`commit` 是"整棵树"的锚，内容 sha 是"关键文件"的锚，**两者并存**——只有后者时无法回答"当时 `warehouse/load.py` 长什么样"。
