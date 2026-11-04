@@ -1,0 +1,272 @@
+{
+  "config": {
+    "argv": [
+      "/opt/homebrew/Cellar/node/23.11.0/bin/node",
+      "/Users/leiyu/Documents/deepseek-harness/default-workspace/tests/e2e/node_modules/@playwright/test/cli.js",
+      "test",
+      "-g",
+      "E2E-P0-06|E2E-P0-12",
+      "--reporter=json",
+      "--workers=1"
+    ],
+    "configFile": "/Users/leiyu/Documents/deepseek-harness/default-workspace/tests/e2e/playwright.config.js",
+    "rootDir": "/Users/leiyu/Documents/deepseek-harness/default-workspace/tests/e2e/specs",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": "/Users/leiyu/Documents/deepseek-harness/default-workspace/tests/e2e/lib/global-setup.js",
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/Users/leiyu/Documents/deepseek-harness/default-workspace/tests/e2e/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "h5-chromium",
+        "name": "h5-chromium",
+        "testDir": "/Users/leiyu/Documents/deepseek-harness/default-workspace/tests/e2e/specs",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 60000
+      }
+    ],
+    "filteredProjects": [
+      {
+        "grep": {},
+        "grepInvert": null,
+        "outputDir": "/Users/leiyu/Documents/deepseek-harness/default-workspace/tests/e2e/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "name": "h5-chromium",
+        "testDir": "/Users/leiyu/Documents/deepseek-harness/default-workspace/tests/e2e/specs",
+        "snapshotDir": "/Users/leiyu/Documents/deepseek-harness/default-workspace/tests/e2e/specs",
+        "testIgnore": [],
+        "testMatch": "**/*.@(spec|test).?(c|m)[jt]s?(x)",
+        "timeout": 60000,
+        "use": {
+          "baseURL": "http://127.0.0.1:3001",
+          "locale": "zh-CN",
+          "timezoneId": "Asia/Shanghai",
+          "trace": "retain-on-failure",
+          "screenshot": "only-on-failure",
+          "video": "retain-on-failure",
+          "actionTimeout": 15000,
+          "navigationTimeout": 20000,
+          "browserName": "chromium",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "isMobile": true,
+          "hasTouch": true,
+          "deviceScaleFactor": 2,
+          "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+        },
+        "dependencies": [],
+        "ignoreSnapshots": false,
+        "__projectId": "h5-chromium"
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "default",
+    "updateSourceMethod": "patch",
+    "version": "1.64.1",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "p0-stock-page.spec.js",
+      "file": "p0-stock-page.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "E2E-P0-06 [hop:web+api F1 否决线] entitlement=false 时不渲染可判读价格",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [
+                {
+                  "type": "serial",
+                  "location": {
+                    "file": "/Users/leiyu/Documents/deepseek-harness/default-workspace/tests/e2e/specs/p0-stock-page.spec.js",
+                    "line": 0,
+                    "column": 0
+                  }
+                }
+              ],
+              "expectedStatus": "passed",
+              "projectId": "h5-chromium",
+              "projectName": "h5-chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 795,
+                  "error": {
+                    "message": "Error: E2E-P0-06：页面文案必须原样包含 API Problem title\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoContain\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // indexOf\u001b[22m\n\nExpected substring: \u001b[32m\"行情数据暂不可用\"\u001b[39m\nReceived string:    \u001b[31m\"数据暂不可用 当前版本暂不提供该标的行情数据，本页不会展示任何价格数字。 该数据在当前版本中不提供。\"\u001b[39m",
+                    "stack": "Error: E2E-P0-06：页面文案必须原样包含 API Problem title\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoContain\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // indexOf\u001b[22m\n\nExpected substring: \u001b[32m\"行情数据暂不可用\"\u001b[39m\nReceived string:    \u001b[31m\"数据暂不可用 当前版本暂不提供该标的行情数据，本页不会展示任何价格数字。 该数据在当前版本中不提供。\"\u001b[39m\n    at assertEntitlementCopyMatchesProblem (/Users/leiyu/Documents/deepseek-harness/default-workspace/tests/e2e/specs/p0-stock-page.spec.js:119:59)\n    at /Users/leiyu/Documents/deepseek-harness/default-workspace/tests/e2e/specs/p0-stock-page.spec.js:346:5",
+                    "location": {
+                      "file": "/Users/leiyu/Documents/deepseek-harness/default-workspace/tests/e2e/specs/p0-stock-page.spec.js",
+                      "column": 59,
+                      "line": 119
+                    },
+                    "snippet": "  117 |   expect(detail, `${label}：403 Problem 必须有 detail`).not.toBe('');\n  118 |   const notice = (await page.getByTestId(tid('entitlementNotice')).innerText()).replace(/\\s+/g, ' ').trim();\n> 119 |   expect(notice, `${label}：页面文案必须原样包含 API Problem title`).toContain(title);\n      |                                                           ^\n  120 |   expect(notice, `${label}：页面文案必须原样包含 API Problem detail`).toContain(detail);\n  121 |   const leftover = notice.replace(title, '').replace(detail, '').trim();\n  122 |   expect(leftover, `${label}：页面不得在 API copy 之外自造文案（H4 逐字节口径）`).toBe('');"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/Users/leiyu/Documents/deepseek-harness/default-workspace/tests/e2e/specs/p0-stock-page.spec.js",
+                        "column": 59,
+                        "line": 119
+                      },
+                      "message": "Error: E2E-P0-06：页面文案必须原样包含 API Problem title\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoContain\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // indexOf\u001b[22m\n\nExpected substring: \u001b[32m\"行情数据暂不可用\"\u001b[39m\nReceived string:    \u001b[31m\"数据暂不可用 当前版本暂不提供该标的行情数据，本页不会展示任何价格数字。 该数据在当前版本中不提供。\"\u001b[39m\n\n  117 |   expect(detail, `${label}：403 Problem 必须有 detail`).not.toBe('');\n  118 |   const notice = (await page.getByTestId(tid('entitlementNotice')).innerText()).replace(/\\s+/g, ' ').trim();\n> 119 |   expect(notice, `${label}：页面文案必须原样包含 API Problem title`).toContain(title);\n      |                                                           ^\n  120 |   expect(notice, `${label}：页面文案必须原样包含 API Problem detail`).toContain(detail);\n  121 |   const leftover = notice.replace(title, '').replace(detail, '').trim();\n  122 |   expect(leftover, `${label}：页面不得在 API copy 之外自造文案（H4 逐字节口径）`).toBe('');\n    at assertEntitlementCopyMatchesProblem (/Users/leiyu/Documents/deepseek-harness/default-workspace/tests/e2e/specs/p0-stock-page.spec.js:119:59)\n    at /Users/leiyu/Documents/deepseek-harness/default-workspace/tests/e2e/specs/p0-stock-page.spec.js:346:5"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-04T01:22:43.041Z",
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "/Users/leiyu/Documents/deepseek-harness/default-workspace/tests/e2e/specs/p0-stock-page.spec.js",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/Users/leiyu/Documents/deepseek-harness/default-workspace/tests/e2e/test-results/p0-stock-page-E2E-P0-06-ho-27c50-entitlement-false-时不渲染可判读价格-h5-chromium/test-failed-1.png"
+                    },
+                    {
+                      "name": "video",
+                      "contentType": "video/webm",
+                      "path": "/Users/leiyu/Documents/deepseek-harness/default-workspace/tests/e2e/test-results/p0-stock-page-E2E-P0-06-ho-27c50-entitlement-false-时不渲染可判读价格-h5-chromium/video.webm"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/Users/leiyu/Documents/deepseek-harness/default-workspace/tests/e2e/test-results/p0-stock-page-E2E-P0-06-ho-27c50-entitlement-false-时不渲染可判读价格-h5-chromium/error-context.md"
+                    },
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/Users/leiyu/Documents/deepseek-harness/default-workspace/tests/e2e/test-results/p0-stock-page-E2E-P0-06-ho-27c50-entitlement-false-时不渲染可判读价格-h5-chromium/test-failed-2.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/Users/leiyu/Documents/deepseek-harness/default-workspace/tests/e2e/test-results/p0-stock-page-E2E-P0-06-ho-27c50-entitlement-false-时不渲染可判读价格-h5-chromium/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/Users/leiyu/Documents/deepseek-harness/default-workspace/tests/e2e/test-results/p0-stock-page-E2E-P0-06-ho-27c50-entitlement-false-时不渲染可判读价格-h5-chromium/trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/Users/leiyu/Documents/deepseek-harness/default-workspace/tests/e2e/specs/p0-stock-page.spec.js",
+                    "column": 59,
+                    "line": 119
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "26b3aba8db4b10a365f5-8411f9f9beaefecc8523",
+          "file": "p0-stock-page.spec.js",
+          "line": 308,
+          "column": 1
+        },
+        {
+          "title": "E2E-P0-12 [hop:web+api F1 fail-closed] 受限档整页：数字不存在、占位不算、hidden 不算没有",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [
+                {
+                  "type": "serial",
+                  "location": {
+                    "file": "/Users/leiyu/Documents/deepseek-harness/default-workspace/tests/e2e/specs/p0-stock-page.spec.js",
+                    "line": 0,
+                    "column": 0
+                  }
+                }
+              ],
+              "expectedStatus": "passed",
+              "projectId": "h5-chromium",
+              "projectName": "h5-chromium",
+              "results": [
+                {
+                  "workerIndex": -1,
+                  "parallelIndex": -1,
+                  "status": "skipped",
+                  "duration": 0,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-04T01:22:44.400Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "skipped"
+            }
+          ],
+          "id": "26b3aba8db4b10a365f5-c6819802c28a7ea6232f",
+          "file": "p0-stock-page.spec.js",
+          "line": 529,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-11-04T01:22:42.453Z",
+    "duration": 1959.5350000000003,
+    "expected": 0,
+    "skipped": 1,
+    "unexpected": 1,
+    "flaky": 0
+  }
+}

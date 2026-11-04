@@ -17,6 +17,28 @@ export const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const WORKSPACE = path.resolve(HERE, '..', '..', '..');
 export const ARTIFACTS_DIR = path.join(HERE, 'artifacts');
 
+// 原始 HTTP transcript：run-scoped，仅创建新文件（'wx'），永不 truncate；http() 每次调用自动追加一条。
+let rawLogFile = null;
+let httpCount = 0;
+
+/** 绑定当次 run 的 transcript 文件；目标已存在则报错拒绝覆盖。 */
+export function initRawLog(file) {
+  const abs = path.resolve(file);
+  if (fs.existsSync(abs)) {
+    throw new Error(`拒绝覆盖已存在的原始日志：${abs}（请使用 run-scoped 文件名）`);
+  }
+  fs.mkdirSync(path.dirname(abs), { recursive: true });
+  fs.writeFileSync(abs, '', { flag: 'wx' });
+  rawLogFile = abs;
+  httpCount = 0;
+  return abs;
+}
+
+/** 当次 run 已经过 http() 发出的请求数（应等于 transcript 行数）。 */
+export function getHttpCount() {
+  return httpCount;
+}
+
 // Playwright 装在 tests/e2e（A12 owns），从该目录解析，避免在 A19 目录再装一份浏览器依赖。
 const requireE2E = createRequire(path.join(WORKSPACE, 'tests', 'e2e', 'package.json'));
 export const { chromium } = requireE2E('@playwright/test');
@@ -107,8 +129,9 @@ export async function waitHttpOk(url, { timeoutMs = 30_000, label = url } = {}) 
  * 发一个 HTTP 请求并读取完整响应。不抛非 2xx（攻击结果本身就是状态码）。
  * 返回值：{ status, headers（小写 key 的普通对象）, text, json, url }
  */
-export async function http(url, { method = 'GET', headers = {}, body } = {}) {
-  const init = { method, headers, redirect: 'manual' };
+export async function http(url, { method = 'GET', headers = {}, body, note = null } = {}) {
+  const upperMethod = method.toUpperCase();
+  const init = { method: upperMethod, headers, redirect: 'manual' };
   if (body !== undefined) {
     init.body = typeof body === 'string' ? body : JSON.stringify(body);
   }
@@ -124,7 +147,21 @@ export async function http(url, { method = 'GET', headers = {}, body } = {}) {
   res.headers.forEach((value, key) => {
     headerMap[key.toLowerCase()] = value;
   });
-  return { status: res.status, headers: headerMap, text, json, url };
+  const finalUrl = res.url || url;
+  httpCount += 1;
+  if (rawLogFile) {
+    const entry = {
+      seq: httpCount,
+      note,
+      method: upperMethod,
+      url: finalUrl,
+      status: res.status,
+      headers: headerMap,
+      body: text.slice(0, 2000),
+    };
+    fs.appendFileSync(rawLogFile, `${JSON.stringify(entry)}\n`);
+  }
+  return { method: upperMethod, status: res.status, headers: headerMap, text, json, url: finalUrl };
 }
 
 /** 统一的证据条目。status: PASS（攻击被挡住/断言成立）| FAIL（被打穿）| INFO（事实记录，不判定）。 */

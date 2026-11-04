@@ -13,19 +13,6 @@ const FORBIDDEN_KEYS = new Set([
 ]);
 const INTERNAL_REASON_RE = /expired|hold_active|control_stale|control_missing|internal_eval|c_end_display|unauthorized_code|degraded/i;
 
-let rawLogFile = null;
-export function initRawLog(file) {
-  rawLogFile = file;
-  fs.writeFileSync(file, '');
-  return file;
-}
-function logRaw(note, res) {
-  if (!rawLogFile) return;
-  fs.appendFileSync(
-    rawLogFile,
-    `${JSON.stringify({ note, url: res.url, status: res.status, headers: res.headers, body: res.text.slice(0, 2000) })}\n`,
-  );
-}
 
 function collectKeys(value, out = []) {
   if (value && typeof value === 'object') {
@@ -127,7 +114,6 @@ export async function runRestrictedApiMatrix({ results, cfg }) {
     const attempts = [];
     for (const a of headerAttempts(base)) {
       const res = await http(a.url, { headers: { ...HEADERS, ...a.headers } });
-      logRaw(`H1 ${a.name}`, res);
       attempts.push({ name: a.name, res });
     }
     recordBlockedFamily(results, {
@@ -147,7 +133,6 @@ export async function runRestrictedApiMatrix({ results, cfg }) {
     const attempts = [];
     for (const v of variants) {
       const res = await http(`${q('SSE:600519')}?${v}`);
-      logRaw(`H2 query ${v}`, res);
       attempts.push({ name: `?${v}`, res });
     }
     recordBlockedFamily(results, {
@@ -174,7 +159,6 @@ export async function runRestrictedApiMatrix({ results, cfg }) {
     const anomalies = [];
     for (const v of variants) {
       const res = await http(v.url);
-      logRaw(`H3 ${v.name}`, res);
       const body = res.json ?? {};
       const dataLeak = res.status === 200 && collectKeys(body.data ?? {}).some((k) => FORBIDDEN_KEYS.has(k));
       const pass = [403, 404, 400].includes(res.status) && !dataLeak;
@@ -201,7 +185,6 @@ export async function runRestrictedApiMatrix({ results, cfg }) {
     const anomalies = [];
     for (const method of methods) {
       const res = await http(q('SSE:600519'), { method, headers: HEADERS, body: method === 'OPTIONS' ? undefined : '{"tier":"c_end_display"}' });
-      logRaw(`H4 ${method}`, res);
       const dataLeak = res.status === 200 && /\d+\.\d{2,}/.test(res.text);
       const pass = [400, 403, 404, 405].includes(res.status) && !dataLeak;
       observations.push({ attempt: method, status: res.status, code: res.json?.code ?? null, body: res.text.slice(0, 200) });
@@ -226,7 +209,6 @@ export async function runRestrictedApiMatrix({ results, cfg }) {
     for (const id of INSTRUMENTS) {
       for (const suffix of [`/bars?limit=5`, `/fundamental-summary`]) {
         const res = await http(`${base}/v1/instruments/${id}${suffix}`);
-        logRaw(`H5 ${id}${suffix}`, res);
         attempts.push({ name: `${id}${suffix}`, res });
       }
     }
@@ -244,7 +226,6 @@ export async function runRestrictedApiMatrix({ results, cfg }) {
     const anomalies = [];
     for (const id of INSTRUMENTS) {
       const res = await http(`${base}/v1/instruments/${id}`);
-      logRaw(`H6 ${id}`, res);
       const dataKeys = res.json?.data ? Object.keys(res.json.data).sort() : [];
       const forbidden = collectKeys(res.json ?? {}).filter((k) => FORBIDDEN_KEYS.has(k));
       const meta = res.json?.meta ?? {};
@@ -286,11 +267,6 @@ export async function runRestrictedApiMatrix({ results, cfg }) {
       method: 'DELETE',
       headers: { Authorization: 'Bearer dev-token' },
     });
-    logRaw('H7 watchlist no token', getNoToken);
-    logRaw('H7 watchlist bogus', getBogus);
-    logRaw('H7 watchlist dev GET', getDev);
-    logRaw('H7 watchlist dev POST', postDev);
-    logRaw('H7 watchlist dev DELETE', deleteDev);
     const authOk = getNoToken.status === 401 && getBogus.status === 401;
     addCheck(results, {
       id: 'H7',
@@ -319,7 +295,6 @@ export async function runRestrictedApiMatrix({ results, cfg }) {
     const anomalies = [];
     for (const p of paths) {
       const res = await http(`${base}${p}`);
-      logRaw(`H8 ${p}`, res);
       const exposed = res.status === 200 && /last_price|DATABASE_URL|ENTITLEMENT_EXPIRES|secret|token|internal_eval/i.test(res.text);
       observations.push({ path: p, status: res.status, body: res.text.slice(0, 160) });
       if (exposed) anomalies.push(observations.at(-1));
@@ -360,7 +335,6 @@ export async function runRestrictedApiMatrix({ results, cfg }) {
   // H10 经 web 反代的 403：no-store 不能只在 API 直连生效
   {
     const res = await http(`${cfg.webBases.restricted}/v1/instruments/SSE:600519/quote`);
-    logRaw('H10 proxy 403', res);
     const ok = problemShapeOk(res);
     addCheck(results, {
       id: 'H10',
@@ -389,7 +363,6 @@ export async function runRestrictedApiMatrix({ results, cfg }) {
     let ok = true;
     for (const v of variants) {
       const res = await http(url, { headers: { ...HEADERS, ...v.headers } });
-      logRaw(`H11 ${v.name}`, res);
       const pass = res.status === 403 && problemShapeOk(res) && res.status !== 304;
       ok = ok && pass;
       obs.push({ name: v.name, status: res.status, code: res.json?.code ?? null, cacheControl: res.headers['cache-control'] ?? null, etag: res.headers.etag ?? null, lastModified: res.headers['last-modified'] ?? null });
@@ -412,7 +385,6 @@ export async function runRestrictedApiMatrix({ results, cfg }) {
 export async function runValidPhaseApi({ results, cfg }) {
   const base = cfg.apiBases.expiring;
   const res = await http(`${base}/v1/instruments/SSE:600519/quote`);
-  logRaw('V1 valid quote', res);
   const body = res.json ?? {};
   const data = body.data ?? {};
   const meta = body.meta ?? {};
@@ -436,7 +408,6 @@ export async function runValidPhaseApi({ results, cfg }) {
   });
 
   const proxy = await http(`${cfg.webBases.expiring}/v1/instruments/SSE:600519/quote`);
-  logRaw('V2 valid quote via proxy', proxy);
   const proxyOk = proxy.status === 200 && (proxy.headers['cache-control'] ?? '').includes('no-store');
   addCheck(results, {
     id: 'V2',
@@ -456,9 +427,6 @@ export async function runValidPhaseApi({ results, cfg }) {
     const overLimit = await http(`${barsUrl}?limit=600`);
     const maxLimit = await http(`${barsUrl}?limit=500`);
     const overOffset = await http(`${barsUrl}?limit=1&offset=1001`);
-    logRaw('V3 overLimit', overLimit);
-    logRaw('V3 maxLimit', maxLimit);
-    logRaw('V3 overOffset', overOffset);
     const barsOf = (r) => {
       const d = r.json?.data;
       if (Array.isArray(d)) return d;
@@ -501,7 +469,6 @@ export async function runExpiredApiMatrix({ results, cfg }) {
   const attempts = [];
   for (const a of headerAttempts(base).slice(0, 8)) {
     const res = await http(a.url, { headers: { ...HEADERS, ...a.headers } });
-    logRaw(`E1 ${a.name}`, res);
     attempts.push({ name: a.name, res });
   }
   recordBlockedFamily(results, {
@@ -512,7 +479,6 @@ export async function runExpiredApiMatrix({ results, cfg }) {
   });
 
   const instrument = await http(`${base}/v1/instruments/SSE:600519`);
-  logRaw('E2 expired instrument', instrument);
   const meta = instrument.json?.meta ?? {};
   const ok = instrument.status === 200 && meta.entitlement?.is_entitled === false && meta.entitlement?.tier === 'internal_eval';
   addCheck(results, {
@@ -540,7 +506,6 @@ export async function runRateLimitAttack({ results, cfg, spawnLogDir }) {
   for (let i = 0; i < 14; i += 1) {
     const res = await http(q);
     statuses.push(res.status);
-    logRaw(`R1 burst #${i}`, res);
     if (res.status === 429) {
       if (first429 === -1) {
         first429 = i;
@@ -572,7 +537,6 @@ export async function runRateLimitAttack({ results, cfg, spawnLogDir }) {
     const res = await http(q, { headers: { 'X-Forwarded-For': xff } });
     statuses.push(res.status);
     spoof.push({ xff, status: res.status, code: res.json?.code ?? null });
-    logRaw(`R2 XFF ${xff}`, res);
   }
   const spoofOk = spoof.every((s) => s.status === 429);
   addCheck(results, {
@@ -694,8 +658,6 @@ export async function runTrustProxyCidrCheck({ results, cfg, spawnLogDir, tag = 
     for (let i = 0; i < 12; i += 1) await http(`${cidrBase}/v1/instruments/SSE:600519/quote`);
     const beforeSpoof = await http(`${cidrBase}/v1/instruments/SSE:600519/quote`);
     const afterSpoof = await http(`${cidrBase}/v1/instruments/SSE:600519/quote`, { headers: { 'X-Forwarded-For': '8.8.8.8' } });
-    logRaw('R4 cidr before', beforeSpoof);
-    logRaw('R4 cidr after XFF', afterSpoof);
     const switched = beforeSpoof.status === 429 && afterSpoof.status === 403;
     addCheck(results, {
       id: tag,
@@ -810,7 +772,6 @@ export async function runBackdoorGuardChecks({ results, cfg, spawnLogDir }) {
       let watchlist = null;
       if (started) {
         watchlist = await http(`${base}/v1/watchlist`, { headers: { authorization: 'Bearer dev-token' } });
-        logRaw('G3 prod profile watchlist dev-token', watchlist);
       }
       const ok = started && watchlist?.status === 401;
       addCheck(results, {
@@ -857,7 +818,6 @@ export async function runBackdoorGuardChecks({ results, cfg, spawnLogDir }) {
       } catch { started = false; }
       const quote = started ? await http(`${base}/v1/instruments/SSE:600519/quote`) : null;
       const instrument = started ? await http(`${base}/v1/instruments/SSE:600519`) : null;
-      logRaw('G4 bare-start quote', quote ?? { url: base, status: 0, headers: {}, text: 'not-started' });
       const ent = instrument?.json?.meta?.entitlement ?? null;
       const ok =
         started &&

@@ -31,6 +31,17 @@ export interface DisclaimerInfo {
   closable: boolean;
 }
 
+/**
+ * 403 的 Problem 展示文案（H4 #5）。
+ *
+ * 受限页允许展示的唯一内容：服务端 Problem 的 title/detail 原文。
+ * 前端不改写、不拼接、不追加 hint；detail 缺失时只展示 title。
+ */
+export interface ProblemNotice {
+  title: string;
+  detail: string | null;
+}
+
 export interface QuoteInfo {
   tradeDate: string;
   lastPrice: number | null;
@@ -72,6 +83,8 @@ export interface StockPageData {
   quote: QuoteInfo | null;
   /** 行情来源；受限场景改用仍可用的 meta 来源，完全不可用时为 null。 */
   source: SourceInfo | null;
+  /** 403 时来自 Problem 的展示文案；非受限或 403 无 body 时为 null（页面用 copy 兜底）。 */
+  restrictedProblem: ProblemNotice | null;
   /** 免责文案；任何价格展示的前提是它存在（缺失则隐藏行情并报错）。 */
   disclaimer: DisclaimerInfo | null;
   fundamental: FundamentalInfo | null;

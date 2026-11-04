@@ -141,7 +141,7 @@ export function StockPage({ instrumentId }: { instrumentId: string }) {
       {compliant && granted && data.quote && data.source ? (
         <QuoteBlock quote={data.quote} source={data.source} />
       ) : compliant ? (
-        <EntitlementNotice />
+        <EntitlementNotice problem={data.restrictedProblem} />
       ) : (
         <ErrorState
           text={{

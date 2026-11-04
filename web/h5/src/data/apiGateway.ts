@@ -30,6 +30,7 @@ import type {
   DisclaimerInfo,
   FundamentalInfo,
   FundamentalState,
+  ProblemNotice,
   QuoteInfo,
   SourceInfo,
   StockPageData,
@@ -46,21 +47,36 @@ type ResponseMeta = SharedComponents['schemas']['ResponseMeta'];
 
 interface ApiResponseBody<T> {
   data?: T;
+  error?: unknown;
   response: { status: number };
 }
 
 type SafeResult<T> =
-  | { ok: true; status: number; body: T | undefined }
+  | { ok: true; status: number; body: T | undefined; problem: unknown | undefined }
   | { ok: false; network: true };
 
 /** 把「网络失败」与「有响应但非 2xx」分开；网络失败时不在客户端猜测状态码。 */
 async function safeRequest<T>(run: () => Promise<ApiResponseBody<T>>): Promise<SafeResult<T>> {
   try {
     const result = await run();
-    return { ok: true, status: result.response.status, body: result.data };
+    return { ok: true, status: result.response.status, body: result.data, problem: result.error };
   } catch {
     return { ok: false, network: true };
   }
+}
+
+/**
+ * 403 Problem → 展示文案（H4 #5）。
+ *
+ * 只取契约 Problem 的 title/detail 原文；code/trace_id 等内部信息一律不进入页面状态。
+ * 结构不合法（title 非字符串或空串）时返回 null，页面退回 copy.ts 的兜底文案。
+ */
+function mapProblem(value: unknown): ProblemNotice | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const raw = value as { title?: unknown; detail?: unknown };
+  if (typeof raw.title !== 'string' || raw.title.trim() === '') return null;
+  const detail = typeof raw.detail === 'string' && raw.detail.trim() !== '' ? raw.detail : null;
+  return { title: raw.title, detail };
 }
 
 function isOk(status: number): boolean {
@@ -189,6 +205,7 @@ class ApiMarketGateway implements MarketGateway {
     let quote: QuoteInfo | null = null;
     let source: SourceInfo | null = null;
     let disclaimer: DisclaimerInfo | null = null;
+    let restrictedProblem: ProblemNotice | null = null;
 
     if (isOk(quoteStatus) && quoteData && quoteMeta) {
       disclaimer = mapDisclaimer(quoteMeta);
@@ -203,6 +220,8 @@ class ApiMarketGateway implements MarketGateway {
       }
     } else if (quoteStatus === 403) {
       access = 'restricted';
+      // H4 #5：403 的展示文案必须与 API Problem 逐字节一致（title/detail 原样，不追加 hint）。
+      restrictedProblem = mapProblem(quoteRes.problem);
     } else {
       return { kind: 'error', instrumentId, ...responseError(quoteStatus) };
     }
@@ -257,6 +276,7 @@ class ApiMarketGateway implements MarketGateway {
       quote,
       source,
       disclaimer,
+      restrictedProblem,
       fundamental,
       fundamentalState,
     };

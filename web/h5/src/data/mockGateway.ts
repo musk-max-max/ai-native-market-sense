@@ -209,6 +209,10 @@ function buildPage(instrumentId: string, state: MockState): StockPageResult {
     quote: restricted ? null : quote,
     source,
     disclaimer: DISCLAIMER,
+    // 与 A3 受限 403 Problem 同形：title/detail 原文，页面不得改写或追加 hint。
+    restrictedProblem: restricted
+      ? { title: '行情数据暂不可用', detail: '当前版本暂不提供该标的行情数据' }
+      : null,
     fundamental,
     fundamentalState: fundamentalMissing ? 'missing' : fundamentalError ? 'error' : 'ready',
   };

@@ -1019,3 +1019,14 @@ fail-closed 是对的，但**现象具有欺骗性**：部署突然失败，报�
 **L75 附（更严重的一条）**：我不仅没打开文件，还**给出了一个具体数字**——「有 100+ 条原始 HTTP 往返」，并在给 A11 的消息里用它驳回降级。H4 挖到底：该文件在被删前**只有 2 行**（R4 cidr before/after），从来不是 100+。
 
 **规则加一条**：**裁定材料里不得出现未经亲验的量化数字。** 数字比形容词更危险——形容词会被质疑，"100+ 条"会被直接引用进 release note。**没有 `wc -l` / `stat` / `sha256` 的数字，一律写成「据 X 称，待核」或干脆不写。**
+
+### L77 #4 的真实缺口不是"DAD 造不出黑洞"，是"没有超时"（2026-11-04）
+
+A13 如实交了失败记录（本机无 iptables、pf 无权限），**没有用 ECONNREFUSED 顶替**，并把四个 number 全部标 N/A——**这是正确交付**。
+
+但记录里暴露了更严重的事实：`services/market/src/plugin.ts:97` 的 `new Pool({ connectionString })` **未配置任何超时**；DB 端 `statement_timeout=0`、`idle_in_transaction_session_timeout=0`、`lock_timeout=0`；`entitlement-gate.ts:157-161` 只在 reject 时累加失败，**黑洞下 promise 不 reject** ⇒ 熔断永不触发，进程在 `probeStartup → await evaluate()` 处直接挂住，**连 403 都到不了**。
+
+**裁定**：
+1. A3 补 `connectionTimeoutMillis≈1000` / `query_timeout≈1000`（或服务端 `statement_timeout=1s`）+ 给 control 读加显式超时；**没有超时的熔断是装饰**。
+2. A13 不必等 iptables：**用 TCP 黑洞替代**（`nc -l 55433` 接受连接但永不响应，或 socat 转发到黑洞），无需 root 即可构造"连得上但永远不回"的故障。
+3. #4 在 (1)(2) 完成前保持未取证。**"造不出环境"和"造得出但会挂住"是两件事**，后者是产品缺陷。
