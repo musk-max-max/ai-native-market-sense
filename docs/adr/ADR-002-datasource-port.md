@@ -2,7 +2,7 @@
 
 - **状态**：Accepted（依据 agents/decisions.md 决策 #3「数据 Python + 模块化单体」、#4「六边形端口 + canonical 模型 + 20 条 conformance」）；**H2 签字**：PENDING（随 PR；跨域数据模型变更门禁同属 H2/H4）
 - **起草**：A0 arch-contract（2026-11-04）；**批准人**：H2（数据口径 H4 会签）；**影响面**：A1（ingest/adapters）、A2（warehouse/quality）、A3（market/fundamental 读侧）、A11（conformance）、A13（CI/调度）、A14（限流/配置）
-- **版本**：v1.2（2026-11-04，v1.1 增补 `get_adj_factors` 为一等方法；v1.2 依 Lead m00443 将错误判定顺序改为「存在性 404 → entitlement 403 → 取数 404」，与 shared 0.2.1 对齐；变更须 A0 评审 + H4/H2 按跨域模型门禁）
+- **版本**：v1.3（2026-11-04，v1.1 增补 `get_adj_factors` 为一等方法；v1.2 依 Lead m00443 将正常档错误判定顺序改为「存在性 404 → entitlement 403 → 取数 404」；v1.3 依 H4 m02334 补受限/降级档例外：`resolution.blocked` 时 403 短路、不读 serving、不泄露存在性，P1 临时语义，F1 后恢复 404 优先，与 shared 0.2.2 对齐；变更须 A0 评审 + H4/H2 按跨域模型门禁）
 - **关联**：决策 #1（契约真源）、#3（Python 数据侧）、#4（canonical + instrument_id）、C2（收盘后 ≤15min）、F1（tushare 商用授权未定）、decisions.md L1（tushare 标识豁免范围）、L3（复权因子归一，待 H4 会签）、L5（adj_factors 一等方法）、L7/L8（ODS 停牌证据行/prev_close，A1 执行）、ADR-001（契约标准）
 
 ## 背景
@@ -36,7 +36,7 @@ class MarketDataSource(Protocol):
 
 端口错误分类（适配层内部，禁止把 tushare 异常直接穿透到 API）：
 - `None` = 无该记录（未收录、无快照或无财报，端口不区分「标识不存在」与「标识存在但资源无数据」）。
-  API 层映射 404 时按上下文区分（shared 0.2.1，ADR-001 D4）：`get_instrument` 为 `None` → `INSTRUMENT_NOT_FOUND`；`get_quote`/`list_bars`/`get_fundamental_summary` 无数据时，先确认标识是否存在 —— 标识存在 → `NOT_FOUND`（资源无数据），标识不存在 → `INSTRUMENT_NOT_FOUND`。**判定顺序（Lead m00443）**：① 先存在性（未收录 → 404 `INSTRUMENT_NOT_FOUND`）→ ② 再 entitlement（确认存在但无权展示 → `403 ENTITLEMENT_RESTRICTED`）→ ③ 最后取数（存在且有权但无数据 → 404 `NOT_FOUND`）。未收录标的不得用 403 掩盖 404；存在性属公开信息，藏它只增加支持成本。
+  API 层映射 404 时按上下文区分（shared 0.2.2，ADR-001 D4）：`get_instrument` 为 `None` → `INSTRUMENT_NOT_FOUND`；`get_quote`/`list_bars`/`get_fundamental_summary` 无数据时，正常档先确认标识是否存在 —— 标识存在 → `NOT_FOUND`（资源无数据），标识不存在 → `INSTRUMENT_NOT_FOUND`。**判定顺序（Lead m00443；H4 m02334 补受限档例外）**：正常档 ① 先存在性（未收录 → 404 `INSTRUMENT_NOT_FOUND`）→ ② 再 entitlement（确认存在但无权展示 → `403 ENTITLEMENT_RESTRICTED`）→ ③ 最后取数（存在且有权但无数据 → 404 `NOT_FOUND`）；正常档禁止用 403 掩盖 404。受限/降级档（gate `resolution.blocked`：`expired`/`hold`/`control_*`/`config_mismatch`，P1 临时）：403 短路、跳过 serving 读，对已存在/未收录返回相同 body，不泄露存在性；F1 翻 `c_end_display` 后恢复 404 优先（A11 两档顺序测试防永久化）。
 - `InvalidRequestError` = 参数非法（API 映射 400 `VALIDATION_ERROR`）。
 - `SourceUnavailableError` = 源不可用/超时/限流（API 走降级，见 C17；不返回 5xx，除非无快照）。
 - `SchemaDriftError` = tushare 字段/类型变化（告警 A13 + 拒绝入库，**不得猜测补齐**）。

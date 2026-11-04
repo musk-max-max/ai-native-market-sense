@@ -127,9 +127,13 @@ export interface components {
              *     VALIDATION_ERROR、UNAUTHENTICATED、FORBIDDEN、INSTRUMENT_NOT_FOUND、
              *     ENTITLEMENT_RESTRICTED、RATE_LIMITED、INTERNAL_ERROR、NOT_FOUND。
              *     404 语义：标识本身不存在 → INSTRUMENT_NOT_FOUND；标识存在但请求的资源无数据
-             *     （如无行情快照/无财报），或路由不存在 → NOT_FOUND。判定顺序（Lead m00443）：
-             *     先判存在性（未收录 → INSTRUMENT_NOT_FOUND）→ 再判授权（无权展示 → 403）→
-             *     再取数（无数据 → NOT_FOUND）；未收录标的不得用 403 掩盖 404。
+             *     （如无行情快照/无财报），或路由不存在 → NOT_FOUND。
+             *     判定顺序（Lead m00443；A3 封版复核补受限档例外）：
+             *     正常档位：先判存在性（未收录 → INSTRUMENT_NOT_FOUND）→ 再判授权（无权展示 → 403）→
+             *     再取数（无数据 → NOT_FOUND）；正常档禁止用 403 掩盖 404。
+             *     受限/降级档（entitlement gate blocked：expired/hold/control_*\/config_mismatch，P1 临时）：
+             *     403 短路且不读 serving，对「已存在」与「未收录」返回相同 body；403 不泄露存在性；
+             *     F1 落地、tier 转 c_end_display 后恢复 404 优先。
              * @example INSTRUMENT_NOT_FOUND
              */
             code: string;
@@ -179,8 +183,10 @@ export interface components {
         /**
          * @description 资源不存在。code=INSTRUMENT_NOT_FOUND 表示证券标识不存在/未收录；
          *     标识存在但该资源无数据（无行情快照、无财报）用 code=NOT_FOUND。
-         *     判定顺序：先判存在性（未收录 → 404 INSTRUMENT_NOT_FOUND）→ 再判授权（无权展示 →
-         *     403 EntitlementRestricted）→ 再取数（无数据 → 404 NOT_FOUND）。未收录标的不得用 403 掩盖 404。
+         *     正常档判定顺序：先判存在性（未收录 → 404 INSTRUMENT_NOT_FOUND）→ 再判授权（无权展示 →
+         *     403 EntitlementRestricted）→ 再取数（无数据 → 404 NOT_FOUND）。
+         *     受限/降级档（gate resolution.blocked，P1 临时）：403 短路、跳过 serving 读，不泄露标的存在性；
+         *     F1 翻 c_end_display 后恢复 404 优先。
          */
         NotFound: {
             headers: {
@@ -192,8 +198,11 @@ export interface components {
         };
         /**
          * @description 数据授权不足（code=ENTITLEMENT_RESTRICTED），语义 = 「无权展示」，**不是**「无数据」。
-         *     判定顺序：先存在性（不存在 → 404 INSTRUMENT_NOT_FOUND）→ 再授权（403）→ 再取数
-         *     （无数据 → 404 NOT_FOUND）；403 只表示标的已确认存在但无权展示其内容。
+         *     正常档判定顺序：先存在性（不存在 → 404 INSTRUMENT_NOT_FOUND）→ 再授权（403）→ 再取数
+         *     （无数据 → 404 NOT_FOUND）；正常档 403 表示标的已确认存在但无权展示其内容。
+         *     受限/降级档（gate resolution.blocked：expired/hold/control_*\/config_mismatch，P1 临时）：
+         *     403 短路且不读 serving，对已存在/未收录返回相同受限档 403 body，不泄露标的存在性；
+         *     F1 翻 c_end_display 后恢复 404 优先。
          *     F1 未落地时 C 端行情/财务按此降级、不得返回可判读数值；404 仅用于确实不存在的数据。
          *     200 + meta.entitlement.is_entitled=false 只用于前端预判与降级提示，**不得替代**本 403。
          */

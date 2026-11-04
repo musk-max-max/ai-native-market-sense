@@ -99,9 +99,13 @@ export interface components {
              *     VALIDATION_ERROR、UNAUTHENTICATED、FORBIDDEN、INSTRUMENT_NOT_FOUND、
              *     ENTITLEMENT_RESTRICTED、RATE_LIMITED、INTERNAL_ERROR、NOT_FOUND。
              *     404 语义：标识本身不存在 → INSTRUMENT_NOT_FOUND；标识存在但请求的资源无数据
-             *     （如无行情快照/无财报），或路由不存在 → NOT_FOUND。判定顺序（Lead m00443）：
-             *     先判存在性（未收录 → INSTRUMENT_NOT_FOUND）→ 再判授权（无权展示 → 403）→
-             *     再取数（无数据 → NOT_FOUND）；未收录标的不得用 403 掩盖 404。
+             *     （如无行情快照/无财报），或路由不存在 → NOT_FOUND。
+             *     判定顺序（Lead m00443；A3 封版复核补受限档例外）：
+             *     正常档位：先判存在性（未收录 → INSTRUMENT_NOT_FOUND）→ 再判授权（无权展示 → 403）→
+             *     再取数（无数据 → NOT_FOUND）；正常档禁止用 403 掩盖 404。
+             *     受限/降级档（entitlement gate blocked：expired/hold/control_*\/config_mismatch，P1 临时）：
+             *     403 短路且不读 serving，对「已存在」与「未收录」返回相同 body；403 不泄露存在性；
+             *     F1 落地、tier 转 c_end_display 后恢复 404 优先。
              * @example INSTRUMENT_NOT_FOUND
              */
             code: string;
