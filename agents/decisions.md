@@ -892,3 +892,13 @@ fail-closed 是对的，但**现象具有欺骗性**：部署突然失败，报�
 | `ebe169e` | Lead：`docs/reference/entitlement-reasons.json` 单一真源 + L65 词表收口 |
 
 **钉版本口径**：`commit` 是"整棵树"的锚，内容 sha 是"关键文件"的锚，**两者并存**——只有后者时无法回答"当时 `warehouse/load.py` 长什么样"。
+
+### L67 gap 判定三处收窄（2026-11-04，H5-R14 定稿，后续走变更）
+
+1. **`expired` 缺失按链级判，不按 boot 判**：链上不存在绑定该 `expires_at` 的 `expired` 事件 **且** `observed.configured_tier != internal_eval` **且** `now >= expires_at` → gap + hold。
+   理由：`expired` 一生只写一条；按 boot 判会让**每次重启都造一条假 gap**。
+2. **`deploy` 无 `tier_switch` 只对 `target_tier != internal_eval` 的部署成立**；因此 **`deploy` 事件必须自带 `target_tier`**——否则 reconciler 只能猜，猜出来的 hold 是会误伤的。
+3. **去抖**：连续两次对账成立（或间隔 ≥60s）才写 gap，单次只告警。
+   理由：**假 gap 等于往证据链里写假历史，比晚 2 分钟严重得多。**
+
+**状态：此版定稿，后续改动走变更单，不再在对话里改。** H5 的验收项不变：两桶 CI（entitlement 8 + 限流 4）、四样证据（runbook / 具名值班 / 寻呼回执 / 15min 降级演练）、`/healthz` 与 `/metrics` 外部 404 + Pod 内 200 + `helm template` 静态守卫。
