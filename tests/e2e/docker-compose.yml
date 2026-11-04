@@ -155,6 +155,7 @@ services:
   # 任一步非零不算「E2E 通过」；up.sh 最终退出码取第一个非零。
 
   # 第 0 步：数据库底座 + 业务/合规迁移（A13 的同一路径 services/compliance/migrations/* + 20_grants/90_verify）。
+  # 镜像只能是 postgres:16（psql/pg_dump 在此）：两个脚本均已 POSIX-sh 化，不得在 command 里调 bash/node。
   # 禁止在 compose 里塞手写 SQL 建表（Lead m01015：E2E 必须走被发布的同一条迁移路径）。
   db-migrate:
     image: postgres:16
@@ -169,7 +170,7 @@ services:
       - |
         set -e
         sh infra/db/bootstrap.sh --env dev --dsn "$$DATABASE_URL"
-        bash infra/scripts/db-migrate.sh --env dev --dsn "$$DATABASE_URL"
+        sh infra/scripts/db-migrate.sh --env dev --dsn "$$DATABASE_URL"
     depends_on:
       postgres: {condition: service_healthy}
     profiles: ["seed"]

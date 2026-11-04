@@ -17,6 +17,17 @@
 
 DDL 单一真源在 `warehouse/dwd/schema.sql` 与 `warehouse/serving/schema.sql`（A2 写域）。本目录**不复制 DDL**，只负责执行顺序与权限。
 
+## 容器内执行（ECS / CI）
+
+`tests/e2e/docker-compose.yml` 的 `db-migrate` 服务镜像只能是 `postgres:16`（psql/pg_dump 在这里），
+其 `/bin/sh` 是 Debian dash，**没有 bash、没有 node**。因此：
+
+- `infra/db/bootstrap.sh` 与 `infra/scripts/db-migrate.sh` 均为 POSIX sh（无 `[[ ]]`、数组、进程替换、`$'\t'`）；
+- compose 用 `sh` 调用两者，不得改回 `bash`；
+- `bootstrap.sh` 的 node 静态校验只在有 node 时跑；容器内显式打印「跳过静态校验」并指向 CI 的 `db-schema` job，不伪装通过；
+- 回归守卫：`node infra/ci/check-posix-scripts.mjs`（已进 check-all 与 CI `db-schema`/`iac` job）。
+- 真实验证：在 PG16@55432 上用 `/bin/dash` + 无 node 的 PATH 跑通 bootstrap → db-migrate（4 迁移）→ 二次 migrate 幂等 → 90_verify 越权=0。
+
 ## 权限模型（按「进程」切，不按「服务」切）
 
 | 角色               | 能做什么                                                                                                                                                               | 不能做什么                                                                            |

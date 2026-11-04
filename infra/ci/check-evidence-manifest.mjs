@@ -2,7 +2,7 @@
 /**
  * H5-R19 证据包门禁（零依赖）。
  *
- * 校验 infra/evidence/manifest.json：
+ * 校验 infra/evidence/evidence-manifest.json：
  *  1. 每条 artifact 存在、size>0、bytes/sha256 由本脚本独立复算并一致；
  *  2. manifest 覆盖 infra/evidence/ 下 100% 的待提交文件（不扫内容里的十六进制串）；
  *  3. 每条带 authority(authoritative|historical)/phase(pre-fix|post-fix)/非空 case_ids；

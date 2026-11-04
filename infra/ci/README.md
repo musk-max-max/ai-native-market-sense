@@ -118,7 +118,7 @@ actionlint                           # 需本地安装（见 docs/adr 或 /tmp/t
 
 ## 证据包 manifest（H5-R19，11-12 硬门禁）
 
-- `infra/evidence/manifest.json` 是唯一索引：每条 `path/sha256/bytes/authority/phase/case_ids/recompute`。
+- `infra/evidence/evidence-manifest.json` 是唯一索引：每条 `path/sha256/bytes/authority/phase/case_ids/recompute`。
 - `node infra/ci/check-evidence-manifest.mjs`：文件存在 + size>0 + sha256 **由脚本独立复算** + 目录覆盖 100%；`--tarball <pkg>` 时校验 tar 内文件集合与 manifest 一一对应。
 - 不扫描 artifact 内容里的十六进制串（H5-R21：会误伤引用其他哈希的 transcript）；自指哈希只允许以 `errata` 记差异，权威值在 manifest。
 - 内容一改必须换新文件名（UTC 时间戳）并保留旧文件；manifest 不内嵌自身哈希。

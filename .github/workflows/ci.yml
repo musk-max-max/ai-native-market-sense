@@ -243,14 +243,18 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
       - name: 静态校验（DWD → serving 顺序、只读授权边界、迁移 ledger）
         run: node infra/ci/check-db-bootstrap.mjs
-      - name: shell 语法（bootstrap / migrate）
+      - name: shell 语法（bootstrap / migrate，POSIX dash）
         run: |
           bash -n infra/db/bootstrap.sh
           bash -n infra/scripts/db-migrate.sh
+          dash -n infra/db/bootstrap.sh
+          dash -n infra/scripts/db-migrate.sh
+      - name: 容器内 POSIX 兼容（ECS db-migrate：postgres:16 只有 sh，无 bash/node）
+        run: node infra/ci/check-posix-scripts.mjs
       - name: dry-run 执行计划（无 DB 也验证顺序与待执行迁移）
         run: |
-          bash infra/db/bootstrap.sh --env dev --dry-run
-          bash infra/scripts/db-migrate.sh --env dev --dry-run
+          sh infra/db/bootstrap.sh --env dev --dry-run
+          sh infra/scripts/db-migrate.sh --env dev --dry-run
       - name: 写入 job summary
         run: |
           {
@@ -448,10 +452,11 @@ jobs:
         run: test -s infra/monitoring/alertmanager/alertmanager.yaml
       - name: GitHub Actions 工作流 lint
         run: actionlint -color
-      - name: Shell 脚本语法检查
+      - name: Shell 脚本语法检查（bash + POSIX dash）
         run: |
           for script in infra/ci/*.sh infra/scripts/*.sh; do
             bash -n "$script"
+            dash -n "$script"
           done
       - name: 告警 ↔ runbook（IaC 侧同步）
         run: node infra/ci/check-runbooks.mjs
