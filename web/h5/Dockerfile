@@ -18,6 +18,12 @@ RUN pnpm install --frozen-lockfile --filter @market-sense/h5...
 COPY packages/api-client ./packages/api-client
 COPY web/h5 ./web/h5
 
+# ADR-006 D3 的文案快照门禁（copy-snapshot.mjs --check）在构建期读仓库内的快照与 manifest，
+# 它们既不是 web/h5 的源码、也不来自 node_modules；上面的精确 COPY 不会带进来。
+# 只送这两个只读证据文件，不扩大上下文（docs 其余内容与构建无关）。
+COPY docs/release/copy-snapshots ./docs/release/copy-snapshots
+COPY docs/release/copy-version-manifest.md ./docs/release/copy-version-manifest.md
+
 ARG VITE_DATA_MODE=api
 ARG VITE_API_BASE_URL=
 ARG VITE_E2E_AUTH_STORAGE_KEY=
