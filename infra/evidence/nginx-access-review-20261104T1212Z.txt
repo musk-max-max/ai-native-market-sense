@@ -1,0 +1,109 @@
+# 临时公网 nginx 访问日志复盘（H5 m02924 第 2 条）
+# executor: A13 (a13-sre)   time_utc: 2026-11-04T12:12:59Z
+# source: ECS 47.120.16.239 / docker logs ms-nginx（容器已 stop；日志为暴露窗口全量，无轮转）
+# authority: drill（supplemental，不计 PASS；不进签字证据包 authoritative 列）
+# 注：日志含 remote_user（Basic Auth 用户名），未认证为 '-'；access log 不记录 Authorization 头。
+
+## 0. 日志总行数 / 访问行数
+total_lines=61 access_rows=52
+
+## 1. 访问明细（ip | user | time | request | status bytes）
+71.6.155.70 | user=- | 04/Nov/2026:09:54:58 +0000 | GET /.well-known/pki-validation/update HTTP/1.1 | status=401 bytes=179
+35.210.189.219 | user=- | 04/Nov/2026:10:05:46 +0000 | GET / HTTP/1.1 | status=401 bytes=581
+35.210.172.21 | user=- | 04/Nov/2026:10:05:48 +0000 | \x16\x03\x00\x00i\x01\x00\x00e\x03\x03U\x1C\xA7\xE4random1random2random3random4\x00\x00\x0C\x00/\x00 | status=400 bytes=157
+35.210.172.21 | user=- | 04/Nov/2026:10:05:49 +0000 | GET / HTTP/1.1 | status=401 bytes=179
+35.210.172.21 | user=- | 04/Nov/2026:10:05:55 +0000 | GET / HTTP/1.1 | status=401 bytes=179
+35.210.172.21 | user=- | 04/Nov/2026:10:05:56 +0000 | GET /favicon.ico HTTP/1.1 | status=401 bytes=179
+35.210.172.21 | user=- | 04/Nov/2026:10:05:56 +0000 | GET / HTTP/1.1 | status=401 bytes=179
+35.210.172.21 | user=- | 04/Nov/2026:10:05:58 +0000 | OPTIONS / HTTP/1.1 | status=401 bytes=179
+35.210.172.21 | user=- | 04/Nov/2026:10:05:58 +0000 | GET / HTTP/1.1 | status=401 bytes=179
+35.210.172.21 | user=- | 04/Nov/2026:10:05:59 +0000 | FLQK / HTTP/1.1 | status=401 bytes=179
+35.210.172.21 | user=- | 04/Nov/2026:10:05:59 +0000 | GET / HTTP/1.1 | status=401 bytes=179
+35.210.172.21 | user=- | 04/Nov/2026:10:06:00 +0000 | HEAD / HTTP/1.1 | status=401 bytes=0
+35.210.172.21 | user=- | 04/Nov/2026:10:06:00 +0000 | POST / HTTP/1.1 | status=401 bytes=179
+36.255.97.33 | user=- | 04/Nov/2026:10:32:57 +0000 | \x04\x01\x00P\xB9\xC2\x8E\x86\x00 | status=400 bytes=157
+220.197.85.235 | user=- | 04/Nov/2026:10:32:57 +0000 | \x04\x01\x00Pn\xF2D\x04\x00 | status=400 bytes=157
+172.239.64.155 | user=- | 04/Nov/2026:10:33:45 +0000 | GET / HTTP/1.1 | status=401 bytes=581
+38.39.30.232 | user=- | 04/Nov/2026:11:01:03 +0000 | GET / HTTP/1.1 | status=401 bytes=179
+77.239.124.162 | user=- | 04/Nov/2026:11:06:36 +0000 | GET / HTTP/1.1 | status=401 bytes=581
+172.202.114.183 | user=- | 04/Nov/2026:11:23:06 +0000 | GET /developmentserver/metadatauploader HTTP/1.1 | status=401 bytes=179
+45.198.224.125 | user=- | 04/Nov/2026:11:41:00 +0000 | GET / HTTP/1.1 | status=401 bytes=179
+131.129.139.126 | user=- | 04/Nov/2026:11:41:42 +0000 | GET /boaform/admin/formLogin?username=adminisp&psd=adminisp HTTP/1.0 | status=401 bytes=179
+23.239.11.64 | user=- | 04/Nov/2026:11:44:34 +0000 | GET / HTTP/1.1 | status=401 bytes=581
+185.119.17.139 | user=- | 04/Nov/2026:12:00:31 +0000 | CONNECT ipee.pw:443 HTTP/1.1 | status=400 bytes=157
+185.119.17.139 | user=- | 04/Nov/2026:12:00:31 +0000 | \x05\x01\x00 | status=400 bytes=157
+172.18.0.1 | user=- | 04/Nov/2026:12:04:02 +0000 | GET / HTTP/1.1 | status=401 bytes=179
+172.18.0.1 | user=- | 04/Nov/2026:12:04:02 +0000 | GET /v1/quote HTTP/1.1 | status=401 bytes=179
+172.18.0.1 | user=- | 04/Nov/2026:12:04:02 +0000 | GET /healthz HTTP/1.1 | status=404 bytes=153
+172.18.0.1 | user=market_admin | 04/Nov/2026:12:04:02 +0000 | GET / HTTP/1.1 | status=200 bytes=1216
+172.18.0.1 | user=market_admin | 04/Nov/2026:12:04:02 +0000 | GET /v1/quote?instrument_id=SSE%3A600519 HTTP/1.1 | status=404 bytes=187
+172.18.0.1 | user=market_admin | 04/Nov/2026:12:04:28 +0000 | GET /v1/quote?instrument_id=SSE:600519 HTTP/1.1 | status=404 bytes=185
+172.18.0.1 | user=market_admin | 04/Nov/2026:12:04:28 +0000 | GET /v1/ HTTP/1.1 | status=404 bytes=155
+172.18.0.1 | user=market_admin | 04/Nov/2026:12:05:58 +0000 | GET /v1/instruments/SSE:600519/quote HTTP/1.1 | status=403 bytes=227
+172.18.0.1 | user=market_admin | 04/Nov/2026:12:05:58 +0000 | GET /v1/instruments/SSE:600519/bars?limit=5 HTTP/1.1 | status=403 bytes=227
+172.18.0.1 | user=market_admin | 04/Nov/2026:12:05:58 +0000 | GET /v1/instruments/SSE:600519 HTTP/1.1 | status=200 bytes=358
+47.120.16.239 | user=- | 04/Nov/2026:12:05:58 +0000 | GET / HTTP/1.1 | status=401 bytes=179
+223.166.54.234 | user=- | 04/Nov/2026:12:09:35 +0000 | GET /healthz HTTP/1.1 | status=404 bytes=153
+223.166.54.234 | user=- | 04/Nov/2026:12:09:35 +0000 | GET /metrics HTTP/1.1 | status=404 bytes=153
+223.166.54.234 | user=- | 04/Nov/2026:12:09:35 +0000 | GET /readyz HTTP/1.1 | status=404 bytes=153
+223.166.54.234 | user=- | 04/Nov/2026:12:10:10 +0000 | GET /healthz HTTP/1.1 | status=404 bytes=153
+223.166.54.234 | user=- | 04/Nov/2026:12:10:10 +0000 | GET /metrics HTTP/1.1 | status=404 bytes=153
+223.166.54.234 | user=- | 04/Nov/2026:12:10:10 +0000 | GET /readyz HTTP/1.1 | status=404 bytes=153
+223.166.54.234 | user=- | 04/Nov/2026:12:10:10 +0000 | GET / HTTP/1.1 | status=401 bytes=179
+223.166.54.234 | user=market_admin | 04/Nov/2026:12:10:10 +0000 | GET /healthz HTTP/1.1 | status=404 bytes=153
+223.166.54.234 | user=market_admin | 04/Nov/2026:12:10:11 +0000 | GET /metrics HTTP/1.1 | status=404 bytes=153
+223.166.54.234 | user=market_admin | 04/Nov/2026:12:10:11 +0000 | GET /v1/instruments/SSE:600519 HTTP/1.1 | status=200 bytes=358
+223.166.54.234 | user=market_admin | 04/Nov/2026:12:10:11 +0000 | GET /v1/instruments/SSE:600519/quote HTTP/1.1 | status=403 bytes=227
+223.166.54.234 | user=- | 04/Nov/2026:12:10:11 +0000 | GET /healthz HTTP/1.1 | status=404 bytes=153
+223.166.54.234 | user=- | 04/Nov/2026:12:10:11 +0000 | GET /metrics HTTP/1.1 | status=404 bytes=153
+223.166.54.234 | user=- | 04/Nov/2026:12:11:24 +0000 | GET /v1/watchlist HTTP/1.1 | status=401 bytes=179
+223.166.54.234 | user=- | 04/Nov/2026:12:11:24 +0000 | GET /v1/watchlist HTTP/1.1 | status=401 bytes=179
+223.166.54.234 | user=- | 04/Nov/2026:12:11:38 +0000 | GET /v1/watchlist HTTP/1.1 | status=401 bytes=179
+223.166.54.234 | user=- | 04/Nov/2026:12:11:38 +0000 | GET /v1/watchlist HTTP/1.1 | status=401 bytes=179
+
+## 2. 客户端 IP 汇总
+ 17  223.166.54.234
+ 11  35.210.172.21
+ 10  172.18.0.1
+  2  185.119.17.139
+  1  71.6.155.70
+  1  35.210.189.219
+  1  36.255.97.33
+  1  220.197.85.235
+  1  172.239.64.155
+  1  38.39.30.232
+  1  77.239.124.162
+  1  172.202.114.183
+  1  45.198.224.125
+  1  131.129.139.126
+  1  23.239.11.64
+  1  47.120.16.239
+
+## 3. 认证用户（remote_user != '-'）的来源
+  7  user=market_admin  from 172.18.0.1
+  4  user=market_admin  from 223.166.54.234
+
+## 4. 带有效凭证的 /v1/** 2xx
+172.18.0.1 | user=market_admin | 04/Nov/2026:12:05:58 +0000 | GET /v1/instruments/SSE:600519 HTTP/1.1 | status=200
+223.166.54.234 | user=market_admin | 04/Nov/2026:12:10:11 +0000 | GET /v1/instruments/SSE:600519 HTTP/1.1 | status=200
+
+## 5. 未认证来源的 /v1/**（应全部 401，无 2xx）
+172.18.0.1 | 04/Nov/2026:12:04:02 +0000 | GET /v1/quote HTTP/1.1 | status=401
+223.166.54.234 | 04/Nov/2026:12:11:24 +0000 | GET /v1/watchlist HTTP/1.1 | status=401
+223.166.54.234 | 04/Nov/2026:12:11:24 +0000 | GET /v1/watchlist HTTP/1.1 | status=401
+223.166.54.234 | 04/Nov/2026:12:11:38 +0000 | GET /v1/watchlist HTTP/1.1 | status=401
+223.166.54.234 | 04/Nov/2026:12:11:38 +0000 | GET /v1/watchlist HTTP/1.1 | status=401
+
+## 6. 状态码分布
+ 27  status=401
+ 14  status=404
+  5  status=400
+  3  status=200
+  3  status=403
+
+## 7. 结论
+- 第三方 IP 持有效凭证访问 /v1/**：**无**。§4 的 2xx 仅 172.18.0.1（ECS host / docker gateway，12:04–12:05）与 223.166.54.234（A13 本机出口，12:10–12:11 取证）两个来源，均为 A13/Lead 已知探测。
+- 其余来源均为扫描/探测（TLS 打到 HTTP 的 400、CONNECT 代理探测、表单爆破 401 等），无 /v1 访问。
+- 无 5xx；无异常路径 2xx。
+- 限制：Basic Auth 仅一个共享用户 market_admin，日志无法区分具体使用者，只能按 IP+时间归属 A13/Lead 已知探测。
+- 暴露窗口内 `/healthz`、`/metrics`、`/readyz` 访问均 404（含 A13 取证探测）。
