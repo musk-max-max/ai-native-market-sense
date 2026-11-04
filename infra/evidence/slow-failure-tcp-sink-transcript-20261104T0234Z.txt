@@ -1,0 +1,32 @@
+# transcript L74 #4 slow failure — TCP blackhole (no root) — 2026-11-04T02:36:43Z
+# node v23.11.0; psql PG16@55432; injector mode=drop (accept+buffer, no forward)
+startup: healthz 200 after 0.85s (process alive=True, pid=89238)
+healthz(after degrade): {"status":"ok","service":"market-sense-api","version":"0.1.0","uptime_s":1,"domains":["market"],"data_ready":false,"data_ready_reason":"INGEST_REPORT_MISSING","entitlement_degraded":false}
+drop quote[01] status=403 elapsed_ms=1018.5 cache-control=None
+drop quote[02] status=403 elapsed_ms=1005.3 cache-control=None
+drop quote[03] status=403 elapsed_ms=1004.8 cache-control=None
+drop quote[04] status=403 elapsed_ms=1002.7 cache-control=None
+drop quote[05] status=403 elapsed_ms=1002.4 cache-control=None
+drop quote[06] status=403 elapsed_ms=1003.4 cache-control=None
+drop quote[07] status=403 elapsed_ms=1003.0 cache-control=None
+drop quote[08] status=403 elapsed_ms=1003.9 cache-control=None
+drop quote[09] status=403 elapsed_ms=1004.6 cache-control=None
+drop quote[10] status=403 elapsed_ms=1002.8 cache-control=None
+drop quote[11] status=403 elapsed_ms=1003.3 cache-control=None
+drop quote[12] status=403 elapsed_ms=1003.6 cache-control=None
+drop quote[13] status=403 elapsed_ms=1001.1 cache-control=None
+drop quote[14] status=403 elapsed_ms=1002.5 cache-control=None
+drop quote[15] status=403 elapsed_ms=1002.3 cache-control=None
+drop quote[16] status=403 elapsed_ms=1001.8 cache-control=None
+drop quote[17] status=403 elapsed_ms=1003.6 cache-control=None
+drop quote[18] status=403 elapsed_ms=1002.9 cache-control=None
+drop quote[19] status=403 elapsed_ms=1001.6 cache-control=None
+drop quote[20] status=403 elapsed_ms=1002.4 cache-control=None
+drop summary: statuses=[403] p95=1005.3ms n=20
+no-store all: True
+breaker phase 20: statuses=[403] p95=1011.3ms
+healthz(during drop): status=200 body={"status":"ok","service":"market-sense-api","version":"0.1.0","uptime_s":41,"domains":["market"],"data_ready":false,"data_ready_reason":"INGEST_REPORT_MISSING","entitlement_degraded":false}
+leaks? dsn=False hostname=False port=False
+recovery: degraded=false after 0.00s (same pid 89238)
+healthz(recovered): {"status":"ok","service":"market-sense-api","version":"0.1.0","uptime_s":41,"domains":["market"],"data_ready":false,"data_ready_reason":"INGEST_REPORT_MISSING","entitlement_degraded":false}
+post-recovery quote: status=403 elapsed_ms=14.9 body={"type":"https://errors.market-sense.invalid/entitlement-restricted","title":"行情数据暂不可用","status":403,"code":"ENTITLEMENT
