@@ -96,6 +96,8 @@ config:
   NODE_ENV: production
   # decisions.md L46：缺省 prod；只有显式 dev/test/e2e 才允许测试后门。
   # 部署面断言要求渲染结果显式出现 APP_PROFILE=prod（缺失即渲染失败）。
+  # 客户端源 IP 信任边界（A19 R4）：部署方必须按实际 ingress/代理网段收窄；空/宽网段/回环在渲染期拒绝。
+  TRUST_PROXY: "10.0.0.0/24"
   APP_PROFILE: "prod"
   LOG_LEVEL: info
   # C2=A：不做盘中实时；数据超 15min 必须显式标 stale（StalePageNotMarked 告警）

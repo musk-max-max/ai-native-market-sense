@@ -28,15 +28,15 @@ db-migrate.sh 用 `meta.schema_migrations(filename, sha256)` 对账；同一 fil
 - 此后 001 只要进过任何环境的 ledger，任何改动（哪怕只改函数体）都必须新增 002+；
 - S0 验证库（a13_verify）重建后再从 001 重放，不要为保住 scratch ledger 伪造历史。
 
-2026-11-04 现场取证（A13 从空库重建 `a13_verify`，重放 001+002 两遍，第二遍全部 skip；002_audit_gap 终版 sha `426593c0…`）：
+2026-11-04 现场取证（A13 从空库重建 `a13_verify`，重放 001+002 两遍，第二遍全部 skip；002_audit_gap 封版 sha `c118eeb3…`（L71））：
 
 ```
 psql -d a13_verify -c "select filename, sha256, applied_at from meta.schema_migrations order by filename;"
 infra/db/migrations/002_display_safe.sql|6d240088fba98aede9b1d094161a060f6ffda8dca20ae56330f073d193e0944e
 services/compliance/migrations/001_audit_entitlement_events.sql|c8116e4fa5bb0d88da5cbfb643cdebbcfcec6d24853544425ec59cfa8c5ffd5e
-services/compliance/migrations/002_audit_gap.sql|426593c063a2d6f00627fb8a0b3687b3fa4a612f3dadd97f7b3e683c8f23e484
+services/compliance/migrations/002_audit_gap.sql|c118eeb3950149564c06f73a04d4e2e5561a6a6201abae101502635c30e999da
 services/market/migrations/001_watchlist.sql|a877f9d365b45cb0ec7a6a865e3c000745e882f9632fc156f052e3f6dd2a89f4
 ```
 
-002_audit_gap 终版（`window_start`/`window_end` 冻结口径；`lost_count` 整数 ≥1；缺 window_start 也由 CHECK 拒绝）新增 `recorded_at`（触发器强制 `now()`，不参与链 hash）与第 10 类 `audit_gap`，并把 `schema_version` 默认值放宽为 2；`market_app`/`ci_deploy_writer` 的列级 INSERT **排除 recorded_at**（自证列，由 DB 写入）。
+002_audit_gap 终版（`window_start`/`window_end` 冻结口径；`lost_count` 按 reason 分支：transient 整数 ≥1；process_restart 允许 null（重启后计数不可知）或整数 ≥1；缺 window_start 也由 CHECK 拒绝）新增 `recorded_at`（触发器强制 `now()`，不参与链 hash）与第 10 类 `audit_gap`，并把 `schema_version` 默认值放宽为 2；`market_app`/`ci_deploy_writer` 的列级 INSERT **排除 recorded_at**（自证列，由 DB 写入）。
 重建前同库曾记录旧版 001（`9db11b3c…`，08:40 应用）；旧库不补丁升级，直接 dropdb/createdb 后从 001 重放。`market_sense` / `market_sense_a19` / `market_a3_test` 当时均报 `relation "meta.schema_migrations" does not exist`，说明 001 从未进过真栈环境。

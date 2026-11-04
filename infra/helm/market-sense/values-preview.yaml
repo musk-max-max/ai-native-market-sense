@@ -26,6 +26,8 @@ ingress:
     market-sense.io/preview: "true"
 
 config:
+  # 客户端源 IP 信任边界（A19 R4）：部署方必须按实际 ingress/代理网段收窄；空/宽网段/回环在渲染期拒绝。
+  TRUST_PROXY: "10.0.0.0/24"
   APP_PROFILE: "prod"
   NODE_ENV: preview
   LOG_LEVEL: debug

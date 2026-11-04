@@ -59,6 +59,24 @@ check(
 );
 check('values.yaml 注明 fail-closed 原因（F1 未落地）', /F1|fail-closed|未落地/i.test(values));
 
+// 1b. TRUST_PROXY（A0 m02012 / A19 R4）：空值/宽网段/回环在渲染期拒绝；dev/preview 显式窄网段。
+for (const [name, text] of [
+  ['values.yaml', values],
+  ['values-dev.yaml', valuesDev],
+  ['values-preview.yaml', valuesPreview],
+]) {
+  check(
+    `${name} 显式 TRUST_PROXY（IPv4 /24-/32，不允许空值/继承）`,
+    /TRUST_PROXY:\s*"([0-9]{1,3}\.){3}[0-9]{1,3}\/(2[4-9]|3[0-2])"/.test(text),
+  );
+}
+check(
+  'configmap 模板含 TRUST_PROXY 渲染期守卫（required + 前缀/回环/组播拒绝）',
+  /required[^}]*TRUST_PROXY/.test(configmap) &&
+    /regexMatch/.test(configmap) &&
+    /fail/.test(configmap),
+);
+
 // 2. configmap fail-closed 校验
 check(
   'configmap 使用 required 强制 ENTITLEMENT_TIER',
@@ -207,6 +225,62 @@ try {
     check(
       'helm 渲染结果显式出现 APP_PROFILE=prod（缺失即失败，不允许继承 entrypoint）',
       /APP_PROFILE:\s*"?prod"?/.test(rendered),
+    );
+
+    // TRUST_PROXY 正反渲染（A0 m02012 验收命令）：坏值必须非零，/24 必须零。
+    const badTrustProxy = [
+      '',
+      'true',
+      '0.0.0.0/0',
+      '127.0.0.1/32',
+      '169.254.0.0/24',
+      '10.0.0.0/16',
+      '10.0.0.0/24,10.0.1.0/24',
+      '::/0',
+      '::1/128',
+      'fe80::/10',
+      'ff02::/16',
+      '10.0.0.0/33',
+    ];
+    const accepted = [];
+    for (const value of badTrustProxy) {
+      try {
+        helm([
+          'template',
+          'tp-guard',
+          chart,
+          '-f',
+          `${chart}/values-dev.yaml`,
+          '--set',
+          `config.TRUST_PROXY=${value}`,
+        ]);
+        accepted.push(value);
+      } catch {
+        /* 预期失败 */
+      }
+    }
+    check(
+      'helm：TRUST_PROXY 空值/true/0.0.0.0/0/127/169.254//0/宽前缀/逗号列表/::/0/::1/fe80/ff 渲染必须失败',
+      accepted.length === 0,
+      accepted.length ? `以下坏值被接受：${accepted.join(', ')}` : '',
+    );
+    let tpOk = '';
+    try {
+      tpOk = helm([
+        'template',
+        'tp-ok',
+        chart,
+        '-f',
+        `${chart}/values-dev.yaml`,
+        '--set',
+        'config.TRUST_PROXY=10.0.1.0/24',
+      ]);
+    } catch {
+      tpOk = '';
+    }
+    check(
+      'helm：TRUST_PROXY=10.0.1.0/24 必须渲染成功',
+      /TRUST_PROXY:\s*"?10\.0\.1\.0\/24"?/.test(tpOk),
     );
   } catch (err) {
     check('helm template dev 成功', false, String(err.stderr || err.message).slice(0, 400));

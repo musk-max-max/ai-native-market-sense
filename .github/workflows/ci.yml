@@ -412,6 +412,18 @@ jobs:
           helm template market-sense-pr-1 infra/helm/market-sense \
             -n market-sense-preview-pr-1 -f infra/helm/market-sense/values-preview.yaml \
             --set preview.prNumber=1 > /dev/null
+          # TRUST_PROXY 守卫负例（A0 m02091 / A19 R4）：守卫被写丢时下列坏值会重新渲染成功。
+          for tp in "" "0.0.0.0/0" "10.0.0.0/16" "127.0.0.0/8"; do
+            if helm template market-sense-dev infra/helm/market-sense \
+              -n market-sense-dev -f infra/helm/market-sense/values-dev.yaml \
+              --set-string "config.TRUST_PROXY=${tp}" > /dev/null 2>&1; then
+              echo "::error::TRUST_PROXY='${tp}' 竟然渲染成功——安全守卫失效"
+              exit 1
+            fi
+          done
+          helm template market-sense-dev infra/helm/market-sense \
+            -n market-sense-dev -f infra/helm/market-sense/values-dev.yaml \
+            --set-string config.TRUST_PROXY=10.0.0.0/24 > /dev/null
       - name: 网络边界 / ingress 暴露面（H5-R10 五条）
         if: needs.detect.outputs.has_helm == 'true'
         run: node infra/ci/check-network-policy.mjs

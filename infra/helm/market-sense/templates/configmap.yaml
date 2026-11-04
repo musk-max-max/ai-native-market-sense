@@ -16,6 +16,40 @@ metadata:
 {{- if and (eq (toString .Values.config.APP_PROFILE) "prod") (not .Values.config.DEPLOYMENT_UID) }}
 {{- fail "config.DEPLOYMENT_UID 必须由发布流水线注入（prod 不允许为空；gap 去重键依赖它）" }}
 {{- end }}
+{{- /* TRUST_PROXY 静态守卫（A0 m02012 / A19 R4）：空值、逗号列表、宽于 /24 的 IPv4、
+       回环/0.0.0.0/链路本地/组播、IPv6 宽于 /64 或 ::/0/::1/fe80/ff 一律拒绝渲染。
+       客户端源 IP 的信任边界只能由部署方显式给窄网段，不能靠“没有 XFF 就安全”的默认。 */ -}}
+{{- $tp := required "config.TRUST_PROXY 必须显式设置（空值拒绝；只允许窄网段）" .Values.config.TRUST_PROXY }}
+{{- if contains "," (toString $tp) }}
+{{- fail "config.TRUST_PROXY 不允许逗号列表（一个信任边界只能一个网段）" }}
+{{- end }}
+{{- $tp4 := regexMatch "^([0-9]{1,3}\\.){3}[0-9]{1,3}/([0-9]{1,2})$" (toString $tp) }}
+{{- $tp6 := regexMatch "^[0-9a-fA-F:]+/([0-9]{1,3})$" (toString $tp) }}
+{{- if $tp4 }}
+{{- if regexMatch "^(0\\.|127\\.|169\\.254\\.|22[4-9]\\.|23[0-9]\\.|24[0-9]\\.|25[0-5]\\.)" (toString $tp) }}
+{{- fail "config.TRUST_PROXY 不允许 0.0.0.0/回环/链路本地/组播/保留前缀（这些不是可信代理边界）" }}
+{{- end }}
+{{- $prefix := atoi (trimPrefix "/" (regexFind "/[0-9]+$" (toString $tp))) }}
+{{- if lt $prefix 24 }}
+{{- fail "config.TRUST_PROXY 的 IPv4 前缀必须 >= /24（更宽等于信任任意客户端伪造 XFF）" }}
+{{- end }}
+{{- if gt $prefix 32 }}
+{{- fail "config.TRUST_PROXY 的 IPv4 前缀非法（> /32）" }}
+{{- end }}
+{{- else if $tp6 }}
+{{- if or (hasPrefix "::/0" (toString $tp)) (hasPrefix "::1/" (toString $tp)) (hasPrefix "fe80" (toString $tp)) (hasPrefix "ff" (toString $tp)) }}
+{{- fail "config.TRUST_PROXY 不允许 ::/0、::1、fe80、ff 前缀" }}
+{{- end }}
+{{- $prefix := atoi (trimPrefix "/" (regexFind "/[0-9]+$" (toString $tp))) }}
+{{- if lt $prefix 64 }}
+{{- fail "config.TRUST_PROXY 的 IPv6 前缀必须 >= /64" }}
+{{- end }}
+{{- if gt $prefix 128 }}
+{{- fail "config.TRUST_PROXY 的 IPv6 前缀非法（> /128）" }}
+{{- end }}
+{{- else }}
+{{- fail "config.TRUST_PROXY 格式非法：只允许 IPv4/NN（/24-/32）或 IPv6/NN（/64-/128）" }}
+{{- end }}
 data:
   {{- range $key, $value := .Values.config }}
   {{ $key }}: {{ $value | quote }}
