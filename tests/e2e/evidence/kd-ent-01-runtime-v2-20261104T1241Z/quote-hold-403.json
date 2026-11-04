@@ -1,1 +1,0 @@
-{"type":"https://errors.market-sense.invalid/entitlement-restricted","title":"行情数据暂不可用","status":403,"code":"ENTITLEMENT_RESTRICTED","trace_id":"req-h","detail":"当前版本暂不提供该标的行情数据"}

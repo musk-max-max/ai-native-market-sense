@@ -63,3 +63,10 @@
   - A3：KD-ENT-01 代码修复（E2E_MODE 不再隐式关 hold/audit、不再跳过 sha 自检）、回归测试；
   - Lead/H5：事件台账、用户沟通、安全组与入口决策。
 - 防复发门禁：CI/部署前静态检查 `APP_PROFILE`/`E2E_MODE`/ entitlement env 组合；`E2E_MODE=1` 只允许 loopback/内网；测试 profile 结果不得用于 release 签字。
+
+## 7. compose 网络边界：`app-net.internal=false` 仅限 e2e positive override
+
+- `tests/e2e/docker-compose.yml` 默认 `app-net.internal: true`，端口不发布到宿主；这是默认栈的唯一形态。
+- 只有 positive 授权用例的 override 允许 `internal: false`，且必须在同一 override 里保持所有端口绑定 `127.0.0.1`（或 compose v5 的 loopback 映射），**不得**写 `0.0.0.0:`/`ports: "80:80"` 形式。
+- `internal:false` 不等于公网可达：可达性按 `docker inspect` 的 PortBindings 判定（`0.0.0.0`/`::` 才算公网）；但 `internal:false` + 端口发布组合是暴露面风险，代码审查与 CI `validate_compose.py` 双检查。
+- residual ③（KD-ENT-01 v2 签字随附）：本行为只在 e2e positive override 出现，默认栈/发布清单未改；不是生产配置。
