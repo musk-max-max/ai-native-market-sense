@@ -22,7 +22,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 if [[ $DRY_RUN -eq 1 ]]; then
-  echo "⏭ dry-run：合法 gap 成功；transient+null 拒、process_restart+null 通过；缺 window_start/window_end、窗口反序、lost_count=0/8 均 23514 且行数=0"
+  echo "⏭ dry-run：合法 gap 成功；transient+null 拒、process_restart+null 通过；缺 window_start/window_end、窗口反序、lost_count=0 均 23514 且行数=0"
   exit 0
 fi
 [[ -n "$DSN" ]] || { echo "✗ 需要 --dsn（一次性验收库，不要指向生产）" >&2; exit 2; }

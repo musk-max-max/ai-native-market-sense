@@ -35,6 +35,9 @@
 - `event_key = gap|<deployment_uid>|<window_start ISO8601 UTC>`
 - 去重身份用 `deployment_uid`，**不是 `boot_id`**：service 与 reconciler 必须能算出同一个键，而 `boot_id` 只有 service 知道
 - `lost_count >= 1`（写 0 条丢失是自欺）
+- **例外（L71）**：`reason = process_restart` 时允许 `lost_count = null`——进程在断口期间死亡，次数随内存丢失、不可知；
+  `null` 语义是「至少一次断口、次数不可知」。`reason = transient_write_failure` 时 `null` 一律拒绝（进程活着，能数）。
+  机器可读字段：`lost_count_nullable_when: "reason == process_restart"`。
 - 不做补记重放：**断口可见，不靠"补得像没断过"**
 
 ## 窗口起点与去重键（2026-11-04 收口）
