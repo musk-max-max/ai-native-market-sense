@@ -18,8 +18,8 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const EVIDENCE_DIR = join(ROOT, 'infra/evidence');
-const MANIFEST = join(EVIDENCE_DIR, 'manifest.json');
-const IGNORED = new Set(['manifest.json']);
+const MANIFEST = join(EVIDENCE_DIR, 'evidence-manifest.json');
+const IGNORED = new Set(['evidence-manifest.json']);
 const AUTHORITY = new Set(['authoritative', 'historical']);
 const PHASE = new Set(['pre-fix', 'post-fix']);
 
@@ -45,13 +45,13 @@ function walk(dir) {
 }
 
 if (!existsSync(MANIFEST)) {
-  failures.push('缺少 infra/evidence/manifest.json（H5-R19：证据包必须有外置 manifest）');
+  failures.push('缺少 infra/evidence/evidence-manifest.json（H5-R19：证据包必须有外置 manifest）');
 } else {
   let manifest;
   try {
     manifest = JSON.parse(readFileSync(MANIFEST, 'utf8'));
   } catch (err) {
-    failures.push(`manifest.json 不是合法 JSON：${err.message}`);
+    failures.push(`evidence-manifest.json 不是合法 JSON：${err.message}`);
   }
   if (manifest) {
     if (!Array.isArray(manifest.artifacts) || manifest.artifacts.length === 0) {

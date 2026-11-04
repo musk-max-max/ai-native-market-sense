@@ -166,6 +166,15 @@ jobs:
         # 本地无 PG 的容错只放在本地脚本里，release gate 不降级。
         run: bash infra/db/seed-entitlement-audit.sh --restore-fresh
 
+      - name: 证据包 manifest + tar（H5-R19）
+        if: always()
+        run: |
+          node infra/ci/check-evidence-manifest.mjs
+          mkdir -p evidence-dist
+          node -e "const m=require('./infra/evidence/evidence-manifest.json'); console.log(m.artifacts.map(a=>a.path).join('\n'))" > /tmp/evidence-files.txt
+          tar -czf "evidence-dist/evidence-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.tar.gz" -T /tmp/evidence-files.txt
+          node infra/ci/check-evidence-manifest.mjs --tarball evidence-dist/evidence-*.tar.gz
+
       - name: 汇总
         if: always()
         run: |
@@ -191,6 +200,7 @@ jobs:
           name: release-gate-evidence
           path: |
             commit-sha.txt
+            evidence-dist/*.tar.gz
             .e2e-status.json
             tests/e2e/.e2e-status.json
             tests/e2e/stack.log
