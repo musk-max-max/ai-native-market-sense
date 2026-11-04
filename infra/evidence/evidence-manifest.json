@@ -2,7 +2,7 @@
   "schema_version": "0.1",
   "owner": "A13",
   "generated_by": "a13-sre",
-  "generated_at": "2026-11-04T06:00:00Z",
+  "generated_at": "2026-11-04T06:02:00Z",
   "rule": "artifact 不内嵌自身哈希；哈希只进 manifest；内容改动必须换新文件名（UTC 时间戳），旧 artifact 保留；CI 独立复算每条 sha。",
   "authority_values": [
     "authoritative",
@@ -105,6 +105,20 @@
         "H5-R19"
       ],
       "notes": "#3 采样 PASS 但封版前置=A0 同步 contracts/shared/openapi.yaml:187/243/253 与 docs/adr/ADR-001:57 的 404/403 文案；#1/#2/#4 closed。"
+    },
+    {
+      "path": "infra/evidence/slow-failure-scope-limitation-20261104T0602Z.md",
+      "sha256": "afe8f1aae3b4f11bb4c27d127fcf429b622a7d0ee18b66c8af1d4d9ad4edebdb",
+      "bytes": 1246,
+      "recompute": "sha256sum infra/evidence/slow-failure-scope-limitation-20261104T0602Z.md",
+      "role": "scope-limitation",
+      "authority": "authoritative",
+      "phase": "post-fix",
+      "case_ids": [
+        "L77",
+        "H5-R19"
+      ],
+      "notes": "H4 m02409 强制限定：test profile=c_end_display + ENTITLEMENT_AUDIT=0；internal_eval 档 gate 不读 control、黑洞在 healthz 不可见；不得推及 11-12 现网。"
     }
   ],
   "related_manifests": [
