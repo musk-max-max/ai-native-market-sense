@@ -116,7 +116,7 @@ export const domainPlugins = [marketPlugin];
 
 ```bash
 pnpm --filter @market-sense/market typecheck   # tsc --noEmit（依赖 A0 修 packages/api-client/src/index.ts 的 SharedComponents 编译错误）
-pnpm --filter @market-sense/market test        # node:test + fastify.inject，81 条，无需 PG
+pnpm --filter @market-sense/market test        # node:test + fastify.inject，84 条，无需 PG
 ```
 
 测试覆盖：F1 三接口 403 / instrument 200+internal_eval / watchlist platform_user_data、存在性 404 先于 403、

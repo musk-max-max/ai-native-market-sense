@@ -169,6 +169,14 @@ def check_negative_inserts(problems: list[str]) -> None:
             "\"owner\":\"a11\"}',null,'v1','a11','tr',repeat('0',64),repeat('b',64),'dep-a11-gap')",
         ),
         (
+            "audit_gap process_restart 下 lost_count=0（自欺：0 也不可）",
+            "insert into audit.entitlement_events (schema_version,event_id,event_type,occurred_at,old_value,new_value,"
+            "reason,rule_version,operator,trace_id,prev_hash,hash,deployment_uid) values "
+            "(2,gen_random_uuid(),'audit_gap',now(),'{}','{\"window_start\":\"2026-11-04T00:00:00.000Z\","
+            "\"window_end\":\"2026-11-04T00:10:00.000Z\",\"lost_count\":0,\"reason\":\"process_restart\","
+            "\"owner\":\"a11\"}',null,'v1','a11','tr',repeat('0',64),repeat('b',64),'dep-a11-gap')",
+        ),
+        (
             "audit_gap lost_count=-1（自欺）",
             "insert into audit.entitlement_events (schema_version,event_id,event_type,occurred_at,old_value,new_value,"
             "reason,rule_version,operator,trace_id,prev_hash,hash,deployment_uid) values "
@@ -193,7 +201,10 @@ def check_negative_inserts(problems: list[str]) -> None:
             "\"owner\":\"a11\"}',null,'v1','a11','tr',repeat('0',64),repeat('b',64),'dep-a11-gap')",
         ),
     ]
-    before_raw, before_error = psql_text("select count(*) from audit.entitlement_events")
+    scope = "deployment_uid in ('dep-a11-gap','dep-a11-gap-null')"
+    before_raw, before_error = psql_text(
+        f"select count(*) from audit.entitlement_events where {scope}"
+    )
     if before_error:
         problems.append(f"统计负向插入前行数失败：{before_error}")
     for label, statement in cases:
@@ -205,13 +216,15 @@ def check_negative_inserts(problems: list[str]) -> None:
         constraint = constraint_of(output)
         if state != "23514":
             problems.append(f"负向插入被拒但 SQLSTATE≠23514：{label}（state={state!r}, constraint={constraint!r}）")
-    after_raw, after_error = psql_text("select count(*) from audit.entitlement_events")
+    after_raw, after_error = psql_text(
+        f"select count(*) from audit.entitlement_events where {scope}"
+    )
     if after_error:
         problems.append(f"统计负向插入后行数失败：{after_error}")
     if before_raw.isdigit() and after_raw.isdigit() and before_raw != after_raw:
         problems.append(
-            f"负向插入被拒后行数发生变化：{before_raw} → {after_raw}"
-            "（被拒的行不得落库；也防 psql 管道吞退出码造成假绿）"
+            f"负向插入被拒后本脚本测试键行数发生变化：{before_raw} → {after_raw}"
+            "（被拒的行不得落库；只统计 dep-a11-gap*，避免共享库并发写入造成假红）"
         )
 
 
@@ -283,6 +296,13 @@ def check_ddl_matches_reference(problems: list[str]) -> None:
             problems.append(f"DDL 缺少 {event_type} 的 CHECK 约束（无法证明 required 键被 DB 强制）")
             continue
         definition = matches[0]
+        if event_type == "audit_gap" and "jsonb_typeof(new_value->'lost_count') = 'null'" not in definition:
+            definition_flat = definition.replace(" ", "")
+            if "jsonb_typeof(new_value->'lost_count')='null'" not in definition_flat:
+                problems.append(
+                    "数据库里的 audit_gap CHECK 没有 process_restart+lost_count=null 分支"
+                    "（库未重放终版 002 c118eeb3？请 A13 重建后再跑）"
+                )
         found = set(re.findall(r"new_value \? '([^']+)'", definition))
         missing = sorted(set(new_required) - found)
         invented = sorted(found - set(new_required))
@@ -317,6 +337,29 @@ def check_positive_insert(problems: list[str]) -> None:
         problems.append(f"audit_gap event_key 前缀不是 gap|<deployment_uid>|：{row!r}")
     if window_start not in row:
         problems.append(f"event_key 未绑定 payload.window_start（期望含 {window_start}）：{row!r}")
+
+    # H4 m02212 / Lead L71：process_restart 下 lost_count 允许 null（次数不可知是诚实值），
+    # 必须能落库；transient_write_failure 下 null 已在负向用例中被拒。
+    null_start = "2026-11-04T00:30:00.000Z"
+    null_end = "2026-11-04T00:40:00.000Z"
+    ok, _rc, output = psql(
+        "begin; "
+        "insert into audit.entitlement_events (schema_version,event_id,event_type,occurred_at,old_value,new_value,"
+        "reason,rule_version,operator,trace_id,prev_hash,hash,deployment_uid) values "
+        "(2,gen_random_uuid(),'audit_gap',now(),'{}',"
+        f"'{{\"window_start\":\"{null_start}\",\"window_end\":\"{null_end}\",\"lost_count\":null,"
+        "\"reason\":\"process_restart\",\"owner\":\"a11\"}',null,'v1','a11','tr',"
+        "repeat('0',64),repeat('b',64),'dep-a11-gap-null') returning event_key; "
+        "rollback;",
+        expect_ok=True,
+    )
+    if not ok:
+        problems.append(
+            "process_restart + lost_count=null 被数据库拒绝（H4 m02212 / L71 要求允许：次数不可知是诚实值）："
+            + output.strip()[:400]
+        )
+    elif f"gap|dep-a11-gap-null|{null_start}" not in output:
+        problems.append(f"process_restart null 样本的 event_key 未绑定 window_start：{output.strip()[:300]!r}")
 
 
 def check_negatives_in_db(problems: list[str]) -> None:

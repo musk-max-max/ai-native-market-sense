@@ -170,7 +170,7 @@ export function assertNoE2EBackdoorInProduction(env: NodeJS.ProcessEnv): void {
   }
 }
 
-function isProductionProfile(env: NodeJS.ProcessEnv): boolean {
+export function isProductionProfile(env: NodeJS.ProcessEnv): boolean {
   const profile = env.APP_PROFILE?.trim() ?? '';
   return !(profile !== '' && EXPLICIT_DEV_PROFILES.has(profile));
 }

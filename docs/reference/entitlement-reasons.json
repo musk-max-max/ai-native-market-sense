@@ -37,7 +37,9 @@
     ],
     "event_key_template": "gap|<deployment_uid>|<window_start ISO8601 UTC>",
     "dedupe_identity": "deployment_uid",
-    "lost_count_min": 1
+    "lost_count_min": 1,
+    "lost_count_nullable_when": "reason == process_restart",
+    "lost_count_null_semantics": "至少一次断口、次数不可知（进程在断口期间死亡，计数随内存丢失）；transient_write_failure 下 lost_count 为 null 一律拒绝"
   },
   "gap_window_start_definition": "链上最后一条任何类型事件的 occurred_at（含 audit_gap 自身）——取\"最后一条非 gap\"会让连续两个断口算出同一 event_key，第二次被唯一索引吞掉",
   "required_env": {

@@ -128,10 +128,9 @@ describe('audit_gap：写失败窗口恢复补记（L63/L65，H4 m01784/m01800�
     assert.equal(gap?.schemaVersion, 2);
     assert.equal(gap?.reason, undefined, 'reason 列置 NULL');
     const value = gap?.newValue ?? {};
+    // L70/event-payloads.json：audit_gap.new_value 恰好 5 键；deployment_uid/operator 只在列上。
     assert.deepEqual(Object.keys(value).sort(), [
-      'deployment_uid',
       'lost_count',
-      'operator',
       'owner',
       'reason',
       'window_end',
@@ -140,7 +139,7 @@ describe('audit_gap：写失败窗口恢复补记（L63/L65，H4 m01784/m01800�
     assert.equal(value.window_start, '2026-11-04T02:00:00.000Z');
     assert.equal(value.lost_count, 1);
     assert.equal(value.reason, 'transient_write_failure');
-    assert.equal(value.deployment_uid, 'deploy-1');
+    assert.equal(gap?.deploymentUid, 'deploy-1');
     // gap 在正常事件之前写；丢失的 observed 不重放。
     assert.deepEqual(inserted.map((event) => event.eventType), ['audit_gap', 'unauthorized_config']);
   });

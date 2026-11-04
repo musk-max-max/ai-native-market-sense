@@ -57,6 +57,7 @@ A3 交付后，由 A0 在 `src/domains.ts` 的 `domainPlugins` 数组接线（�
 | `LOG_LEVEL` | `info` | fatal/error/warn/info/debug/trace/silent |
 | `NODE_ENV` | `development` | 环境标识（日志/排障） |
 | `npm_package_version` | `0.1.0` | 由包管理器注入，作为 `/healthz` 的 version |
+| `TRUST_PROXY` | `false` | 只接受**单个** ingress 窄网段（IPv4 `/24`–`/32`；IPv6 `/64`–`/128`），或 `false`/留空。`true`、`0.0.0.0/0`、`::/0`、回环、链路本地、`10.0.0.0/8` 及更宽私有段、逗号列表一律在 `loadConfig()` 抛 `ConfigError`，进程在 `buildApp()`/`listen()` 前退出（错误信息点名 `TRUST_PROXY`）。
 
 密钥、数据库连接、tushare token **不在此读取**：P0 外壳不连数据库，数据链路归 A1/A2；认证归 A4/A9。
 
