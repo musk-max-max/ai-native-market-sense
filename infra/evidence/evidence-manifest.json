@@ -194,12 +194,16 @@
       "bytes": 11352,
       "recompute": "sha256sum tests/e2e/evidence/kd-ent-01-runtime-20261104T1237Z/runtime-evidence.tar.gz",
       "role": "evidence-artifact-v2",
-      "authority": "authoritative",
+      "authority": "historical",
       "phase": "post-fix",
       "case_ids": [
         "KD-ENT-01"
       ],
-      "notes": "KD-ENT-01 运行时四观测完整证据包（单次干净 run；含 16 文件；默认栈 403 / positive 200 / hold 403+no-store / clear 后 200；ECS e2e-ent-positive 隔离 project，端口全 loopback）"
+      "notes": "KD-ENT-01 运行时四观测完整证据包（单次干净 run；含 16 文件；默认栈 403 / positive 200 / hold 403+no-store / clear 后 200；ECS e2e-ent-positive 隔离 project，端口全 loopback）",
+      "status": "rejected-before-sign",
+      "errata": "H5 m03163 复核：行为四观测 PASS，但证据包本身不签——README 的 hold_id(a530b88d-…) 在 transcript 中无对应记录，且 RestartCount=0/StartedAt 未变无 docker inspect 机器证据。v1 保留字节、不改名不删，标记 rejected-before-sign；v2 到件后新目录/新条目 authority=authoritative 并 supersedes 本 tar sha。",
+      "rejected_by": "H5",
+      "rejected_at": "2026-11-04"
     },
     {
       "path": "tests/e2e/evidence/kd-ent-01-runtime-20261104T1237Z/transcript.log",
@@ -207,12 +211,16 @@
       "bytes": 24433,
       "recompute": "sha256sum tests/e2e/evidence/kd-ent-01-runtime-20261104T1237Z/transcript.log",
       "role": "transcript",
-      "authority": "authoritative",
+      "authority": "historical",
       "phase": "post-fix",
       "case_ids": [
         "KD-ENT-01"
       ],
-      "notes": "四观测完整 stdout/rc/时间戳；run 窗口 2026-11-04T20:36:40→20:38:06+08:00；api RestartCount=0"
+      "notes": "四观测完整 stdout/rc/时间戳；run 窗口 2026-11-04T20:36:40→20:38:06+08:00；api RestartCount=0",
+      "status": "rejected-before-sign",
+      "errata": "H5 m03163 复核：行为四观测 PASS，但证据包本身不签——README 的 hold_id(a530b88d-…) 在 transcript 中无对应记录，且 RestartCount=0/StartedAt 未变无 docker inspect 机器证据。v1 保留字节、不改名不删，标记 rejected-before-sign；v2 到件后新目录/新条目 authority=authoritative 并 supersedes 本 tar sha。",
+      "rejected_by": "H5",
+      "rejected_at": "2026-11-04"
     },
     {
       "path": "tests/e2e/evidence/kd-ent-01-runtime-20261104T1237Z/README.md",
@@ -220,12 +228,16 @@
       "bytes": 6909,
       "recompute": "sha256sum tests/e2e/evidence/kd-ent-01-runtime-20261104T1237Z/README.md",
       "role": "runtime-evidence-readme",
-      "authority": "authoritative",
+      "authority": "historical",
       "phase": "post-fix",
       "case_ids": [
         "KD-ENT-01"
       ],
-      "notes": "执行人/命令/四观测/caveat：验证运行时配置与授权链，非镜像构建 provenance；ECS checkout 0c78433，compose 规格来自本地 7911a03+0a6beba；默认栈仍旧 api 镜像；合成 fixture 不作 DA 证据"
+      "notes": "执行人/命令/四观测/caveat：验证运行时配置与授权链，非镜像构建 provenance；ECS checkout 0c78433，compose 规格来自本地 7911a03+0a6beba；默认栈仍旧 api 镜像；合成 fixture 不作 DA 证据",
+      "status": "rejected-before-sign",
+      "errata": "H5 m03163 复核：行为四观测 PASS，但证据包本身不签——README 的 hold_id(a530b88d-…) 在 transcript 中无对应记录，且 RestartCount=0/StartedAt 未变无 docker inspect 机器证据。v1 保留字节、不改名不删，标记 rejected-before-sign；v2 到件后新目录/新条目 authority=authoritative 并 supersedes 本 tar sha。",
+      "rejected_by": "H5",
+      "rejected_at": "2026-11-04"
     }
   ],
   "related_manifests": [
