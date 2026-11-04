@@ -191,7 +191,7 @@ FAIL 会带独立 reason code，让红灯可归因、不用每天重查：
 
 本机当前**没有 docker / pnpm / Playwright 浏览器**，因此本轮交付的验证边界是：
 
-- ✅ `validate_compose.py` 65/65 通过（真栈/录播/断网/token/授权矩阵结构断言）
+- ✅ `validate_compose.py` 69/69 通过（真栈/录播/断网/token/授权矩阵/seed 链/`sh` 迁移脚本结构断言）
 - ✅ `pytest tushare-replay/test_server.py tests/e2e/scripts/test_preflight.py` 42 passed
 - ✅ 合成录制 19 条 + `build_recordings.py --check` 通过；replay 冒烟：已录制 200（`SYNTHETIC-*` 值）、未录制 503 `FIXTURE_MISSING`
 - ✅ `preflight.py --offline` 正确输出 `SKIP(78)` 并落 `.e2e-status.json`

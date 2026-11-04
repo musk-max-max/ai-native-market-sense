@@ -200,6 +200,11 @@ def main(argv) -> int:
     rep.check("infra/db/bootstrap.sh" in migrate_cmd and "infra/scripts/db-migrate.sh" in migrate_cmd,
               "db-migrate 走 A13 的同一迁移路径（bootstrap + db-migrate.sh）",
               "Lead m01015：禁止 compose 内手写 SQL；E2E 必须跑被发布的迁移路径")
+    rep.check("bash infra/" not in migrate_cmd and "sh infra/db/bootstrap.sh" in migrate_cmd
+              and "sh infra/scripts/db-migrate.sh" in migrate_cmd,
+              "db-migrate 用 `sh` 调迁移脚本（postgres:16 镜像无 bash/node，A13 commit f269240）",
+              "用 bash 调 db-migrate.sh 会在 postgres:16 里 `bash: not found` 直接挂；"
+              "POSIX 化后必须继续用 sh（A13 infra/ci/check-posix-scripts.mjs 防回退）")
     rep.check("CREATE TABLE" not in base_text.upper().replace("CREATE TABLE IF", "CREATE TABLE IF"),
               "compose 不内联手写建表 SQL",
               "手写 DDL 会与 services/compliance 迁移分叉（今天已付过一次学费）")

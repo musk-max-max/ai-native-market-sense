@@ -1,0 +1,34 @@
+{
+  "label": "restricted_malformed_403",
+  "scenario": "restricted_malformed_403",
+  "run_id": "11-12-f1-dom-20261104T0557Z-v2",
+  "batch_started_at": "2026-11-04T13:57:11+08:00",
+  "generated_at": "2026-11-04T13:57:23+08:00",
+  "rules": {
+    "injected_403_malformed": {
+      "ok": true,
+      "intercepted_quotes": 1,
+      "api_title": "行情数据暂不可用",
+      "api_detail": "当前版本暂不提供该标的行情数据",
+      "note": "浏览器网络层注入无 title/detail 的 403（拦截计数来自 Playwright route 本身）；真实 API 仍返回合法 Problem（见 api.json），所以这里校验注入确实发生，而非 API 结构。"
+    },
+    "full_page_error_no_numeric": {
+      "ok": true,
+      "counts": {
+        "quotePrice": 0,
+        "quoteChange": 0,
+        "quoteStaleBadge": 0,
+        "entitlementNotice": 0,
+        "errorBanner": 1,
+        "disclaimer": 0
+      },
+      "bodyFlags": {
+        "hasYuanAmount": false,
+        "hasPercent": false,
+        "hasHours": false
+      },
+      "leaks": []
+    }
+  },
+  "overall": "PASS"
+}

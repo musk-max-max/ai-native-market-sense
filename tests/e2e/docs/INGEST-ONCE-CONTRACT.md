@@ -7,7 +7,7 @@ Owner: A12（`tests/e2e/` 写域）。任何一方要改语义，先改本文档
 
 | 步骤 | 服务/命令 | 职责 | 退出码 |
 |---|---|---|---|
-| 0 migrate | `docs`+compose `db-migrate`：`infra/db/bootstrap.sh --env dev` + `infra/scripts/db-migrate.sh --env dev` | A13/A2：DWD/serving 底座 + `services/compliance/migrations/*`（含 `audit.*`，A5 唯一真源）+ `20_grants`/`90_verify`；**禁止 compose 手写 DDL** | 0 成功；非 0 = 迁移失败（整栈 fail） |
+| 0 migrate | `docs`+compose `db-migrate`：`sh infra/db/bootstrap.sh --env dev` + `sh infra/scripts/db-migrate.sh --env dev` | A13/A2：DWD/serving 底座 + `services/compliance/migrations/*`（含 `audit.*`，A5 唯一真源）+ `20_grants`/`90_verify`；**禁止 compose 手写 DDL** | 0 成功；非 0 = 迁移失败（整栈 fail） |
 | 1 ingress | `sh /e2e/ingress_once.sh`（A1 镜像，A12 脚本） | A1：录播回放 → ODS `display/`+`internal/` + audit manifest；写 `/state/step-ingest.json` | 0 成功；21 配额/限流；22 网络/上游 5xx；其他非 0 未分类 |
 | 2 load | `sh /e2e/warehouse_load_once.sh`（A2 `warehouse/Dockerfile`，A12 脚本） | A2：`python -m warehouse.load` ODS → DWD/serving 幂等 upsert；写 `quality.json` + `/state/step-load.json` | 0 成功；1 质量红/黑拒绝写库；2 env/DB/schema；3 输入缺失/为空 |
 | 3 report | `python3 /e2e/ingest_report.py`（`python:3.12-slim`，A12 脚本） | 聚合 1/2 步退出码 + `quality.json`，原子写 `ingest-report.json` | 0 写成功；30 质量报告缺失/不合法 |
@@ -31,8 +31,15 @@ seed 全 0 才取 preflight 的码。**非零 = 门禁**：`api`/`web` 仍启动
 - **2026-11-04 更新（A1 m00920/m00969）**：`MARKET_NOW`（ISO 8601，必须带时区）已落地并覆盖全部时间源；seed 默认 pin
   `2026-11-04T15:00:00+08:00`（与 19 条合成录制 `end_date=20261104` 对齐）。seed 命令**不带 `--synthetic`**（H4：
   synthetic 批次 `display_safe` 恒 false，C 端会被隐藏；e2e 走真实执行路径，`--synthetic` 只留 samples 复现）。
-- 镜像必须 COPY `config/ingest.yaml`（A1 Dockerfile 当前只 COPY `services/ingest` 与 `data/instruments`，
-  缺配置文件时 `load_config()` 会失败——A1 侧修）。
+- 镜像内必须有 `config/ingest.yaml`：`services/ingest/Dockerfile:30-31` 已显式
+  `COPY services/ingest/config /app/services/ingest/config`（另 `COPY services/ingest` 本身也包含 config，
+  显式那层是防裁剪的双保险）；镜像内路径 `/app/services/ingest/config/ingest.yaml`。不再是待修项。
+- **2026-11-04（A1 m01742，经 Lead 授权改 A12 脚本）**：`sync-bars` 必须带
+  `--instruments "${INGEST_BARS_INSTRUMENTS:-SSE:600519,SZSE:000001}"`。原因：合成录制是 **per-instrument**
+  的（`daily` 的 params 含 `ts_code/start_date/end_date`），不带 `--instruments` 时 CLI 走 market-wide
+  （params 只有 `trade_date`），键不匹配 → `503 FIXTURE_MISSING`。只取 2 个标的：`SSE:601398` 只在
+  fixture、不在 `base_info.csv`；补进 CSV 会破坏「未录制标的非 200」用例，不补则触发 A2 CONS-02
+  （bar 必须有 instrument 主数据）。换标的集用同一 env 覆盖，不要改脚本逻辑。
 - 确定性：`sync-bars` 的 `adj_factor` 锚点 = `ANCHOR_START` 到「今天」（`market_now()`）。E2E 合成录制按固定
   `end_date` 生成，依赖**固定时钟注入** `MARKET_NOW`（A1 已落地，见上条）；不 pin 则录制跨天失效（时间炸弹）。
 
@@ -138,7 +145,7 @@ CI 门禁在 `up.sh`（seed 非零即 job 失败）；preflight 的 `SKIP` 只�
 
 ## 6. compose / up.sh 接线（A12，已落地）
 
-- `db-migrate`（`postgres:16`，仓库根 ro 挂载）：`infra/db/bootstrap.sh --env dev` → `infra/scripts/db-migrate.sh --env dev`；
+- `db-migrate`（`postgres:16`，仓库根 ro 挂载）：**必须用 `sh`** 调 `sh infra/db/bootstrap.sh --env dev` → `sh infra/scripts/db-migrate.sh --env dev`（postgres:16 只有 dash、无 bash/node；A13 commit f269240 已把两脚本 POSIX 化，`infra/ci/check-posix-scripts.mjs` 防回退）；
   A13 的同一迁移路径（含 `services/compliance/migrations/001_audit_entitlement_events.sql`）。
 - `ingress`（A1 `services/ingest/Dockerfile`，entrypoint 覆盖为 `sh /e2e/ingress_once.sh`）：`MARKET_NOW` pin
   `2026-11-04T15:00:00+08:00`；`/data` 具名卷；`/state` rw；写 `step-ingest.json`。

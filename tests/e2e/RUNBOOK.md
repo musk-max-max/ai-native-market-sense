@@ -197,3 +197,32 @@ E2E_BASE_URL=http://127.0.0.1:3000 E2E_AUTH_TOKEN=dev-token E2E_PG_DSN=postgres:
 - 登录态：web 只读 `localStorage['e2e_token']`（`E2E_AUTH_STORAGE_KEY` 可覆盖），请求头自动带
   `Authorization: Bearer <token>`；`E2E_AUTH_TOKEN` 一设，P0-08/09 即可跑。
 - 录播代理（replay）只有 P0-10 需要；不启动时 P0-10 会 skip，其余照跑。
+
+## 7. H4 #5 证据包（fail-closed DOM + 页面文案逐字节）
+
+已交付一份 run-scoped 证据（v2，H5/H4 复核后单次 run 重采），可直接作为复跑模板：
+
+`tests/e2e/evidence/11-12-f1-dom-20261104T0557Z-v2/`
+- 五场景：`expired` / `unauthorized_config` / `hold_active` / `hold_stale` / `restricted_malformed_403`，
+  每个 verdict `PASS`（本机原生栈，非 docker 真栈）；`PACKAGE.sha256` 绑定
+  `README.tar.gz`（`5f866116…`）与 `evidence-manifest.json`（`885f2aa0…`）。
+- 一次 run 全量采集 + 打包：`python3 tests/e2e/scripts/run_f1_dom_evidence_batch.py`
+  （自动新 run 目录、拒绝覆盖；任一场景非 PASS 不打包）。
+- 旧 v1 `tests/e2e/evidence/11-12-f1-dom-20261104T1049Z/` 已被 H5 拒收并**原字节冻结**：
+  不要再引用、重生成或添加任何文件；rejected 由外部台账记录。
+- 复跑单个场景：`EVIDENCE_WEB_URL=... EVIDENCE_API_URL=... EVIDENCE_LABEL=<label> EVIDENCE_SCENARIO=<label>
+  EVIDENCE_OUT_DIR=... python3 tests/e2e/scripts/collect_f1_dom_evidence.py`。
+- `restricted_malformed_403` 必须加 `EVIDENCE_MALFORMED_403=1`（浏览器网络层注入 403，不碰真实 API）。
+- 新建 run 根目录时用新时间戳，**不要覆盖旧 run**；hold 场景造数用 admin DSN 调 `audit.raise_hold/clear_hold`，
+  采集后把控制行恢复 `hold=false`。
+- 打包/重打包**只从逐场景 verdict.json 生成**（禁止手工拼）：`python3 tests/e2e/scripts/build_f1_evidence_package.py
+  --run-dir tests/e2e/evidence/<run> --run-started-at <iso> --run-finished-at <iso>`。脚本会拒绝非 PASS 场景、
+  run_id 不一致、per-scenario 带 coverage；生成 `evidence-manifest.json`（repo-relative + sha256 + size）、
+  `TRANSCRIPTS.md`（索引，不得与 README 同文）、包外 `PACKAGE.sha256`。
+- **路径归一化规则（H5 m02105，写进台账）**：`evidence-manifest.json` 里是 **repo-relative** path，
+  `README.tar.gz` 里是 **包相对** path；两者做集合比对时必须先去掉 `manifest.run_root + '/'` 前缀
+  （builder 自己就是这样校验的）。用裸字符串比会对每个文件误报「tar 多出来」，A11 打 v4 整包时按这条执行。
+- **签收后不可改**：已签字分发的 run 目录禁止重生成/编辑；任何内容变化新建 run 目录 + 新 `PACKAGE.sha256`，
+  旧包原样保留。
+- 合成数据边界：replay 录制是 L32 合成样本，**不进 release note/对外材料，不作 DA 组证据**；
+  真栈/镜像构建另见 §0 与 `ci/BUILD-SMOKE.md`。

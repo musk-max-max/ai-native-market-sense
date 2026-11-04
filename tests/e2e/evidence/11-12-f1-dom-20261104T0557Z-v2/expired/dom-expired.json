@@ -1,0 +1,56 @@
+{
+  "label": "expired",
+  "web_url": "http://127.0.0.1:3003",
+  "instrument": "SSE:600519",
+  "started_at": "2026-11-04T05:57:18.584Z",
+  "finished_at": "2026-11-04T05:57:19.538Z",
+  "console_errors": [
+    "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+    "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+  ],
+  "injectedMalformed403": 0,
+  "counts": {
+    "quotePrice": 0,
+    "quoteChange": 0,
+    "quoteStaleBadge": 0,
+    "entitlementNotice": 1,
+    "errorBanner": 0,
+    "disclaimer": 1
+  },
+  "bodyFlags": {
+    "hasYuanAmount": false,
+    "hasPercent": false,
+    "hasHours": false
+  },
+  "url": "http://127.0.0.1:3003/stocks/SSE%3A600519",
+  "title": "Market Sense · A 股数据工具",
+  "testids": [
+    "disclaimer",
+    "disclaimer-text",
+    "entitlement-notice",
+    "fundamental-summary",
+    "stock-board",
+    "stock-exchange",
+    "stock-header",
+    "stock-instrument-id",
+    "stock-list-date",
+    "stock-list-status",
+    "stock-name",
+    "stock-page",
+    "stock-security-type",
+    "watchlist-state",
+    "watchlist-toggle"
+  ],
+  "numericTestids": [],
+  "leaks": [],
+  "entitlementNotice": {
+    "text": "行情数据暂不可用当前版本暂不提供该标的行情数据",
+    "textContent": "行情数据暂不可用当前版本暂不提供该标的行情数据",
+    "innerText": "行情数据暂不可用\n\n当前版本暂不提供该标的行情数据"
+  },
+  "disclaimer": {
+    "text": "免责声明本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。"
+  },
+  "bodyText": "跳到主要内容\nMS\nMarket Sense\nA 股数据\n首页\n自选\n← 首页\n/\n贵州茅台\n贵州茅台\n\nSSE:600519\n上交所\n主板\n股票\n已上市\n上市日期\n2001-08-27\n\n行情数据暂不可用\n\n当前版本暂不提供该标的行情数据\n\n☆\n加入自选\n未自选\n免责声明\n\n本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。\n\n基本面摘要\n\n财报为报告期口径，与上方行情时点不同，请勿混读。\n\n基本面数据暂时无法取得；页面不会用 0 或猜测值填充。\n\n本页行情为收盘快照，非盘中实时；如上方出现「延时数据」标记，请以标记为准。数据口径与免责声明不可关闭。\n\n本平台为客观数据工具，展示公开数据源与平台自有数据，不构成投资建议、要约或收益承诺。\n\n数据均标注来源与截止时间 · 免责声明由服务端版本化下发且不可关闭",
+  "skeletonPresent": 0
+}

@@ -55,15 +55,17 @@ try {
     window.localStorage.setItem(key, value);
   }, [AUTH_KEY, AUTH_VALUE]);
   const page = await context.newPage();
+  let malformedInjected = 0;
   if (MALFORMED_403) {
-    await page.route('**/v1/instruments/*/quote*', (route) =>
-      route.fulfill({
+    await page.route('**/v1/instruments/*/quote*', (route) => {
+      malformedInjected += 1;
+      return route.fulfill({
         status: 403,
         contentType: 'application/json',
         // 结构不合法：缺 title/detail（只剩机器 code），页面不得据此自造受限文案。
         body: JSON.stringify({ type: 'about:blank', status: 403, code: 'ENTITLEMENT_RESTRICTED' }),
-      }),
-    );
+      });
+    });
   }
   const consoleErrors = [];
   page.on('console', (msg) => {
@@ -80,7 +82,7 @@ try {
   ).catch(() => {});
   await page.waitForTimeout(300);
 
-  const observed = await page.evaluate(({ ids, placeholderSource }) => {
+  const observed = await page.evaluate(({ ids, placeholderSource, malformedInjected }) => {
     const placeholder = new RegExp(placeholderSource, 'i');
     const numericClass = /(?:^|[-_\s])(?:price|change|volume|amount|vol|pct|turnover|quote)(?:$|[-_\s])/i;
     const textOf = (el) => (el.textContent || '').replace(/\s+/g, ' ').trim();
@@ -124,6 +126,7 @@ try {
     const bodyText = (document.body.innerText || '').replace(/\r\n/g, '\n');
     const count = (id) => document.querySelectorAll(`[data-testid="${id}"]`).length;
     return {
+      injectedMalformed403: malformedInjected,
       counts: {
         quotePrice: count('quote-price'),
         quoteChange: count('quote-change'),
@@ -143,12 +146,19 @@ try {
       testids: [...new Set(testids)].sort(),
       numericTestids: numericNodes,
       leaks: leaks.slice(0, 20),
-      entitlementNotice: notice ? { text: textOf(notice), innerText: notice.innerText } : null,
+      entitlementNotice: notice
+        ? {
+            // 判定用 textContent（title/detail 直接拼接，无分隔符）；innerText 供人工看两段结构。
+            text: textOf(notice),
+            textContent: notice.textContent,
+            innerText: notice.innerText,
+          }
+        : null,
       disclaimer: disclaimer ? { text: textOf(disclaimer) } : null,
       bodyText,
       skeletonPresent: document.querySelectorAll('[class*="skeleton" i], [class*="shimmer" i]').length,
     };
-  }, { ids: NUMERIC_TEST_IDS, placeholderSource: PLACEHOLDER_TEXT.source });
+  }, { ids: NUMERIC_TEST_IDS, placeholderSource: PLACEHOLDER_TEXT.source, malformedInjected });
 
   await page.screenshot({ path: path.join(OUT, `page-${LABEL}.png`), fullPage: true });
   fs.writeFileSync(path.join(OUT, `page-${LABEL}.html`), await page.content(), 'utf8');

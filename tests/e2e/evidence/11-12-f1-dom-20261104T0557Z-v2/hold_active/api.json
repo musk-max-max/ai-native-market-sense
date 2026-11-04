@@ -1,0 +1,42 @@
+{
+  "quote_status": 403,
+  "quote_body": {
+    "type": "https://errors.market-sense.invalid/entitlement-restricted",
+    "title": "行情数据暂不可用",
+    "status": 403,
+    "code": "ENTITLEMENT_RESTRICTED",
+    "trace_id": "req-87",
+    "detail": "当前版本暂不提供该标的行情数据"
+  },
+  "quote_headers": {
+    "content-type": "application/problem+json; charset=utf-8",
+    "cache-control": "no-store",
+    "content-length": "226",
+    "date": "Wed, 04 Nov 2026 05:57:24 GMT",
+    "connection": "close"
+  },
+  "instrument_status": 200,
+  "instrument_body": {
+    "data": {
+      "instrument_id": "SSE:600519",
+      "exchange": "SSE",
+      "name": "贵州茅台",
+      "board": "main",
+      "security_type": "stock",
+      "list_status": "listed",
+      "listed_at": "2001-08-27"
+    },
+    "meta": {
+      "source": {
+        "source": "platform_eod",
+        "as_of": "2026-11-04T08:55:00+08:00",
+        "staleness_ms": 18143282,
+        "source_id": "fixture"
+      },
+      "entitlement": {
+        "tier": "internal_eval",
+        "is_entitled": false
+      }
+    }
+  }
+}

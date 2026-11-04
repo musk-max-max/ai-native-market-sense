@@ -127,7 +127,7 @@ def test_v6_archive_matches_packed_commit(tmp_path: Path) -> None:
     assert archive.is_file()
     staging = tmp_path / "v6"
     with tarfile.open(archive) as tar:
-        tar.extractall(staging)
+        tar.extractall(staging, filter="data")
     result = subprocess.run(
         [sys.executable, str(CHECKER), "--root", str(staging), "--repo", str(repo),
          "--commit", "162ac41144af3a5e7f8c9c622cf40e574e2ec011",

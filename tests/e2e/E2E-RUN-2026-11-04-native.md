@@ -1,9 +1,10 @@
 # E2E 首跑记录：无 docker 原生栈（2026-11-04）
 
-> **结论：首次真跑 8 通过 / 1 失败（脚手架耦合，已修）/ 2 未运行；修复后 10 passed / 1 skipped；
-> 2026-11-04 起 replay 代理 + 19 条合成录制后 **11 passed / 1 skipped（4.8s）**，P0-10 已转绿
-> （skip=P0-11 hold 未开，不假绿）。** 仍**不是** docker 真栈/CI 证据：本轮全部用原生进程，
-> 镜像构建未验证（Dlv-4），不能替代 `ci/BUILD-SMOKE.md` / 真栈首跑。
+> **结论：首次真跑 8 通过 / 1 失败（脚手架耦合，已修）/ 2 未运行；逐步修复后 10 passed / 1 skipped；
+> replay 代理 + 19 条合成录制后 P0-10 转绿；A13 在原生库跑完 `db-migrate`（A5 control 表）后，
+> **2026-11-04 全量 11 passed / 2 skipped（35.9s）**：P0-00..09 + P0-11 hold 全绿，
+> skip = P0-10（本机 replay 未起）/ P0-12（仅受限档整栈运行）。** 仍**不是** docker 真栈/CI 证据：
+> 本轮全部用原生进程，镜像构建未验证（Dlv-4），不能替代 `ci/BUILD-SMOKE.md` / 真栈首跑。
 
 > **容器构建未验证（Dlv-4）**：本轮没有任何一次 `docker compose build` / `up`；镜像只在等价命令下验证过。
 > 首跑前先看 `ci/BUILD-SMOKE.md` 与 RUNBOOK §0，别把 10 passed 读成「真栈可用」。
@@ -122,8 +123,76 @@ cd tests/e2e && E2E_BASE_URL=http://127.0.0.1:3000 E2E_AUTH_TOKEN=dev-token \
 - [x] 用 `E2E_PG_DSN` 路径重跑 P0-08/09（真栈原生，无 compose），确认 DB 三处一致（10 passed / 1 skipped）。
 - [x] P0-10 录制资产：L32 合成录制 19 条（`tests/fixtures/tushare/synthetic/build_recordings.py`，非真实报文）。
 - [x] P0-10 复跑：原生 replay + 合成录制 → 11 passed / 1 skipped（§2c）。
-- [ ] P0-11 hold 复跑：`E2E_HOLD_ENABLED=1` + 已授权矩阵 + E2E 库跑过 A13 `db-migrate`（A5 迁移）后跑 `--grep E2E-P0-11`；
-  未开 hold 时该条 skip（不假绿）。迁移路径统一走 `infra/scripts/db-migrate.sh`，禁止 compose 手写 DDL；
-      前置需 A1 固定时钟（否则 `adj_factor` 录制按天失效）。
+- [x] P0-11 hold 复跑：A13 在原生库执行 `db-migrate`（A5 control 表 + `20_grants`）后，
+  `E2E_HOLD_ENABLED=1 E2E_ENTITLEMENT_MATRIX=normal` 全量 **11 passed / 2 skipped**；
+  P0-11 实测 raise_hold → 403 + 基础信息 200 无行情字段 + 页面降级提示，clear 后 200 + `is_entitled=true`。
+  注意 gate 对正常放行态 control 行有 30s 缓存，raise 后需轮询等生效（用例已改为 40s 内轮询，不放宽断言）。
+- [x] H4 #5 fail-closed DOM + 页面文案证据包 v2：`tests/e2e/evidence/11-12-f1-dom-20261104T0557Z-v2/`
+  （单次 run 全量重采，5 场景 PASS：expired / unauthorized_config / hold_active / hold_stale /
+  restricted_malformed_403；详见 §6 与包内 `TRANSCRIPTS.md`）。
+  v1 `11-12-f1-dom-20261104T1049Z/` 因拼代际/coverage 错位/README=TRANSCRIPTS 被 H5 拒收，
+  自 2026-11-04 13:55 起**原字节冻结**（不加 changelog、不重生成），rejected 由外部台账记；其内容不得再引用。
 - [ ] 记录本机真实环境变量与版本，供 A13 的 no-docker CI 参考。
 - [ ] 在 docker 真栈上整套重跑，作为 CI 形态的首跑记录（本记录不能替代）。
+
+## 5. 2026-11-04 复跑：hold 转绿 + H4 #5 证据（原生栈，非 docker 真栈）
+
+命令（已授权矩阵 + hold + admin PG DSN；web :3004 → api :8084 反代 /v1）：
+
+```bash
+cd tests/e2e
+E2E_BASE_URL=http://127.0.0.1:3004 E2E_AUTH_TOKEN=dev-token \
+E2E_PG_DSN='postgresql://ms@localhost:55432/market_sense' E2E_SKIP_PREFLIGHT=1 \
+E2E_HOLD_ENABLED=1 E2E_ENTITLEMENT_MATRIX=normal E2E_REPLAY_URL=http://127.0.0.1:18081 \
+npx playwright test --reporter=line
+→ replay 起：12 passed, 1 skipped (33.5s)（skip=P0-12 仅受限档整栈运行）
+→ replay 未起：11 passed, 2 skipped（skip 再加 P0-10）
+```
+
+- P0-11 第一次跑是真红：`raise_hold` 返回的是 `hold_id`（uuid），用例原来断言返回值含 ticket → 已改为
+  「返回值是 uuid + `audit.entitlement_events` 最新 `hold_set` 带 ticket」；另发现 gate 对「未 hold」行有 30s 缓存，
+  raise 后立即断言会假红 → 用例改为 40s 内轮询等生效（真实语义，不是放水）。
+- skip 说明：replay 未起时 P0-10 跳过（前置缺失）；P0-12（`E2E_FAILCLOSED_SCENARIO=1` 仅受限档整栈运行）在正常档永远 skip。
+  replay + 合成录制同跑：**12 passed / 1 skipped**，P0-00..11 全绿。
+- H4 #5 证据包：`tests/e2e/evidence/11-12-f1-dom-20261104T1049Z/`（run-scoped，不覆盖旧 run；H4 数据侧 2026-11-04 定版接受，
+  绑定 `README.tar.gz` sha256 `419d8f32…` / `evidence-manifest.json` sha256 `8df28469…`，此后不可改动；#5 PASS 由 H5 记）。
+  5 个场景 verdict 全 PASS，含 transcript（host/工具链/命令/exit code）、`api.json`、DOM 扫描、截图/HTML；
+  `restricted_malformed_403` 在浏览器网络层注入无 title/detail 的 403，页面走整页中性错误态。
+- 合成数据边界：replay 录制全部由 `synthetic/build_recordings.py` 生成（L32，无真实 tushare 报文）；
+  **本记录不是 DA 组证据，也不得进 release note / 对外材料**。
+- 容器构建仍未验证（Dlv-4）：以上全部是原生进程，真栈首跑归 A13 的 `e2e-build-smoke`。
+
+## 6. 2026-11-04 #5 证据包 v2（单次 run 全量重采）
+
+H5（m01941）/H4（m01953/m01963）复核 v1 后指出三处签字件缺陷：coverage 由混合代际 verdict 拼出、
+README 文案口径与实现不符（写成 `title + ' ' + detail`，实现为 `title + detail` 无分隔符）、
+`TRANSCRIPTS.md` 与 `README.md` 字节相同。v2 一次性重跑五场景并重新打包：
+
+- 证据根目录：`tests/e2e/evidence/11-12-f1-dom-20261104T0557Z-v2/`
+- run_id：`11-12-f1-dom-20261104T0557Z-v2`；run 窗口 2026-11-04T13:57:11+08:00 → 13:57:33+08:00
+- coverage（**包级 manifest 计算**，per-scenario verdict 不再写跨场景字段）：
+  expired / hold_active / hold_stale / restricted_malformed_403 / unauthorized_config 全 PASS
+- 绑定值（包外 `PACKAGE.sha256`）：
+  - `README.tar.gz` sha256 = `5f8661167cdc7cfc2459aebf2ed5afaf6e21bf072f1fb76722cbeed43da70d9e`
+  - `evidence-manifest.json` sha256 = `885f2aa044a03b4d6fbcba2762c25c610d7a0d595c194c5c518530506532d04e`
+  - manifest：`schema_version=2`、`assembled=false`、`file_count=36`、36 个文件均 repo-relative + sha256 + size
+- `README.md`（报告，4156B）与 `TRANSCRIPTS.md`（五份 transcript 索引，1305B）不同文；
+  README 贴实测原文：`title=行情数据暂不可用`、`detail=当前版本暂不提供该标的行情数据`、
+  `textContent=行情数据暂不可用当前版本暂不提供该标的行情数据`（无分隔符）、`innerText` 为两段换行（仅人工核对）。
+- 采集未改动旧 v1 目录；控制行采集后恢复 `hold=false` 且 `last_reconciled_at` 新鲜。
+- 本证据仍为原生进程、L32 合成录制（见 §5 边界）；#5 PASS 由 H5 记，A12 不签。
+
+复跑命令（**会拒绝覆盖已存在的 run 目录**，新 run 自动带 UTC 时间戳）：
+
+```bash
+cd /Users/leiyu/Documents/deepseek-harness/default-workspace
+python3 tests/e2e/scripts/run_f1_dom_evidence_batch.py
+# 前置：api 8082（internal_eval）/8083（expired）/8084（hold）、web 3001/3003/3004，
+# 以及 admin PG DSN（hold 控制行）；详情见 RUNBOOK §6 / collect_f1_dom_evidence.py 头部。
+```
+
+- **H5 签字（m02105）**：v2 为 #5 DOM 层签字版本——仅 DOM 层 PASS（SSR/PWA/Cache 另验）。
+  `README.tar.gz`=`5f866116…`、`evidence-manifest.json`=`885f2aa0…`；36 条逐条 sha256 复算全对，
+  tar 37 文件 = 36 条 + manifest 自身；coverage 仅包级。三条 residual 随 PASS 保留。
+- **台账规约**：manifest 是 repo-relative path、tar 内是包相对 path，集合比对先去掉 `run_root/` 前缀
+  （builder 即按此校验；A11 v4 整包沿用）。v2 之后任何改动开新目录新文件名，不覆盖已签包；v1 的 rejected 记录保持。

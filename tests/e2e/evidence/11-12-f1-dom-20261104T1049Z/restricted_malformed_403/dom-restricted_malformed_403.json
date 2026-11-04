@@ -2,12 +2,13 @@
   "label": "restricted_malformed_403",
   "web_url": "http://127.0.0.1:3001",
   "instrument": "SSE:600519",
-  "started_at": "2026-11-04T02:42:29.416Z",
-  "finished_at": "2026-11-04T02:42:30.377Z",
+  "started_at": "2026-11-04T05:44:24.524Z",
+  "finished_at": "2026-11-04T05:44:25.565Z",
   "console_errors": [
     "Failed to load resource: the server responded with a status of 403 (Forbidden)",
     "Failed to load resource: the server responded with a status of 403 (Forbidden)"
   ],
+  "injectedMalformed403": 1,
   "counts": {
     "quotePrice": 0,
     "quoteChange": 0,

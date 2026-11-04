@@ -12,9 +12,9 @@
 
 判定口径：
   1. DOM：价格/涨跌 testid 带文本即失败；数字类节点/伪元素/骨架屏一律失败（hidden 不算没有）。
-  2. 文案：页面 entitlement-notice 必须**逐字节包含** API Problem 的 title 与 detail，
-     且去掉这两段后不剩任何文案（页面不得自造第三句）；四条原因另有 hold_active/hold_stale
-     场景需 control 表，未迁移时本脚本明确记 BLOCKED，不冒领 PASS。
+  2. 文案：页面 entitlement-notice 的 `textContent`（strip 后）必须**严格等于**
+     `Problem.title + Problem.detail`（无分隔符、无第三段）；`innerText` 是 title/detail 两段换行，
+     仅作人工核对，不参与判定。hold_active/hold_stale 需 control 表，未迁移时明确失败，不冒领 PASS。
   3. 免责与不可用提示必须可见（DOM 快照里有 disclaimer + entitlement-notice）。
 
 退出码：0 全 PASS / 1 任一 FAIL / 2 环境不可达（FAIL，不 skip）。
@@ -79,10 +79,21 @@ def main() -> int:
         return 2
     os.makedirs(out_dir, exist_ok=True)
 
+    run_id = os.environ.get("EVIDENCE_RUN_ID", "unset-run")
+    batch_started_at = os.environ.get("EVIDENCE_BATCH_STARTED_AT", "")
+    if not batch_started_at:
+        print("[FAIL] 缺少 EVIDENCE_BATCH_STARTED_AT：证据包必须单次 run 生成，禁止跨代际拼包",
+              file=sys.stderr)
+        return 2
+    if run_id == "unset-run":
+        print("[FAIL] 缺少 EVIDENCE_RUN_ID：单场景 verdict 必须带 run_id", file=sys.stderr)
+        return 2
     started_at = now()
     transcript: list[str] = []
     steps: list[dict] = []
     transcript.append("# A12 11-12 #5 fail-closed DOM 证据 transcript")
+    transcript.append(f"# run_id: {run_id}")
+    transcript.append(f"# batch_started_at: {batch_started_at}")
     transcript.append(f"# label: {label}")
     transcript.append(f"# started_at: {started_at}  (Asia/Shanghai)")
     transcript.append(f"# host: {socket.gethostname()}  uname: {platform.platform()}")
@@ -176,12 +187,15 @@ def main() -> int:
     # 4) 判定
     api_title = str(quote_body.get("title", ""))
     api_detail = str(quote_body.get("detail", ""))
-    notice = (dom.get("entitlementNotice") or {}).get("text") or ""
-    notice_text = " ".join(notice.split())
-    title_ok = bool(api_title) and api_title in notice_text
-    detail_ok = bool(api_detail) and api_detail in notice_text
-    leftover = notice_text.replace(api_title, "", 1).replace(api_detail, "", 1).strip()
-    copy_ok = title_ok and detail_ok and leftover == ""
+    notice_node = dom.get("entitlementNotice") or {}
+    # H5 口径：判定用 textContent（title/detail 无分隔符直接拼接）；innerText 是两段但不作为契约。
+    notice_tc = str(notice_node.get("textContent") or notice_node.get("text") or "")
+    notice_inner = str(notice_node.get("innerText") or "")
+    expected_copy = api_title + api_detail
+    title_ok = bool(api_title) and api_title in notice_tc
+    detail_ok = bool(api_detail) and api_detail in notice_tc
+    leftover = notice_tc.strip().replace(api_title, "", 1).replace(api_detail, "", 1).strip()
+    copy_ok = bool(expected_copy) and notice_tc.strip() == expected_copy and leftover == ""
     dom_ok = bool(dom) and not dom.get("leaks") and dom.get("disclaimer") is not None \
         and dom.get("entitlementNotice") is not None
     playwright_ok = pw_code == 0
@@ -192,11 +206,12 @@ def main() -> int:
     if malformed:
         rules = {
             "injected_403_malformed": {
-                "ok": quote_status == 403 and not api_title and not api_detail,
-                "observed_quote_status": quote_status,
+                "ok": dom.get("injectedMalformed403", 0) >= 1,
+                "intercepted_quotes": dom.get("injectedMalformed403", 0),
                 "api_title": api_title,
                 "api_detail": api_detail,
-                "note": "浏览器网络层注入无 title/detail 的 403；真实 API 仍返回合法 Problem（见 api.json）。",
+                "note": "浏览器网络层注入无 title/detail 的 403（拦截计数来自 Playwright route 本身）；"
+                        "真实 API 仍返回合法 Problem（见 api.json），所以这里校验注入确实发生，而非 API 结构。",
             },
             "full_page_error_no_numeric": {
                 "ok": counts.get("entitlementNotice", 0) == 0
@@ -213,6 +228,8 @@ def main() -> int:
         verdict = {
             "label": label,
             "scenario": label,
+            "run_id": run_id,
+            "batch_started_at": batch_started_at,
             "generated_at": now(),
             "rules": rules,
         }
@@ -234,6 +251,8 @@ def main() -> int:
 
     verdict = {
         "label": label,
+        "run_id": run_id,
+        "batch_started_at": batch_started_at,
         "generated_at": now(),
         "rules": {
             "quote_403": {
@@ -248,10 +267,14 @@ def main() -> int:
             },
             "page_copy_matches_api": {
                 "ok": copy_ok,
-                "page_notice": notice_text,
+                "page_notice_textContent": notice_tc,
+                "page_notice_innerText": notice_inner,
+                "expected_textContent": expected_copy,
                 "missing_title": not title_ok,
                 "missing_detail": not detail_ok,
                 "extra_text": leftover,
+                "rule": "notice.textContent（strip）必须严格等于 Problem.title + Problem.detail；"
+                        "innerText 为 title/detail 两段（换行分隔），仅作人工核对，不参与判定。",
             },
             "dom_no_numeric_leak": {
                 "ok": bool(dom_ok),
@@ -282,28 +305,9 @@ def main() -> int:
         },
     }
     verdict["overall"] = "PASS" if all(rule.get("ok") for rule in verdict["rules"].values()) else "FAIL"
-    # 覆盖度以证据根目录下已存在的 verdict.json 为准，不靠单次运行的自我声明（H4：不冒领 PASS）。
-    expected = ["expired", "hold_active", "hold_stale", "restricted_malformed_403", "unauthorized_config"]
-    covered = {label: verdict["overall"]}
-    if os.path.isdir(EVIDENCE_ROOT):
-        for entry in sorted(os.listdir(EVIDENCE_ROOT)):
-            path = os.path.join(EVIDENCE_ROOT, entry, "verdict.json")
-            if os.path.isfile(path) and entry != label:
-                try:
-                    with open(path, encoding="utf-8") as handle:
-                        covered[entry] = json.load(handle).get("overall")
-                except (OSError, json.JSONDecodeError):
-                    covered[entry] = "INVALID"
+    # 单场景 verdict 只陈述本场景事实；跨场景 coverage 由包级 evidence-manifest.json 计算
+    # （H5：混合代际拼包会出现「未采集」与「已采集」并存的矛盾，不允许 per-scenario 写 coverage）。
     verdict["scenario"] = label
-    verdict["coverage"] = {
-        "expected": expected,
-        "covered": covered,
-        "blocked": {
-            name: "BLOCKED：该场景未采集（无 verdict.json）"
-            for name in expected
-            if name not in covered
-        },
-    }
     with open(os.path.join(out_dir, "verdict.json"), "w", encoding="utf-8") as handle:
         json.dump(verdict, handle, ensure_ascii=False, indent=2)
 
@@ -312,7 +316,7 @@ def main() -> int:
     for name, rule in verdict["rules"].items():
         transcript.append(f"- {name}: {'PASS' if rule.get('ok') else 'FAIL'}  {json.dumps(rule, ensure_ascii=False)}")
     transcript.append(f"- overall: {verdict['overall']}")
-    transcript.append(f"- coverage: {json.dumps(verdict['coverage'], ensure_ascii=False)}")
+    transcript.append("- coverage: 见包级 evidence-manifest.json（单场景 verdict 不写跨场景覆盖）")
     transcript.append(f"# finished_at: {now()}")
     with open(os.path.join(out_dir, "transcript.log"), "w", encoding="utf-8") as handle:
         handle.write("\n".join(transcript) + "\n")

@@ -480,7 +480,13 @@ test('E2E-P0-11 [hop:api.compliance+db+web] hold 冻结：行情 403、基础信
   try {
     try {
       const raised = dbQuery(`SELECT audit.raise_hold('e2e-hold', '${ticket}')`).out;
-      expect(raised, 'raise_hold 应把 ticket 写进审计（A3/A5 契约）').toContain(ticket);
+      // A13 m01540：raise_hold 返回 hold_id（uuid），ticket 落在 control 行；两处都要验。
+      expect(raised.trim(), 'raise_hold 应返回 hold_id（uuid，A13/A5 契约）')
+        .toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+      const holdEvent = dbQuery(
+        "SELECT hold_ticket FROM audit.entitlement_events WHERE event_type = 'hold_set' ORDER BY occurred_at DESC LIMIT 1",
+      ).out;
+      expect(holdEvent, 'raise_hold 必须在审计事件里留本次 ticket（A5 契约）').toContain(ticket);
     } catch (err) {
       throw new Error('raise_hold 失败：E2E 库必须先跑 A13 infra/scripts/db-migrate.sh'
         + '（应用 services/compliance/migrations/001_audit_entitlement_events.sql + 20_grants），'

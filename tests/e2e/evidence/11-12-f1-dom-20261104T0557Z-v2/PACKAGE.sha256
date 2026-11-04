@@ -1,0 +1,7 @@
+# PACKAGE.sha256（包外 receipt）
+# run_id=11-12-f1-dom-20261104T0557Z-v2
+# run_started_at=2026-11-04T13:57:11+08:00
+# run_finished_at=2026-11-04T13:57:33+08:00
+# 验包：tar -xzf README.tar.gz && 逐条对照 evidence-manifest.json
+5f8661167cdc7cfc2459aebf2ed5afaf6e21bf072f1fb76722cbeed43da70d9e  README.tar.gz
+885f2aa044a03b4d6fbcba2762c25c610d7a0d595c194c5c518530506532d04e  evidence-manifest.json

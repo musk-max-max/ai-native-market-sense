@@ -242,6 +242,9 @@ file-level 窄豁免且 H2 签，不给目录级）。扫描强度与全量数�
   逐条比对包内 repo-mapped 文件的 `git hash-object` 与 `<sha>:<path>`，并要求该路径相对 commit 无未提交改动；不一致即 fail，不出包。
 - 包内-only 文件（`a19-artifacts/`、`transcripts/`、root 下 addendum/ADVERSARIAL/TRANSCRIPTS）必须显式 `--allow-prefix` 声明。
 - 背景：v5 打于 14:03:33，A3 证据提交于 14:03:31，抓到旧 `MANIFEST.json`（`ced607bf…` vs repo `f105b582…`），H4/H5 判 v5 `rejected-before-sign`（`stale-market-evidence-manifest-race`）。
+- 未跟踪证据的 provenance 链：A19 `artifacts/logs/**` 未被 git 跟踪（`git ls-files …/logs`=0），改用 `--a19-manifest`（rev4 `bd6b551e…`，commit `b8e131c`）逐条 sha/bytes；`transcripts/**` 改用 `--tar-provenance` 对本 commit 内 v5 tar 逐成员 sha。清单外但已提交文件（截图、rev3/4 manifest）仍走 git blob 比对。
+- **v6（最新，待 H5 重签 #7）**：tar `tests/data/acceptance/artifacts/11-12-evidence-20261104-v6.tar.gz` sha256 `f1e6f8e4f1cb07040c24903638c2ebbfb3e3d60d170da029326021881fc4908e`（4,136,715B）；包内 manifest `evidence-manifest-v6-20261104T0700Z.json` sha256 `7d5488b3415dbd07c77576d2f7b38625fdf884916a9b9d7dce7d9ab2d970bd9f`（124 条 / 4,924,516B）；`packed_from_commit=162ac41144af3a5e7f8c9c622cf40e574e2ec011`。
+  两道机械校验均 PASS：`check_pack_matches_head.py`（119 repo-mapped 逐一 blob 一致、6 个包内-only 已声明、A19 rev4/tar provenance 全过）、`check_evidence_manifest.py`（124 文件 / excluded=1 墓碑 / rejected=0）。v5 tar 在包内标 `historical` + reason；A3 `f105b582…` MANIFEST 与两档采样/脚本入包。
 
 ### 7.7 最终全量复跑记录（2026-11-04 09:14–09:16，a13_verify @ 002 `c118eeb3`）
 

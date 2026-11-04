@@ -1,0 +1,6 @@
+# PACKAGE.sha256（包外 receipt）
+# generated_at=2026-11-04T13:53:10+08:00
+# run_root=tests/e2e/evidence/11-12-f1-dom-20261104T1049Z
+# 验包：tar -xzf README.tar.gz && sha256sum -c **/…（见 evidence-manifest.json）
+419d8f322dbcd6dfd9266ca9d694fbfce1ae71880834d4c40682cbd8482e08d9  README.tar.gz
+8df28469aa2958ff19805d6771446227c4e958d6226d7b37582cf76a8718818a  evidence-manifest.json
