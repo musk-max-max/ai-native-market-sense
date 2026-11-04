@@ -995,3 +995,13 @@ fail-closed 是对的，但**现象具有欺骗性**：部署突然失败，报�
 1. **PARTIAL 收口清单固定四列**：`缺什么 | owner | 截止时间 | 证据存放 path+sha256`。第四列是硬要求——**没有存放位置的"待补"等于没收口**，到期会变成"说好补但找不到了"。
 2. **H5 对 #7 的签字含义限定**：签的是"五组攻击 transcript 与 REPORT 已入包、我核过"，**不等于"攻击面已验证安全"**；公网 ingress 仍以 residual 列在放行说明，**不得扩大解释**。
 3. **#4 收口归 A13**：黑hole（iptables DROP）下出证据——`connect_timeout`≤1s 配置项、20 样本 P95、熔断后 ≤50ms、撤 DROP ≤30s 自愈、healthz reason 不含 DSN/主机名 → A11 打包 → H5 验收。
+
+### L75 引用文件前必须亲验（2026-11-04，我犯的错）
+
+**事实**：`tests/adversarial/entitlement-bypass/artifacts/http-attempts.jsonl` 是 **0 字节**（HEAD `363cbdc` 亦然）。原因 `cases/api.mjs:17-20` `initRawLog()` 用 `fs.writeFileSync(file,'')`，**每次 run 清空**；A19 在 09:14 `--only=R4` 复跑时覆盖了 09:01–09:03 那轮。
+
+**我错在哪**：我据此驳回了 A11 的"五组攻击无 transcript"，并写进 `L74` 与给 A11 的消息——**但我没有打开过那个文件**。我看见目录里有这个文件名、A19 报告里提到它，就当它存在且非空。**这和 A0 手抄 hash、A0 写「H3 验收」是同一类：把"应该有"当成"有"。**
+
+**规则**：**凡在裁定/证据/放行材料里引用的文件，必须亲验三项——存在、大小>0、sha256。** 三项没做，就只能写"据 X 报告称"，不能写成自己的结论。
+
+**#7 状态更正**：`PARTIAL`（按 L74 四列清单）——①原始 HTTP 日志需重跑重建（owner A19；证据入包后记 path+sha256）②公网 ingress 未验（owner A13，需 staging）。**PASS 背后不能挂一个空文件。**

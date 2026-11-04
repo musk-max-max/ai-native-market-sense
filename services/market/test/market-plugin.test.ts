@@ -673,6 +673,24 @@ describe('market 插件：fail-open 默认值（H5 P0 卡点）', () => {
     );
   });
 
+  it('L73 同类洞：prod 禁止 MARKET_NOW 固定时钟（可绕过时间盒）；显式 test profile 允许', () => {
+    assert.throws(
+      () =>
+        loadMarketConfig({
+          MARKET_NOW: '2026-11-04T10:00:00+08:00',
+          DEPLOYMENT_UID: 'deploy-test-1',
+        } as NodeJS.ProcessEnv),
+      (error: unknown) => error instanceof MarketConfigError && /MARKET_NOW/.test(error.message),
+    );
+    assert.doesNotThrow(() =>
+      loadMarketConfig({
+        APP_PROFILE: 'test',
+        MARKET_NOW: '2026-11-04T10:00:00+08:00',
+        DEPLOYMENT_UID: 'deploy-test-1',
+      } as NodeJS.ProcessEnv),
+    );
+  });
+
   it('到期启动写恰好 1 条 entitlement_expired，event_key 逐字 UTC 毫秒且重启幂等（L20/L59）', async () => {
     const records: EntitlementEventRecord[] = [];
     const repo: EntitlementEventRepo = {

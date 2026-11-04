@@ -42,9 +42,9 @@ export const domainPlugins = [marketPlugin];
 | `WATCHLIST_TABLE` / `E2E_WATCHLIST_TABLE` | `watchlist_items` | 合法 SQL 标识符 |
 | `E2E_MODE=1` | — | 开启 dev bearer token（`E2E_AUTH_TOKEN`）与启动兜底建表（幂等） |
 | `E2E_AUTH_TOKEN` / `E2E_AUTH_USER_ID` | — / `e2e-user` | 仅 E2E/本地；生产无此入口（401） |
-| `MARKET_NOW` | — | 固定时钟（测试/演练用） |
+| `MARKET_NOW` | — | 固定时钟（测试/演练用）；**L73：prod 设置即拒启**（可让时间盒提前到期判定失效），仅显式 dev/test/e2e 允许 |
 | `ENTITLEMENT_CONFIG_EXPECTED_SHA256` | — | 流水线注入的配置指纹（64 位小写 hex，`sha256("${tier}|${expiresAt ?? ''}")`，expires 取 `toISOString()`）。**tier≠internal_eval 时生产必填，缺失=拒绝启动**；仅 `E2E_MODE=1` 可豁免；不一致时 effective=internal_eval + 写 `unauthorized_config` 事件 |
-| `ENTITLEMENT_HOLD_CHECK` | E2E 默认关 / 生产默认开 | 读 `audit.entitlement_hold` control 行（`market_app` 仅 SELECT）；`0` 关闭，`1` 强制开启 |
+| `ENTITLEMENT_HOLD_CHECK` | E2E 默认关 / 生产默认开 | 读 `audit.entitlement_hold_state` control 行（`market_app` 仅视图 SELECT）；**L73：prod 设 `0` 直接拒启**（放行 flag），仅显式 dev/test/e2e 可关 |
 | `ENTITLEMENT_AUDIT` | E2E 默认关 / 生产默认开 | 写 `audit.entitlement_events`（A3 只 INSERT 4 类事件）；A5 DDL + A13 GRANT 落地后才打开，写入失败仅告警/降级，不阻塞翻转 |
 | `INGEST_REPORT_PATH` | `/state/ingest-report.json` | ingest-once 报告路径（`/healthz` 数据就绪字段来源，只读） |
 | `EVENT_PAYLOADS_PATH` | 仓库 `docs/reference/event-payloads.json`（镜像内 `/app/docs/reference/event-payloads.json`） | L70 事件 payload 键集唯一真源；prod 缺文件/坏 JSON 拒启，非 prod 告警跳过校验 |
@@ -117,7 +117,7 @@ export const domainPlugins = [marketPlugin];
 
 ```bash
 pnpm --filter @market-sense/market typecheck   # tsc --noEmit（依赖 A0 修 packages/api-client/src/index.ts 的 SharedComponents 编译错误）
-pnpm --filter @market-sense/market test        # node:test + fastify.inject，84 条，无需 PG
+pnpm --filter @market-sense/market test        # node:test + fastify.inject，86 条，无需 PG
 ```
 
 测试覆盖：F1 三接口 403 / instrument 200+internal_eval / watchlist platform_user_data、存在性 404 先于 403、

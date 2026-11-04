@@ -153,7 +153,7 @@ G-IMPL 本体现在对 stub 自证通过；对真实实现的首跑等 A3/A7 服
 | 4 | hold/stale/control 不可达 → 403；**所有 `/v1/*` 响应无条件 `Cache-Control: no-store`**；SW/PWA 不缓存、SSR 不烤数值 | `A11_HOLD_MODE=stale|hold|unreachable … python3 tests/data/acceptance/check_entitlement_hold.py`；`python3 tests/data/acceptance/check_no_store_all.py` | **PASS（真实栈）**：stale（服务日志 `reason=control_stale`）→ 三接口 403；hold=true → 403 且 instrument 200/tier=internal_eval；control 不可达 → 三接口 403、P95=1.9ms（阈值 1500）；no-store 8 调用/7 operation 全 PASS（含 200 与 403，`services/api/src/app.ts:41-45` 外壳无条件加）；跑完已 `seed-entitlement-audit.sh --restore-fresh` |
 | 5 | 渲染无占位（0/--/骨架屏、DOM 数值暗示）；四原因对外文案逐字节相同、内部事件原因可区分 | `python3 tests/data/acceptance/check_entitlement_copy.py`（API 文案）；DOM 部分 A12 `tests/e2e` | **PASS 4/4（真实栈）**：expired/unauthorized_config/hold_active/hold_stale 四种 403 的 title+detail 逐字节一致，无原因/渠道/供应商/数字；DOM 待 A12 |
 | 6 | 事件可回指 `doc_sha256+locator`（locator 仅 clause_review，H4 m01638）、链 hash 一致、append-only、`event_key` 幂等；**10 类抽样（含 audit_gap）** | `A11_AUDIT_DSN=… python3 tests/data/acceptance/check_entitlement_events.py` | **PASS（真实库 a13_verify，35 条 / 10 类）**：audit_gap/clause_review/deploy/entitlement_expired/entitlement_flip/hold_clear/hold_set/tier_state_observed/tier_switch/unauthorized_config 齐；`verify_entitlement_chain()`=0；双源（DDL 001+002 vs 已批准 10 类/6 reason）= 一致；audit_gap exact-key 恰 5 键、event_key 逐字 `gap|<uid>|<window_start>`；append-only 三触发器、按类型证据字段全过 |
-| 7 | 前端无可绕开关；A19 "前端绕过 403" 攻击用例必须失败；TRUST_PROXY 守卫 | `check_frontend_render_gate.py`（静态）；A19 `tests/adversarial/entitlement-bypass/`（动态） | **PARTIAL**（H4 m02412/m02420）：静态 PASS（23 文件）；TRUST_PROXY 4/4 与 R4 修复后 PASS —— 改代码=A0 `services/api/src/config.ts`（mtime 09:09），复验=A19 同命令/隔离库 `market_sense_a19`/新进程（`a19-REPORT.md` §11、两份 JSON）；但五组攻击完整 transcript 未附、公网 ingress 未验证、H5 签字未落 → 整条不记 PASS |
+| 7 | 前端无可绕开关；A19 "前端绕过 403" 攻击用例必须失败；TRUST_PROXY 守卫 | `check_frontend_render_gate.py`（静态）；A19 `tests/adversarial/entitlement-bypass/`（动态） | **PARTIAL（H5 签字前）**：静态 PASS（23 文件）；A19 46 项 = 44 BLOCKED / 1 R4≈P2（修复后 PASS）/ 1 INFO；TRUST_PROXY 4/4（A0 修 `services/api/src/config.ts`，A19 同命令/隔离库/新进程复验）。**收口清单（L74）**：①`http-attempts.jsonl` 当前 0 字节、需 A19 重放 100+ 条原始往返（owner A19，截止 2026-11-05 09:00）②五组攻击完整 transcript 入包（owner A19，同上）③公网 ingress `/v1` 外 404（owner A13，需 staging `PUBLIC_BASE_URL`，截止 11-12）④H5 书面签字（owner H5，11-12 前）。缺一项不转 PASS |
 | 8 | 裸启动：不设任何 `ENTITLEMENT_*` → 正常起、行情 403、`meta.tier=internal_eval` | `A11_EXPIRY_MODE=bare python3 tests/data/acceptance/check_entitlement_expiry.py` | **PASS（真实栈）**：裸启动成功、quote/bars/fundamental 403、instrument 200/tier=internal_eval |
 
 ### 7.2 限流桶（4 条，真实 API 实测）
@@ -165,7 +165,7 @@ G-IMPL 本体现在对 stub 自证通过；对真实实现的首跑等 A3/A7 服
 | 3 | 伪造 `X-Forwarded-For` 不换桶 | 同上 | **PASS**（换 XFF 仍 429） |
 | 4 | 429 文案不露内部码/阈值/桶 key | 同上 | **PASS** |
 
-**当前汇总（2026-11-04 09:18 最终复跑，证据包 v2）**：数据侧第 1–6、8 条 **PASS**（#1 expired 事件 exact 1 条+重启幂等；#4 含 socket 级 control 不可达 403；#6 10 类/41 条、链 verify=0、双源一致、audit_gap 负向 23514）；**#7 PARTIAL**（静态 PASS；TRUST_PROXY 4/4 + R4 修复后 PASS，但五组完整 transcript/公网 ingress/H5 签字缺）；#5 DOM 归 A12、H4 不签。限流桶 4/4 **PASS**；写失败分层 5/5 **PASS**；display_safe 三条 **PASS**。日常 136 passed/1 warning。证据包 **v2**：`tests/data/acceptance/artifacts/11-12-evidence-20261104-v2.tar.gz`（13 脚本 raw transcript + A19 REPORT/JSON + commit 锚；sha 见 `SHA256SUMS`；v1 作废）。**A11 数据侧：8 条中 7 条 PASS + #7 PARTIAL；11-12 是否放行由 H4/H5 决定**。
+**当前汇总（2026-11-04 09:24，证据包 v3）**：数据侧第 1–6、8 条 **PASS**（#1 expired 事件 exact 1 条+重启幂等；#4 行为层 PASS + 真实网络不可达 residual 归 H5；#6 10 类/41 条、链 verify=0、双源一致、audit_gap 负向 23514）；**#7 PARTIAL（H5 签字前）**，收口清单见 §7.1 行 7；#5 DOM 归 A12。限流桶 4/4 **PASS**；写失败分层 5/5 **PASS**；display_safe 三条 **PASS**；L73 授权开关清单见 §7.8；L74 红队产物索引见 §7.9。日常 136 passed/1 warning。证据包 **v3**（v2 冻结后补 L73/L74）：`…-v3.tar.gz`，sha 见 `SHA256SUMS`。**A11 数据侧：7 PASS + 1 PARTIAL；11-12 是否放行由 H4/H5 决定**。
 ### 7.4 证据钉版本（2026-11-04 09:18 最终复跑 / 证据包 v2）
 
 **版本锚点**：仓库已有 git（Lead 首提交 `eb10d21`，之后 A13/L 提交继续推进；本表引用时的 HEAD 见下表）。
@@ -183,7 +183,7 @@ G-IMPL 本体现在对 stub 自证通过；对真实实现的首跑等 A3/A7 服
 | 工具链 | node v23.11.0；Python 3.12.2（pytest 7.4.4）；oasdiff 1.35.0；PostgreSQL 16.15 |
 | 数据库 | `postgresql://ms@127.0.0.1:55432/a13_verify`（本机 PG16；35 条 / 10 类；跑完 `seed-entitlement-audit.sh --restore-fresh`，`audit.entitlement_hold.hold=f`） |
 | 验收脚本 sha256（全量） | audit_gap `bf399b973ead2187…`；base_info `b68d9c4022168a29…`；display_safe `3b1110919370f464…`；copy `92e82e80fd81fb07…`；events `3257ac8a612cd932…`；expiry `cc35e739ec793d4e…`；hold `b9adadefd6a736af…`；killswitch `0161ec4de4febe38…`；write_failure `51c4b9bcd94d9f0c…`；frontend `efb9895eb49ceec0…`；no_store `6286b83cbff427cb…`；rate_limit `5ac35c9228e2c967…`；probe `28a1c4779b4eef1c…`（完整值见 `sha256sum tests/data/acceptance/*`） |
-| 证据包 | **v2** `tests/data/acceptance/artifacts/11-12-evidence-20261104-v2.tar.gz`：v1 全部内容 + `transcripts/`（13 脚本 + API 日志，含 started_at/host/工具链/命令/exit code）+ `TRANSCRIPTS.md`（#4 口径、#7 作者说明、未取证项）+ `a19-REPORT.md`/`a19-artifacts/` + `git-info.txt`；v1 `…20261104.tar.gz` 已作废。sha256 见同目录 `SHA256SUMS`（tar 内不嵌自身哈希） |
+| 证据包 | **v3**（2026-11-04 09:24，v2 冻结后的增量）：在 v2 基础上补 L73 `env-switch-inventory.md`、L74 `ADVERSARIAL.md`（A19 每件产物 path+sha256+收件时间）与 `http-attempts.jsonl`/REPORT/JSON；v1、v2 均作废。sha256 见同目录 `SHA256SUMS`（tar 内不嵌自身哈希） |
 | 日常门禁 | `pytest tests/contract tests/data` → **136 passed, 1 warning**（waiver 提示；2026-11-04 09:16） |
 
 **8+4 复核路径表**（每条 = 命令 → 断言 → 本次结果 → 证据位置）：
@@ -207,6 +207,12 @@ G-IMPL 本体现在对 stub 自证通过；对真实实现的首跑等 A3/A7 服
 - 复核 SQL：`select event_type,event_key,reason,occurred_at from audit.entitlement_events where event_type in ('clause_review','entitlement_expired') order by occurred_at desc;`；`select * from audit.verify_entitlement_chain();`（空 = 完整）。
 
 **边界声明（H4 m01841）**：门禁全绿 ≠ 有授权。F1 结论未出前授权档仍为 `internal_eval`、C 端行情仍 403；#7 动态攻击用例（A19）与 #5 DOM（A12）未关之前**不写"8/8 全绿"**，只写「数据侧 7 条 + 限流 4/4 绿，2 项 BLOCKED 不属 A11 责任域」。
+
+### 7.8 L73 授权开关清单（2026-11-04 09:22）
+
+静态扫描 `services/ web/h5/src/ tests/ infra/ warehouse/` 的 `ENTITLEMENT_*` / `*_CHECK` / `*_DISABLE` / `*_BYPASS` / `E2E_MODE` / `DEV_AUTH`。完整表见 `tests/contract/env-switch-inventory.md`。
+
+结论：**唯一能关授权判定的开关是 `ENTITLEMENT_HOLD_CHECK`**；prod（APP_PROFILE 缺省/非 dev|test|e2e）设 `=0` 由 `services/market/src/config.ts:173` 拒绝启动（L73），未发现第二种。`E2E_MODE=1`/`WATCHLIST_DEV_AUTH=1`/`E2E_AUTH_TOKEN` 在 prod 同样拒启（`:163-165`）。`ENTITLEMENT_AUDIT=0` 在 prod 允许——它只关审计证据、不关 403，A11 建议同 HOLD_CHECK 锁死（待 H4 拍板）。`TRUST_PROXY` 只影响 XFF→IP 桶，不改变授权判定。
 
 ### 7.7 最终全量复跑记录（2026-11-04 09:14–09:16，a13_verify @ 002 `c118eeb3`）
 
@@ -264,3 +270,8 @@ G-IMPL 本体现在对 stub 自证通过；对真实实现的首跑等 A3/A7 服
 | 2 | 删/清空 manifest：prod 非 0 退出，`load --dry-run` 也被拒，不静默全空 | 同上 | **PASS**（stderr 指出 manifest/无法派生） |
 | 3 | `synthetic: true` 样例事件整条忽略：不派生 true、不进 count/链 | 同上 | **PASS**（prod 拒绝、dev 全 false） |
 | 4 | 快照字节被改（`snapshot_sha256` 不符）→ prod 拒绝 | 同上 | **PASS**（复算 hash 不一致/快照哈希不符） |
+
+### 7.9 L74 红队产物索引
+
+见 `tests/data/acceptance/artifacts/v3/ADVERSARIAL.md`（v3 包内 `ADVERSARIAL.md`）：逐文件 path + sha256 + 字节数 + 收件时间（Asia/Shanghai），含
+`http-attempts.jsonl`（**待 A19 重放**）、`results.json`、`results-r4.json`、`trustproxy-guard.json` 及两份 before-fix 对照、`REPORT.md`。

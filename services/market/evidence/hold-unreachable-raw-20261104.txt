@@ -1,0 +1,46 @@
+# 11-12 门禁 #4 control 不可达 P95 —— A3 原始记录（可重跑）
+timestamp_start: 2026-11-04T01:21:35Z
+node: v23.11.0
+tsx: tsx v4.23.15
+python3: Python 3.12.2
+injection: DATABASE_URL=postgresql://market_app@127.0.0.1:55433/market (127.0.0.1:55433 无监听 -> connection refused)
+env: APP_PROFILE=test DEPLOYMENT_UID=deploy-unreachable-1 ENTITLEMENT_TIER=c_end_display ENTITLEMENT_EXPIRES_AT=2030-12-31T00:00:00Z ENTITLEMENT_CONFIG_EXPECTED_SHA256=b0d185b9... ENTITLEMENT_HOLD_CHECK=1 ENTITLEMENT_AUDIT=0 RATE_LIMIT_IP_PER_MIN=10000 RATE_LIMIT_IP_BURST=10000 PORT=18096
+cmd: services/api/node_modules/.bin/tsx services/api/src/server.ts
+pid: 81778
+--- healthz ---
+{"status":"ok","service":"market-sense-api","version":"0.1.0","uptime_s":1,"domains":["market"],"data_ready":false,"data_ready_reason":"INGEST_REPORT_MISSING","entitlement_degraded":true,"entitlement_degraded_reason":"control_unavailable"}
+--- pg connect probe ---
+connection refused (expected)
+--- single quote 403 ---
+http=403 time_total=0.003633s
+content-type: application/problem+json; charset=utf-8
+cache-control: no-store
+{"type":"https://errors.market-sense.invalid/entitlement-restricted","title":"行情数据暂不可用","status":403,"code":"ENTITLEMENT_RESTRICTED","trace_id":"req-3","detail":"当前版本暂不提供该标的行情数据"}
+--- 20 samples (python urllib; status, elapsed_ms) ---
+sample[1] status=403 elapsed_ms=56.296
+sample[2] status=403 elapsed_ms=1.665
+sample[3] status=403 elapsed_ms=1.408
+sample[4] status=403 elapsed_ms=1.196
+sample[5] status=403 elapsed_ms=0.739
+sample[6] status=403 elapsed_ms=1.465
+sample[7] status=403 elapsed_ms=1.713
+sample[8] status=403 elapsed_ms=1.588
+sample[9] status=403 elapsed_ms=0.718
+sample[10] status=403 elapsed_ms=0.572
+sample[11] status=403 elapsed_ms=0.506
+sample[12] status=403 elapsed_ms=0.478
+sample[13] status=403 elapsed_ms=0.466
+sample[14] status=403 elapsed_ms=0.586
+sample[15] status=403 elapsed_ms=1.851
+sample[16] status=403 elapsed_ms=0.718
+sample[17] status=403 elapsed_ms=0.697
+sample[18] status=403 elapsed_ms=0.760
+sample[19] status=403 elapsed_ms=0.859
+sample[20] status=403 elapsed_ms=0.900
+p95_calc: nearest-rank ceil(0.95*20)=19 -> sorted[18]=1.851ms
+--- checker ---
+  p95=0.7ms（阈值 1500.0ms，样本 20）
+[PASS] 11-12/附加 hold（mode=unreachable）
+checker_exit=0
+timestamp_end: 2026-11-04T01:21:36Z
+730cddf58952aae31700838dbe15478e962111dc5532153c736c920b66fae006  services/market/evidence/hold-unreachable-raw-20261104.txt

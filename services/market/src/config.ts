@@ -176,6 +176,13 @@ export function assertNoE2EBackdoorInProduction(env: NodeJS.ProcessEnv): void {
         'ENTITLEMENT_HOLD_CHECK=0 会被视为放行 flag，服务拒绝启动。',
     );
   }
+  // 同类洞：MARKET_NOW 可冻结时钟于 expires_at 之前，等价于绕过时间盒（A3 L73 自查）。
+  if (readTrimmed(env, 'MARKET_NOW') !== undefined) {
+    throw new MarketConfigError(
+      `生产禁止固定时钟（L73）：APP_PROFILE=${JSON.stringify(rawProfile)}（缺省=prod）下 MARKET_NOW ` +
+        '可让时间盒提前到期判定失效，服务拒绝启动；测试/演练请显式 APP_PROFILE=test/dev/e2e。',
+    );
+  }
 }
 
 export function isProductionProfile(env: NodeJS.ProcessEnv): boolean {
