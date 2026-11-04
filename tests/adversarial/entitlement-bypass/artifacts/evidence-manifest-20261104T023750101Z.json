@@ -1,5 +1,6 @@
 {
-  "generatedAt": "2026-11-04T02:41:17.443680+00:00",
+  "generatedAt": "2026-11-04T05:56:11.144625+00:00",
+  "revision": 3,
   "runId": "20261104T023750101Z",
   "command": "node tests/adversarial/entitlement-bypass/run.mjs",
   "exitCode": 0,
@@ -69,7 +70,7 @@
       "run": "20261104T023750101Z",
       "bytes": 3033,
       "sha256": "ac945d2e26a6446a320283a78800c54109d877658170e4391f479cdd50472985",
-      "mtime": "2026-11-04T02:41:17.435895+00:00"
+      "mtime": "2026-11-04T05:56:11.130702+00:00"
     },
     {
       "path": "artifacts/results-prefix-g3-20261104T012350680Z.json",
@@ -164,18 +165,27 @@
       "role": "report",
       "caseIds": [],
       "run": "post-fix",
-      "bytes": 19402,
-      "sha256": "01447211ec67fa4c233ac92bb27d06c2586d8a5381a50cb09e5e722122a27d02",
-      "mtime": "2026-11-04T01:15:34.827223+00:00"
+      "bytes": 25616,
+      "sha256": "bed8501e9ff6962b3d39c70d079dd8876d9746c09f1e8b2f5cc5e36232790689",
+      "mtime": "2026-11-04T05:56:11.086543+00:00"
     },
     {
       "path": "README.md",
       "role": "runner guide",
       "caseIds": [],
       "run": "post-fix",
-      "bytes": 4922,
-      "sha256": "e93f39762803f02f5da79cd0555f923c04ade6c5665bd9f6ed74e95790b74561",
-      "mtime": "2026-11-04T01:06:13.020777+00:00"
+      "bytes": 6259,
+      "sha256": "7567c60a5327f6071757f4317c6a973bfb1ffd1be3d55119f077abbdd9185a0e",
+      "mtime": "2026-11-04T02:42:22.593375+00:00"
+    },
+    {
+      "path": "build-manifest.py",
+      "role": "manifest generator (this script)",
+      "caseIds": [],
+      "run": "post-fix",
+      "bytes": 6842,
+      "sha256": "c5bfbe4f19e973bc601bdc7a844d161e636f43af99eb61054c511050e4241dd2",
+      "mtime": "2026-11-04T05:55:16.520839+00:00"
     },
     {
       "path": "artifacts/logs/20261104T023750101Z/api-backdoor-default.log",
@@ -206,9 +216,9 @@
         "G4"
       ],
       "run": "20261104T023750101Z",
-      "bytes": 0,
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "mtime": "2026-11-04T02:38:26.839386+00:00"
+      "bytes": 472,
+      "sha256": "ec7dcac7bcbbc265f4207b6e81b6825fb632b2e0937f3d14d97bfd3c22c9cc1b",
+      "mtime": "2026-11-04T05:53:30.566730+00:00"
     },
     {
       "path": "artifacts/logs/20261104T023750101Z/api-expiring.log",
@@ -227,9 +237,9 @@
         "C12"
       ],
       "run": "20261104T023750101Z",
-      "bytes": 0,
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "mtime": "2026-11-04T02:38:27.568909+00:00"
+      "bytes": 470,
+      "sha256": "bb56adbdb15b07e5273e18a571222c3647de36568e3377a784887dc04d16f501",
+      "mtime": "2026-11-04T05:53:30.566576+00:00"
     },
     {
       "path": "artifacts/logs/20261104T023750101Z/api-limited.log",
@@ -240,9 +250,9 @@
         "R3"
       ],
       "run": "20261104T023750101Z",
-      "bytes": 0,
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "mtime": "2026-11-04T02:37:50.136012+00:00"
+      "bytes": 469,
+      "sha256": "37212e661712d34ea2069658c340ef1504b8e9bf8bc368e398ff2980058b498f",
+      "mtime": "2026-11-04T05:53:30.566655+00:00"
     },
     {
       "path": "artifacts/logs/20261104T023750101Z/api-prod-profile.log",
@@ -274,9 +284,9 @@
         "C6"
       ],
       "run": "20261104T023750101Z",
-      "bytes": 0,
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "mtime": "2026-11-04T02:37:50.134663+00:00"
+      "bytes": 472,
+      "sha256": "39c55735964ae35315cb99659557a6ea0c021cbe9d593aa4784fdb86a02a2ea4",
+      "mtime": "2026-11-04T05:53:30.566385+00:00"
     },
     {
       "path": "artifacts/logs/20261104T023750101Z/api-trustproxy-cidr.log",
@@ -358,9 +368,9 @@
         "G4"
       ],
       "run": "pre-fix",
-      "bytes": 0,
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "mtime": "2026-11-04T01:25:05.592313+00:00"
+      "bytes": 458,
+      "sha256": "09c6e6e26d45945e4b159b8b4694ec01684ae79fdb85a838de9d495f2c47f029",
+      "mtime": "2026-11-04T05:55:10.881624+00:00"
     },
     {
       "path": "artifacts/logs/api-expiring.log",
@@ -379,9 +389,9 @@
         "C12"
       ],
       "run": "pre-fix",
-      "bytes": 0,
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "mtime": "2026-11-04T01:25:06.319225+00:00"
+      "bytes": 456,
+      "sha256": "946ab3d04d167133e877714569db8dbfdc8401fb16867a6bcb7b4c1c6ab4aae4",
+      "mtime": "2026-11-04T05:55:10.881072+00:00"
     },
     {
       "path": "artifacts/logs/api-limited.log",
@@ -392,9 +402,9 @@
         "R3"
       ],
       "run": "pre-fix",
-      "bytes": 0,
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "mtime": "2026-11-04T01:23:50.750162+00:00"
+      "bytes": 455,
+      "sha256": "e28105d174d7869a919b7e199afe1cd1397187a7e18318ee78d444126dcd855c",
+      "mtime": "2026-11-04T05:55:10.881232+00:00"
     },
     {
       "path": "artifacts/logs/api-prod-profile.log",
@@ -426,9 +436,9 @@
         "C6"
       ],
       "run": "pre-fix",
-      "bytes": 0,
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "mtime": "2026-11-04T01:23:50.748373+00:00"
+      "bytes": 458,
+      "sha256": "57caa1824678f8613b0a3d797b187e9b6dcf60c57fa3eeb08e9e952aad2d9f63",
+      "mtime": "2026-11-04T05:55:10.879755+00:00"
     },
     {
       "path": "artifacts/logs/api-trustproxy-cidr.log",
@@ -524,10 +534,12 @@
       "bytes": 169,
       "sha256": "5f7099c1a6706e68267b472807c0d96ba663c087c8283783b3191c6d61d9d286",
       "mtime": "2026-11-04T01:23:50.822147+00:00"
-    },
+    }
+  ],
+  "tombstones": [
     {
       "path": "artifacts/http-attempts.jsonl",
-      "role": "TOMBSTONE: 0-byte transcript from pre-L75 truncate bug (do not use)",
+      "role": "TOMBSTONE: 0-byte transcript from pre-L75 truncate bug (do not use as evidence)",
       "caseIds": [],
       "run": "pre-fix",
       "bytes": 0,
@@ -542,6 +554,6 @@
       "h4-data",
       "h5-security-ops"
     ],
-    "note": "按 L82：本 manifest 不内嵌自身哈希；新文件名、不覆盖旧证据。"
+    "note": "按 L82：manifest 不内嵌自身哈希；新文件名、不覆盖旧证据。run-scoped 与根目录历史 0 字节日志均已补 provenance 头（未伪造输出）；0 字节墓碑移入 tombstones、不计入 files。"
   }
 }

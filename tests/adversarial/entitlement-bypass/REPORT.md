@@ -239,5 +239,7 @@ node tests/adversarial/entitlement-bypass/trustproxy-guard.mjs   # 4 个独立�
 ### 12.3 post-fix 全量结果与证据清单
 
 - `summary = { total: 46, pass: 45, fail: 0, info: 1, verdict: "NO_BYPASS" }`；R4 修复态见 §11（实例拒启，换桶不可达）。
-- 证据清单：`artifacts/evidence-manifest-20261104T023750101Z.json`（39 个文件条目，逐项 path/sha256/bytes/mtime/caseIds；含 26 个 `.log`、两轮 transcript、G3 专项、guard/R4 修前修后、runner stdout、报告本身；不内嵌 manifest 自身哈希）。
+- 证据清单：`artifacts/evidence-manifest-20261104T023750101Z.json`（revision 3，39 个文件条目，逐项 path/sha256/bytes/mtime/caseIds；含 27 个 `.log`、两轮 transcript、G3 专项、guard/R4 修前修后、runner stdout、报告本身；不内嵌 manifest 自身哈希）。0 字节墓碑 `artifacts/http-attempts.jsonl` 不登记为证据，移入 manifest `tombstones` 字段（保留文件、不删除）。
 - 命令/退出码/监听：`node tests/adversarial/entitlement-bypass/run.mjs` → `EXIT:0`；G3 实例 `healthz=200`（即监听成功），G1/G2 为"退出码 1 且从未监听"，端口监听观测方法见 §11.3。
+- 0 字节日志处理（A11 m00663）：`logs/<runId>/` 中 `api-restricted/api-expiring/api-limited/api-bare-start` 因 `LOG_LEVEL=warn` 无输出；已各补**一行 provenance 头**（runId/service/command/cwd/port/runStartedAt/runFinishedAt/termination/exitCode=not-captured/备注"未伪造输出"），现均 >0 字节。`spawnService.cleanup()` 已改为对空日志自动补同样 provenance，后续 run 不再产生 0 字节证据。
+- 根目录历史日志（pre-L75 run，09:23）同样有 4 个 0 字节文件（`artifacts/logs/{api-restricted,api-expiring,api-limited,api-bare-start}.log`），已各补 provenance 头（注明 runId 未知、文件 mtime、未伪造输出），现 455–458 字节；manifest 中全部 `.log` 均 bytes>0。

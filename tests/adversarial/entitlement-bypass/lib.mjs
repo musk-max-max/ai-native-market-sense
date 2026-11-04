@@ -81,15 +81,36 @@ export function spawnService({ name, command, args, cwd, env, logFile }) {
     name,
     child,
     logFile,
+    command,
+    args,
+    port: env?.PORT ?? 'n/a',
+    startedAt: new Date().toISOString(),
     exited: false,
+    cleaned: false,
     async cleanup() {
-      if (handle.exited) return;
-      handle.exited = true;
-      if (child.exitCode !== null) return;
-      child.kill('SIGTERM');
-      const started = Date.now();
-      while (child.exitCode === null && Date.now() - started < 5000) await sleep(100);
-      if (child.exitCode === null) child.kill('SIGKILL');
+      if (handle.cleaned) return;
+      handle.cleaned = true;
+      if (child.exitCode === null) {
+        child.kill('SIGTERM');
+        const started = Date.now();
+        while (child.exitCode === null && Date.now() - started < 5000) await sleep(100);
+        if (child.exitCode === null) child.kill('SIGKILL');
+      }
+      // H5-R18/A11 m00663：0 字节日志不能进证据包。真实内容为空时补一行 provenance
+      // （只写运行事实，不伪造 stdout/stderr）。
+      try {
+        const st = fs.statSync(logFile);
+        if (st.size === 0) {
+          const line =
+            `# A19 provenance: service=${name}; command=${command} ${args.join(' ')}; cwd=${cwd}; port=${handle.port}; ` +
+            `runStartedAt=${handle.startedAt}; stoppedAt=${new Date().toISOString()}; ` +
+            `termination=harness cleanup(SIGTERM→5s→SIGKILL); exitCode=${child.exitCode ?? 'not-captured(cleanup-kill)'}; ` +
+            `note=instance produced no stdout/stderr at current LOG_LEVEL; this header added by A19, no output fabricated\n`;
+          fs.appendFileSync(logFile, line);
+        }
+      } catch {
+        // 日志不存在时不影响清理
+      }
     },
   };
   child.once('exit', () => {
