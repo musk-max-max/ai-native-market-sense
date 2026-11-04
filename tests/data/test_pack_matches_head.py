@@ -118,3 +118,25 @@ def test_untracked_a19_files_are_traceable_via_manifest(tmp_path: Path) -> None:
         capture_output=True, text=True,
     )
     assert tampered.returncode == 1 and "A19 rev4 清单不一致" in tampered.stdout
+
+
+def test_v6_archive_matches_packed_commit(tmp_path: Path) -> None:
+    import tarfile
+    repo = Path(__file__).resolve().parents[2]
+    archive = repo / "tests/data/acceptance/artifacts/11-12-evidence-20261104-v6.tar.gz"
+    assert archive.is_file()
+    staging = tmp_path / "v6"
+    with tarfile.open(archive) as tar:
+        tar.extractall(staging)
+    result = subprocess.run(
+        [sys.executable, str(CHECKER), "--root", str(staging), "--repo", str(repo),
+         "--commit", "162ac41144af3a5e7f8c9c622cf40e574e2ec011",
+         "--map", str(repo / "tests/data/acceptance/pack_sources_v6.json"),
+         "--a19-manifest", str(repo / "tests/adversarial/entitlement-bypass/artifacts/evidence-manifest-20261104T023750101Z-rev4.json"),
+         "--tar-provenance", str(repo / "tests/data/acceptance/artifacts/11-12-evidence-20261104-v5.tar.gz"),
+         "--allow-prefix", "evidence-manifest-v6", "--allow-prefix", "ADVERSARIAL.md",
+         "--allow-prefix", "TRANSCRIPTS.md", "--allow-prefix", "acceptance-addendum-v5",
+         "--allow-prefix", "acceptance-addendum-v6", "--allow-prefix", "git-info.txt"],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr

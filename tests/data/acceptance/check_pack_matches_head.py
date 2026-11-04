@@ -38,6 +38,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--tar-provenance", type=Path, default=None,
                         help="已提交的历史 tar：包内 transcripts/ 逐成员 sha 必须与之一致")
     parser.add_argument("--tar-provenance-prefix", default="transcripts/")
+    parser.add_argument("--require-clean-worktree", action="store_true",
+                        help="打包时使用：额外要求该路径相对 commit 无未提交改动；事后复核历史包不要开")
     parser.add_argument("--map", type=Path, default=None,
                         help="package-path -> repo-path 映射 JSON（重定位但可追溯的文件，如 a19-REPORT.md -> tests/.../REPORT.md）")
     args = parser.parse_args(argv)
@@ -133,8 +135,8 @@ def main(argv: list[str] | None = None) -> int:
         diff = subprocess.run(
             ["git", "-C", str(repo), "diff", "--quiet", sha, "--", repo_rel],
             capture_output=True,
-        )
-        if diff.returncode != 0:
+        ) if args.require_clean_worktree else None
+        if diff is not None and diff.returncode != 0:
             failures.append(f"{rel}: 相对 {sha[:12]} 有未提交改动（工作树与 commit 不一致）")
             continue
         checked += 1

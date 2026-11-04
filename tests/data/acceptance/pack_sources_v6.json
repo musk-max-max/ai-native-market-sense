@@ -1,0 +1,13 @@
+{
+  "11-12-evidence-20261104-v3.tar.gz": "tests/data/acceptance/artifacts/11-12-evidence-20261104-v3.tar.gz",
+  "11-12-evidence-20261104-v4.tar.gz": "tests/data/acceptance/artifacts/11-12-evidence-20261104-v4.tar.gz",
+  "11-12-evidence-20261104-v5.tar.gz": "tests/data/acceptance/artifacts/11-12-evidence-20261104-v5.tar.gz",
+  "SHA256SUMS-v3": "tests/data/acceptance/artifacts/SHA256SUMS-v3",
+  "SHA256SUMS-v4": "tests/data/acceptance/artifacts/SHA256SUMS-v4",
+  "SHA256SUMS-v5": "tests/data/acceptance/artifacts/SHA256SUMS-v5",
+  "a19-REPORT.md": "tests/adversarial/entitlement-bypass/REPORT.md",
+  "a19-build-manifest.py": "tests/adversarial/entitlement-bypass/build-manifest.py",
+  "a2-evidence/display-fixture-digest-20261104.md": "tests/data/acceptance/artifacts/a2-evidence/display-fixture-digest-20261104.md",
+  "v3-addendum-20261104T0245Z.md": "tests/data/acceptance/artifacts/v3-addendum-20261104T0245Z.md",
+  "v4-addendum-20261104T0550Z.md": "tests/data/acceptance/artifacts/v4-addendum-20261104T0550Z.md"
+}
