@@ -48,6 +48,7 @@ ZERO_HASH = "0" * 64
 #   event_type 10 类（9 类 + audit_gap，A5 002/H4 m01945；L70 键名 window_start/window_end）
 #   reason 单列 6 值，无 cause / internal_code 列（lead L49；L47/L48 作废）
 # ---------------------------------------------------------------------------
+GAP_REQUIRED_KEYS = ("window_start", "window_end", "lost_count", "reason", "owner")
 APPROVED_EVENT_TYPES = frozenset({
     "entitlement_expired",
     "entitlement_flip",
@@ -112,11 +113,13 @@ def parse_ddl_sets() -> tuple[set[str], set[str], str]:
     base_ddl = DDL_PATHS[0].read_text(encoding="utf-8")
 
     def values_in(pattern: str, source: str = "all") -> set[str]:
+        # 同一字段可能在列级 CHECK 与事件类型分支 CHECK 中各出现一次；
+        # 列级集合是分支集合的超集，因此取并集（而不是最后一次匹配，避免被小集合覆盖）。
         haystack = ddl if source == "all" else base_ddl
-        matches = list(re.finditer(pattern, haystack, re.DOTALL))
-        if not matches:
-            return set()
-        return set(re.findall(r"'([^']+)'", matches[-1].group(1)))
+        values: set[str] = set()
+        for match in re.finditer(pattern, haystack, re.DOTALL):
+            values |= set(re.findall(r"'([^']+)'", match.group(1)))
+        return values
 
     event_types = values_in(r"event_type\s+IN\s*\((.*?)\)")
     # 列级 reason 枚举只在 001 定义；002 里的 reason IN (...) 属于 audit_gap.new_value，不是列枚举。
@@ -345,7 +348,15 @@ def check_event(row: dict, index: int, event_types: set[str], reasons: set[str])
             except json.JSONDecodeError:
                 problems.append(f"第 {index} 条 audit_gap 的 new_value 不是合法 JSON")
                 new_value = {}
-        for key in ("window_start", "window_end", "lost_count", "reason", "owner"):
+        # H4 m02212：audit_gap payload 键恰好 5 个（exact-key；DDL 不拒额外键，由本层兜住）。
+        if isinstance(new_value, dict):
+            extra = sorted(set(new_value) - set(GAP_REQUIRED_KEYS))
+            if extra:
+                problems.append(
+                    f"第 {index} 条 audit_gap 的 new_value 多写了键 {extra}（H4 m02212 exact-key：只允许 "
+                    f"{list(GAP_REQUIRED_KEYS)}；A3 侧应删除 deployment_uid/operator 等冗余键）"
+                )
+        for key in GAP_REQUIRED_KEYS:
             if key not in new_value:
                 problems.append(f"第 {index} 条 audit_gap 缺少 new_value.{key}")
         if "gap_from" in new_value or "gap_to" in new_value:

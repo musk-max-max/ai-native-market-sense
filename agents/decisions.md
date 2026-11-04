@@ -955,3 +955,14 @@ fail-closed 是对的，但**现象具有欺骗性**：部署突然失败，报�
 `event-payloads.json` 必须把这条写成机器可读的条件（而非散文）：`lost_count` 的 `nullable_when` = `reason == "process_restart"`，`minimum: 1`（非 null 时）。
 
 **这是 002 的最后一个 delta，之后封版。**
+
+### L72 负样本取证三条（2026-11-04，A13 自测踩到）
+
+**坑**：`psql` 默认 SQL 错误**不返回非 0**，`| tail` 再吞掉退出码 ⇒ CHECK 明明拒了，脚本显示 `exit=0`。**这不是断言写错，是根本没测到。**
+
+**所有"必须被拒"的用例，取证必须三条同时成立：**
+1. 客户端 `ON_ERROR_STOP=1`（或驱动异常，取真实 SQLSTATE，不用 shell 退出码）；
+2. 打印**真实 exit code 与 SQLSTATE**（不是"看到 ERROR 字样"）；
+3. **证明没插进去**：被拒后该 `event_key` 在库里 `count(*) = 0`。
+
+**理由：断言"报了错"和断言"没写进去"是两件事。** 前者能被日志满足，后者才证明数据没被污染。

@@ -161,11 +161,11 @@ def check_negative_inserts(problems: list[str]) -> None:
             "repeat('0',64),repeat('b',64),'dep-a11-gap')",
         ),
         (
-            "audit_gap lost_count=null（自欺）",
+            "audit_gap lost_count=null（transient 自欺；H4 m02212：transient 必须 >=1，process_restart 才允许 null）",
             "insert into audit.entitlement_events (schema_version,event_id,event_type,occurred_at,old_value,new_value,"
             "reason,rule_version,operator,trace_id,prev_hash,hash,deployment_uid) values "
             "(2,gen_random_uuid(),'audit_gap',now(),'{}','{\"window_start\":\"2026-11-04T00:00:00.000Z\","
-            "\"window_end\":\"2026-11-04T00:10:00.000Z\",\"lost_count\":null,\"reason\":\"process_restart\","
+            "\"window_end\":\"2026-11-04T00:10:00.000Z\",\"lost_count\":null,\"reason\":\"transient_write_failure\","
             "\"owner\":\"a11\"}',null,'v1','a11','tr',repeat('0',64),repeat('b',64),'dep-a11-gap')",
         ),
         (
@@ -193,6 +193,9 @@ def check_negative_inserts(problems: list[str]) -> None:
             "\"owner\":\"a11\"}',null,'v1','a11','tr',repeat('0',64),repeat('b',64),'dep-a11-gap')",
         ),
     ]
+    before_raw, before_error = psql_text("select count(*) from audit.entitlement_events")
+    if before_error:
+        problems.append(f"统计负向插入前行数失败：{before_error}")
     for label, statement in cases:
         ok, _rc, output = psql(statement, expect_ok=False)
         if ok:
@@ -202,6 +205,14 @@ def check_negative_inserts(problems: list[str]) -> None:
         constraint = constraint_of(output)
         if state != "23514":
             problems.append(f"负向插入被拒但 SQLSTATE≠23514：{label}（state={state!r}, constraint={constraint!r}）")
+    after_raw, after_error = psql_text("select count(*) from audit.entitlement_events")
+    if after_error:
+        problems.append(f"统计负向插入后行数失败：{after_error}")
+    if before_raw.isdigit() and after_raw.isdigit() and before_raw != after_raw:
+        problems.append(
+            f"负向插入被拒后行数发生变化：{before_raw} → {after_raw}"
+            "（被拒的行不得落库；也防 psql 管道吞退出码造成假绿）"
+        )
 
 
 def psql_text(sql: str) -> tuple[str, str]:
@@ -342,9 +353,9 @@ def main() -> int:
             print(f"  - {problem}")
         return 1
     print(
-        "[PASS] 11-12/#6 audit_gap：window_start/window_end 键名（L70）、负向插入均被 DB 拒绝"
-        "（缺字段/自欺 23514；缺 window_start 为点名该键的 P0001，DB 层拒绝）、"
-        "合法 gap 可插入且 event_key 同源、gap|unknown=0、无错键残留"
+        "[PASS] 11-12/#6 audit_gap：window_start/window_end 键名（L70）、负向插入均被 DB 以 23514 拒绝"
+        "（缺 window_start/window_end/target_tier/from-to/expires_at、错键、lost_count=0/null/-1、窗口倒置）、"
+        "被拒后事件行数不变、合法 gap 可插入且 event_key 同源、gap|unknown=0、无错键残留"
     )
     return 0
 

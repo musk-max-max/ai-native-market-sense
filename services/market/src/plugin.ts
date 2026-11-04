@@ -28,7 +28,13 @@ import { PgServingRepo } from './adapters/pg-serving-repo.js';
 import { PgWatchlistRepo } from './adapters/pg-watchlist-repo.js';
 import { createAuthenticator, type Authenticate } from './auth.js';
 import { SnapshotCache } from './cache.js';
-import { assertEntitlementTimebox, loadMarketConfig, type MarketConfig } from './config.js';
+import {
+  assertEntitlementTimebox,
+  isProductionProfile,
+  loadMarketConfig,
+  MarketConfigError,
+  type MarketConfig,
+} from './config.js';
 import { configFingerprint, resolveEntitlement, type EntitlementResolution } from './domain/entitlement.js';
 import {
   EntitlementEventWriter,
@@ -37,6 +43,10 @@ import {
   unauthorizedEventKey,
 } from './domain/entitlement-events.js';
 import { EntitlementGate } from './domain/entitlement-gate.js';
+import {
+  type EventPayloadContract,
+  loadEventPayloadContract,
+} from './domain/event-payload-contract.js';
 import { createMarketHealthContribution, type HealthContribution } from './health.js';
 import {
   classifyWriteError,
@@ -108,11 +118,29 @@ async function installMarketPlugin(
   const bootId = options.bootId ?? randomUUID();
   const deploymentUid =
     options.deploymentUid ?? config.deploymentUid ?? env.DEPLOYMENT_UID?.trim() ?? undefined;
+  // L70：payload 键集唯一真源。prod 缺契约 → 拒启（fail-closed）；非 prod 告警后继续
+  // （E2E/本地镜像可能未带 docs/reference，由 A0 后续补进 runtime 后自然生效）。
+  let payloadContract: EventPayloadContract | undefined;
+  try {
+    payloadContract = loadEventPayloadContract();
+  } catch (error) {
+    if (isProductionProfile(env)) {
+      throw new MarketConfigError(
+        `事件 payload 契约不可用（L70 fail-closed）：${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+    process.emitWarning(
+      `[market] event-payloads 契约缺失，非生产环境跳过 payload 键校验：${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
   const eventWriter =
     eventRepo !== null
       ? new EntitlementEventWriter(eventRepo, {
           ...(deploymentUid !== undefined ? { deploymentUid } : {}),
           operator: 'market-app',
+          ...(payloadContract !== undefined ? { payloadContract } : {}),
         })
       : null;
 

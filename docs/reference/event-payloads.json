@@ -24,26 +24,78 @@
   },
   "event_types": {
     "tier_state_observed": {
-      "new_value": { "required": [], "optional": ["effective_tier", "configured_tier", "expires_at"] },
-      "old_value": { "required": [], "optional": ["effective_tier", "configured_tier", "expires_at"] },
-      "ddl_constraints": ["entitlement_events_observed_required_chk（列级：deployment_uid/configured_tier/expires_at，非 JSON 键）"],
+      "new_value": {
+        "required": [],
+        "optional": [
+          "effective_tier",
+          "configured_tier",
+          "expires_at"
+        ]
+      },
+      "old_value": {
+        "required": [],
+        "optional": [
+          "effective_tier",
+          "configured_tier",
+          "expires_at"
+        ]
+      },
+      "ddl_constraints": [
+        "entitlement_events_observed_required_chk（列级：deployment_uid/configured_tier/expires_at，非 JSON 键）"
+      ],
       "note": "A3 plugin.ts:129-134 写 {effective_tier,configured_tier,expires_at} 到 old/new；expires_at 可为 null 但键存在。"
     },
     "entitlement_flip": {
-      "new_value": { "required": [], "optional": [] },
-      "old_value": { "required": [], "optional": [] },
+      "new_value": {
+        "required": [],
+        "optional": []
+      },
+      "old_value": {
+        "required": [],
+        "optional": []
+      },
       "ddl_constraints": [],
       "note": "当前无写入方（A3 只写 4 类）；键集未由 DDL 强制，保持空集避免发明契约。"
     },
     "unauthorized_config": {
-      "new_value": { "required": [], "optional": ["effective_tier", "configured_tier", "expires_at"] },
-      "old_value": { "required": [], "optional": ["effective_tier", "configured_tier", "expires_at"] },
-      "ddl_constraints": ["reason 列固定 expected_fingerprint_mismatch（001 reason CHECK）"],
+      "new_value": {
+        "required": [],
+        "optional": [
+          "effective_tier",
+          "configured_tier",
+          "expires_at"
+        ]
+      },
+      "old_value": {
+        "required": [],
+        "optional": [
+          "effective_tier",
+          "configured_tier",
+          "expires_at"
+        ]
+      },
+      "ddl_constraints": [
+        "reason 列固定 expected_fingerprint_mismatch（001 reason CHECK）"
+      ],
       "note": "A3 plugin.ts:160-166 写 entitlementPayload。"
     },
     "entitlement_expired": {
-      "new_value": { "required": [], "optional": ["effective_tier", "configured_tier", "expires_at"] },
-      "old_value": { "required": [], "optional": ["effective_tier", "configured_tier", "expires_at"] },
+      "new_value": {
+        "required": [],
+        "optional": [
+          "effective_tier",
+          "configured_tier",
+          "expires_at"
+        ]
+      },
+      "old_value": {
+        "required": [],
+        "optional": [
+          "effective_tier",
+          "configured_tier",
+          "expires_at"
+        ]
+      },
       "ddl_constraints": [
         "001 expired 必填列：effective_tier+expires_at+reason",
         "entitlement_events_expired_expires_at_idx（按 expires_at 部分索引，H5-R14）"
@@ -51,38 +103,88 @@
       "note": "A3 plugin.ts:178-189 写 entitlementPayload；expires_at 列与 JSON 内 expires_at 同时存在。"
     },
     "deploy": {
-      "new_value": { "required": ["target_tier"], "optional": [] },
-      "old_value": { "required": [], "optional": [] },
+      "new_value": {
+        "required": [
+          "target_tier"
+        ],
+        "optional": []
+      },
+      "old_value": {
+        "required": [],
+        "optional": []
+      },
       "ddl_constraints": [
         "entitlement_events_require_deploy_tier_chk：new_value.target_tier ∈ {internal_eval,c_end_display,research_only,platform_user_data}"
       ],
       "note": "H5-R14/L67/H4 m00579：reconciler 靠 target_tier 判断是否需要 tier_switch；A13 从发布参数/审批记录取，不许手填。"
     },
     "tier_switch": {
-      "new_value": { "required": ["to"], "optional": [] },
-      "old_value": { "required": ["from"], "optional": [] },
+      "new_value": {
+        "required": [
+          "to"
+        ],
+        "optional": []
+      },
+      "old_value": {
+        "required": [
+          "from"
+        ],
+        "optional": []
+      },
       "ddl_constraints": [
         "entitlement_events_tier_switch_from_to_chk：old_value.from 与 new_value.to 为非空 string"
       ],
       "note": "H4 m00599/Lead L68。"
     },
     "hold_set": {
-      "new_value": { "required": [], "optional": ["hold", "hold_id", "reason"] },
-      "old_value": { "required": [], "optional": [] },
-      "ddl_constraints": ["001：hold_id 列必填；event_key=hold|<hold_id>|set"],
+      "new_value": {
+        "required": [],
+        "optional": [
+          "hold",
+          "hold_id",
+          "reason"
+        ]
+      },
+      "old_value": {
+        "required": [],
+        "optional": []
+      },
+      "ddl_constraints": [
+        "001：hold_id 列必填；event_key=hold|<hold_id>|set"
+      ],
       "note": "由 001 audit.raise_hold() 生成 new_value={hold:true,hold_id,reason}；reason 列固定 hold_active。"
     },
     "hold_clear": {
-      "new_value": { "required": [], "optional": ["hold", "hold_id", "reason"] },
-      "old_value": { "required": [], "optional": [] },
+      "new_value": {
+        "required": [],
+        "optional": [
+          "hold",
+          "hold_id",
+          "reason"
+        ]
+      },
+      "old_value": {
+        "required": [],
+        "optional": []
+      },
       "ddl_constraints": [
         "001：hold_id+hold_ticket+hold_signer+authorization_doc_sha256 列必填；event_key=hold|<hold_id>|clear"
       ],
       "note": "由 001 audit.clear_hold() 生成；reason 列固定 manual_signoff。"
     },
     "clause_review": {
-      "new_value": { "required": ["verdict"], "optional": ["notes"] },
-      "old_value": { "required": [], "optional": [] },
+      "new_value": {
+        "required": [
+          "verdict"
+        ],
+        "optional": [
+          "notes"
+        ]
+      },
+      "old_value": {
+        "required": [],
+        "optional": []
+      },
       "ddl_constraints": [
         "001 entitlement_events_clause_review_chk：new_value.verdict ∈ {allow,deny,pending}；另需 authorization_doc_sha256/clause_locator/operator/authorization_valid_until"
       ],
@@ -90,15 +192,33 @@
     },
     "audit_gap": {
       "new_value": {
-        "required": ["window_start", "window_end", "lost_count", "reason", "owner"],
+        "required": [
+          "window_start",
+          "window_end",
+          "lost_count",
+          "reason",
+          "owner"
+        ],
         "optional": []
       },
-      "old_value": { "required": [], "optional": [] },
+      "old_value": {
+        "required": [],
+        "optional": []
+      },
       "ddl_constraints": [
-        "entitlement_events_audit_gap_chk：deployment_uid/operator 列非空；reason 列必须 NULL；new_value.window_start/window_end 为 UTC ISO-8601 且 window_end >= window_start；lost_count 为整数 >= 1（canonical lost_count_min）；new_value.reason ∈ {transient_write_failure,process_restart}；owner 非空",
+        "entitlement_events_audit_gap_chk：deployment_uid/operator 列非空；reason 列必须 NULL；new_value.window_start/window_end 为 UTC ISO-8601 且 window_end >= window_start；new_value.reason ∈ {transient_write_failure,process_restart}；owner 非空",
+        "lost_count：minimum 1；nullable_when reason == process_restart（transient_write_failure 下 null 拒绝，process_restart 下 null 或整数 >= 1）——H4 m00762 / Lead L71",
         "event_key 触发器分支：gap|<deployment_uid>|<window_start UTC 毫秒 ISO>"
       ],
-      "note": "键名以 L70 为准（window_start/window_end）；window_start 语义=链上最后一条任何类型事件的 occurred_at（含 audit_gap 自身），见 entitlement-reasons.json 的 gap_window_start_definition。A3 当前 new_value 还会多写 deployment_uid/operator 两键——不在本契约的 required/optional 内，A3 需删除（列已有该信息），否则 A11 exact-key 断言会红。"
+      "note": "键名以 L70 为准（window_start/window_end）；window_start 语义=链上最后一条任何类型事件的 occurred_at（含 audit_gap 自身），见 entitlement-reasons.json 的 gap_window_start_definition。A3 当前 new_value 还会多写 deployment_uid/operator 两键——不在本契约的 required/optional 内，A3 需删除（列已有该信息），否则 A11 exact-key 断言会红。",
+      "payload_rules": {
+        "lost_count": {
+          "type": "integer",
+          "minimum": 1,
+          "nullable_when": "reason == process_restart",
+          "null_semantics": "至少一次断口、次数不可知（计数随进程重启丢失）；transient_write_failure 下 null 一律拒绝"
+        }
+      }
     }
   }
 }
