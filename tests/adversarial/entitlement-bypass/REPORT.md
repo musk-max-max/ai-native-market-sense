@@ -116,7 +116,7 @@ GET 同一 URL + X-Forwarded-For: 8.8.8.8         → 403 ENTITLEMENT_RESTRICTED
 
 ## 5. 为什么"没绕过"不等于"没试"（可核对清单）
 
-所有尝试的请求原文落在 run-scoped 的 `artifacts/http-attempts-<runId>.jsonl`（post-fix 本轮 `http-attempts-20261104T023750101Z.jsonl`，176 条，每行含 seq/note/method/url/status/headers/响应体前 2000 字节；修复前那轮 `http-attempts-20261104T012350680Z.jsonl`，175 条，均保留）；每条检查的 observed/attempt 在 `artifacts/results.json`。根目录 `artifacts/http-attempts.jsonl` 是旧 truncate bug 留下的 0 字节墓碑（sha256 `e3b0c442…`），不要使用。逐类清单：
+所有尝试的请求原文落在 run-scoped 的 `artifacts/http-attempts-<runId>.jsonl`（post-fix 本轮 `http-attempts-20261104T023750101Z.jsonl`，176 条，每行含 seq/note/method/url/status/headers/响应体前 2000 字节；修复前那轮 `http-attempts-20261104T012350680Z.jsonl`，175 条，均保留）；每条检查的 observed/attempt 在 `artifacts/results.json`（**post-fix canonical 代次**，sha256 `7f8f4192…`；pre-fix 代次见 `artifacts/results-prefix-g3-20261104T012350680Z.json`，sha256 `46dac615…`）。根目录 `artifacts/http-attempts.jsonl` 是旧 truncate bug 留下的 0 字节墓碑（sha256 `e3b0c442…`），不要使用。逐类清单：
 
 - H1：21 组头（baseline、`X-Entitlement-Tier`、`X-Entitlement`、`X-Debug`、XFF×2、`X-Real-IP`、`X-Original-URL`、`X-Rewrite-URL`、`X-Forwarded-Host/-Proto`、`X-HTTP-Method-Override`、`Bearer dev-token`、`Bearer admin`、Cookie、`X-User-Tier`、`X-Admin`、`Instrumentation`、`X-Entitlement-Expires-At`、`Accept: text/html`、组合伪造）。
 - H2：`tier / entitlement / is_entitled / entitled / debug / mock / demo / include / format / e2e` 10 组 query。
@@ -148,6 +148,7 @@ MarketConfigError: E2E 模式在生产不可用（L44/L46）：APP_PROFILE=""（
   - 首轮（run `20261104T012350680Z`）：`started:false`，G3 = **FAIL**；唯一日志 `artifacts/logs/api-prod-profile.log`（sha256 `a8b25550…`）单行即 `生产必须配置 DEPLOYMENT_UID（audit_gap 去重键与审计归属，L65）`（`services/market/src/config.ts:205`）。这是 **L65 启动守卫按预期触发**——"配置不全拒绝启动"，不构成"实例健康、dev-token 被拒"的证据，故不能记 PASS。机器结果存档 `artifacts/results-prefix-g3-20261104T012350680Z.json`（sha256 `46dac615…`）。
   - post-fix 重跑（H5 条件：prod profile + 流水线注入 `DEPLOYMENT_UID` + **无 E2E env**）：实例 healthz `200`；`GET /v1/watchlist` 带 `Authorization: Bearer dev-token` → **`401 UNAUTHENTICATED`**，body 无内部原因码；G3 = **PASS**。证据：`artifacts/results-g3-postfix-20261104T023750101Z.json`（sha256 `ac945d2e…`）、service log `artifacts/logs/20261104T023750101Z/api-prod-profile.log`（sha256 `2563a9c9…`）、transcript `artifacts/http-attempts-20261104T023750101Z.jsonl`（sha256 `b2e6875a…`，176 行，自检 行数=`http()` 调用数）。
   - 该隔离库未建 audit schema，日志有 `entitlement_audit_write_failed / audit_write_misconfigured` 警告；与 G3 的 401 判定无关（不影响响应），如实保留在 service log 中。
+  - 日志中「entitlement 事件写入失败…不阻塞授权翻转」的措辞与 deterministic 路径实际 `markWriteBlocked`（阻断）语义不一致（H5 m00772 已交 A3 修文案/映射）；本报告不据此措辞下结论，G3 的 401 观测独立成立。
 - G4（裸启动：不设任何 `ENTITLEMENT_*`）：正常启动；quote 403 `ENTITLEMENT_RESTRICTED`；instrument 200 且 `meta.entitlement={tier:"internal_eval",is_entitled:false}`（对应 decisions.md:391 第 8 条）。
 
 ## 8. 未覆盖（明确列出，避免"没试"与"试了没绕过"混淆）
@@ -159,11 +160,11 @@ MarketConfigError: E2E 模式在生产不可用（L44/L46）：APP_PROFILE=""（
 
 ## 9. 附件
 
-- `artifacts/results.json`：**post-fix 全量** 46 项检查（attempt/expectation/observed/status/severity），`verdict=NO_BYPASS`；修复前首轮存档 `artifacts/results-prefix-g3-20261104T012350680Z.json`（`verdict=BYPASS_FOUND` 仅因 R4）。
+- `artifacts/results.json`（**post-fix canonical 代次**，sha256 `7f8f4192…`）：**post-fix 全量** 46 项检查（attempt/expectation/observed/status/severity），`verdict=NO_BYPASS`；修复前首轮存档 `artifacts/results-prefix-g3-20261104T012350680Z.json`（`verdict=BYPASS_FOUND` 仅因 R4）。
 - `artifacts/http-attempts-20261104T023750101Z.jsonl`：post-fix 原始 HTTP 往返（176 条；每行 `seq/note/method/url/status/headers/body`）；修复前 `artifacts/http-attempts-20261104T012350680Z.jsonl`（175 条）保留；根目录 `http-attempts.jsonl` 为 0 字节墓碑，勿用。
 - `artifacts/results-g3-postfix-20261104T023750101Z.json`：G3 post-fix 专项结果（含 command/exitCode/observed/log/transcript）。
 - `artifacts/logs/<runId>/`：本次 run 的隔离实例日志（run-scoped，不覆盖历史）；`artifacts/logs/*.log` 为历史 run 日志，全部保留。
-- `artifacts/evidence-manifest-<runId>.json`：**证据清单**，逐文件 `path / sha256 / bytes / mtime / caseIds / run`（A11 v4 机械校验用；manifest 按 L82 不内嵌自身哈希）。
+- `artifacts/evidence-manifest-20261104T023750101Z.json`（rev3，H4 m00777 签字引用 `40fb117d…`，**已冻结不再改**）与 `artifacts/evidence-manifest-20261104T023750101Z-rev4.json`（rev4 新文件名，H5 m00772 要求机器可读 supersedes）：**证据清单**，逐文件 `path / sha256 / bytes / mtime / caseIds / run`；rev4 中 `artifacts/results.json` 条目 `supersedes = archived_path / archived_sha256 / phase="pre-fix"`（phase 语义=被归档内容所属代际，唯一字段，无 previousPhase 双名）（A11 v4 机械校验用；manifest 按 L82 不内嵌自身哈希）。
 - `artifacts/run-stdout-20261104T023750101Z.log`：runner 完整 stdout/stderr（命令与逐项结果，`EXIT:0`）。
 - `artifacts/*.png`：`c1-restricted-baseline.png`、`c2-poisons.png`、`c5-interception.png`、`c7-valid.png`、`c9-expired-reload.png`。
 - 代码：`lib.mjs`、`run.mjs`、`cases/static.mjs`、`cases/api.mjs`、`cases/client.mjs`、`provision-db.sh`。
@@ -234,13 +235,14 @@ node tests/adversarial/entitlement-bypass/trustproxy-guard.mjs   # 4 个独立�
 
 ### 12.2 G3 判定链（守卫触发 → 重跑，不是改结论）
 
-首轮 `results.json` 里 G3=FAIL（`started:false`）是 **L65 启动守卫按预期拒绝**（prod 缺 `DEPLOYMENT_UID`），保存为 `results-prefix-g3-20261104T012350680Z.json`；post-fix 按真实部署形态（`APP_PROFILE` 缺省=prod + `DEPLOYMENT_UID` 注入 + 无 E2E env）重跑，G3=PASS（healthz 200 → dev-token 401、body 无内部码）。两段结果并列在 §7 与 `results-g3-postfix-20261104T023750101Z.json`。
+首轮 `results.json`（**pre-fix 代次，同路径内容已被 post-fix 替换**）里 G3=FAIL（`started:false`）是 **L65 启动守卫按预期拒绝**（prod 缺 `DEPLOYMENT_UID`），保存为 `results-prefix-g3-20261104T012350680Z.json`；post-fix 按真实部署形态（`APP_PROFILE` 缺省=prod + `DEPLOYMENT_UID` 注入 + 无 E2E env）重跑，G3=PASS（healthz 200 → dev-token 401、body 无内部码）。两段结果并列在 §7 与 `results-g3-postfix-20261104T023750101Z.json`。
 
 ### 12.3 post-fix 全量结果与证据清单
 
 - `summary = { total: 46, pass: 45, fail: 0, info: 1, verdict: "NO_BYPASS" }`；R4 修复态见 §11（实例拒启，换桶不可达）。
-- 证据清单：`artifacts/evidence-manifest-20261104T023750101Z.json`（revision 3，39 个文件条目，逐项 path/sha256/bytes/mtime/caseIds；含 27 个 `.log`、两轮 transcript、G3 专项、guard/R4 修前修后、runner stdout、报告本身；不内嵌 manifest 自身哈希）。0 字节墓碑 `artifacts/http-attempts.jsonl` 不登记为证据，移入 manifest `tombstones` 字段（保留文件、不删除）。
+- 证据清单：`artifacts/evidence-manifest-20261104T023750101Z.json`（revision 3，H4 m00777 签字引用 `40fb117d…`，已冻结）与 `artifacts/evidence-manifest-20261104T023750101Z-rev4.json`（revision 4，新文件名；39 个文件条目，逐项 path/sha256/bytes/mtime/caseIds；含 27 个 `.log`、两轮 transcript、G3 专项、guard/R4 修前修后、runner stdout、报告本身；不内嵌 manifest 自身哈希）。0 字节墓碑 `artifacts/http-attempts.jsonl` 不登记为证据，移入 manifest `tombstones` 字段（保留文件、不删除）。
 - 命令/退出码/监听：`node tests/adversarial/entitlement-bypass/run.mjs` → `EXIT:0`；G3 实例 `healthz=200`（即监听成功），G1/G2 为"退出码 1 且从未监听"，端口监听观测方法见 §11.3。
+- 清单自身改写 errata（H5 m00834）：rev3 路径 `artifacts/evidence-manifest-20261104T023750101Z.json` 交付时是 `caf6aca9…`（16,760 B，加 supersedes 前形态），交付后在**原路径被就地改写**为 `40fb117d…`（17,439 B，加 supersedes 后），原始 `caf6aca9` 字节未保留；A11 v4 封包（tar `fbc353cc…` / commit `5bf22cb`）采用 `40fb117d…`。rev4 用新文件名、不再改写 rev3；此 errata 已写入 rev4 manifest 的 `errata` 字段。
 - 路径替换的如实记录（H4 m00748）：`artifacts/results.json` 原为**修复前基线**（46 checks、44 PASS/1 FAIL(G3)/1 INFO、verdict=BYPASS_FOUND，sha256 `46dac6158c1e13d044be33befa9f7119d9d595bb5adcf8c1cfdce518028eedaa`）；post-fix 重跑后**同一路径内容改为** canonical（46 checks、45 PASS/0 FAIL/1 INFO、verdict=NO_BYPASS，sha256 `7f8f419252c4f6dc71885337e0bc2fdef62d61519e721c4f06aff4c8d4880568`）。旧内容未删除，归档于 `artifacts/results-prefix-g3-20261104T012350680Z.json`（即上述旧 sha256 对应文件）。manifest rev3 的 `artifacts/results.json` 条目已加 `supersedes`（旧 sha256 + 归档路径 + 旧 summary），不是覆盖旧证据。
 - 0 字节日志处理（A11 m00663）：`logs/<runId>/` 中 `api-restricted/api-expiring/api-limited/api-bare-start` 因 `LOG_LEVEL=warn` 无输出；已各补**一行 provenance 头**（runId/service/command/cwd/port/runStartedAt/runFinishedAt/termination/exitCode=not-captured/备注"未伪造输出"），现均 >0 字节。`spawnService.cleanup()` 已改为对空日志自动补同样 provenance，后续 run 不再产生 0 字节证据。
 - 根目录历史日志（pre-L75 run，09:23）同样有 4 个 0 字节文件（`artifacts/logs/{api-restricted,api-expiring,api-limited,api-bare-start}.log`），已各补 provenance 头（注明 runId 未知、文件 mtime、未伪造输出），现 455–458 字节；manifest 中全部 `.log` 均 bytes>0。

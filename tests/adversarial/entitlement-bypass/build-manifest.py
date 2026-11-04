@@ -81,11 +81,9 @@ def main():
     # 必须在 manifest 内显式 supersedes（旧 sha256 + 归档路径），否则读者/签字引用会误判。
     results_entry = info('artifacts/results.json', 'canonical machine result (post-fix)', ['ALL'], run)
     results_entry['supersedes'] = {
-        'path': 'artifacts/results-prefix-g3-20261104T012350680Z.json',
-        'previousSha256': sha(BASE / 'artifacts/results-prefix-g3-20261104T012350680Z.json'),
-        'previousRunId': '20261104T012350680Z',
-        'previousSummary': {'total': 46, 'pass': 44, 'fail': 1, 'info': 1, 'verdict': 'BYPASS_FOUND'},
-        'note': '同一路径 artifacts/results.json 的原内容（pre-fix baseline，G3=FAIL）未删除，归档为 path 所示文件；本条目 bytes/sha256 指替换后的 post-fix canonical。',
+        'archived_path': 'artifacts/results-prefix-g3-20261104T012350680Z.json',
+        'archived_sha256': sha(BASE / 'artifacts/results-prefix-g3-20261104T012350680Z.json'),
+        'phase': 'pre-fix',          # 唯一字段：语义=被归档内容所属代际（H4 m00823 / H5 m00772）
     }
     files = [
         results_entry,
@@ -115,7 +113,7 @@ def main():
 
     manifest = {
         'generatedAt': datetime.datetime.now(datetime.timezone.utc).isoformat(),
-        'revision': 3,
+        'revision': 4,
         'runId': run,
         'command': 'node tests/adversarial/entitlement-bypass/run.mjs',
         'exitCode': 0,
@@ -127,10 +125,29 @@ def main():
         'receipts': {
             'generatedBy': 'A19 red-team',
             'deliveredTo': ['a11-qa-contract-data (v4 证据包)', 'h4-data', 'h5-security-ops'],
-            'note': '按 L82：manifest 不内嵌自身哈希；新文件名、不覆盖旧证据。run-scoped 与根目录历史 0 字节日志均已补 provenance 头（未伪造输出）；0 字节墓碑移入 tombstones、不计入 files；results.json 同路径替换已用 supersedes 标注（H4 m00748）。',
+            'note': '按 L82：manifest 不内嵌自身哈希；新文件名、不覆盖旧证据。rev3（evidence-manifest-20261104T023750101Z.json，sha256 40fb117d…，H4 m00777 签字冻结）保留不动；本 rev4 为 H5 m00772 机器可读 supersedes 版本（新文件名）。run-scoped 与根目录历史 0 字节日志均已补 provenance 头（未伪造输出）；0 字节墓碑移入 tombstones、不计入 files。',
         },
     }
-    out = ART / ('evidence-manifest-%s.json' % run)
+    out = ART / ('evidence-manifest-%s-rev4.json' % run)
+    if out.name.endswith('-rev4.json'):
+        # H5 m00834 errata：rev3 路径在交付窗口内被就地改写（caf6aca9 → 40fb117d），
+        # 原始 caf6aca9 字节未另存保留；必须写进 rev4，避免 rev4 变成"掩盖改写"。
+        manifest['errata'] = {
+            'rev3_as_delivered': 'caf6aca93b599f20a2739e132981b845e1b05bd7ac5d89ab62d77de65c4bbd7f',
+            'in_place_rewrite_to': '40fb117d8e82c6525b3d892e1eff8f13fef5feca34c9f03c467aac05c97f5584',
+            'original_bytes_retained': False,
+            'note': '交付后因追加 supersedes 被就地改写，原始字节未保留；本 rev4 为重建引用版（A11 v4 封包 tar fbc353cc… / commit 5bf22cb 内为 40fb117d…）。',
+        }
+        prev = ART / ('evidence-manifest-%s.json' % run)
+        if prev.exists():
+            # rev3 是 H4 m00777 的签字冻结快照；rev4 是 H5 m00772 的新文件名版本。
+            # REPORT.md / build-manifest.py 因 H5 要求改动后，rev3 内这两个条目指向冻结时点版本，
+            # 故用 supersedesManifest 显式记录代次关系，避免机械校验误判。
+            manifest['supersedesManifest'] = {
+                'path': str(prev.relative_to(BASE)).replace('\\', '/'),
+                'sha256': sha(prev),
+                'note': 'rev3（sha256 40fb117d…）仍为历史冻结快照、可复算（按其冻结时点文件）；rev4 为引用版（自洽于当前文件，承载 H5 m00772 机器可读 supersedes 与 REPORT 代次标注）。',
+            }
     out.write_text(json.dumps(manifest, ensure_ascii=False, indent=2))
     print(json.dumps({'manifest': str(out.relative_to(BASE)), 'files': len(files), 'logs': len(logs), 'tombstones': len(tombstones),
                       'manifestBytes': out.stat().st_size, 'manifestSha256': sha(out)}, ensure_ascii=False, indent=1))
