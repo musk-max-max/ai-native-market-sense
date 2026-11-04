@@ -255,8 +255,17 @@ python3 -m warehouse.load --ods-root <ODS_DISPLAY_ROOT> --internal-ods-root <ODS
 `python -m warehouse.load`。构建上下文是仓库根：
 
 ```bash
+# 默认用境内 pip 镜像（ECS 实测官方 pypi.org 不通）
 docker build -f warehouse/Dockerfile -t market-sense/warehouse-load .
+
+# 境外 CI/构建机可覆盖回官方源
+docker build --build-arg PIP_INDEX_URL=https://pypi.org/simple/ \
+  -f warehouse/Dockerfile -t market-sense/warehouse-load .
 ```
+
+pip 源是 build-arg（`PIP_INDEX_URL`，默认 `https://mirrors.aliyun.com/pypi/simple/`），
+不改 `requirements.txt`；证据：lead 2026-11-04 在 ECS 实测官方源无响应、阿里云 200/2.9s，
+临时 Dockerfile 改 `-i` 后 build 成功并跑通（quality=100 green，rc=0）。
 
 为什么不塞进 `services/ingest/Dockerfile`：让"抓数"与"写库"共享同一个镜像会同时放大攻击面与发布节奏；
 compose 里是独立的一次性服务 `warehouse-load`（`restart: "no"`）。

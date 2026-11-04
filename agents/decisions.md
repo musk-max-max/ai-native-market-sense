@@ -1116,3 +1116,58 @@ A13 如实交了失败记录（本机无 iptables、pf 无权限），**没有�
 **6) M04 时点 ST（L80 维持裁 ②）**：A1 纠偏——**上游（stock_basic）与下游（DWD/ODS）都无历史名称源**，A1 只存导入时点快照非按日快照。L80 ② 维持（ST 判定=当前名称快照，历史未还原），事实依据更硬。**namechange 是 P1 数据依赖。**
 
 **7) C01 正向清单扩 `services/ingest/tests/**`**（L81）：单元测试里的合成报文属测试输入非对外契约；`channel="tushare"`（H4 强制渠道名）一并进正向清单。残留 `samples/h4-audit/` 清掉。
+
+### L83 证据包两条签字基线（2026-11-04，H4 提出、H5 采纳、A12 作废一次绑定后定）
+
+**背景**：A12 的 `#5` DOM 证据包被 H5 查出**跨代际拼包**——`expired/verdict.json` 的 `coverage.blocked` 写 `restricted_malformed_403: BLOCKED（未采集）`，但同包内该场景 verdict 存在且 PASS（expired 10:42、malformed 13:44 混合代际）；README 写 notice「严格等于 title+' '+detail」实测无空格/换行；`TRANSCRIPTS.md` 与 `README.md` 字节相同（6163B）。H4 原先的「数据侧接受」作废，A12 重开 v2 目录单次全量重跑。
+
+**基线 1——一个证据包 = 一次 run，跨代际拼包一律不签**
+- 包级 manifest 带 `run_id` + `run_started_at/run_finished_at`；包内 artifact 生成时间/run_id 必须落在同一 run 窗口。
+- **per-scenario 文件不得含跨场景结论字段**（本次 `coverage.blocked` 即反例）。
+- 例外（长测 assembled）只能 H5 书面批：逐条标 `origin_run_id`、包级标 `assembled: true`，聚合结论只能由包级 manifest 从逐条结果算出。**无标注即视为拼包。**
+
+**基线 2——已签/已拒的证据目录原字节冻结**
+- 状态记外部台账，**不往目录里加文件**——加了旧 sha 的可复算性就断。
+- rejected 只记台账、不改旧目录字节。**H4 撤回原先让 A12「补 changelog 到旧目录」的指令（自认是错——正是它造成旧 sha 失效）。**
+
+**连带**：A11 v4、A13 #4 证据包同受此约束。H5 判据已可机械判定，避免「看着像拼包」争论。
+
+### L84 #4 服务端运维层验收=行为 PASS、门禁 #4 整体不 closed（2026-11-04，H5-R24）
+- **H5 复算 A13 证据 8/8 sha+bytes 全对**：黑洞期 quote 20/20 403+no-store、P95 2.7ms；whitelist 30 样本 P95 1.0ms/max 1.3ms；撤黑洞 2.04s 同进程恢复；healthz `control_unavailable` 无 DSN/主机/端口。**#1/#2/#4 closed；#3 采样 PASS、封版前置=A0 同步 `contracts/shared/openapi.yaml:187/243/253` 与 `docs/adr/ADR-001:57` 文案。**
+- **随 PASS 记三条 residual**：① connect 阶段 SYN-drop 未真验（TCP sink 只证「连接建立后挂起」，connect_timeout 是配置断言）；② 故障开始后首请求的 1s 超时路径无独立样本（测的是降级稳态）；③ 范围仅 test profile `c_end_display`，**不得据此宣称 internal_eval 现网 degraded 可见**。
+- **边界**：客户端 DOM 在 A12 v2、暴露面（外部 /healthz、/metrics 404 + Pod 内 200 + helm template 守卫）未交，**台账不得写「#4 全清」**。
+- **工作区卫生**：`tests/e2e/tests/e2e/evidence/11-12-f1-dom-20261104T1049Z/` 是重复嵌套路径（建包脚本 cwd 假设错），CI 只认 `tests/e2e/evidence/`，A12 清理并在建包脚本断言输出路径前缀。
+
+### L85 v7 证据包版本唯一性基线（2026-11-04，H5-R29）
+- **v5/v6 均 rejected-before-sign**：v5 打包抓旧工作树（A3 MANIFEST `ced607bf…` vs HEAD `f105b582…`）；v6 同一文件名在 `162ac41`/`2aec985` 两个 commit 有不同 tar sha（`437f1c40…` 97 条 vs `f1e6f8e4…` 124 条）——**版本身份不唯一，"v6" 不能作签署标识**。
+- **v7 要求**（A11 已按此交付）：① 文件名带短 commit（消除歧义）；② build 脚本加名称唯一性门禁（历史同名不同 sha 即 fail）；③ manifest 记 `packed_from_commit` + `predecessors`（两份 v6 全信息）；④ H5 签字口径固定为四元组 `(tar sha256, manifest sha256, packed_from_commit, commit D)`，文件名只是标签。
+
+### L86 #7 行为层 PASS（v7 四元组终签，residual ④ 公网 ingress）（2026-11-04，H5-R30）
+- **四元组**：tar `75f89a2d…`（4,138,568B）/ 包内 manifest `c2cc1de5…`（124 entries / 4,929,516B / excluded 1 / rejected 0）/ `packed_from_commit=2523256` / commit D `17853c6`（仅 tar+SUMS）。
+- **等价性（H4 定义，脚本内置）**：`check_version_equivalence.py` sha `4706aff3…` EXIT=0，**65/65 证据 path bytes+sha256 全等**（root 1 / a19-artifacts 41 / a2-evidence 1 / services/market/evidence 7 / transcripts 15）；非证据恰好 7 条变更（`ADVERSARIAL.md`/`git-info.txt`/`CI_MOUNT.md`/4 个 build-check-test 脚本），旧/新 sha 逐一匹配。**"88" 作废，65 为准。** 等价报告 `v7-equivalence-report-20261104T0725Z.md` sha `65a9b46f…`（commit `9fb8d7f`）。
+- **A19 动态数字**：46 checks = 45 PASS / 0 FAIL / 1 INFO（NO_BYPASS）；R4 PASS；TRUST_PROXY 4/4；G3 pre-fix FAIL 保留归档。A19 结论仅作「动态证据复核、供 H5 终签」，不并入 H5 门禁签字。
+- **H5 终签 #7 行为层 PASS，residual ④ 公网 ingress**——门禁 #7 不标全清，C 端发布卡点不因本条解除。
+
+### L87 仓库卫生 2MB allowlist（2026-12-15 到期，不自动续）（2026-11-04，H4+H5 收敛定）
+- **allowlist**：`infra/ci/repo-hygiene.allowlist.yaml`（sha `8abbc4a5…`，commit `58166d4`），仅放 v6 `f1e6f8e4…` + v7 `75f89a2d…` 两个精确路径（各自 sha256 锁死，同路径换字节自动失效），owner=A13，expires=**2026-12-15**（收敛后日期，11-30 作废）。
+- **两条到期规则（语义不同，同日盘点）**：
+  | 条目 | 到期规则 |
+  |---|---|
+  | `lot_size` waiver | 12-15 到期 **不续**，用新 baseline 冻结消解 |
+  | repo 2MB allowlist | 12-15 **复审后有条件续**（须 H4+H5 复审），不自动续 |
+- 共同约束：到期前 5 天告警、到期 CI 红、go-live 前迁发布产物存储（repo 只留 locator+sha256）。`m02775`/`m02782` message ref 须换成日期+`decisions L87`。
+
+### L88 #4 服务端运维层 = 行为 PASS + 3 residual，整体不 closed（2026-11-04，H5-R29）
+- **依据**：A13 证据 `infra/evidence/` 8 件 sha+bytes 全对（commit `0fdc5c0`）：黑洞期 20/20 403+no-store P95 2.7ms；whitelist 30 样本 P95 1.0ms；撤黑洞 2.04s 同进程恢复。
+- **3 条 residual**：① connect 阶段 SYN-drop 未真验（TCP sink 只证「连接建立后挂起」）；② 故障开始后首请求 1s 超时路径无独立样本；③ 范围仅 test profile `c_end_display`，不得宣称 internal_eval 现网 degraded 可见。
+- **#4 整体不 closed**：客户端 DOM + 暴露面四件未齐。
+
+### L89 #7 ④ 公网 ingress = explicit blocker，用户决策硬点 2026-11-06 12:00（2026-11-04）
+- **三选一**：① 开 staging ingress host + 域名解析 + 安全组放通；② 给 staging kubeconfig（含 default/ingress-nginx/monitoring 读权限 + default 建 Pod/exec）；③ 11-06 12:00 前拿不到 → **#7 记 PARTIAL（外部不可达、未取证），C 端发布卡点不解除，11-12 带 residual 交付**。
+- **无答复按"不开"处理**。ECS/安全组/域名/kubeconfig 均为用户账号侧操作，Lead 不擅自做。四件套（外部 404 + Pod 内 200 + helm 静态守卫 + NetworkPolicy 真集群）入口到位后 30–60 分钟交，**不拿 YAML/port-forward 冒充实测**。取证模板 `capture-exposure.sh`（sha `a4024985…`）已就绪。
+
+### L90 A1 tushare 数据落地方案三条拍板（2026-11-04）
+- **P1 数据落地方案**（`services/ingest/docs/tushare-data-landing-plan.md`）与 **C 端 H5 需求+UI 草案**（`c-end-h5-requirements-and-ui-draft.md`）方向认可，**本迭代不 commit、不写代码**，作 P1 backlog 输入。
+- **三条拍板**：① 行情列表页含于 S1（P0 数据）；② PE/PB/市值/换手 S2（daily_basic 是 P1，未就绪整块隐藏）；③ 日 K 图 S2（复权口径风险 S0 无验收覆盖）。
+- **三条挂 owner**：④ 首页指数/涨跌家数聚合 → A2 定；⑤ 拼音/首字母搜索 → A0 定（扩 display CSV 走契约变更）；⑥ `fina_indicator` VIP 档回补 → H4 一起核成本。
+- **硬边界**：11-12 到期前、无官方书面授权，真实数据仅进 dev/test，C 端恒 403/internal_eval，F1 未翻前不得全量回补进 C 端展示库，方案不得作为放行依据。

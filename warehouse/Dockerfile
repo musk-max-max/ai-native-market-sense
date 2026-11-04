@@ -13,9 +13,16 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# pip 源：默认境内镜像，可被 build-arg 覆盖（境外 CI 用官方源）。
+# 证据（lead 2026-11-04，ECS 境内实测）：curl https://pypi.org/simple/ 无响应（超时），
+# https://mirrors.aliyun.com/pypi/simple/ → 200 / 2.9s；用临时 Dockerfile 改 -i 阿里云后
+# warehouse-load build 成功并跑通（quality=100 green, rc=0）。
+# 境外覆盖：docker build --build-arg PIP_INDEX_URL=https://pypi.org/simple/ ...
+ARG PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/
+
 # 只有 psycopg[binary]（warehouse/requirements.txt 唯一依赖）
 COPY warehouse/requirements.txt /tmp/requirements.txt
-RUN pip install --no-cache-dir -r /tmp/requirements.txt
+RUN pip install --no-cache-dir -i "$PIP_INDEX_URL" -r /tmp/requirements.txt
 
 # 镜像内只放数仓包（不含 tests/fixtures，减小体积与暴露面）
 COPY warehouse/__init__.py /app/warehouse/__init__.py

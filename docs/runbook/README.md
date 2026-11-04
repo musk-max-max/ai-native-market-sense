@@ -11,6 +11,11 @@
 | [ai-cost-drift.md](ai-cost-drift.md)           | token 成本、输出异常率、人工接管率、模型/prompt 漂移 | TokenCostSpike、OutputAnomalyRateHigh、HumanTakeoverRateHigh、ModelDriftAfterChange                   | agent_first_token、agent_anomaly_rate、agent_takeover_rate |
 | [db-migration.md](db-migration.md)             | DB bootstrap / 迁移失败、只读权限异常、生产迁移回滚  | 暂无告警（CI job db-bootstrap 红灯触发）                                                              | availability_trading、availability_offhours                |
 
+## 值班表与发布证据状态
+
+- 值班表（具名/班次/升级路径，当前 BLOCKED 待人类姓名与寻呼通道）：[`infra/ops/oncall-roster.md`](../infra/ops/oncall-roster.md)
+- 发布前置证据状态（H5 四件套 + KD-ENT-01 v2）：[`infra/ops/release-evidence-status.md`](../infra/ops/release-evidence-status.md)
+
 ## 值班约定
 
 - 告警路由：critical → A13 立即；warning → 工作时间 A13；AI 相关 → A13 + A9。

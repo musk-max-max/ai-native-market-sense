@@ -1,0 +1,8 @@
+HTTP/1.1 403 Forbidden
+content-type: application/problem+json; charset=utf-8
+cache-control: no-store
+content-length: 225
+Date: Wed, 04 Nov 2026 12:42:55 GMT
+Connection: keep-alive
+Keep-Alive: timeout=72
+
