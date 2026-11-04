@@ -196,9 +196,9 @@ def test_v5_binds_a19_rev4_and_keeps_rev3_historical(tmp_path: Path) -> None:
     )
 
 
-V6_TAR = REPO_ROOT / "tests/data/acceptance/artifacts/11-12-evidence-20261104-v6.tar.gz"
-V6_SUMS = REPO_ROOT / "tests/data/acceptance/artifacts/SHA256SUMS-v6"
-V6_MANIFEST = "evidence-manifest-v6-20261104T0700Z.json"
+V7_TAR = REPO_ROOT / "tests/data/acceptance/artifacts/11-12-evidence-20261104-v7.tar.gz"
+V7_SUMS = REPO_ROOT / "tests/data/acceptance/artifacts/SHA256SUMS-v7"
+V7_MANIFEST = "evidence-manifest-v7-20261104T0730Z.json"
 
 
 def _sha256(path):
@@ -206,15 +206,22 @@ def _sha256(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def test_v6_archive_is_pinned_and_manifest_covers_it(tmp_path):
-    assert V6_TAR.is_file() and V6_SUMS.is_file()
-    lines = dict(reversed(line.split()) for line in V6_SUMS.read_text().splitlines() if line.strip())
-    assert lines["11-12-evidence-20261104-v6.tar.gz"] == _sha256(V6_TAR)
-    with tarfile.open(V6_TAR) as tar:
-        member = tar.extractfile(V6_MANIFEST)
-        manifest = json.loads(member.read())
-    assert lines[V6_MANIFEST] == _sha256_bytes(json.dumps(manifest, ensure_ascii=False, indent=2).encode() + b"\n")
-    assert manifest["packed_from_commit"] == "162ac41144af3a5e7f8c9c622cf40e574e2ec011"
+def test_v7_archive_is_pinned_and_manifest_covers_it(tmp_path):
+    assert V7_TAR.is_file() and V7_SUMS.is_file()
+    lines = dict(reversed(line.split()) for line in V7_SUMS.read_text().splitlines() if line.strip())
+    assert lines["11-12-evidence-20261104-v7.tar.gz"] == _sha256(V7_TAR)
+    with tarfile.open(V7_TAR) as tar:
+        raw = tar.extractfile(V7_MANIFEST).read()
+    manifest = json.loads(raw)
+    assert lines[V7_MANIFEST] == _sha256_bytes(raw)
+    assert manifest["packed_from_commit"]
+    predecessors = manifest.get("predecessors") or []
+    assert [p["name"] for p in predecessors] == ["v6", "v6"]
+    assert {p["sha256"] for p in predecessors} == {
+        "437f1c4071797959e4a1b8e1b6dbf1667eb3ff9b1e2d114f535ee2e2ddd1c71f",
+        "f1e6f8e4f1cb07040c24903638c2ebbfb3e3d60d170da029326021881fc4908e",
+    }
+    assert all(p["status"] == "superseded-before-delivery" for p in predecessors)
     entries = {e["path"]: e for e in manifest["entries"]}
     assert entries["11-12-evidence-20261104-v5.tar.gz"]["authority"] == "historical"
     assert "stale-market-evidence-manifest-race" in entries["11-12-evidence-20261104-v5.tar.gz"]["note"]
