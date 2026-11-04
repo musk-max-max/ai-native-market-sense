@@ -62,3 +62,14 @@
 - **状态：#7 = `PASS（R4 已修复复跑）`**，2026-11-04 09:14 A19 用同一条命令复跑：条件 1 从 0/4 → **4/4 PASS**（四条均为 config 层拒启、`listenedPort=false`、stderr 点名 `TRUST_PROXY`）；R4 从 FAIL(P2) → **PASS**（`TRUST_PROXY=127.0.0.0/8` 现在拒启，无监听、无换桶）。
 - **仍未覆盖**：条件 2（ingress 覆写而非追加 XFF）需 staging；条件 3（helm 静态守卫）不在攻击环境，已由 A0/A13 单测+helm 4.3.1 交叉验证替代，**不记为攻击侧证据**。
 - 证据口径：受限态判定只认隔离栈（18182–18187/3200–3201）+ 独立库 `market_sense_a19`；本机 8081 为有效态 demo，不得作未授权证据。
+
+## 11-12 门禁回执（2026-11-04 09:16，A11）
+
+**entitlement 8 + 限流 4 = 12/12 有证据**（a13_verify @ 002 `c118eeb3`，API :18095–18099）。证据包 `tests/data/acceptance/artifacts/11-12-evidence-20261104.tar.gz` sha256 `ea10e5fc…`，明细 `tests/contract/CI_MOUNT.md §7.7`。日常门禁 `pytest tests/contract tests/data` = **136 passed / 1 warning**。
+
+**本次未取证 3 条（不得计入 PASS）：**
+1. #5 的 DOM/渲染层数值泄漏断言 —— 属 A12 `tests/e2e` 域，A11 未执行。
+2. #7 公网 ingress（`/v1` 之外外部 404）—— A13 未配 `PUBLIC_BASE_URL`；H5 对 R4 的书面风险接受未落（R4 已修复，引用 A19 修复后 PASS）。
+3. #4 的 control「真实网络不可达」P95 —— 最终复跑未含，仅早前记录与 fake-control harness。
+
+**仍未闭合（非 A11 域）**：真实 GitHub runner 首跑（仓无 remote）；`docker compose build` / 镜像构建未验证；H4 授权三件（11-12 到期）。
