@@ -74,3 +74,47 @@ def test_relocated_file_is_traceable_via_map(tmp_path: Path) -> None:
     )
     assert result.returncode == 0, result.stdout + result.stderr
     assert "repo-mapped" in result.stdout
+
+
+def _build_a19_repo(tmp_path: Path) -> tuple[Path, Path]:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-q")
+    _git(repo, "config", "user.email", "a11@example.test")
+    _git(repo, "config", "user.name", "A11")
+    art = repo / "tests" / "adversarial" / "x" / "artifacts"
+    art.mkdir(parents=True)
+    (art / "results.json").write_text('{"ok":true}\n', encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-qm", "a19")
+    staging = tmp_path / "pkg"
+    (staging / "a19-artifacts").mkdir(parents=True)
+    (staging / "a19-artifacts" / "results.json").write_text('{"ok":true}\n', encoding="utf-8")
+    (staging / "a19-artifacts" / "run.log").write_text("log\n", encoding="utf-8")
+    manifest = tmp_path / "a19-manifest.json"
+    import hashlib
+    log_sha = hashlib.sha256(b"log\n").hexdigest()
+    manifest.write_text(
+        '{"files":[{"path":"artifacts/results.json","bytes":11,"sha256":"'
+        + hashlib.sha256(b'{"ok":true}\n').hexdigest()
+        + '"},{"path":"artifacts/run.log","bytes":4,"sha256":"' + log_sha + '"}]}\n',
+        encoding="utf-8",
+    )
+    return repo, staging
+
+
+def test_untracked_a19_files_are_traceable_via_manifest(tmp_path: Path) -> None:
+    repo, staging = _build_a19_repo(tmp_path)
+    result = subprocess.run(
+        [sys.executable, str(CHECKER), "--root", str(staging), "--repo", str(repo),
+         "--a19-manifest", str(tmp_path / "a19-manifest.json")],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    (staging / "a19-artifacts" / "run.log").write_text("tampered\n", encoding="utf-8")
+    tampered = subprocess.run(
+        [sys.executable, str(CHECKER), "--root", str(staging), "--repo", str(repo),
+         "--a19-manifest", str(tmp_path / "a19-manifest.json")],
+        capture_output=True, text=True,
+    )
+    assert tampered.returncode == 1 and "A19 rev4 清单不一致" in tampered.stdout

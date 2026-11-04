@@ -11,7 +11,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import hashlib
 import subprocess
+import tarfile
 import sys
 from pathlib import Path
 
@@ -29,6 +31,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--commit", default="HEAD")
     parser.add_argument("--allow-prefix", action="append", default=[],
                         help="包内-only 路径前缀（可多次），如 a19-artifacts/")
+    parser.add_argument("--a19-manifest", type=Path, default=None,
+                        help="A19 rev4 manifest：a19-artifacts/ 逐条 sha/bytes provenance（logs 未被 git 跟踪）")
+    parser.add_argument("--a19-prefix", default="a19-artifacts/")
+    parser.add_argument("--a19-repo-prefix", default="tests/adversarial/entitlement-bypass/artifacts/")
+    parser.add_argument("--tar-provenance", type=Path, default=None,
+                        help="已提交的历史 tar：包内 transcripts/ 逐成员 sha 必须与之一致")
+    parser.add_argument("--tar-provenance-prefix", default="transcripts/")
     parser.add_argument("--map", type=Path, default=None,
                         help="package-path -> repo-path 映射 JSON（重定位但可追溯的文件，如 a19-REPORT.md -> tests/.../REPORT.md）")
     args = parser.parse_args(argv)
@@ -44,10 +53,62 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     path_map = json.loads(args.map.read_text(encoding="utf-8")) if args.map else {}
+    a19_files: dict[str, dict] = {}
+    if args.a19_manifest:
+        rev = json.loads(args.a19_manifest.read_text(encoding="utf-8"))
+        a19_files = {
+            e["path"][len("artifacts/"):]: e
+            for e in rev["files"] if e["path"].startswith("artifacts/")
+        }
+    tar_members: dict[str, str] = {}
+    if args.tar_provenance:
+        with tarfile.open(args.tar_provenance) as tar:
+            for member in tar.getmembers():
+                if member.isfile() and member.name.startswith(args.tar_provenance_prefix):
+                    tar_members[member.name] = hashlib.sha256(tar.extractfile(member).read()).hexdigest()
     checked = allowed = 0
     failures: list[str] = []
     for path in sorted(p for p in root.rglob("*") if p.is_file()):
         rel = path.relative_to(root).as_posix()
+        if rel.startswith(args.a19_prefix) and a19_files:
+            sub = rel[len(args.a19_prefix):]
+            expected = a19_files.get(sub)
+            data = path.read_bytes()
+            digest = hashlib.sha256(data).hexdigest()
+            if expected is not None:
+                if digest != expected["sha256"] or len(data) != expected["bytes"]:
+                    failures.append(
+                        f"{rel}: 与 A19 rev4 清单不一致（sha {digest[:12]} / {len(data)}B，"
+                        f"期望 {expected['sha256'][:12]} / {expected['bytes']}B）"
+                    )
+                    continue
+                checked += 1
+                continue
+            repo_rel = args.a19_repo_prefix + sub
+            if not (repo / repo_rel).exists():
+                failures.append(f"{rel}: 不在 A19 rev4 清单且不是已提交文件，无法追溯")
+                continue
+            try:
+                committed = git(repo, "rev-parse", f"{sha}:{repo_rel}").strip()
+            except subprocess.CalledProcessError:
+                failures.append(f"{rel}: 不在 A19 rev4 清单且不在 commit {sha[:12]}")
+                continue
+            if subprocess.run(["git", "-C", str(repo), "hash-object", str(path)],
+                              capture_output=True, text=True).stdout.strip() != committed:
+                failures.append(f"{rel}: A19 清单外文件与 commit blob 不一致")
+                continue
+            checked += 1
+            continue
+        if rel.startswith(args.tar_provenance_prefix) and tar_members:
+            expected_sha = tar_members.get(rel)
+            if expected_sha is None:
+                failures.append(f"{rel}: 不在历史 tar 的 {args.tar_provenance_prefix} 中，无法追溯")
+                continue
+            if hashlib.sha256(path.read_bytes()).hexdigest() != expected_sha:
+                failures.append(f"{rel}: 与历史 tar 成员 sha 不一致")
+                continue
+            checked += 1
+            continue
         if any(rel.startswith(prefix) for prefix in args.allow_prefix):
             allowed += 1
             continue
