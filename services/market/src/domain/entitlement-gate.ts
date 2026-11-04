@@ -28,6 +28,7 @@ export type DegradedReason =
   | 'config_mismatch'
   | 'audit_write_failed'
   | 'expired_event_write_failed'
+  | 'audit_write_misconfigured'
   | 'expired';
 
 /**
@@ -36,7 +37,7 @@ export type DegradedReason =
  *  - 非阻断（只标记 healthz/stderr/指标，不改 resolution）：审计写失败不扩大授权，
  *    安全由 reconciler 的 observed 缺失兜底（H3「写失败不阻止翻转，先安全后告警」）。
  */
-export const BLOCKING_DEGRADED_REASONS = new Set<DegradedReason>([
+export const BLOCKING_REASONS = new Set<DegradedReason>([
   'control_unreachable',
   'control_stale',
   'control_missing',
@@ -44,9 +45,12 @@ export const BLOCKING_DEGRADED_REASONS = new Set<DegradedReason>([
   'config_mismatch',
   'expired',
   'reconciler_stalled',
+  // H4 m01784/M01741：确定性写错误（INSERT 权限/表/列/类型/schema 配错）单独成阻断原因，
+  // 与"记账抖动"区分；语义上属于"我们不知道能否记账"，不是"记账没写成"。
+  'audit_write_misconfigured',
 ]);
 
-export const NON_BLOCKING_DEGRADED_REASONS = new Set<DegradedReason>([
+export const NON_BLOCKING_REASONS = new Set<DegradedReason>([
   'audit_write_failed',
   'expired_event_write_failed',
 ]);
@@ -56,7 +60,7 @@ export const NON_BLOCKING_DEGRADED_REASONS = new Set<DegradedReason>([
  * 任何"缺失会改变放行"的新事件类型默认归阻断，不要顺手放进 NON_BLOCKING。
  */
 export function isBlockingDegradedReason(reason: DegradedReason): boolean {
-  return BLOCKING_DEGRADED_REASONS.has(reason);
+  return BLOCKING_REASONS.has(reason);
 }
 
 export interface GateDecision {
@@ -170,13 +174,13 @@ export class EntitlementGate {
    * 阻断原因必须走 degrade()，避免"写失败=降权"与 H3 冻结口径冲突（H4 m01713）。
    */
   markDegraded(reason: DegradedReason): void {
-    if (!NON_BLOCKING_DEGRADED_REASONS.has(reason)) {
+    if (!NON_BLOCKING_REASONS.has(reason)) {
       throw new Error(`非阻断标记不接受阻断原因：${reason}`);
     }
     this.degraded = true;
     this.degradedReason = reason;
     this.auditFailure = reason;
-    this.warnOnce(reason);
+    this.page(reason);
   }
 
   /**
@@ -184,7 +188,7 @@ export class EntitlementGate {
    * 启动路径由调用方决定"拒绝以 c_end_display 启动"（H4 m01741）。
    */
   markWriteBlocked(reason: DegradedReason): void {
-    if (!NON_BLOCKING_DEGRADED_REASONS.has(reason)) {
+    if (reason !== 'audit_write_misconfigured' && !NON_BLOCKING_REASONS.has(reason)) {
       throw new Error(`写阻断标记只接受审计原因：${reason}`);
     }
     this.auditWriteBlocked = true;
@@ -236,7 +240,7 @@ export class EntitlementGate {
   }
 
   private degrade(base: EntitlementResolution, reason: DegradedReason): GateDecision {
-    if (!BLOCKING_DEGRADED_REASONS.has(reason)) {
+    if (!BLOCKING_REASONS.has(reason)) {
       throw new Error(`阻断降级只接受阻断原因：${reason}`);
     }
     this.degraded = true;
@@ -254,11 +258,27 @@ export class EntitlementGate {
     };
   }
 
+  /**
+   * Lead L60：审计写失败必须 page（不是普通 log）。A3 无寻呼通道，输出 severity=page 的
+   * 结构化告警，由 A13/H5 的日志告警规则接寻呼；进程内每种 reason 只发一次。
+   */
+  private page(reason: DegradedReason): void {
+    if (this.warnedReasons.has(reason)) return;
+    this.warnedReasons.add(reason);
+    const payload = JSON.stringify({
+      event: 'entitlement_audit_write_failed',
+      severity: 'page',
+      reason,
+    });
+    (this.options.warn ?? ((message: string) => process.emitWarning(message)))(`[PAGE] ${payload}`);
+    process.stderr.write(`${payload}\n`);
+  }
+
   private warnOnce(reason: DegradedReason): void {
     if (this.warnedReasons.has(reason)) return;
     this.warnedReasons.add(reason);
     const warn = this.options.warn ?? ((message: string) => process.emitWarning(message));
-    const blocking = BLOCKING_DEGRADED_REASONS.has(reason);
+    const blocking = BLOCKING_REASONS.has(reason);
     if (blocking) {
       warn(`[market] entitlement 已降级为 internal_eval（reason=${reason}），行情/财务将返回 403`);
       return;

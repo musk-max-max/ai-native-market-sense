@@ -842,3 +842,32 @@ fail-closed 是对的，但**现象具有欺骗性**：部署突然失败，报�
 
 **给 A13**：002 里带上这三项的 DDL 与 reconciler 补 gap 的分支；不加人日（在原 0.5 内）。
 **给 A11**：链校验须覆盖"含 gap 事件的链"，并断言 gap 的 `lost_count > 0`。
+
+### L64 002 三个口径定案（2026-11-04，A5 提问）
+
+**1. `recorded_at` 回填**：001 已有 `occurred_at`（业务时间，服务侧 UTC），**没有 `created_at`**（那是 A13 已删除的旧 infra 版列，L62 引用有误，以本条为准）。002 只加 `recorded_at timestamptz`，顺序为：加列（可空）→ 回填 `recorded_at = occurred_at` → `SET NOT NULL DEFAULT now()` + 触发器强制 `now()`、`REVOKE UPDATE`。
+既有行的 `recorded_at` 是**近似值**，必须在列注释与 README 写明「历史行 recorded_at 由 occurred_at 近似，非真实写入时刻」。**宁可承认近似，也不要让后来的人以为是精确值。**
+
+**2. gap 的 JSON 键名以 `gap_from` / `gap_to` 为准**（取代 L62 的 `window_start` / `window_end`）。配套：`lost_count` / `reason` / `owner`；`event_key = gap|<boot_id>|<gap_from ISO8601 UTC>`。
+理由：`event_key` 必须能从键名直接派生，且 `gap_from` 与 L63 的"失败前最后一条成功事件的 `occurred_at`"是同一个概念——**同一个东西用两个名字，是今天已经犯过一次的错**（L60/L61 名单）。
+
+**3. `schema_version`：002 直接 `SET DEFAULT 2`，seed 也写 2。**
+仅**历史行**保留 1（回填时不动）。不要"默认 1、要求调用方显式传 2"——默认值应当等于**当前正确值**，靠调用方记得传，等于把一个必然会忘的事写进协议。`verify_entitlement_chain()` 兼容 1/2。
+
+**给 A5**：按此出 002，并把 L62 的三处措辞在 README 里更正。
+**给 A3**：写入口径不变（不写 `schema_version` 即为 2），零代码改动。
+
+### L65 canonical 词表落到单一文件，L61/L64 名单作废（2026-11-04，四方冲突收口）
+
+**冲突**：L61（我）用 `control_unreachable` + `reconciler_stalled`；H4/H5 用 `control_unavailable` + `audit_write_misconfigured` 并要删 `reconciler_stalled`；A3 代码里是 `control_unavailable`。三方各一版。
+
+**根因不是谁记错，是我们把"词表"写在了附言里。** 决策文档是散文，散文没有解析器，改一次就漂一次。今天已经因为这件事返工三次（L60/L61/L64）。
+
+**裁定：**
+1. **唯一真源 = `docs/reference/entitlement-reasons.json`**（人读版 `docs/reference/entitlement-reasons.md`）。代码常量、healthz、A11 断言一律与 JSON 逐项相等；**文档与代码谁先改都行，不一致即红**。
+2. 采用 H4/H5 收敛版：阻断 7 个（`control_unavailable` / `control_stale` / `control_missing` / `hold_active` / `config_mismatch` / `expired` / `audit_write_misconfigured`），非阻断 2 个。**`reconciler_stalled` 删除**——`control_stale` 已覆盖"不依赖 reconciler 存活"这条，两个名字一个信号正是我要防的别名。
+3. L60 与 L61 的名单、L64 第 2 条的 key 名，全部作废，以 JSON 为准。
+4. **`window_start` = 链上最后一条任何类型事件的 `occurred_at`**（含 gap 自身）。取"最后一条非 gap"会让连续两个断口算出同一个 key，第二次被唯一索引吞掉——**而第二次恰恰是最该被看见的那次。**
+5. `DEPLOYMENT_UID` 在 prod 缺失即启动失败；reconciler 双向判定（无 observed / 有 observed 无事件，都要补 gap + hold）。
+
+**教训写在这里**：**能被解析的东西才配当标准，其余都是会议纪要。**

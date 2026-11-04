@@ -13,6 +13,9 @@ export type EventWriteFailureReporter = (payload: { eventKey: string; eventType:
 export interface EntitlementEventWriterOptions {
   readonly retryDelaysMs?: readonly number[];
   readonly reportFailure?: EventWriteFailureReporter;
+  /** audit_gap 去重键与必填归属（H4 m01784：service 与 reconciler 要算出同一个 key）。 */
+  readonly deploymentUid?: string;
+  readonly operator?: string;
 }
 
 const DEFAULT_RETRY_DELAYS_MS = [100, 500, 2_000] as const;
@@ -38,6 +41,8 @@ export class EntitlementEventWriter {
   /** 最近一次最终失败（调用方据此区分确定性/瞬态写错误，H4 m01741）。 */
   lastFailure: EventWriteFailure | undefined;
   private gap: GapWindow | undefined;
+  /** 失败前最后一条成功事件的 occurred_at（L63/H4：服务与 reconciler 能重算出同一个 gap_from）。 */
+  private lastSuccessAt: Date | undefined;
 
   constructor(private readonly repo: EntitlementEventRepo, private readonly options: EntitlementEventWriterOptions = {}) {}
 
@@ -51,9 +56,11 @@ export class EntitlementEventWriter {
       await this.flushGap(record.bootId);
     }
     const ok = await this.attempt(record);
-    if (!ok) {
-      const now = record.occurredAt;
-      this.gap ??= { from: now, lostCount: 0 };
+    if (ok) {
+      this.lastSuccessAt = record.occurredAt;
+    } else {
+      // gap_from = 最后一条成功事件的 occurred_at（没有成功记录时退回本事件 occurred_at）。
+      this.gap ??= { from: this.lastSuccessAt ?? record.occurredAt, lostCount: 0 };
       this.gap.lostCount += 1;
     }
     return ok;
@@ -62,24 +69,32 @@ export class EntitlementEventWriter {
   private async flushGap(bootId: string): Promise<void> {
     const gap = this.gap;
     if (gap === undefined) return;
-    const gapTo = new Date();
+    const windowEnd = new Date();
+    const deploymentUid = this.options.deploymentUid ?? 'unknown';
     const record: EntitlementEventRecord = {
-      eventKey: `gap|${bootId}|${gap.from.toISOString()}`,
+      // H4 m01784：用 deployment_uid 而非 boot_id，service 与 reconciler 才能算同一个去重键。
+      eventKey: `gap|${deploymentUid}|${gap.from.toISOString()}`,
       eventType: 'audit_gap',
-      schemaVersion: 2,
-      occurredAt: gapTo,
+      schemaVersion: 2, // A5 002 起默认 2；history/seed 才用 1
+      occurredAt: windowEnd,
       bootId,
+      deploymentUid,
       stateVersion: 0,
-      reason: 'audit_write_failed',
+      // reason 列置 NULL；失败原因放 new_value.reason（transient_write_failure）。
       newValue: {
-        gap_from: gap.from.toISOString(),
-        gap_to: gapTo.toISOString(),
+        window_start: gap.from.toISOString(),
+        window_end: windowEnd.toISOString(),
         lost_count: gap.lostCount,
-        reason: 'audit_write_failed',
-        owner: 'market',
+        reason: 'transient_write_failure',
+        owner: this.options.operator ?? 'market-app',
+        deployment_uid: deploymentUid,
+        operator: this.options.operator ?? 'market-app',
       },
     };
-    if (await this.attempt(record)) this.gap = undefined;
+    if (await this.attempt(record)) {
+      this.lastSuccessAt = record.occurredAt;
+      this.gap = undefined;
+    }
   }
 
   private async attempt(record: EntitlementEventRecord): Promise<boolean> {

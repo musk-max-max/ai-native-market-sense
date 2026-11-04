@@ -38,7 +38,11 @@ import {
 } from './domain/entitlement-events.js';
 import { EntitlementGate } from './domain/entitlement-gate.js';
 import { createMarketHealthContribution, type HealthContribution } from './health.js';
-import type { EntitlementControlRepo, EntitlementEventRepo } from './ports/entitlement.js';
+import {
+  classifyWriteError,
+  type EntitlementControlRepo,
+  type EntitlementEventRepo,
+} from './ports/entitlement.js';
 import type { ServingRepo } from './ports/serving-repo.js';
 import type { WatchlistRepo } from './ports/watchlist-repo.js';
 import { registerMarketRoutes } from './routes.js';
@@ -57,6 +61,8 @@ export interface MarketPluginOptions {
   readonly controlRepo?: EntitlementControlRepo;
   readonly eventRepo?: EntitlementEventRepo;
   readonly bootId?: string;
+  /** 流水线注入的部署标识（audit_gap 去重键，H4 m01784）；缺省读 DEPLOYMENT_UID。 */
+  readonly deploymentUid?: string;
 }
 
 function entitlementPayload(resolution: EntitlementResolution): Record<string, unknown> {
@@ -100,7 +106,14 @@ async function installMarketPlugin(
     options.eventRepo ??
     (pool !== null && (config.entitlementAuditEnabled ?? true) ? new PgEntitlementEventRepo(pool) : null);
   const bootId = options.bootId ?? randomUUID();
-  const eventWriter = eventRepo !== null ? new EntitlementEventWriter(eventRepo) : null;
+  const deploymentUid = options.deploymentUid ?? process.env.DEPLOYMENT_UID ?? 'unknown';
+  const eventWriter =
+    eventRepo !== null
+      ? new EntitlementEventWriter(eventRepo, {
+          deploymentUid,
+          operator: 'market-app',
+        })
+      : null;
 
   const gate = new EntitlementGate(config, controlRepo, clock);
   healthState.gate = gate;
@@ -126,7 +139,21 @@ async function installMarketPlugin(
       configFingerprint: configFingerprint(config.entitlementTier, config.entitlementExpiresAt),
     };
     const observed = await writer.write(basePayload);
-    if (!observed) gate.markDegraded('audit_write_failed');
+    if (!observed) {
+      const kind = classifyWriteError(writer.lastFailure?.error);
+      // H4 m01741：确定性写错误（权限/表/列/类型/schema）→ 阻断并寻呼；
+      // 启动路径拒绝以 c_end_display 启动；瞬态 → 非阻断（只 degraded）。
+      if (kind === 'deterministic') {
+        if (config.entitlementTier !== 'internal_eval') {
+          throw new Error(
+            '审计事件写入确定性错误（权限/表/schema），拒绝以 c_end_display 启动；修复 GRANT/DDL 后重启',
+          );
+        }
+        gate.markWriteBlocked('audit_write_misconfigured');
+      } else {
+        gate.markDegraded('audit_write_failed');
+      }
+    }
     if (resolution.configMismatch) {
       await writer.write({
         ...basePayload,
@@ -154,7 +181,11 @@ async function installMarketPlugin(
         expiresAt: expiresAtUtc,
         oldValue: entitlementPayload(resolution),
       });
-      if (!written) gate.markDegraded('expired_event_write_failed');
+      if (!written) {
+        const kind = classifyWriteError(writer.lastFailure?.error);
+        if (kind === 'deterministic') gate.markWriteBlocked('audit_write_misconfigured');
+        else gate.markDegraded('expired_event_write_failed');
+      }
     }
   }
 

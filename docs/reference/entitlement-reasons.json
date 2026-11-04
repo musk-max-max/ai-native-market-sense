@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "canonical_source_of_truth": "docs/reference/entitlement-reasons.json",
+  "updated": "2026-11-04",
+  "supersedes": [
+    "decisions.md L60 名单",
+    "decisions.md L61 名单",
+    "decisions.md L64 第 2 条 key 名"
+  ],
+  "blocking": [
+    "control_unavailable",
+    "control_stale",
+    "control_missing",
+    "hold_active",
+    "config_mismatch",
+    "expired",
+    "audit_write_misconfigured"
+  ],
+  "non_blocking": [
+    "audit_write_failed",
+    "expired_event_write_failed"
+  ],
+  "forbidden_legacy_aliases": [
+    "control_unreachable",
+    "control_deterministic_error",
+    "hold_stale",
+    "reconciler_stalled"
+  ],
+  "audit_gap": {
+    "event_type": "audit_gap",
+    "json_keys": [
+      "window_start",
+      "window_end",
+      "lost_count",
+      "reason",
+      "owner"
+    ],
+    "event_key_template": "gap|<deployment_uid>|<window_start ISO8601 UTC>",
+    "dedupe_identity": "deployment_uid",
+    "lost_count_min": 1
+  },
+  "gap_window_start_definition": "链上最后一条任何类型事件的 occurred_at（含 audit_gap 自身）——取\"最后一条非 gap\"会让连续两个断口算出同一 event_key，第二次被唯一索引吞掉",
+  "required_env": {
+    "DEPLOYMENT_UID": "prod 缺失即启动失败（gap 的去重键挂在它上面）"
+  }
+}

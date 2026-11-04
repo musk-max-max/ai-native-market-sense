@@ -95,10 +95,14 @@ cd tests/e2e && E2E_BASE_URL=http://127.0.0.1:3000 E2E_AUTH_TOKEN=dev-token \
   **失败**（不再用 `toBeHidden()` 把「藏起来」当「没有」）；扫描整个 DOM（含 hidden / 骨架屏 /
   数字类 class / `::before`、`::after` content），占位 `0`、`0.00`、`--`、`—`、`NaN`、`undefined`、
   `null` 一律算泄露；免责 + 不可用提示必须可见。挂到 P0-06 受限分支与新增 `E2E-P0-12`。
-- 受限档实跑（api :8082 `ENTITLEMENT_TIER=internal_eval` + web :3001）暴露一个**真缺口**：
-  `web/h5/src/components/DisclaimerNotice.tsx` 的 `DisclaimerUnavailable`（403 无 disclaimer 元数据时的
-  兜底块）没有 `data-testid={TID.disclaimer}`，页面上看得到但测试契约拿不到 → P0-06/P0-12 红。
-  修在 A7 写域（一行），断言不放宽；修后这两条应转绿。
+- 受限档实跑（api :8082 `ENTITLEMENT_TIER=internal_eval` + web :3001）曾暴露一个**真缺口**：
+  `DisclaimerNotice.tsx` 的 `DisclaimerUnavailable`（403 无 disclaimer 元数据时的兜底块）缺
+  `data-testid={TID.disclaimer}`，页面上看得到但测试契约拿不到 → P0-06/P0-12 红。A7 已让兜底块与
+  正常块共用 `disclaimer` / `disclaimer-text` id（无 version 不渲染），并给个股页 loading/error 分支
+  补了 `stock-page`、自选空态接 `state_id=stock-page-empty`。
+- **复跑结果（2026-11-04，A7 修复后）**：受限档 `E2E-P0-06|E2E-P0-12` → **2 passed（2.4s）**；
+  正常档全量 → **11 passed / 2 skipped（5.5s）**（skip=P0-11 hold 未开、P0-12 仅受限档运行）。
+  DOM 口径不变：价格 testid 存在且带文本即失败，hidden/占位/骨架屏/伪元素一律算泄露。
 
 ## 3. 本次暴露的问题与处置
 
