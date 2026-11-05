@@ -1,0 +1,117 @@
+{
+ "channel": "tushare",
+ "display_safe": false,
+ "source_url": "https://tuaremax.top",
+ "api_name": "stk_limit",
+ "params": {
+  "trade_date": "20261105",
+  "offset": 0,
+  "limit": 6000
+ },
+ "fields": [
+  "trade_date",
+  "ts_code",
+  "pre_close",
+  "up_limit",
+  "down_limit",
+  "asset_type",
+  "exchange"
+ ],
+ "fetched_at": "2026-11-05T21:35:45+08:00",
+ "row_count_full": 5655,
+ "rows_in_file": 9,
+ "subset": true,
+ "note": "按档位抽样的子集（subset=true），非全量、不可用于回放；full_row_count 为当日全市场行数",
+ "rows": [
+  {
+   "trade_date": "20261105",
+   "ts_code": "600182.SH",
+   "pre_close": 11.1,
+   "up_limit": 11.66,
+   "down_limit": 10.55,
+   "asset_type": "STK",
+   "exchange": "SSE",
+   "ratio_pct": "5.05"
+  },
+  {
+   "trade_date": "20261105",
+   "ts_code": "000001.SZ",
+   "pre_close": 11.74,
+   "up_limit": 12.91,
+   "down_limit": 10.57,
+   "asset_type": "STK",
+   "exchange": "SZSE",
+   "ratio_pct": "9.97"
+  },
+  {
+   "trade_date": "20261105",
+   "ts_code": "000002.SZ",
+   "pre_close": 3.2,
+   "up_limit": 3.52,
+   "down_limit": 2.88,
+   "asset_type": "STK",
+   "exchange": "SZSE",
+   "ratio_pct": "10.00"
+  },
+  {
+   "trade_date": "20261105",
+   "ts_code": "300001.SZ",
+   "pre_close": 29.99,
+   "up_limit": 35.99,
+   "down_limit": 23.99,
+   "asset_type": "STK",
+   "exchange": "SZSE",
+   "ratio_pct": "20.01"
+  },
+  {
+   "trade_date": "20261105",
+   "ts_code": "300002.SZ",
+   "pre_close": 8.26,
+   "up_limit": 9.91,
+   "down_limit": 6.61,
+   "asset_type": "STK",
+   "exchange": "SZSE",
+   "ratio_pct": "19.98"
+  },
+  {
+   "trade_date": "20261105",
+   "ts_code": "920000.BJ",
+   "pre_close": 11.43,
+   "up_limit": 14.85,
+   "down_limit": 8.01,
+   "asset_type": "STK",
+   "exchange": "BSE",
+   "ratio_pct": "29.92"
+  },
+  {
+   "trade_date": "20261105",
+   "ts_code": "920001.BJ",
+   "pre_close": 9.69,
+   "up_limit": 12.59,
+   "down_limit": 6.79,
+   "asset_type": "STK",
+   "exchange": "BSE",
+   "ratio_pct": "29.93"
+  },
+  {
+   "trade_date": "20261105",
+   "ts_code": "000564.SZ",
+   "pre_close": 1.35,
+   "up_limit": 1.49,
+   "down_limit": 1.22,
+   "asset_type": "STK",
+   "exchange": "SZSE",
+   "ratio_pct": "10.37037037037037037037037040"
+  },
+  {
+   "trade_date": "20261105",
+   "ts_code": "000903.SZ",
+   "pre_close": 1.65,
+   "up_limit": 1.82,
+   "down_limit": 1.49,
+   "asset_type": "STK",
+   "exchange": "SZSE",
+   "ratio_pct": "10.30303030303030303030303030"
+  }
+ ]
+}

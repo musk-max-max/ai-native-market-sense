@@ -1,0 +1,39 @@
+{
+ "channel": "tushare",
+ "display_safe": false,
+ "source_url": "https://tuaremax.top",
+ "api_name": "index_member_all",
+ "fetched_at": "2026-11-05T21:35:45+08:00",
+ "is_new_Y": {
+  "row_count": 5922,
+  "out_date_nonnull": 0,
+  "reentry_codes": 0
+ },
+ "is_new_N": {
+  "row_count": 2006,
+  "out_date_nonnull": 2006,
+  "reentry_codes": 302
+ },
+ "ts_code_000300_SH": {
+  "row_count": 0,
+  "note": "index_member_all 的 ts_code 参数是股票代码（成分股），不是指数代码；用 000300.SH 查询返回 0 行，属预期"
+ },
+ "reentry_examples": {
+  "000004.SZ": [
+   "19891223",
+   "20081231",
+   "20210611"
+  ],
+  "000007.SZ": [
+   "19920413",
+   "20060901",
+   "20130701",
+   "20140701",
+   "20170629"
+  ],
+  "000008.SZ": [
+   "19920507",
+   "20130104"
+  ]
+ }
+}

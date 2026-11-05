@@ -1,0 +1,49 @@
+{
+ "channel": "tushare",
+ "display_safe": false,
+ "source_url": "https://tuaremax.top",
+ "api_name": "fina_indicator",
+ "params": {
+  "ts_code": "600519.SH",
+  "period": "20231231"
+ },
+ "fields": [
+  "ts_code",
+  "end_date",
+  "ann_date",
+  "eps",
+  "roe",
+  "roe_waa",
+  "roe_dt",
+  "bps",
+  "total_revenue_ps",
+  "revenue_ps",
+  "netprofit_margin",
+  "grossprofit_margin",
+  "or_yoy",
+  "netprofit_yoy"
+ ],
+ "fetched_at": "2026-11-05T21:35:45+08:00",
+ "row_count_full": 1,
+ "rows_in_file": 1,
+ "subset": false,
+ "note": "单位证据：eps=59.49 元/股、roe_waa=34.19%、ann_date=20240403；与 2023 年报一致（取样单行）",
+ "rows": [
+  {
+   "ts_code": "600519.SH",
+   "end_date": "20231231",
+   "ann_date": "20240403",
+   "eps": 59.49,
+   "roe": 36.1755,
+   "roe_waa": 34.19,
+   "roe_dt": 36.1844,
+   "bps": 171.6836,
+   "total_revenue_ps": 119.854,
+   "revenue_ps": 117.5719,
+   "netprofit_margin": 52.488,
+   "grossprofit_margin": 91.9649,
+   "or_yoy": 19.0119,
+   "netprofit_yoy": 19.1599
+  }
+ ]
+}

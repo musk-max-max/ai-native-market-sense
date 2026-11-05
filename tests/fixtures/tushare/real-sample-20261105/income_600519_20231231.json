@@ -1,0 +1,35 @@
+{
+ "channel": "tushare",
+ "display_safe": false,
+ "source_url": "https://tuaremax.top",
+ "api_name": "income",
+ "params": {
+  "ts_code": "600519.SH",
+  "period": "20231231"
+ },
+ "fields": [
+  "ts_code",
+  "end_date",
+  "ann_date",
+  "total_revenue",
+  "revenue",
+  "n_income_attr_p",
+  "operate_profit"
+ ],
+ "fetched_at": "2026-11-05T21:35:45+08:00",
+ "row_count_full": 1,
+ "rows_in_file": 1,
+ "subset": false,
+ "note": "单位证据：total_revenue=150560330316.45 元、n_income_attr_p=74734071550.75 元；与年报营业总收入/归母净利一致",
+ "rows": [
+  {
+   "ts_code": "600519.SH",
+   "end_date": "20231231",
+   "ann_date": "20240403",
+   "total_revenue": 150560330316.45,
+   "revenue": 147693604994.14,
+   "n_income_attr_p": 74734071550.75,
+   "operate_profit": 103708655208.38
+  }
+ ]
+}
