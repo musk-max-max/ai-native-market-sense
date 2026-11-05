@@ -248,6 +248,20 @@ def test_hk_namespace_rejected_outside_hk_hold() -> None:
         research.map_row("top_list", row)
 
 
+def test_map_hk_hold_derives_namespace_when_ts_code_missing() -> None:
+    row = hk_hold_row()
+    row.pop("ts_code")
+    row["code"] = "00700"
+    row["exchange"] = "HK"
+    assert research.map_row("hk_hold", row)["instrument_id"] == "HKEX:00700"
+
+    a_share = hk_hold_row()
+    a_share.pop("ts_code")
+    a_share["code"] = "600519"
+    a_share["exchange"] = "SH"
+    assert research.map_row("hk_hold", a_share)["instrument_id"] == "SSE:600519"
+
+
 def test_hk_source_code_rejects_non_hkex_ids() -> None:
     with pytest.raises(research.ResearchRowError, match="not an HKEX"):
         research.hk_source_code("SSE:600519")

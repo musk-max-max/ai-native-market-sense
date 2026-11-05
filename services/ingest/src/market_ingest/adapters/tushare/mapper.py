@@ -39,6 +39,10 @@ _SUFFIX_BY_EXCHANGE: dict[ExchangeCode, str] = {v: k for k, v in _EXCHANGE_SUFFI
 #: 价格复权后保留小数位（与 A 股报价一致）；四舍五入保持 OHLC 偏序不变。
 _PRICE_QUANT = Decimal("0.01")
 
+#: 港股通（南向）源代码：5 位数字、``.HK`` 后缀；仅研究数据集 hk_hold 使用。
+_HK_SUFFIX = "HK"
+_HK_CODE_LEN = 5
+
 _REQUIRED_BAR_FIELDS = ("trade_date", "open", "high", "low", "close", "vol", "amount")
 
 
@@ -47,10 +51,19 @@ class RowMapError(ValueError):
 
 
 def parse_source_code(value: Any) -> tuple[ExchangeCode, str]:
-    """源代码 ``600519.SH`` → (SSE, ``600519``)。格式非法抛 ``RowMapError``。"""
+    """源代码 ``600519.SH`` → (SSE, ``600519``)；``00700.HK`` → (HKEX, ``00700``)。
+
+    A 股后缀 ``.SH/.SZ/.BJ`` 逻辑不变；港股分支只用于研究域 ``hk_hold``（1–5 位
+    数字左补 0 到 5 位）。P0 的 ``parse_instrument_id``/``make_instrument_id``
+    仍只接受 SSE/SZSE/BSE 的 6 位代码，港股命名空间不会进入 A 股 canonical 记录。
+    """
     if not isinstance(value, str) or "." not in value:
         raise RowMapError(f"invalid source code: {value!r}")
     code, _, suffix = value.partition(".")
+    if suffix.upper() == _HK_SUFFIX:
+        if not code.isdigit() or not 1 <= len(code) <= _HK_CODE_LEN:
+            raise RowMapError(f"invalid HK code: {code!r} in {value!r}")
+        return ExchangeCode.HKEX, code.zfill(_HK_CODE_LEN)
     exchange = _EXCHANGE_SUFFIX.get(suffix.upper())
     if exchange is None:
         raise RowMapError(f"unknown exchange suffix: {suffix!r} in {value!r}")
@@ -60,13 +73,23 @@ def parse_source_code(value: Any) -> tuple[ExchangeCode, str]:
 
 
 def to_source_code(instrument_id: str) -> str:
-    """``EXCH:CODE`` → 源代码格式（仅适配层内部/测试使用）。"""
+    """``EXCH:CODE`` → 源代码格式（仅适配层内部/测试使用）。
+
+    ``HKEX:#####`` → ``#####.HK``（hk_hold 港股通命名空间，可逆）；A 股路径不变。
+    """
+    if instrument_id.startswith("HKEX:"):
+        code = instrument_id[len("HKEX:") :]
+        if not code.isdigit() or len(code) != _HK_CODE_LEN:
+            raise ValueError(f"invalid HKEX code: {instrument_id!r}")
+        return f"{code}.{_HK_SUFFIX}"
     exchange, code = parse_instrument_id(instrument_id)
     return f"{code}.{_SUFFIX_BY_EXCHANGE[exchange]}"
 
 
 def to_instrument_id(value: Any) -> str:
     exchange, code = parse_source_code(value)
+    if exchange is ExchangeCode.HKEX:
+        return f"{exchange.value}:{code}"
     return make_instrument_id(exchange, code)
 
 

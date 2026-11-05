@@ -69,7 +69,7 @@ research:
     - moneyflow
     - margin
     - hk_hold
-  # 指数日线基准（canonical EXCH:CODE；源要求 ts_code 必填，按代码逐个取）。
+  # 指数日线基准（canonical EXCH:CODE；上游只读接口要求原始代码字段必填，按代码逐个取）。
   index_codes:
     - SSE:000001
     - SZSE:399001

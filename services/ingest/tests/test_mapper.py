@@ -8,7 +8,13 @@ from decimal import Decimal
 import pytest
 
 from market_ingest.adapters.tushare import mapper
-from market_ingest.models import AdjType, SourceRef
+from market_ingest.models import (
+    AdjType,
+    ExchangeCode,
+    SourceRef,
+    make_instrument_id,
+    parse_instrument_id,
+)
 from support import FIXED_NOW, bar_row, factor_row
 
 
@@ -21,6 +27,31 @@ def test_source_code_roundtrip() -> None:
     assert mapper.to_instrument_id("000001.SZ") == "SZSE:000001"
     assert mapper.to_instrument_id("430047.BJ") == "BSE:430047"
     assert mapper.to_source_code("SSE:600519") == "600519.SH"
+
+
+def test_hk_source_code_maps_to_hkex_namespace() -> None:
+    assert mapper.parse_source_code("00700.HK") == (ExchangeCode.HKEX, "00700")
+    assert mapper.parse_source_code("09988.HK") == (ExchangeCode.HKEX, "09988")
+    assert mapper.parse_source_code("7.HK") == (ExchangeCode.HKEX, "00007")
+    assert mapper.to_instrument_id("00700.HK") == "HKEX:00700"
+    assert mapper.to_instrument_id("09988.HK") == "HKEX:09988"
+    # 可逆：审计/回放能还原源代码（前导零保留）
+    assert mapper.to_source_code("HKEX:00700") == "00700.HK"
+    assert mapper.to_source_code("HKEX:00007") == "00007.HK"
+
+
+@pytest.mark.parametrize("bad", ["00700.US", "HK.HK", "007000.HK"])
+def test_hk_invalid_source_code_rejected(bad: str) -> None:
+    with pytest.raises(mapper.RowMapError):
+        mapper.to_instrument_id(bad)
+
+
+def test_hkex_namespace_does_not_enter_p0_instrument_ids() -> None:
+    # P0 canonical pattern 不变：HKEX 命名空间不进入 A 股 id 解析/构造
+    with pytest.raises(ValueError):
+        parse_instrument_id("HKEX:00700")
+    with pytest.raises(ValueError):
+        make_instrument_id(ExchangeCode.HKEX, "00700")
 
 
 @pytest.mark.parametrize("bad", ["600519", "60051.SH", "600519.HK", "600519.sh."])

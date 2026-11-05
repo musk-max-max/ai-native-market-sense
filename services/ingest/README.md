@@ -295,7 +295,8 @@ PYTHONPATH=src python3 -m market_ingest sync-research --start 2024-01-02 --end 2
   **不造数、不补 0**（验收口径：数据正确落到 ODS + 字段映射清晰，不以功能可用验收）。
   某交易日合法无记录 → 行数 0、不写空批次，仍推进 checkpoint。
 - **港股通行（hk_hold）**：源 `hk_hold` 同时含 A 股（`600519.SH`→`SSE:600519`）与港股通
-  标的（`00700.HK`→`HKEX:00700`，1–5 位数字左补 0）。`HKEX:` 命名空间**只用于研究域
+  标的（`00700.HK`→`HKEX:00700`，1–5 位数字左补 0）。映射在适配层 `mapper.parse_source_code`
+  的 `.HK` 分支完成；源 `ts_code` 缺失时用 `code`+`exchange` 兜底拼回 TS 代码。`HKEX:` 命名空间**只用于研究域
   hk_hold**（H4 裁定）：不进 display root、不参与 `display_safe` 派生、不进 C 端白名单与
   serving 对外接口；P0 `instrument_id` pattern 不变。`research.hk_source_code()` 提供
   `HKEX:00700`→`00700.HK` 的逆映射（审计/回放）；非 `.HK` 后缀或其它数据集出现 `.HK` 一律拒绝。
@@ -329,7 +330,7 @@ manifest 声明合成、无未登记孤儿文件，并由脚本重算 path+sha25
 
 ```bash
 cd services/ingest
-PYTHONPATH=src /opt/anaconda3/bin/python3 -m pytest -q      # 165 tests
+PYTHONPATH=src /opt/anaconda3/bin/python3 -m pytest -q      # 171 tests
 PYTHONPATH=src /opt/anaconda3/bin/python3 -m mypy           # 23 files clean
 ```
 

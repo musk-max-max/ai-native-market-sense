@@ -30,6 +30,9 @@ class ExchangeCode(StrEnum):
     SSE = "SSE"
     SZSE = "SZSE"
     BSE = "BSE"
+    #: 港股通（南向）研究域命名空间，仅 ``hk_hold`` 使用（H4 m02447）。
+    #: 不进 P0 canonical pattern、不进 display/serving；``parse_instrument_id`` 仍拒绝它。
+    HKEX = "HKEX"
 
 
 class Board(StrEnum):

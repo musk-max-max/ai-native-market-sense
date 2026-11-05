@@ -237,18 +237,36 @@ _HKEX_CODE_LEN = 5
 _HKEX_SUFFIX = ".HK"
 
 
+def hk_instrument_id(value: Any, *, dataset: str) -> str:
+    """``hk_hold`` 的港股通行源代码 → ``HKEX:#####``（其它数据集出现 ``.HK`` 一律拒绝）。"""
+    if dataset != "hk_hold":
+        raise ResearchRowError(
+            f"HK namespace is only valid for hk_hold rows (got {value!r} in {dataset})"
+        )
+    try:
+        return mapper.to_instrument_id(str(value))
+    except ValueError as exc:
+        raise ResearchRowError(f"invalid HK source code {value!r} for {dataset}") from exc
+
+
+def _instrument_id_from_code(row: Mapping[str, Any]) -> str | None:
+    """``ts_code`` 缺失时的兜底：用源 ``code``+``exchange`` 拼回 TS 代码（仅 hk_hold）。"""
+    code = str(row.get("code") or "").strip()
+    exchange = str(row.get("exchange") or "").strip().upper()
+    if not code.isdigit():
+        return None
+    if exchange in ("SH", "SZ") and len(code) == 6:
+        return mapper.to_instrument_id(f"{code}.{exchange}")
+    if exchange == "HK" and 1 <= len(code) <= _HKEX_CODE_LEN:
+        return mapper.to_instrument_id(f"{code}.HK")
+    return None
+
+
 def instrument_id_for(value: Any, *, dataset: str) -> str:
     """研究域 instrument_id：A 股 ``EXCH:CODE``；``hk_hold`` 的港股通行 → ``HKEX:#####``。"""
     text = str(value).strip()
     if text.upper().endswith(".HK"):
-        if dataset != "hk_hold":
-            raise ResearchRowError(
-                f"HK namespace is only valid for hk_hold rows (got {value!r} in {dataset})"
-            )
-        code = text[:-3].strip()
-        if not code.isdigit() or not 1 <= len(code) <= _HKEX_CODE_LEN:
-            raise ResearchRowError(f"invalid HK source code {value!r} for {dataset}")
-        return f"{_HKEX_NAMESPACE}:{code.zfill(_HKEX_CODE_LEN)}"
+        return hk_instrument_id(text, dataset=dataset)
     try:
         return mapper.to_instrument_id(text)
     except ValueError as exc:
@@ -260,12 +278,12 @@ def hk_source_code(instrument_id: str) -> str:
 
     只接受研究域港股命名空间（5 位数字，左补 0，大写）；A 股 ``EXCH:CODE`` 不走这里。
     """
-    namespace, _, code = str(instrument_id).partition(":")
-    if namespace != _HKEX_NAMESPACE:
+    if not str(instrument_id).startswith(f"{_HKEX_NAMESPACE}:"):
         raise ResearchRowError(f"not an HKEX instrument_id: {instrument_id!r}")
-    if not code.isdigit() or len(code) != _HKEX_CODE_LEN:
-        raise ResearchRowError(f"invalid HKEX code: {instrument_id!r}")
-    return f"{code}{_HKEX_SUFFIX}"
+    try:
+        return mapper.to_source_code(str(instrument_id))
+    except ValueError as exc:
+        raise ResearchRowError(f"invalid HKEX code: {instrument_id!r}") from exc
 
 
 def row_date(row: Mapping[str, Any]) -> date | None:
@@ -341,6 +359,11 @@ def map_row(dataset: str, row: Mapping[str, Any]) -> dict[str, Any]:
     result: dict[str, Any] = {}
     for column in spec.columns:
         raw = row.get(column.source)
+        if column.kind == "instrument_hk" and raw in (None, ""):
+            derived = _instrument_id_from_code(row)
+            if derived is not None:
+                result[column.canonical] = derived
+                continue
         if raw in (None, ""):
             if column.required:
                 raise ResearchRowError(
