@@ -129,7 +129,7 @@ for n in $NAMES; do
       for c in $EXPECTED_PUBLIC_CONTAINERS; do [ "$n" = "$c" ] && allowed=1; done
       [ "$allowed" -eq 0 ] && fail "容器 $n 存在通配(0.0.0.0/::)端口绑定 (status=$st restart=$rest): $binds"
       for p in $EXPECTED_PUBLIC_PORTS; do
-        case "$binds" in *"$p/tcp"*) EXPOSURE_CONTAINERS="$EXPOSURE_CONTAINERS $n:$p" ;; esac
+        case "$binds" in *"$p/tcp"*) EXPOSURE_CONTAINERS="$EXPOSURE_CONTAINERS $n:$p:$st:wildcard" ;; esac
       done
       ;;
   esac
@@ -145,12 +145,29 @@ done
 # 2b) HOST-EXPOSURE-01（P2）：公网放行端口上的通配监听 / 容器发布 / 未认证健康端点
 # 说明：这是「持续检查」的判定核心；部署时与每日由 systemd timer 跑，命中即 FAIL + ALERT。
 EXPOSURE_HIT=0
+# H5 m03665 拍板：自动隔离默认开启，但只限两类窄口径——
+#   ① 公网端口上 running 容器的通配绑定；②（无容器可归因的）公网端口通配监听只告警不杀 host 进程。
+# 其他命中（非公网端口、非 IaC、未认证探针）只 ALERT，不自动停。
+ISOLATE_RC() { # $1 container  $2 status
+  c=$1; st=$2
+  if [ "${HOST_EXPOSURE_AUTO_ISOLATE:-1}" = "0" ]; then
+    echo "ISOLATE-SKIP container=$c reason=auto_isolate_disabled"
+    return 0
+  fi
+  if [ "$SELFTEST" != 0 ]; then
+    echo "ISOLATE-SKIP container=$c reason=selftest_fixture"
+    return 0
+  fi
+  out=$(read_state "docker stop $c && docker update --restart=no $c" 2>&1); rc=$?
+  if [ "$rc" -eq 0 ]; then echo "ISOLATED container=$c action='docker stop && update --restart=no' status_before=$st"; else echo "ISOLATE-FAIL container=$c rc=$rc out=$(printf '%s' "$out" | tr '\n' ' ')"; fi
+}
 for hit in $EXPOSURE_CONTAINERS; do
-  c=${hit%:*}; p=${hit##*:}
+  c=$(printf '%s' "$hit" | cut -d: -f1); p=$(printf '%s' "$hit" | cut -d: -f2); st=$(printf '%s' "$hit" | cut -d: -f3)
   EXPOSURE_HIT=1
-  fail "HOST-EXPOSURE-01 容器 $c 在公网端口 $p 上发布 0.0.0.0/:: 绑定"
+  fail "HOST-EXPOSURE-01 容器 $c 在公网端口 $p 上发布 0.0.0.0/:: 绑定（status=$st）"
   echo "ALERT HOST-EXPOSURE-01 container=$c port=$p severity=critical"
   echo "SUGGEST docker stop $c && docker update --restart=no $c"
+  if [ "$st" = "running" ]; then ISOLATE_RC "$c" "$st"; else echo "ISOLATE-SKIP container=$c reason=not_running(status=$st); restart_policy_only"; read_state "docker update --restart=no $c" >/dev/null 2>&1 || true; fi
 done
 for addr in $LISTEN; do
   port=${addr##*:}
@@ -161,6 +178,7 @@ for addr in $LISTEN; do
           EXPOSURE_HIT=1
           fail "HOST-EXPOSURE-01 公网端口 $p 存在通配监听 $addr（非 loopback）"
           echo "ALERT HOST-EXPOSURE-01 listen=$addr port=$p severity=critical"
+          echo "ISOLATE-SKIP listen=$addr reason=not_attributable_to_container(manual)"
         fi
       done ;;
   esac
@@ -174,7 +192,13 @@ if [ -n "${EXPECTED_PUBLIC_HOST:-}" ]; then
     esac
   done
 else
-  warn "HOST-EXPOSURE-01 未配置 EXPECTED_PUBLIC_HOST，公网未认证可达性=UNVERIFIED（不计 PASS）"
+  if [ "${HOST_EXPOSURE_REQUIRE_PUBLIC_HOST:-0}" = "1" ]; then
+    EXPOSURE_HIT=1
+    fail "HOST-EXPOSURE-01 UNVERIFIED：本次发布涉及暴露面，但未配置 EXPECTED_PUBLIC_HOST，探针无法执行"
+    echo "ALERT HOST-EXPOSURE-01 unverified=public_probe_missing severity=critical"
+  else
+    warn "HOST-EXPOSURE-01 未配置 EXPECTED_PUBLIC_HOST，公网未认证可达性=UNVERIFIED（不计 PASS）"
+  fi
 fi
 if [ "$EXPOSURE_HIT" -eq 1 ] && [ -n "${ALERT_WEBHOOK_URL:-}" ]; then
   curl -sS -m 5 -X POST -H 'Content-Type: application/json' \

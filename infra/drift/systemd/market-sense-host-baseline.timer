@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily market-sense HOST-EXPOSURE-01 exposure audit
+
+[Timer]
+OnCalendar=*-*-* 09:13:00 Asia/Shanghai
+Persistent=true
+RandomizedDelaySec=120
+
+[Install]
+WantedBy=timers.target

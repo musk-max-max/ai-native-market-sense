@@ -1,0 +1,17 @@
+[Unit]
+Description=market-sense HOST-EXPOSURE-01 host exposure audit (read-only; auto-isolate narrow scope)
+Documentation=https://github.com/market-sense-h5/market-sense-h5/blob/main/docs/runbook/exposure-verification.md
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# H5 m03665 A=b：默认开启自动隔离；只对「公网端口上 running 容器的通配绑定」执行 stop+restart=no
+Environment=HOST_EXPOSURE_AUTO_ISOLATE=1
+Environment=HOST_EXPOSURE_REQUIRE_PUBLIC_HOST=0
+Environment=HOST_BASELINE_TEXTFILE_DIR=/var/lib/node_exporter/textfile_collector
+Environment=HOST_BASELINE_EXPECTED=/etc/market-sense/host-baseline.expected.env
+ExecStart=/usr/local/sbin/market-sense-host-baseline-audit.sh --expected /etc/market-sense/host-baseline.expected.env
+# 失败=命中/漂移；timer 仍继续，告警由 textfile + HostExposureDrift 承担
+SuccessExitStatus=0 1 2
+Nice=10

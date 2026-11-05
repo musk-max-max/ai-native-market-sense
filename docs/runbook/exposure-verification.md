@@ -75,3 +75,36 @@ COMMIT=<sha> sh infra/evidence/tools/capture-exposure.sh --mode public \
 5. **A19 红队复核补证（2026-11-04，`infra/evidence/internal-exposure-redteam-20261104T2356Z.txt`，sha256 `afbeaf52…`）**：本 runbook 的「公网不可达」证据是「**当时无业务监听**」，**不等于网络层拒绝**。A19 实测：外网 80/8888 为 RST（refused）而非 filtered，在 ECS 临时绑定 0.0.0.0:80/8888 后外网均 200 → **云 SG + ufw 仍对 Internet 放行 80/8888**；`ms-nginx` 虽 exited/restart=no，仍保留 `PortBindings={"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"80"}]}`，root 执行 `docker start` 即可恢复公网 Basic Auth 入口；ufw 还放行 20/21/888/25730/39000-40000（当前被 SG 挡住）。另有 R2（22 开放 root 密码登录、无 fail2ban）、R3（运行容器 `ENTITLEMENT_AUDIT=0`/`HOLD_CHECK=0` 与 compose `1/1` 漂移、audit events=0）、R4（root/docker→psql 绕过 403）、R5（限流共享桶 600/120）、R6（多用户再分发）见 artifact。**④ 的 PASS 只覆盖「某一时刻无监听 + 内网门禁」；网络层纵深与 ms-nginx 0.0.0.0 绑定按 H5 residual 跟踪。** 不重签已冻结证据；以本条与 A19 artifact 作为 errata。
 
 > 记录口径：**「④ PASS（L91 内网口径）」**，不写「④ 全清」；A19 复核后补注：网络层未拒绝（SG/ufw 放行 80/8888），当前不可达仅因无监听。
+
+## 9. HOST-EXPOSURE-01（公网暴露巡检）
+
+### 症状
+
+告警 `HostExposureDrift`（expr `host_baseline_exposure_hits > 0`）触发；或部署钩子返回 8/9/7。
+巡检日志含 `ALERT HOST-EXPOSURE-01 ...`，可能伴随 `ISOLATED container=...` 或 `ISOLATE-SKIP`。
+
+### 影响
+
+公网允许端口（SG 放行 80/8888）上如果出现 `0.0.0.0`/`::` 监听或容器通配绑定，任何外层服务（如临时 nginx）可被公网直达；ms-nginx P2 即此路径。自动隔离只 `docker stop` + `update --restart=no`（不删容器/卷，不碰 SG/ufw/sshd，22 永不隔离）。
+
+### 判断（≤2min）
+
+1. `systemctl status market-sense-host-baseline.service` 与 `journalctl -u ... -n 80`；
+2. `ss -ltnp | grep -E '0\.0\.0\.0:(80|8888)|\[::\]:(80|8888)'`；
+3. `docker ps -a --format '{{.Names}}\t{{.Status}}\t{{.Ports}}' | grep -E '0\.0\.0\.0:(80|8888)'`；
+4. 若为已隔离容器：确认它是否真业务（compose label / 发布记录）；**不是**则保持停止并通知负责人；
+5. 若 `ISOLATE-SKIP reason=not_attributable_to_container`：是主机进程，人工处理，不得盲杀。
+
+### 止血
+
+- 容器型：`docker stop <c> && docker update --restart=no <c>`（脚本已自动做；仍失败则手工重试）；
+- 主机进程型：先 `ss -ltnp` 拿 pid/进程名，确认归属后停服务（需 H5 人审）；不得开公网、不得改 SG；
+- 部署钩子阻塞：按 B=b 修复问题后重新发布；break-glass 只能 H5 书面批准（带窗口/回退/事后入 manifest），agent 不得自批。
+
+### 升级
+
+命中即 critical：pager 未到位期间 Lead/A13 人工 ack，15min 未 ack 升级 Lead；涉及公网可达 → 同时报 H5。误报观察期内（一周）用 textfile `host_baseline_exposure_hits` 统计并调整白名单（须 H5 批）。
+
+### 复盘
+
+记录：命中类型/容器/端口/是否自动隔离/恢复动作/耗时；若为误报，补 `EXPECTED_PUBLIC_CONTAINERS` 或规则说明并评审；若为真暴露，核对「谁在何时用非 IaC 方式启动」并回填 HOST-AUDIT-01。证据入 `infra/evidence/host-exposure-01-<UTC>.txt` 与 manifest（case_id HOST-EXPOSURE-01）。

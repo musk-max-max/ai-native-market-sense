@@ -13,8 +13,7 @@ import { parseYaml } from './lib/mini-yaml.mjs';
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const MAX_BYTES = 2 * 1024 * 1024;
 const ALLOWLIST_FILE =
-  process.env.REPO_HYGIENE_ALLOWLIST ||
-  path.join(repo, 'infra/ci/repo-hygiene.allowlist.yaml');
+  process.env.REPO_HYGIENE_ALLOWLIST || path.join(repo, 'infra/ci/repo-hygiene.allowlist.yaml');
 const APPROVERS = ['H4', 'H5', 'H1', 'H2']; // 入库例外只能由人类席位批，agent 不能自批
 
 // 超限文件例外（H4 m02775）：只允许精确文件路径，必须「path + owner + 到期 + reason + 人类批准」。
@@ -68,7 +67,8 @@ function loadAllowlist() {
     if (approvedBy.length === 0 || approvedBy.some((who) => !APPROVERS.includes(who))) {
       errors.push(`${where}: approved_by 必须是人类席位（${APPROVERS.join('/')}，多人用 / 分隔）`);
     }
-    if (!e.approval_ref || typeof e.approval_ref !== 'string') errors.push(`${where}: 缺 approval_ref`);
+    if (!e.approval_ref || typeof e.approval_ref !== 'string')
+      errors.push(`${where}: 缺 approval_ref`);
     entries.push({ ...e });
   }
   return { entries, errors };

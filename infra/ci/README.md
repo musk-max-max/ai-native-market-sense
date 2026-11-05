@@ -135,8 +135,8 @@ actionlint                           # 需本地安装（见 docs/adr 或 /tmp/t
 - 例外：`infra/ci/repo-hygiene.allowlist.yaml`，**精确路径 + sha256 + 到期**；换字节自动失效；到期前 5 天告警、到期红；续期须 H4+H5 复审签字。
 - 当前两条：A11 release evidence v6/v7 tar（H5 签字对象，四元组绑定）；`expires_at: 2026-12-15`，与 `lot_size` waiver 同日盘点但语义不同（本 allowlist 到期复审判定是否续；waiver 到期不续、用新 baseline 冻结消解）。
 - **两条独立的闸（同日盘点，不要混）**：
-  * ①**迁移 deadline 2026-12-15（发布条件）**：大证据包迁发布产物存储/对象存储，repo 只留 locator + sha256；未迁移则不允许 go-live（owner A13）。
-  * ②**allowlist 到期 2026-12-15（仓库卫生例外）**：到期后仓库卫生门禁恢复红；续期须 H4+H5 复审签字，不自动续（owner A13）。
-  * 同日只是方便盘点；①是发布放行条件，②是 CI 门禁例外，任何一条不满足都独立生效。
+  - ①**迁移 deadline 2026-12-15（发布条件）**：大证据包迁发布产物存储/对象存储，repo 只留 locator + sha256；未迁移则不允许 go-live（owner A13）。
+  - ②**allowlist 到期 2026-12-15（仓库卫生例外）**：到期后仓库卫生门禁恢复红；续期须 H4+H5 复审签字，不自动续（owner A13）。
+  - 同日只是方便盘点；①是发布放行条件，②是 CI 门禁例外，任何一条不满足都独立生效。
 - 历史：allowlist 初版文件 sha `8abbc4a52eeff3a26642ce20e7bb9f0b7e1883f1384a9d631d2bcdcd936697d8`（approval_ref 曾用 message ref，已按 H4 规格改为「日期 + decisions L91」，旧 sha 仅留档）。
 - decisions L91 由 Lead 记录（decisions.md 非 A13 写域）。

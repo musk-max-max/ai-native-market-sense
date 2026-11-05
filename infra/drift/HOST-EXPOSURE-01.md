@@ -30,13 +30,14 @@
 4. 证据落 `infra/evidence/host-exposure-01-detection-<UTC>.txt`，登记 `evidence-manifest.json`（authoritative/post-fix，case_id=HOST-EXPOSURE-01），checker 绿；
 5. A19 出注入用例与复核结论，A13 出检测与证据，双方签字后 H5 核。
 
-## 4. 待 H5 确认（两个选择题）
+## 4. H5 拍板（m03665 / L105，已生效）
 
-- **A. 自动隔离默认值**：a) 默认关闭，timer 部署时开启（本方案，先观察一周）；b) 默认开启，任何命中即停（更安全但可能停掉正在排障的容器）。
-- **B. 部署钩子失败语义**：a) 只告警不阻塞（本方案）；b) 公网暴露命中即阻塞部署并回滚。
+- **A = b：自动隔离默认开启（窄口径）**。只停：①公网放行端口 80/8888 上 running 容器的通配绑定；②`PortBindings` 通配且容器在跑。动作 `docker stop` + `docker update --restart=no`；不删容器/卷，不碰 SG/ufw/sshd，22 永不隔离。其它命中只 `ALERT`，观察一周用 textfile 统计误报；告警 15min 未 ack 升级 Lead。
+- **B = b：部署钩子 fail-closed，范围收窄**。`FAIL` 或 `UNVERIFIED` 且本次发布改动了暴露面（端口绑定/ingress/SG）→ 阻塞并按需回滚；纯代码发布只告警。break-glass 只能 H5 书面批，agent 不自批。
 
 ## 5. 已实现（本方案提交时）
 
 - `host-baseline-audit.sh` 新增 §2b：公网端口通配监听、容器通配绑定（含 created）、公网未认证 healthz/metrics（未配置=UNVERIFIED）、`ALERT`/`SUGGEST`/`ISOLATED` 行、webhook/textfile 接入点、`--self-test` 夹具扩展。
 - `host-baseline.expected.env`：`EXPECTED_PUBLIC_PORTS="80 8888"`、`EXPECTED_PUBLIC_HOST=""`、webhook/textfile 说明。
-- 未做（等确认后）：systemd 单元、HostExposureDrift 告警规则、部署钩子接线、ECS 注入验收。
+- 已做：systemd service/timer（`infra/drift/systemd/`，每日 09:13 Asia/Shanghai + 部署后）、`HostExposureDrift` 告警规则、`deploy.sh` 部署钩子（B=b：EXPOSURE_AFFECTING + HOST_AUDIT_SSH，失败回滚 exit 7）、runbook §9。
+- 未做：ECS 安装 timer、A19 注入验收、证据入 manifest。

@@ -28,3 +28,12 @@
 - 现状（2026-11-05 09:36Z 只读审计）：`sshd -T` 为 `permitrootlogin without-password`（root 密钥仍可直登）、`passwordauthentication no`、`maxauthtries 3`；`sudo` 组成员仅 `sudo:x:27:`（空组）；非 root 登录用户只有 `www`（uid=1000，`/sbin/nologin`）。
 - 目标（L102/⑤-3）：`PermitRootLogin no` + 具名账号 + sudo 提权；当前缺「具名账号」前置，A13 不自行建账号/改 sshd。
 - 需用户/Lead 确认：①是否同意建具名运维账号（A13 提案用户名、密钥、sudoers 范围）；②控制台兜底可用性；③改 sshd 的窗口与保留会话验证。改前保持现状，⑤ 继续 PARTIAL。
+
+### root 登录处置：ACCEPTED-RISK（H5 m03665）
+
+- 现状：`PermitRootLogin prohibit-password`（root 仅密钥）、`PasswordAuthentication no`、`MaxAuthTries 3`、fail2ban sshd jail active；无具名 sudo 账号。
+- 接受为风险，但有三个硬条件（缺一即撤销接受）：
+  1. **任何第二操作者获得访问前**：必须建具名 sudo 账号并设 `PermitRootLogin no`；
+  2. **任何公网测试窗口开启前**：同上必须完成；
+  3. **2026-11-12 前**：A13 出「建具名账号」提案（用户名/密钥/sudoers 范围/回退步骤），Lead/用户确认后执行；提案前不得改 sshd、不得建账号。
+- 当前状态：提案未出（等 Lead 11-12 前向用户要账号名）；⑤ 保持 PARTIAL；本项不阻塞其它工作。

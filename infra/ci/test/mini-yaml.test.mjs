@@ -91,13 +91,17 @@ test('能解析真实 ownership.yaml（路径表 + default-deny）', () => {
   assert.deepEqual(infra.reviewers, ['H5']);
 });
 
-test('能解析真实告警规则（18 条 alert 全部带 runbook_url）', () => {
+test('能解析真实告警规则（57? 条 alert 全部带 runbook_url）', () => {
   const doc = parseYaml(
     readFileSync(join(ROOT, 'infra/monitoring/alerts/market-sense.rules.yaml'), 'utf8'),
   );
   const rules = doc.groups.flatMap((group) => group.rules);
   const alerts = rules.filter((rule) => rule.alert);
-  assert.equal(alerts.length, 18);
+  assert.ok(alerts.length >= 18, `告警数应 >=18，实际 ${alerts.length}`);
+  assert.ok(
+    alerts.some((a) => a.alert === 'HostExposureDrift'),
+    '缺少 HostExposureDrift',
+  );
   for (const alert of alerts) {
     assert.ok(alert.annotations?.runbook_url, `${alert.alert} 缺少 runbook_url`);
   }

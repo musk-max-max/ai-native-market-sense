@@ -270,3 +270,18 @@ groups:
           summary: "模型/prompt 变更后 1 小时内指标漂移"
           description: "新版本发布 1 小时内异常率相对 2 小时前上升 30% 以上；回滚配置版本并复核评测。"
           runbook_url: "https://github.com/market-sense-h5/market-sense-h5/blob/main/docs/runbook/ai-cost-drift.md#判断"
+
+      # HOST-EXPOSURE-01（H5 m03665 A=b）：公网暴露巡检命中（含自动隔离动作）。
+      # 指标来自 node_exporter textfile collector：host_baseline_exposure_hits。
+      - alert: HostExposureDrift
+        expr: host_baseline_exposure_hits > 0
+        for: 10m
+        labels:
+          severity: critical
+          service: host
+          team: sre
+        annotations:
+          summary: "主机公网暴露命中（HOST-EXPOSURE-01）"
+          description: "公网端口通配监听/容器通配绑定/非 IaC 容器/未认证 healthz 探测命中；详见告警日志的 ALERT/ISOLATED/SUGGEST 行。pager 未到位期间走 Lead/A13 人工 ack，15min 未 ack 升级 Lead。"
+          runbook_url: "https://github.com/market-sense-h5/market-sense-h5/blob/main/docs/runbook/exposure-verification.md#host-exposure-01"
+          ai_signal: "n/a"

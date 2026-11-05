@@ -109,8 +109,7 @@ if (!existsSync(MANIFEST)) {
 
 // drill 证据独立 manifest（H5 m03007）：drill 只允许出现在 drill-manifest，不得混入签字包
 if (!existsSync(DRILL_MANIFEST)) {
-  if (existsSync(DRILL_DIR))
-    failures.push('存在 infra/evidence/drill/ 但缺少 drill-manifest.json');
+  if (existsSync(DRILL_DIR)) failures.push('存在 infra/evidence/drill/ 但缺少 drill-manifest.json');
 } else {
   let dm;
   try {
@@ -148,7 +147,8 @@ if (!existsSync(DRILL_MANIFEST)) {
     const unlisted = onDisk.filter((p) => !seen.has(p));
     if (unlisted.length > 0)
       failures.push(`drill manifest 未覆盖（100% 要求）：\n  - ${unlisted.join('\n  - ')}`);
-    if (unlisted.length === 0) notes.push(`drill manifest 覆盖 ${onDisk.length} 个文件（不进签字包）`);
+    if (unlisted.length === 0)
+      notes.push(`drill manifest 覆盖 ${onDisk.length} 个文件（不进签字包）`);
   }
 }
 

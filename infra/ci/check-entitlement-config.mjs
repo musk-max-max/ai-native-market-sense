@@ -113,8 +113,7 @@ check(
 check('e2e 默认栈不得出现 c_end_display', !/ENTITLEMENT_TIER:[^\n]*c_end_display/.test(compose));
 check(
   'e2e 默认栈显式 HOLD_CHECK=1 / AUDIT=1（不依赖 e2eMode 默认关）',
-  /ENTITLEMENT_HOLD_CHECK:\s*"?1"?/.test(compose) &&
-    /ENTITLEMENT_AUDIT:\s*"?1"?/.test(compose),
+  /ENTITLEMENT_HOLD_CHECK:\s*"?1"?/.test(compose) && /ENTITLEMENT_AUDIT:\s*"?1"?/.test(compose),
 );
 const positivePath = join(ROOT, 'tests/e2e/docker-compose.entitlement-positive.yml');
 const positive = existsSync(positivePath) ? readFileSync(positivePath, 'utf8') : '';

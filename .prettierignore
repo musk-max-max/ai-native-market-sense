@@ -30,3 +30,7 @@ docs/reference/
 
 # 证据 artifact：字节即证据，禁止格式化（改动=换新文件名并更新 manifest）
 infra/evidence/
+# H5/A19 安全域（各 owner 接入格式化前不代改）
+security/
+# A4 身份域（owner 接入格式化前不代改）
+auth/

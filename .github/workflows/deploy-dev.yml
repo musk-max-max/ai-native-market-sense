@@ -37,6 +37,22 @@ jobs:
       KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: 判定本次发布是否改动暴露面（HOST-EXPOSURE-01 B=b 的范围收窄）
+        id: exposure
+        run: |
+          BASE="${{ github.event.before }}"
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then BASE="HEAD~1"; fi
+          if git diff --name-only "$BASE" HEAD -- \
+              infra/helm/market-sense/templates/ingress.yaml \
+              infra/helm/market-sense/templates/networkpolicy.yaml \
+              'infra/helm/market-sense/values*.yaml' \
+              infra/terraform infra/scripts/deploy.sh | grep -q .; then
+            echo "affecting=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "affecting=false" >> "$GITHUB_OUTPUT"
+          fi
       - uses: azure/setup-helm@v4
         if: env.KUBE_CONFIG != ''
         with:
@@ -57,6 +73,8 @@ jobs:
           # 流水线生成，不用手填；deploy 事件与 gap 去重键依赖它。
           DEPLOYMENT_UID: dev-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
           STAGE: ${{ inputs.stage }}
+          EXPOSURE_AFFECTING: ${{ steps.exposure.outputs.affecting }}
+          HOST_AUDIT_SSH: ${{ vars.HOST_AUDIT_SSH }}
         run: |
           bash infra/scripts/deploy.sh dev "$IMAGE_TAG" --stage "$STAGE"
           {

@@ -26,7 +26,31 @@ done
 [[ -n "${ENV_NAME}" && -n "${IMAGE_TAG}" ]] || { echo "用法：infra/scripts/deploy.sh <env> <image_tag> [--stage N]" >&2; exit 2; }
 case "${STAGE}" in 1|10|50|100) ;; *) echo "❌ stage 必须是 1|10|50|100（SLO 灰度档位）" >&2; exit 2 ;; esac
 
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CHART_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../helm/market-sense" && pwd)"
+
+# ── HOST-EXPOSURE-01 部署钩子（H5 m03665 B=b）─────────────────────────────
+# FAIL 或 UNVERIFIED 且本次发布改动了暴露面（端口绑定/ingress/SG）→ 阻塞并回滚；
+# 纯代码发布只告警。break-glass 只能 H5 书面批，agent 不得自批。
+EXPOSURE_AFFECTING="${EXPOSURE_AFFECTING:-0}"
+HOST_AUDIT_SSH="${HOST_AUDIT_SSH:-}"
+run_host_audit() { # $1=require_public_host(0|1)
+  local req="$1" out rc
+  [ -n "${HOST_AUDIT_SSH}" ] || return 99
+  out=$(ssh -o BatchMode=yes -o ConnectTimeout=10 "${HOST_AUDIT_SSH}" \
+    "HOST_EXPOSURE_AUTO_ISOLATE=1 HOST_EXPOSURE_REQUIRE_PUBLIC_HOST=${req} /usr/local/sbin/market-sense-host-baseline-audit.sh" 2>&1)
+  rc=$?
+  printf '%s\n' "${out}" | tail -25 >&2
+  return "${rc}"
+}
+if [ "${EXPOSURE_AFFECTING}" = "1" ] && [ -z "${HOST_AUDIT_SSH}" ]; then
+  echo "❌ HOST-EXPOSURE-01 UNVERIFIED：本次发布改动了暴露面，但未配置 HOST_AUDIT_SSH 主机巡检目标；按 B=b 阻塞（不自批 break-glass）。" >&2
+  exit 8
+fi
+if [ "${EXPOSURE_AFFECTING}" = "1" ]; then
+  echo "▶ HOST-EXPOSURE-01 部署前巡检（暴露面变更，require_public_host=1）"
+  run_host_audit 1 || { echo "❌ HOST-EXPOSURE-01 部署前巡检失败/UNVERIFIED：阻止本次部署（B=b）" >&2; exit 9; }
+fi
 case "${ENV_NAME}" in
   dev)
     NAMESPACE="market-sense-dev"
@@ -103,6 +127,21 @@ helm upgrade --install "${RELEASE}" "${CHART_DIR}" \
   --set "global.environment=${ENV_NAME}" \
   --set "config.DEPLOYMENT_UID=${DEPLOYMENT_UID}" \
   --atomic --wait --timeout 5m --history-max 10
+
+# 部署后巡检：暴露面变更 → 失败即回滚（B=b）；纯代码发布 → 只告警。
+if [ -n "${HOST_AUDIT_SSH}" ]; then
+  if [ "${EXPOSURE_AFFECTING}" = "1" ]; then
+    run_host_audit 1 || {
+      echo "❌ HOST-EXPOSURE-01 部署后巡检失败：按 B=b 回滚 ${RELEASE}" >&2
+      helm rollback "${RELEASE}" 0 -n "${NAMESPACE}" --wait --timeout 5m || true
+      exit 7
+    }
+  else
+    run_host_audit 0 || echo "::warning::HOST-EXPOSURE-01 巡检命中/UNVERIFIED（纯代码发布，按 B=b 只告警，不阻塞）" >&2
+  fi
+else
+  echo "⏭ HOST-EXPOSURE-01 未配置 HOST_AUDIT_SSH：跳过主机巡检（暴露面变更会被上一步阻塞）"
+fi
 
 echo "✅ 部署完成：stage=${STAGE}%。下一档需间隔 ≥30min，且观察错误率/P95/AI 四项。"
 echo "   如有异常：infra/scripts/rollback.sh ${ENV_NAME} ${RELEASE}"
