@@ -1231,3 +1231,10 @@ A13 如实交了失败记录（本机无 iptables、pf 无权限），**没有�
 - **2 ⑤-4/⑤-5 记法**：ACCEPTED-RISK（含用户裁定 ref+复核日期+补偿控制），不混进 PARTIAL 计数；⑤ 整体仍 PARTIAL。补偿控制=80/8888 无监听+HOST-EXPOSURE-01 巡检；SG 状态每窗口由用户截图/JSON 背书。
 - **3 HOST-EXPOSURE-01（P2）立项**：每次部署+每日检查公网允许端口上是否有 0.0.0.0/:: 监听、容器绑定、非 IaC 变更、/healthz /metrics 未认证可达；命中即告警并自动停/隔离。验收=A19 注入 `docker create -p 0.0.0.0:8888` 一周期内被检出+告警+处置，证据入 manifest。**任何公网窗口开启前必须先跑起来。**
 - **L102 sshd 残留（转用户）**：`PermitRootLogin prohibit-password` 仍允许 root 密钥直登，H5 ⑤-3 要 root 禁登+具名 sudo 账号（归因与最小权限）。二选一：①`PermitRootLogin no`+建具名 sudo（需用户定账号名）②显式 ACCEPTED-RISK 写进 release note。**不得静默停在 prohibit-password。**
+
+## §11 L105 HOST-EXPOSURE-01 拍板 + root 登录 ACCEPTED-RISK 三硬条件（H5）
+- **1 自动隔离默认开（b，窄口径）**：只停①公网放行端口 80/8888 上 running 的通配监听容器、②`PortBindings` 通配且在跑的容器；`docker stop`+`--restart=no`，不删不碰卷/SG/sshd，**22 永不隔离**；其他命中先告警一周看误报。理由：默认关=把静默暴露留成默认；stop 可逆。
+- **2 部署钩子 fail-closed（b）**：`FAIL` 或 `UNVERIFIED` 且本次发布改了暴露面（端口/ingress/SG）→ 阻塞+回滚；纯代码发布只告警；break-glass 仅 H5 书面批。
+- **3 root 登录记 ACCEPTED-RISK**（key-only+密码已关+fail2ban+maxauthtries 3），**但三个硬条件必须先完成「具名 sudo + `PermitRootLogin no`」**：①第二操作者获得访问前 ②任何公网窗口前 ③**11-12 前提案**——否则这几条不放行。
+- **含义**：用户选 B（保留 root 密钥直登）只到 11-12 前；11-12 发布前必须切「具名 sudo 账号 + root 禁登」。需用户届时给账号名。A13 待办：systemd timer、HostExposureDrift 告警规则、部署钩子接线、与 A19 的 ECS 注入验收。
+- ⑤ 仍 PARTIAL（ACCEPTED-RISK 不计 PASS）。
