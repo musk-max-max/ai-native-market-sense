@@ -1250,3 +1250,11 @@ A13 如实交了失败记录（本机无 iptables、pf 无权限），**没有�
 - **两路径验证**：①`docker create -p 0.0.0.0:8888`（未启动）→ 巡检 FAIL+ALERT+ISOLATED-POLICY restart=no；②`docker run -d -p 0.0.0.0:9999`（running）→ FAIL+ALERT+`docker stop && update --restart=no`，审计后 status=exited、监听消失。清理 `docker rm -f` 无残留、复跑无 a19 行、ss 无 8888/9999。未动 SG/ufw/sshd。
 - **口径**：隔离按 L105 窄口径仅对 `EXPECTED_PUBLIC_PORTS` 生效；9999 不在安装态 expected，running 隔离用临时 expected 覆盖（6be492f2…，用后即删，安装态未改）。A19 提交为「检测复核供 H5 终签」，不签门禁。
 - **待办**：A13 补 manifest amend，H5 把 HOST-EXPOSURE-01 由 conditional 转 PASS。⑤ 仍 PARTIAL（其余五项 residual 不变）。
+
+## §11 L108 SG+root 风险书面接受 + 具名 sudo 账号 lyuddu + root 禁登（11-12 硬条件完成）
+- **风险书面接受（用户 m05524）**：「SG 保留和 root 直登这两个风险我接受。」——满足 H5 L106 要求的「用户书面接受 + release note」前半（release note 记录在 §11 本条 + release-gate 文档）。
+- **具名 sudo 账号 lyuddu（用户指定账号名）**：`useradd -m -s /bin/bash -G sudo lyuddu`；`/etc/sudoers.d/lyuddu` = `lyuddu ALL=(ALL) NOPASSWD:ALL`（visudo OK）；复用同一把 ED25519 公钥到 `/home/lyuddu/.ssh/authorized_keys`（700/600，属主 lyuddu）。
+- **验证（Lead 亲验）**：①`lyuddu` 密钥登录 ✅（强制只走密钥）②`sudo whoami`=root（提权 OK）③改完 root 后 `lyuddu` 仍可登 ✅。
+- **root 禁登（H5 三硬条件第 3 条）**：`PermitRootLogin no`（备份 sshd_config.bak.*，sshd -t OK，restart active）；验证 `root@…: Permission denied (publickey)` ✅。**满足 H5 三条件全部**：①无第二操作者 ②无公网窗口 ③11-12 前完成。
+- **fail2ban 不自锁确认**：ignoreip = `127.0.0.0/8 ::1 223.166.54.234`（用户出口 IP 在白名单，不会被自己 ban）。
+- **后续**：流水线 `HOST_AUDIT_SSH` 改用 `lyuddu@47.120.16.239`（专用审计账号，非 root），11-12 前配；部署钩子 fail-closed 保持。root 登录 residual 从 ACCEPTED-RISK 转 **CLOSED**。
