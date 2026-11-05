@@ -31,6 +31,17 @@ def test_ports_yaml_is_valid_and_owned_by_a2():
     assert data["consumers"] == ["a3-backend-market"]
 
 
+RESEARCH_VIEWS = {
+    "serving_research_daily_basic",
+    "serving_research_index_daily",
+    "serving_research_top_list",
+    "serving_research_top_inst",
+    "serving_research_moneyflow",
+    "serving_research_margin",
+    "serving_research_hk_hold",
+}
+
+
 def test_every_ports_view_exists_in_schema_sql():
     declared = {view["name"] for view in ports()["views"]}
     assert declared == {
@@ -40,7 +51,8 @@ def test_every_ports_view_exists_in_schema_sql():
         "serving_factor_latest",
         "serving_fundamental_summary",
     }
-    assert declared == schema_views(), declared ^ schema_views()
+    # 研究数据集视图只供内部消费，不进入 C 端 ports.yaml（KD-INGEST-CONSUME 边界）
+    assert schema_views() == declared | RESEARCH_VIEWS, declared ^ schema_views()
 
 
 def test_every_view_has_a_method_and_vice_versa():
@@ -49,6 +61,15 @@ def test_every_view_has_a_method_and_vice_versa():
     method_names = {method["name"] for method in data["methods"]}
     assert view_methods == method_names
     assert len(method_names) == 5
+
+
+def test_research_views_are_documented_but_not_in_ports():
+    text = README.read_text(encoding="utf-8")
+    for view in RESEARCH_VIEWS:
+        assert f"serving.{view}" in text, view
+    declared = {view["name"] for view in ports()["views"]}
+    assert declared.isdisjoint(RESEARCH_VIEWS)
+    assert "不接 C 端契约" in text or "不接 C 端" in text
 
 
 def test_readme_documents_all_serving_views_and_repo():

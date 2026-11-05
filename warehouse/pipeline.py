@@ -26,7 +26,7 @@ from warehouse.ods.loader import (
     load_ods_roots,
     require_display_evidence,
 )
-from warehouse.quality.checks import run_quality_checks
+from warehouse.quality.checks import RESEARCH_STATE_TABLES, run_quality_checks
 
 
 def _run_golden(path: Path, as_json: bool) -> int:
@@ -105,6 +105,7 @@ def _run_ods(
         "instruments": len(state.instruments),
         "display_safe_false": sum(1 for row in state.instruments.values() if not row["display_safe"]),
         "fundamentals": len(state.fundamentals),
+        "research": {name: len(getattr(state, name)) for name in RESEARCH_STATE_TABLES},
         "revisions": len(state.revisions),
         "quality": report.as_dict(),
     }
@@ -113,7 +114,9 @@ def _run_ods(
     else:
         print(
             f"batches={len(batches)} bars={len(state.bars)} factors={len(state.factors)} "
-            f"fundamentals={len(state.fundamentals)} revisions={len(state.revisions)}"
+            f"fundamentals={len(state.fundamentals)} "
+            f"research={sum(len(getattr(state, name)) for name in RESEARCH_STATE_TABLES)} "
+            f"revisions={len(state.revisions)}"
         )
         print(f"quality score={report.score} grade={report.grade} blocked={report.blocked}")
         for violation in report.blocker_violations[:20]:

@@ -137,3 +137,179 @@ CREATE TABLE IF NOT EXISTS dwd_fundamental_report (
     PRIMARY KEY (instrument_id, report_period, statement_basis)
 );
 COMMENT ON TABLE dwd_fundamental_report IS '财务摘要双口径（M06）：reported/restated 并存，按 announced_at 取最近一期';
+
+-- --------------------------------------------------------------------------
+-- 7. 研究数据集 DWD（KD-AIP0-INF-05 / ADR-007 第 2 批；只进 internal root）
+--    边界：不接 C 端契约，不改变 P0 八条口径；字段名保持 A1 canonical（provisional，
+--    H4 对齐后只改 warehouse/ods/loader.py 的 RESEARCH_ROW_SPECS 与这里）。
+--    语义：按 (as_of, fetched_at, batch_id) 后写覆盖（last-write-wins），幂等；
+--    不使用 dwd_bar_revision（修订留痕仅行情 bar，研究数据集为研究态快照）。
+--    top_inst 依赖 5000 分档：允许整表为空（SourceAuthError 时 ODS 不产批次）。
+-- --------------------------------------------------------------------------
+
+-- 7.1 每日指标（估值/换手/市值/涨跌停状态）——PK (instrument_id, trade_date)
+CREATE TABLE IF NOT EXISTS dwd_daily_basic (
+    instrument_id               text        NOT NULL,
+    trade_date                  date        NOT NULL,
+    close                       numeric(18,2) NOT NULL,
+    turnover_rate_pct           numeric(10,4),
+    free_float_turnover_rate_pct numeric(10,4),
+    volume_ratio                numeric(12,4),
+    pe                          numeric(14,4),   -- 可负（亏损），不设 CHECK
+    pe_ttm                      numeric(14,4),
+    pb                          numeric(14,4),   -- 可负（净资产为负）
+    ps                          numeric(14,4),
+    ps_ttm                      numeric(14,4),
+    dividend_yield_pct          numeric(10,4),
+    dividend_yield_ttm_pct      numeric(10,4),
+    total_shares                numeric(20,2),
+    float_shares                numeric(20,2),
+    free_float_shares           numeric(20,2),
+    total_market_value          numeric(20,2),
+    circulating_market_value    numeric(20,2),
+    limit_status                text,            -- 源侧涨跌停状态（U/D/Z），P0 不解释
+    source                      text        NOT NULL,
+    as_of                       timestamptz NOT NULL,
+    fetched_at                  timestamptz NOT NULL,
+    batch_id                    text        NOT NULL,
+    ingested_at                 timestamptz NOT NULL,
+    PRIMARY KEY (instrument_id, trade_date)
+);
+COMMENT ON TABLE dwd_daily_basic IS '每日指标（PE/PB/换手/市值/涨跌停状态）；单位元/股/百分数，decimal 字符串不丢精度';
+
+-- 7.2 基准指数日线——PK (instrument_id, trade_date)
+CREATE TABLE IF NOT EXISTS dwd_index_daily (
+    instrument_id   text        NOT NULL,
+    trade_date      date        NOT NULL,
+    open            numeric(18,2) NOT NULL,
+    high            numeric(18,2) NOT NULL,
+    low             numeric(18,2) NOT NULL,
+    close           numeric(18,2) NOT NULL,
+    prev_close      numeric(18,2) NOT NULL,
+    change          numeric(18,4) NOT NULL,
+    pct_change_pct  numeric(10,4) NOT NULL,
+    volume          bigint      NOT NULL CHECK (volume >= 0),      -- 单位：股
+    amount          numeric(20,2) NOT NULL CHECK (amount >= 0),    -- 单位：元
+    source          text        NOT NULL,
+    as_of           timestamptz NOT NULL,
+    fetched_at      timestamptz NOT NULL,
+    batch_id        text        NOT NULL,
+    ingested_at     timestamptz NOT NULL,
+    PRIMARY KEY (instrument_id, trade_date)
+);
+COMMENT ON TABLE dwd_index_daily IS '基准指数日线（5 个基准指数；指数不在 dim_instrument 时 RES-02 豁免）';
+
+-- 7.3 龙虎榜每日明细——PK (instrument_id, trade_date)
+CREATE TABLE IF NOT EXISTS dwd_top_list (
+    instrument_id       text        NOT NULL,
+    trade_date          date        NOT NULL,
+    name                text        NOT NULL,
+    close               numeric(18,2) NOT NULL,
+    pct_change_pct      numeric(10,4) NOT NULL,
+    turnover_rate_pct   numeric(10,4) NOT NULL,
+    amount              numeric(20,2) NOT NULL CHECK (amount >= 0),
+    lhb_sell_amount     numeric(20,2) NOT NULL CHECK (lhb_sell_amount >= 0),
+    lhb_buy_amount      numeric(20,2) NOT NULL CHECK (lhb_buy_amount >= 0),
+    lhb_amount          numeric(20,2) NOT NULL CHECK (lhb_amount >= 0),
+    lhb_net_amount      numeric(20,2) NOT NULL,   -- 可负（净卖出）
+    lhb_net_rate_pct    numeric(10,4) NOT NULL,   -- 可负
+    lhb_amount_rate_pct numeric(10,4) NOT NULL,
+    float_market_value  numeric(20,2) NOT NULL CHECK (float_market_value >= 0),
+    reason              text        NOT NULL,     -- 上榜原因（M05：保留原文，不做归类）
+    source              text        NOT NULL,
+    as_of               timestamptz NOT NULL,
+    fetched_at          timestamptz NOT NULL,
+    batch_id            text        NOT NULL,
+    ingested_at         timestamptz NOT NULL,
+    PRIMARY KEY (instrument_id, trade_date)
+);
+COMMENT ON TABLE dwd_top_list IS '龙虎榜每日明细（M05 保留上榜原因原文）；金额元';
+
+-- 7.4 龙虎榜席位明细——PK (instrument_id, trade_date, seat_name, side)
+CREATE TABLE IF NOT EXISTS dwd_top_inst (
+    instrument_id   text        NOT NULL,
+    trade_date      date        NOT NULL,
+    seat_name       text        NOT NULL,
+    side            smallint    NOT NULL CHECK (side IN (0,1)),   -- 0=买入 1=卖出
+    buy_amount      numeric(20,2) NOT NULL CHECK (buy_amount >= 0),
+    buy_rate_pct    numeric(10,4) NOT NULL,
+    sell_amount     numeric(20,2) NOT NULL CHECK (sell_amount >= 0),
+    sell_rate_pct   numeric(10,4) NOT NULL,
+    net_buy_amount  numeric(20,2) NOT NULL,   -- 可负
+    reason          text        NOT NULL,
+    source          text        NOT NULL,
+    as_of           timestamptz NOT NULL,
+    fetched_at      timestamptz NOT NULL,
+    batch_id        text        NOT NULL,
+    ingested_at     timestamptz NOT NULL,
+    PRIMARY KEY (instrument_id, trade_date, seat_name, side)
+);
+COMMENT ON TABLE dwd_top_inst IS '龙虎榜机构/营业部席位明细（5000 分档；整表可为空）';
+
+-- 7.5 个股资金流向五档——PK (instrument_id, trade_date)
+CREATE TABLE IF NOT EXISTS dwd_moneyflow (
+    instrument_id            text        NOT NULL,
+    trade_date               date        NOT NULL,
+    buy_small_volume         bigint,
+    buy_small_amount         numeric(20,2),
+    sell_small_volume        bigint,
+    sell_small_amount        numeric(20,2),
+    buy_medium_volume        bigint,
+    buy_medium_amount        numeric(20,2),
+    sell_medium_volume       bigint,
+    sell_medium_amount       numeric(20,2),
+    buy_large_volume         bigint,
+    buy_large_amount         numeric(20,2),
+    sell_large_volume        bigint,
+    sell_large_amount        numeric(20,2),
+    buy_extra_large_volume   bigint,
+    buy_extra_large_amount   numeric(20,2),
+    sell_extra_large_volume  bigint,
+    sell_extra_large_amount  numeric(20,2),
+    net_inflow_volume        bigint,          -- 可负
+    net_inflow_amount        numeric(20,2),   -- 可负
+    source                   text        NOT NULL,
+    as_of                    timestamptz NOT NULL,
+    fetched_at               timestamptz NOT NULL,
+    batch_id                 text        NOT NULL,
+    ingested_at              timestamptz NOT NULL,
+    PRIMARY KEY (instrument_id, trade_date)
+);
+COMMENT ON TABLE dwd_moneyflow IS '个股资金流向五档（量股/额元；缺失为 NULL，禁止补 0）';
+
+-- 7.6 融资融券汇总（交易所维度）——PK (exchange, trade_date)
+CREATE TABLE IF NOT EXISTS dwd_margin (
+    exchange                     text        NOT NULL CHECK (exchange IN ('SSE','SZSE','BSE')),
+    trade_date                   date        NOT NULL,
+    financing_balance            numeric(20,2) NOT NULL CHECK (financing_balance >= 0),
+    financing_buy_amount         numeric(20,2) NOT NULL CHECK (financing_buy_amount >= 0),
+    financing_repayment_amount   numeric(20,2) NOT NULL CHECK (financing_repayment_amount >= 0),
+    securities_balance           numeric(20,2) NOT NULL CHECK (securities_balance >= 0),
+    securities_sell_volume       bigint      NOT NULL CHECK (securities_sell_volume >= 0),
+    margin_balance               numeric(20,2) NOT NULL CHECK (margin_balance >= 0),
+    securities_volume            bigint      NOT NULL CHECK (securities_volume >= 0),
+    source                       text        NOT NULL,
+    as_of                        timestamptz NOT NULL,
+    fetched_at                   timestamptz NOT NULL,
+    batch_id                     text        NOT NULL,
+    ingested_at                  timestamptz NOT NULL,
+    PRIMARY KEY (exchange, trade_date)
+);
+COMMENT ON TABLE dwd_margin IS '两融交易汇总（SSE/SZSE/BSE 三交易所；金额元）';
+
+-- 7.7 北向持股——PK (instrument_id, trade_date)
+CREATE TABLE IF NOT EXISTS dwd_hk_hold (
+    instrument_id        text        NOT NULL,
+    trade_date           date        NOT NULL,
+    name                 text        NOT NULL,
+    holding_volume       bigint      NOT NULL CHECK (holding_volume >= 0),  -- 股
+    holding_ratio_pct    numeric(10,4) NOT NULL CHECK (holding_ratio_pct >= 0 AND holding_ratio_pct <= 100),
+    northbound_channel   text        NOT NULL CHECK (northbound_channel IN ('SH','SZ','HK')),
+    source               text        NOT NULL,
+    as_of                timestamptz NOT NULL,
+    fetched_at           timestamptz NOT NULL,
+    batch_id             text        NOT NULL,
+    ingested_at          timestamptz NOT NULL,
+    PRIMARY KEY (instrument_id, trade_date)
+);
+COMMENT ON TABLE dwd_hk_hold IS '沪深股通持股明细（港交所源）；持股比例百分数，0–100';

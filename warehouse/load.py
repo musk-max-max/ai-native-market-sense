@@ -131,6 +131,146 @@ FUNDAMENTAL_COLUMNS = (
 # M06 的 reported/restated 两套靠 statement_basis 区分，故 PK 必须含 statement_basis。
 FUNDAMENTAL_PK = ("instrument_id", "report_period", "statement_basis")
 
+# 研究数据集 DWD（7 张表）：列顺序与 schema.sql 一致；PK 见 *_PK。
+# 注意：这些表不做修订留痕（研究态 last-write-wins），不写 dwd_bar_revision。
+_RESEARCH_META_COLUMNS = ("source", "as_of", "fetched_at", "batch_id", "ingested_at")
+
+DAILY_BASIC_COLUMNS = (
+    "instrument_id",
+    "trade_date",
+    "close",
+    "turnover_rate_pct",
+    "free_float_turnover_rate_pct",
+    "volume_ratio",
+    "pe",
+    "pe_ttm",
+    "pb",
+    "ps",
+    "ps_ttm",
+    "dividend_yield_pct",
+    "dividend_yield_ttm_pct",
+    "total_shares",
+    "float_shares",
+    "free_float_shares",
+    "total_market_value",
+    "circulating_market_value",
+    "limit_status",
+    *_RESEARCH_META_COLUMNS,
+)
+DAILY_BASIC_PK = ("instrument_id", "trade_date")
+
+INDEX_DAILY_COLUMNS = (
+    "instrument_id",
+    "trade_date",
+    "open",
+    "high",
+    "low",
+    "close",
+    "prev_close",
+    "change",
+    "pct_change_pct",
+    "volume",
+    "amount",
+    *_RESEARCH_META_COLUMNS,
+)
+INDEX_DAILY_PK = ("instrument_id", "trade_date")
+
+TOP_LIST_COLUMNS = (
+    "instrument_id",
+    "trade_date",
+    "name",
+    "close",
+    "pct_change_pct",
+    "turnover_rate_pct",
+    "amount",
+    "lhb_sell_amount",
+    "lhb_buy_amount",
+    "lhb_amount",
+    "lhb_net_amount",
+    "lhb_net_rate_pct",
+    "lhb_amount_rate_pct",
+    "float_market_value",
+    "reason",
+    *_RESEARCH_META_COLUMNS,
+)
+TOP_LIST_PK = ("instrument_id", "trade_date")
+
+TOP_INST_COLUMNS = (
+    "instrument_id",
+    "trade_date",
+    "seat_name",
+    "side",
+    "buy_amount",
+    "buy_rate_pct",
+    "sell_amount",
+    "sell_rate_pct",
+    "net_buy_amount",
+    "reason",
+    *_RESEARCH_META_COLUMNS,
+)
+TOP_INST_PK = ("instrument_id", "trade_date", "seat_name", "side")
+
+MONEYFLOW_COLUMNS = (
+    "instrument_id",
+    "trade_date",
+    "buy_small_volume",
+    "buy_small_amount",
+    "sell_small_volume",
+    "sell_small_amount",
+    "buy_medium_volume",
+    "buy_medium_amount",
+    "sell_medium_volume",
+    "sell_medium_amount",
+    "buy_large_volume",
+    "buy_large_amount",
+    "sell_large_volume",
+    "sell_large_amount",
+    "buy_extra_large_volume",
+    "buy_extra_large_amount",
+    "sell_extra_large_volume",
+    "sell_extra_large_amount",
+    "net_inflow_volume",
+    "net_inflow_amount",
+    *_RESEARCH_META_COLUMNS,
+)
+MONEYFLOW_PK = ("instrument_id", "trade_date")
+
+MARGIN_COLUMNS = (
+    "exchange",
+    "trade_date",
+    "financing_balance",
+    "financing_buy_amount",
+    "financing_repayment_amount",
+    "securities_balance",
+    "securities_sell_volume",
+    "margin_balance",
+    "securities_volume",
+    *_RESEARCH_META_COLUMNS,
+)
+MARGIN_PK = ("exchange", "trade_date")
+
+HK_HOLD_COLUMNS = (
+    "instrument_id",
+    "trade_date",
+    "name",
+    "holding_volume",
+    "holding_ratio_pct",
+    "northbound_channel",
+    *_RESEARCH_META_COLUMNS,
+)
+HK_HOLD_PK = ("instrument_id", "trade_date")
+
+#: endpoint -> (表名, 列清单, PK, state 属性)。
+RESEARCH_TABLES: dict[str, tuple[str, tuple[str, ...], tuple[str, ...], str]] = {
+    "daily_basic": ("dwd_daily_basic", DAILY_BASIC_COLUMNS, DAILY_BASIC_PK, "daily_basic"),
+    "index_daily": ("dwd_index_daily", INDEX_DAILY_COLUMNS, INDEX_DAILY_PK, "index_daily"),
+    "top_list": ("dwd_top_list", TOP_LIST_COLUMNS, TOP_LIST_PK, "top_list"),
+    "top_inst": ("dwd_top_inst", TOP_INST_COLUMNS, TOP_INST_PK, "top_inst"),
+    "moneyflow": ("dwd_moneyflow", MONEYFLOW_COLUMNS, MONEYFLOW_PK, "moneyflow"),
+    "margin": ("dwd_margin", MARGIN_COLUMNS, MARGIN_PK, "margin"),
+    "hk_hold": ("dwd_hk_hold", HK_HOLD_COLUMNS, HK_HOLD_PK, "hk_hold"),
+}
+
 REVISION_COLUMNS = (
     "instrument_id",
     "trade_date",
@@ -268,6 +408,16 @@ def build_statements(state: DwdState) -> list[Statement]:
             FUNDAMENTAL_PK,
             state.fundamentals.values(),
         ),
+        *[
+            _statement(
+                f"upsert_{endpoint}",
+                table,
+                columns,
+                primary_key,
+                getattr(state, state_attr).values(),
+            )
+            for endpoint, (table, columns, primary_key, state_attr) in RESEARCH_TABLES.items()
+        ],
         _statement(
             "insert_revision",
             "dwd_bar_revision",

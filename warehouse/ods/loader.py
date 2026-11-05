@@ -41,6 +41,15 @@ ENDPOINT_SCHEMAS: dict[str, str] = {
     "adj_factor": "adj_factor.v1",
     "instrument": "instrument.v1",
     "fundamental": "fundamental.v1",
+    # 研究数据集（KD-AIP0-INF-05 / ADR-007 第 2 批）：只进 internal root + DWD/serving，
+    # 不接 C 端契约；字段映射 provisional，保持 A1 canonical 字段名不改写。
+    "daily_basic": "daily_basic.v1",
+    "index_daily": "index_daily.v1",
+    "top_list": "top_list.v1",
+    "top_inst": "top_inst.v1",
+    "moneyflow": "moneyflow.v1",
+    "margin": "margin.v1",
+    "hk_hold": "hk_hold.v1",
 }
 
 BAR_FIELDS = ("instrument_id", "trade_date")
@@ -89,6 +98,169 @@ BOARDS = ("main", "gem", "star", "bse")
 SECURITY_TYPES = ("stock", "etf", "index")
 LIST_STATUSES = ("listed", "delisted", "pre_listed")
 BOARD_BY_EXCHANGE = {"SSE": ("main", "star"), "SZSE": ("main", "gem"), "BSE": ("bse",)}
+
+#: 研究数据集 canonical 行规格（schema -> 字段类别）。
+#: 字段名/单位由 A1 适配层保证：金额元、量股、比率百分数、十进制字符串；本层只做类型校验。
+#: provisional=True（A1）意味着字段清单可能随 H4 对齐变化；这里按当前 canonical 字段固定，
+#: 未知扩展字段被忽略（与现有 bar/instrument 行为一致），但不允许数据源字段名泄漏（C01）。
+RESEARCH_ENDPOINTS: tuple[str, ...] = (
+    "daily_basic",
+    "index_daily",
+    "top_list",
+    "top_inst",
+    "moneyflow",
+    "margin",
+    "hk_hold",
+)
+
+RESEARCH_ROW_SPECS: dict[str, dict[str, Any]] = {
+    "daily_basic.v1": {
+        "required": ("close",),
+        "decimal": (
+            "close",
+            "turnover_rate_pct",
+            "free_float_turnover_rate_pct",
+            "volume_ratio",
+            "pe",
+            "pe_ttm",
+            "pb",
+            "ps",
+            "ps_ttm",
+            "dividend_yield_pct",
+            "dividend_yield_ttm_pct",
+            "total_shares",
+            "float_shares",
+            "free_float_shares",
+            "total_market_value",
+            "circulating_market_value",
+        ),
+        "text": ("limit_status",),
+        # C01 允许表：这些名字既是 tushare 源字段，也是 A1 研究数据 canonical 字段
+        # （H4 字段映射 provisional）。C01 的用途是禁止适配层之外的原始列名泄漏；
+        # pe/pb 在研究域是正式指标名，故按 schema 白名单放行，bar/instrument 仍严格。
+        "allowed_source_like": ("pe", "pe_ttm", "pb"),
+    },
+    "index_daily.v1": {
+        "required": ("open", "high", "low", "close", "prev_close", "change", "pct_change_pct"),
+        "decimal": (
+            "open",
+            "high",
+            "low",
+            "close",
+            "prev_close",
+            "change",
+            "pct_change_pct",
+            "amount",
+        ),
+        "integer": ("volume",),
+    },
+    "top_list.v1": {
+        "required": (
+            "name",
+            "close",
+            "pct_change_pct",
+            "turnover_rate_pct",
+            "amount",
+            "lhb_sell_amount",
+            "lhb_buy_amount",
+            "lhb_amount",
+            "lhb_net_amount",
+            "lhb_net_rate_pct",
+            "lhb_amount_rate_pct",
+            "float_market_value",
+            "reason",
+        ),
+        "decimal": (
+            "close",
+            "pct_change_pct",
+            "turnover_rate_pct",
+            "amount",
+            "lhb_sell_amount",
+            "lhb_buy_amount",
+            "lhb_amount",
+            "lhb_net_amount",
+            "lhb_net_rate_pct",
+            "lhb_amount_rate_pct",
+            "float_market_value",
+        ),
+        "text": ("name", "reason"),
+    },
+    "top_inst.v1": {
+        "required": (
+            "seat_name",
+            "side",
+            "buy_amount",
+            "buy_rate_pct",
+            "sell_amount",
+            "sell_rate_pct",
+            "net_buy_amount",
+            "reason",
+        ),
+        "decimal": (
+            "buy_amount",
+            "buy_rate_pct",
+            "sell_amount",
+            "sell_rate_pct",
+            "net_buy_amount",
+        ),
+        "integer": ("side",),
+        "text": ("seat_name", "reason"),
+    },
+    "moneyflow.v1": {
+        "required": (),
+        "decimal": (
+            "buy_small_amount",
+            "sell_small_amount",
+            "buy_medium_amount",
+            "sell_medium_amount",
+            "buy_large_amount",
+            "sell_large_amount",
+            "buy_extra_large_amount",
+            "sell_extra_large_amount",
+            "net_inflow_amount",
+        ),
+        "integer": (
+            "buy_small_volume",
+            "sell_small_volume",
+            "buy_medium_volume",
+            "sell_medium_volume",
+            "buy_large_volume",
+            "sell_large_volume",
+            "buy_extra_large_volume",
+            "sell_extra_large_volume",
+            "net_inflow_volume",
+        ),
+    },
+    "margin.v1": {
+        "id_field": "exchange",
+        "required": (
+            "financing_balance",
+            "financing_buy_amount",
+            "financing_repayment_amount",
+            "securities_balance",
+            "securities_sell_volume",
+            "margin_balance",
+            "securities_volume",
+        ),
+        "decimal": (
+            "financing_balance",
+            "financing_buy_amount",
+            "financing_repayment_amount",
+            "securities_balance",
+            "margin_balance",
+        ),
+        "integer": ("securities_sell_volume", "securities_volume"),
+        "enums": {"exchange": EXCHANGES},
+    },
+    "hk_hold.v1": {
+        "required": ("name", "holding_volume", "holding_ratio_pct", "northbound_channel"),
+        "decimal": ("holding_ratio_pct",),
+        "integer": ("holding_volume",),
+        "text": ("name",),
+        "enums": {"northbound_channel": ("SH", "SZ", "HK")},
+    },
+}
+
 
 
 class OdsFormatError(ValueError):
@@ -203,8 +375,10 @@ def _require(obj: dict[str, Any], key: str, *, where: str) -> Any:
 # --------------------------------------------------------------------------
 
 
-def _check_no_source_leak(row: dict[str, Any], *, where: str) -> None:
-    leaked = FORBIDDEN_ROW_KEYS & set(row)
+def _check_no_source_leak(
+    row: dict[str, Any], *, where: str, allow: frozenset[str] = frozenset()
+) -> None:
+    leaked = (FORBIDDEN_ROW_KEYS - allow) & set(row)
     if leaked:
         raise SchemaDriftError(
             f"{where}: 出现数据源字段名 {sorted(leaked)}；适配层外不许泄漏 tushare 概念（C01）"
@@ -354,11 +528,66 @@ def normalize_fundamental_row(row: dict[str, Any], *, where: str) -> dict[str, A
     return out
 
 
+def normalize_research_row(schema: str, row: dict[str, Any], *, where: str) -> dict[str, Any]:
+    """研究数据集 canonical 行校验（金额/比率/量纲由 A1 适配层归一，本层不换算）。
+
+    * 主键字段：instrument_id（除 margin 用 exchange）与 trade_date 必填；
+    * 数值一律十进制字符串解析为 Decimal（JSON float 拒绝，积分/量必须整数）；
+    * 缺省可选字段为 None，禁止补 0（C10 由适配层保证，本层保留 None）。
+    """
+    spec = RESEARCH_ROW_SPECS[schema]
+    _check_no_source_leak(
+        row, where=where, allow=frozenset(spec.get("allowed_source_like", ()))
+    )
+    id_field = spec.get("id_field", "instrument_id")
+    if id_field == "instrument_id":
+        raw_id = _check_instrument_id(_require(row, id_field, where=where), where=where)
+    else:
+        raw_id = _require(row, id_field, where=where)
+        if not isinstance(raw_id, str) or not raw_id.strip():
+            raise OdsFormatError(f"{where}.{id_field}: 必须是非空字符串")
+    out: dict[str, Any] = {
+        id_field: raw_id,
+        "trade_date": parse_date(_require(row, "trade_date", where=where), where=f"{where}.trade_date"),
+    }
+    for key in spec.get("required", ()):
+        if row.get(key) is None:
+            raise OdsFormatError(f"{where}: 缺必填字段 {key}")
+    for key in spec.get("decimal", ()):
+        value = row.get(key)
+        out[key] = None if value is None else parse_decimal(value, where=f"{where}.{key}")
+    for key in spec.get("integer", ()):
+        value = row.get(key)
+        if value is None:
+            out[key] = None
+            continue
+        parsed = parse_decimal(value, where=f"{where}.{key}")
+        if parsed != parsed.to_integral_value():
+            raise OdsFormatError(f"{where}.{key}: 必须是整数（股/手/方向），得到 {value!r}")
+        out[key] = parsed
+    for key in spec.get("text", ()):
+        value = row.get(key)
+        out[key] = None if value is None else str(value)
+    for key, allowed in spec.get("enums", {}).items():
+        value = out.get(key)
+        if value is not None and value not in allowed:
+            raise OdsFormatError(f"{where}.{key}: 非法取值 {value!r}，允许 {allowed}")
+    return out
+
+
+def _make_research_normalizer(schema: str):
+    def _normalizer(row: dict[str, Any], *, where: str) -> dict[str, Any]:
+        return normalize_research_row(schema, row, where=where)
+
+    return _normalizer
+
+
 ROW_NORMALIZERS = {
     "bar.v1": normalize_bar_row,
     "adj_factor.v1": normalize_factor_row,
     "instrument.v1": normalize_instrument_row,
     "fundamental.v1": normalize_fundamental_row,
+    **{schema: _make_research_normalizer(schema) for schema in RESEARCH_ROW_SPECS},
 }
 
 

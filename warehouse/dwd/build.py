@@ -20,6 +20,101 @@ from warehouse.ods.loader import Batch
 
 BAR_VALUE_FIELDS = ("open", "high", "low", "close", "volume", "amount", "prev_close")
 FACTOR_VALUE_FIELDS = ("factor",)
+#: 研究数据集 DWD 表的业务列（不含 PK 与 source/as_of/fetched_at/batch_id/ingested_at）。
+#: 顺序与 schema.sql 一致；字段名保持 A1 canonical，不在 DWD 重命名（provisional 等 H4 对齐）。
+RESEARCH_VALUE_FIELDS: dict[str, tuple[str, ...]] = {
+    "daily_basic": (
+        "close",
+        "turnover_rate_pct",
+        "free_float_turnover_rate_pct",
+        "volume_ratio",
+        "pe",
+        "pe_ttm",
+        "pb",
+        "ps",
+        "ps_ttm",
+        "dividend_yield_pct",
+        "dividend_yield_ttm_pct",
+        "total_shares",
+        "float_shares",
+        "free_float_shares",
+        "total_market_value",
+        "circulating_market_value",
+        "limit_status",
+    ),
+    "index_daily": (
+        "open",
+        "high",
+        "low",
+        "close",
+        "prev_close",
+        "change",
+        "pct_change_pct",
+        "volume",
+        "amount",
+    ),
+    "top_list": (
+        "name",
+        "close",
+        "pct_change_pct",
+        "turnover_rate_pct",
+        "amount",
+        "lhb_sell_amount",
+        "lhb_buy_amount",
+        "lhb_amount",
+        "lhb_net_amount",
+        "lhb_net_rate_pct",
+        "lhb_amount_rate_pct",
+        "float_market_value",
+        "reason",
+    ),
+    "top_inst": (
+        "seat_name",
+        "side",
+        "buy_amount",
+        "buy_rate_pct",
+        "sell_amount",
+        "sell_rate_pct",
+        "net_buy_amount",
+        "reason",
+    ),
+    "moneyflow": (
+        "buy_small_volume",
+        "buy_small_amount",
+        "sell_small_volume",
+        "sell_small_amount",
+        "buy_medium_volume",
+        "buy_medium_amount",
+        "sell_medium_volume",
+        "sell_medium_amount",
+        "buy_large_volume",
+        "buy_large_amount",
+        "sell_large_volume",
+        "sell_large_amount",
+        "buy_extra_large_volume",
+        "buy_extra_large_amount",
+        "sell_extra_large_volume",
+        "sell_extra_large_amount",
+        "net_inflow_volume",
+        "net_inflow_amount",
+    ),
+    "margin": (
+        "financing_balance",
+        "financing_buy_amount",
+        "financing_repayment_amount",
+        "securities_balance",
+        "securities_sell_volume",
+        "margin_balance",
+        "securities_volume",
+    ),
+    "hk_hold": (
+        "name",
+        "holding_volume",
+        "holding_ratio_pct",
+        "northbound_channel",
+    ),
+}
+
 FUNDAMENTAL_VALUE_FIELDS = (
     "report_end_date",
     "announced_at",
@@ -73,6 +168,17 @@ class DwdState:
     fundamentals: dict[tuple[str, str, str], dict[str, Any]] = field(default_factory=dict)
     # 批次元信息（质量规则 COMP-02 使用）
     bar_batches: list[Batch] = field(default_factory=list)
+    # 研究数据集（KD-AIP0-INF-05）：last-write-wins，不参与 bar 修订留痕。
+    # 主键：daily_basic/index_daily/top_list/moneyflow/hk_hold=(instrument_id, trade_date)；
+    #       top_inst=(instrument_id, trade_date, seat_name, side)；
+    #       margin=(exchange, trade_date)。
+    daily_basic: dict[tuple[Any, ...], dict[str, Any]] = field(default_factory=dict)
+    index_daily: dict[tuple[Any, ...], dict[str, Any]] = field(default_factory=dict)
+    top_list: dict[tuple[Any, ...], dict[str, Any]] = field(default_factory=dict)
+    top_inst: dict[tuple[Any, ...], dict[str, Any]] = field(default_factory=dict)
+    moneyflow: dict[tuple[Any, ...], dict[str, Any]] = field(default_factory=dict)
+    margin: dict[tuple[Any, ...], dict[str, Any]] = field(default_factory=dict)
+    hk_hold: dict[tuple[Any, ...], dict[str, Any]] = field(default_factory=dict)
 
     def bars_for(self, instrument_id: str) -> list[dict[str, Any]]:
         return sorted(
@@ -188,6 +294,10 @@ def build_dwd(
         if batch.endpoint == "fundamental":
             for row in batch.rows:
                 _upsert_fundamental(state, row, batch)
+            continue
+
+        if batch.endpoint in RESEARCH_VALUE_FIELDS:
+            _upsert_research(state, row_batch=batch)
 
     return state
 
@@ -302,3 +412,54 @@ def _upsert_fundamental(state: DwdState, row: dict[str, Any], batch: Batch) -> N
     existing = state.fundamentals.get(key)
     if existing is None or any(existing.get(f) != record.get(f) for f in FUNDAMENTAL_VALUE_FIELDS):
         state.fundamentals[key] = record
+
+
+RESEARCH_KEY_FIELDS: dict[str, tuple[str, ...]] = {
+    "top_inst": ("instrument_id", "trade_date", "seat_name", "side"),
+    "margin": ("exchange", "trade_date"),
+}
+
+
+def _research_key(endpoint: str, row: dict[str, Any]) -> tuple[Any, ...]:
+    fields = RESEARCH_KEY_FIELDS.get(endpoint, ("instrument_id", "trade_date"))
+    return tuple(row[field] for field in fields)
+
+
+def _upsert_research(state: DwdState, *, row_batch: Batch) -> None:
+    """研究数据集 upsert：批次已按 (as_of, fetched_at, batch_id) 排序，后写覆盖。
+
+    不做修订留痕（研究态快照；修订表只服务行情 bar）。批次内主键重复记 STRUCT-02，
+    因为无法判定哪一行可信（与 bar 同规则）。
+    """
+    endpoint = row_batch.endpoint
+    target: dict[tuple[Any, ...], dict[str, Any]] = getattr(state, endpoint)
+    fields = RESEARCH_VALUE_FIELDS[endpoint]
+    seen: set[tuple[Any, ...]] = set()
+    for row in row_batch.rows:
+        key = _research_key(endpoint, row)
+        if key in seen:
+            state.issues.append(
+                BuildIssue(
+                    rule_id="STRUCT-02",
+                    severity="blocker",
+                    instrument_id=str(row.get("instrument_id") or row.get("exchange") or ""),
+                    trade_date=row.get("trade_date"),
+                    detail=f"研究批次 {row_batch.batch_id} 内主键重复: {key}",
+                )
+            )
+            continue
+        seen.add(key)
+        record = {field: row.get(field) for field in fields}
+        record.update(
+            {
+                **{field: row[field] for field in RESEARCH_KEY_FIELDS.get(endpoint, ("instrument_id", "trade_date"))},
+                "source": row_batch.source.source,
+                "as_of": row_batch.source.as_of,
+                "fetched_at": row_batch.source.fetched_at,
+                "batch_id": row_batch.batch_id,
+                "ingested_at": row_batch.source.fetched_at,
+            }
+        )
+        existing = target.get(key)
+        if existing is None or any(existing.get(field) != record.get(field) for field in fields):
+            target[key] = record

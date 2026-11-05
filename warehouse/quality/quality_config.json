@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "weights": {
     "struct": 0.2,
     "business": 0.3,
@@ -64,6 +64,22 @@
     },
     "CONS-02": {
       "severity": "blocker"
+    },
+    "RES-01": {
+      "severity": "blocker",
+      "category": "completeness"
+    },
+    "RES-02": {
+      "severity": "blocker",
+      "category": "business"
+    },
+    "RES-03": {
+      "severity": "blocker",
+      "category": "consistency"
+    },
+    "RES-04": {
+      "severity": "blocker",
+      "category": "completeness"
     }
   },
   "board_limit_pct": {
@@ -76,5 +92,6 @@
   "st_limit_boards": [
     "main"
   ],
-  "limit_tolerance_pp": 0.5
+  "limit_tolerance_pp": 0.5,
+  "ruleset_note": "v2（2026-11-05）：新增研究数据集 4 条规则 RES-01..04（KD-INGEST-CONSUME）；before/after 见 docs/metrics/P0-metrics.md §9"
 }

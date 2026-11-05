@@ -205,3 +205,65 @@ FROM (
     FROM dwd_fundamental_report AS r
 ) AS t
 WHERE t.rn = 1;
+
+-- --------------------------------------------------------------------------
+-- 6–12. 研究数据集只读视图（KD-INGEST-CONSUME / ADR-007 第 2 批）
+--    * 仅供内部 /v1/internal/* 与研究消费；**不接 C 端契约**（C 端仍 internal_eval 403）。
+--    * 字段名保持 A1 canonical（provisional=True，待 H4 对齐），不做重命名。
+--    * top_inst 数据缺失时 view 返回 0 行，不报错（5000 分档可能不可用）。
+-- --------------------------------------------------------------------------
+CREATE OR REPLACE VIEW serving.serving_research_daily_basic AS
+SELECT instrument_id, trade_date, close,
+       turnover_rate_pct, free_float_turnover_rate_pct, volume_ratio,
+       pe, pe_ttm, pb, ps, ps_ttm,
+       dividend_yield_pct, dividend_yield_ttm_pct,
+       total_shares, float_shares, free_float_shares,
+       total_market_value, circulating_market_value,
+       limit_status, source, as_of,
+       GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_daily_basic;
+
+CREATE OR REPLACE VIEW serving.serving_research_index_daily AS
+SELECT instrument_id, trade_date, open, high, low, close, prev_close,
+       change, pct_change_pct, volume, amount, source, as_of,
+       GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_index_daily;
+
+CREATE OR REPLACE VIEW serving.serving_research_top_list AS
+SELECT instrument_id, trade_date, name, close, pct_change_pct, turnover_rate_pct,
+       amount, lhb_sell_amount, lhb_buy_amount, lhb_amount, lhb_net_amount,
+       lhb_net_rate_pct, lhb_amount_rate_pct, float_market_value,
+       reason, source, as_of,
+       GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_top_list;
+
+CREATE OR REPLACE VIEW serving.serving_research_top_inst AS
+SELECT instrument_id, trade_date, seat_name, side,
+       buy_amount, buy_rate_pct, sell_amount, sell_rate_pct, net_buy_amount,
+       reason, source, as_of,
+       GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_top_inst;
+
+CREATE OR REPLACE VIEW serving.serving_research_moneyflow AS
+SELECT instrument_id, trade_date,
+       buy_small_volume, buy_small_amount, sell_small_volume, sell_small_amount,
+       buy_medium_volume, buy_medium_amount, sell_medium_volume, sell_medium_amount,
+       buy_large_volume, buy_large_amount, sell_large_volume, sell_large_amount,
+       buy_extra_large_volume, buy_extra_large_amount, sell_extra_large_volume, sell_extra_large_amount,
+       net_inflow_volume, net_inflow_amount, source, as_of,
+       GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_moneyflow;
+
+CREATE OR REPLACE VIEW serving.serving_research_margin AS
+SELECT exchange, trade_date,
+       financing_balance, financing_buy_amount, financing_repayment_amount,
+       securities_balance, securities_sell_volume, margin_balance, securities_volume,
+       source, as_of,
+       GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_margin;
+
+CREATE OR REPLACE VIEW serving.serving_research_hk_hold AS
+SELECT instrument_id, trade_date, name, holding_volume, holding_ratio_pct,
+       northbound_channel, source, as_of,
+       GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_hk_hold;

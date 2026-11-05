@@ -276,7 +276,7 @@ ORDER BY trade_date;
 - 计分（L9 裁定，待 H4 会签）：`类别分 = 100 × (1 − 该类别命中 blocker 的不同规则数 / 该类别规则总数)`；
   `总分 = Σ 权重 × 类别分`，保留 2 位。
   - 分子**按规则去重**：同一规则命中多条违规只算 1（避免样本量放大/缩小分数）；分母 = 该类别在
-    `quality_config.json::rules` 声明的规则总数（结构 6 / 业务规则 3 / 完整性及时性 3 / 一致性 2；L80 新增 BIZ-03 warn 后业务类为 3）。
+    `quality_config.json::rules` 声明的规则总数（结构 6 / 业务规则 4 / 完整性及时性 5 / 一致性 3；共 18 条。业务类含 BIZ-02/BIZ-03 两条 warn；研究域 RES-01..04 于 2026-11-05 按 KD-INGEST-CONSUME 加入）。
   - `warn`（如 BIZ-02 缺基准）**不进分子**，但计入该类规则总数；`warn` 条数单列为告警指标。
   - 报告输出两个独立指标：`score`（质量分）与 `violation_counts`（blocker/warn 逐条计数）。
   - 理由：P0 只有 22 条正例样本；warn 若参与计分会让整批从绿转黄，从而诱使团队调阈值，
@@ -286,7 +286,7 @@ ORDER BY trade_date;
   <85 black（阻断下游）**；H4-D8 已批准该分档。
 - **一票否决**：任一 `blocker` 级违规 → 直接 `black` + `blocked=true`。
   理由：门禁验收条件是"改坏一条数据必须红灯"。单条 blocker 在规则数分母下最多拉低一个类别
-  （如业务规则命中 1/3 → 类别分 66.67、总分 90），可能停在 red 而非 black；否决规则保证阻断语义明确。
+  （如业务规则命中 1/4 → 类别分 75.00、总分 92.5），可能停在 red 而非 black；否决规则保证阻断语义明确。
   阈值本身不放宽，否决规则叠加在阈值之上（待 H4 签字确认该叠加方式）。
 - 规则清单（id ↔ 实现 `warehouse/quality/checks.py`）：
 
@@ -295,7 +295,8 @@ ORDER BY trade_date;
 | 结构 struct | STRUCT-01 必填/类型；STRUCT-02 主键唯一；STRUCT-03 OHLC 关系 `high ≥ max(open,close) ≥ min(open,close) ≥ low`；STRUCT-04 价格 > 0、volume/amount ≥ 0；STRUCT-05 价格小数位 ≤ 2；STRUCT-06 因子 > 0 且每根 bar 有因子 |
 | 业务 business | BIZ-01 涨跌幅在板块限内（容差 0.5pp，上市首日豁免；未知板块 fail-closed）；BIZ-02 prev_close 缺失（warn）；BIZ-03 ST 时点性限制（warn，L80） |
 | 完整性/及时性 completeness | COMP-01 无周末 bar；COMP-02 as_of 属当日 ≥15:00（T 日收盘后取数）；COMP-03 工作日覆盖（bar ∪ 停牌证据） |
-| 一致性 consistency | CONS-01 prev_close = 前一交易日 close（除权日因因子变化豁免 / 首日豁免）；CONS-02 bar/因子引用的 instrument 必须在 dim_instrument |
+| 一致性 consistency | CONS-01 prev_close = 前一交易日 close（除权日因因子变化豁免 / 首日豁免）；CONS-02 bar/因子引用的 instrument 必须在 dim_instrument；RES-03 研究数据 instrument_id 必须在 dim_instrument（index_daily 指数、margin 无 instrument 豁免） |
+| 研究数据 research（按类别归入） | **RES-01**（完整性）研究数据集交易日为工作日；**RES-02**（业务）研究指标量纲：金额/量/市值非负、百分比 \|x\| ≤ 1000；**RES-03**（一致性）外键一致；**RES-04**（完整性）研究批次 `as_of ≥ trade_date 15:00`。四条均 blocker（研究域 provisional，待 H4 对齐） |
 
 ## 7. 待确认事项（未签字前按本文实现，签字后另起变更）
 
@@ -348,6 +349,13 @@ ORDER BY trade_date;
 - 签字人 / 日期：H4（数据负责人） / 2026-11-04
 - 备注：条件见 `p0_metrics.json::sign_off.conditions`——L3 锚变更须重签；M04 ST 按 L80 当前名称快照（BIZ-03 warn 单列，P1 namechange 到位后转 blocker）；规则集变化须记 before/after 且不得借新增 warn 规则跨阈值；M03/M05/M06/M07 数据未到不得进 C 端。
 
+### 签署后规则集变更（2026-11-05，待 H4 备案）
+
+- 新增 RES-01..04（研究数据集，均 blocker）：业务规则数 3→4、完整性及时性 3→5、一致性 2→3；结构 6 不变。
+- 同一 blocker（BIZ-01）命中时 business 类别分 **66.67→75.00**、总分 **90.00→92.50**，仍因一票否决 `black`；
+  阈值、权重、否决规则均不变，门禁结论不变（仍阻断）。新增规则只作用于研究数据集，不影响 P0 行情门禁结论。
+- `quality_config.json` version 1→2；`ruleset_note` 记录本次变更。请 H4 在 §8 备注或 decisions 中确认备案。
+
 ## 9. 变更记录
 
 | 日期 | 变更 | 签字 |
@@ -357,4 +365,5 @@ ORDER BY trade_date;
 | 2026-11-04 | 记录 L9（质量分只计 blocker，warn 独立计数）与 §8 H4 会签清单；新增 G21（ST 恰好 +5.00%）边界样本 | 待 H4 |
 | 2026-11-04 | H4 核签 2026-11-04 后修复：M04 未知板块 fail-closed（`limit_status=NULL`，BIZ-01 blocker）+ ST 时点性 L80（`known_limitation`/`st_status_source`、BIZ-03 warn）；M02 注释改 L3 锚并输出 `anchor_date`/`factor_version`/`factor_as_of`；新增 G22 取整边界 | H4 重签通过 |
 | 2026-11-04 | **规则集变更 before/after（H4 条件 3）**：新增 BIZ-03（warn）后业务规则数 2→3；同一 blocker（BIZ-01）命中时 business 类别分 **50.00→66.67**、总分 **85.00→90.00**，仍因一票否决 `black`；结构 6 / 完整性 3 / 一致性 2 不变。阈值、权重、否决规则均不变；该变化不改变任何门禁结论。**signed / H4 / 2026-11-04 / 条件见 `sign_off.conditions`** | 已签 |
+| 2026-11-05 | 研究数据集（KD-INGEST-CONSUME）：DWD 新增 7 表、serving 新增 7 个 `serving_research_*` 内部 view（不接 C 端）；质量规则新增 RES-01..04（blocker），规则数 14→18，before/after：业务 3→4（同一 blocker 66.67→75.00、总分 90.00→92.50，仍 black）、完整性 3→5、一致性 2→3；阈值/权重/否决不变 | 待 H4 备案 |
 | 2026-11-04 | H4 会签 §8 十项：#1/#2/#4/#5/#7/#8/#9/#10 同意；#3 按 L80 条件收（时点 ST 限制+BIZ-03 warn，未知板 fail-closed）；#6 L3 条件已落（anchor_date/factor_version、锚变重签）。条件见 `p0_metrics.json::sign_off.conditions` | H4（signed） |

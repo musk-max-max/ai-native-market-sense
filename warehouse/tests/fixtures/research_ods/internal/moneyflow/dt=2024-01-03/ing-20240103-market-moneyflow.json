@@ -1,0 +1,36 @@
+{
+  "batch_id": "ing-20240103-market-moneyflow",
+  "endpoint": "moneyflow",
+  "rows": [
+    {
+      "buy_extra_large_amount": "50700000.00",
+      "buy_extra_large_volume": "30000",
+      "buy_large_amount": "84500000.00",
+      "buy_large_volume": "50000",
+      "buy_medium_amount": "135200000.00",
+      "buy_medium_volume": "80000",
+      "buy_small_amount": "202800000.00",
+      "buy_small_volume": "120000",
+      "instrument_id": "SSE:600519",
+      "net_inflow_amount": "101400000.00",
+      "net_inflow_volume": "60000",
+      "sell_extra_large_amount": "33800000.00",
+      "sell_extra_large_volume": "20000",
+      "sell_large_amount": "67600000.00",
+      "sell_large_volume": "40000",
+      "sell_medium_amount": "118300000.00",
+      "sell_medium_volume": "70000",
+      "sell_small_amount": "152100000.00",
+      "sell_small_volume": "90000",
+      "trade_date": "2024-01-03"
+    }
+  ],
+  "rows_rejected": 0,
+  "rows_total": 1,
+  "schema": "moneyflow.v1",
+  "source": {
+    "as_of": "2024-01-03T20:05:00+08:00",
+    "fetched_at": "2024-01-03T20:06:00+08:00",
+    "source": "tushare.research.fixture"
+  }
+}

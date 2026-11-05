@@ -50,6 +50,10 @@ RULE_META: dict[str, tuple[str, str]] = {
     "COMP-03": ("completeness", "工作日覆盖：bar 或停牌证据必须覆盖每个工作日"),
     "CONS-01": ("consistency", "prev_close 与前一日 close 一致（除权日/首日豁免）"),
     "CONS-02": ("consistency", "bar/因子引用的 instrument 必须存在于 dim_instrument"),
+    "RES-01": ("completeness", "研究数据集交易日为工作日"),
+    "RES-02": ("business", "研究指标量纲：金额/量/市值非负，百分比 |x| ≤ 1000"),
+    "RES-03": ("consistency", "研究数据 instrument_id 必须存在于 dim_instrument（指数/两融豁免）"),
+    "RES-04": ("completeness", "研究批次 as_of ≥ 交易日 15:00 且 fetched_at ≥ as_of"),
 }
 CLOSE_TIME = time(15, 0, tzinfo=timezone(timedelta(hours=8)))
 PRICE_STEP = Decimal("0.01")
@@ -158,6 +162,18 @@ def round_price(value: Decimal) -> Decimal:
     return value.quantize(PRICE_STEP)
 
 
+# 研究数据集：哪些 endpoint 的 instrument_id 必须能在 dim_instrument 找到。
+# index_daily 的 instrument_id 是指数（不在 dim_instrument）；margin 以 exchange 为主键、无 instrument_id。
+RESEARCH_INSTRUMENT_ENDPOINTS = frozenset(
+    {"daily_basic", "top_list", "top_inst", "moneyflow", "hk_hold"}
+)
+# 允许为负的业务字段（净额/涨跌/理论可负的净率）；其余金额/量/余额/股本/市值不得为负。
+RESEARCH_SIGNED_FIELDS = frozenset(
+    {"change", "lhb_net_amount", "lhb_net_rate_pct", "net_buy_amount", "net_inflow_amount", "net_inflow_volume"}
+)
+RESEARCH_PCT_ABS_LIMIT = Decimal(1000)
+
+
 class _Collector:
     def __init__(self, config: dict[str, Any]):
         self.config = config
@@ -214,6 +230,7 @@ def run_quality_checks(state: DwdState, config: dict[str, Any] | None = None) ->
         _check_factor(c, state, factor)
     _check_coverage(c, state)
     _check_prev_close(c, state)
+    _check_research(c, state)
 
     rule_totals = {
         cat: sum(1 for rid in config["rules"] if RULE_META[rid][0] == cat)
@@ -448,3 +465,77 @@ def _previous_bar(state: DwdState, instrument_id: str, trade_date: date) -> dict
 def assert_calendar_safe(trade_date: date) -> None:  # pragma: no cover - 占位，P1 接交易日历服务
     """P0 用自然工作日近似交易日历；节假日会误报 COMP-03，已在 docs 待确认项登记。"""
     parse_date(trade_date.isoformat(), where="calendar")
+
+
+# --------------------------------------------------------------------------
+# 研究数据集（KD-INGEST-CONSUME：daily_basic/index_daily/top_list/top_inst/
+# moneyflow/margin/hk_hold）。研究态 last-write-wins，无 revision；质量规则
+# 只做量纲/日期/外键/及时性四类最小校验，字段映射 provisional（待 H4）。
+# --------------------------------------------------------------------------
+RESEARCH_STATE_TABLES: tuple[str, ...] = (
+    "daily_basic",
+    "index_daily",
+    "top_list",
+    "top_inst",
+    "moneyflow",
+    "margin",
+    "hk_hold",
+)
+
+
+def _research_id(row: dict[str, Any]) -> str:
+    return str(row.get("instrument_id") or row.get("exchange") or "")
+
+
+def _check_research(c: _Collector, state: DwdState) -> None:
+    for endpoint in RESEARCH_STATE_TABLES:
+        rows = getattr(state, endpoint).values()
+        for row in rows:
+            _check_research_row(c, state, endpoint, row)
+
+
+def _check_research_row(
+    c: _Collector, state: DwdState, endpoint: str, row: dict[str, Any]
+) -> None:
+    iid, td = _research_id(row), row["trade_date"]
+
+    # RES-01：交易日必须是工作日（研究数据不得出现周末行）。
+    c.bump("RES-01")
+    if td.weekday() >= 5:
+        c.flag("RES-01", iid, td, f"{endpoint} 的 trade_date={td} 落在周末")
+
+    # RES-02：量纲与符号。金额/量/余额/股本/市值非负，百分比不超过 ±1000。
+    c.bump("RES-02")
+    for key, value in row.items():
+        if not isinstance(value, Decimal) or key.endswith(("_at", "_date")):
+            continue
+        if key.endswith("_pct"):
+            if key in RESEARCH_SIGNED_FIELDS:
+                continue
+            if abs(value) > RESEARCH_PCT_ABS_LIMIT:
+                c.flag("RES-02", iid, td, f"{endpoint}.{key}={value} 超出百分比量纲（|x|≤1000）")
+            continue
+        if key in RESEARCH_SIGNED_FIELDS:
+            continue
+        if any(token in key for token in ("amount", "volume", "balance", "shares", "market_value")):
+            if value < 0:
+                c.flag("RES-02", iid, td, f"{endpoint}.{key}={value} 为负")
+
+    # RES-03：股票级数据集的 instrument_id 必须在 dim_instrument。
+    if endpoint in RESEARCH_INSTRUMENT_ENDPOINTS:
+        c.bump("RES-03")
+        if iid not in state.instruments:
+            c.flag("RES-03", iid, td, f"{endpoint} 引用的 {iid} 不在 dim_instrument")
+
+    # RES-04：研究批次及时性（as_of 不早于交易日 15:00；fetched_at ≥ as_of 由 loader 保证）。
+    c.bump("RES-04")
+    as_of = row.get("as_of")
+    if as_of is not None:
+        threshold = datetime.combine(td, CLOSE_TIME)
+        if as_of < threshold:
+            c.flag(
+                "RES-04",
+                iid,
+                td,
+                f"{endpoint} 的 as_of={as_of.isoformat()} 早于 trade_date={td} 15:00",
+            )

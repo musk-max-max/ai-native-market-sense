@@ -175,6 +175,36 @@ psql "$DATABASE_URL" -f warehouse/serving/schema.sql
 ```
 
 
+### 6.1 研究数据集（KD-INGEST-CONSUME；内部只读，不接 C 端）
+
+A1 把 7 个研究数据集写入 `<ODS_ROOT>/internal/<endpoint>/dt=<trade_date>/<batch_id>.json`（schema `<endpoint>.v1`，
+信封与 ODS v1 相同）。A2 只消费 ODS，**不二次换算单位**（A1 适配层已把万/千/手换成元/股/百分数）。
+
+| DWD 表 | serving view | 关键列 |
+| --- | --- | --- |
+| `dwd_daily_basic` | `serving.serving_research_daily_basic` | close / pe / pe_ttm / pb / ps / ps_ttm / turnover_rate_pct / volume_ratio / total_market_value / limit_status |
+| `dwd_index_daily` | `serving.serving_research_index_daily` | OHLC / prev_close / change / pct_change_pct / volume / amount（5 个基准指数） |
+| `dwd_top_list` | `serving.serving_research_top_list` | reason 原文保留（M05）；lhb_* 金额 |
+| `dwd_top_inst` | `serving.serving_research_top_inst` | 机构席位明细：seat_name / side(0 买、1 卖) / buy|sell_amount / net_buy_amount |
+| `dwd_moneyflow` | `serving.serving_research_moneyflow` | 五档买卖 volume/amount + net_inflow_* |
+| `dwd_margin` | `serving.serving_research_margin` | 两融余额/买入/偿还/融券（PK exchange+trade_date，无 instrument_id） |
+| `dwd_hk_hold` | `serving.serving_research_hk_hold` | 北向持股 volume/ratio/channel |
+
+边界（不可越线）：
+
+- **不接 C 端契约**：这 7 个数据集只进 internal root + DWD + `serving_research_*` 内部 view；C 端仍
+  `internal_eval` 恒 403，`serving/ports.yaml` 不新增方法。B2 功能点走 `/v1/internal/*`，需 H2 签字后另立任务。
+- **字段映射 provisional**：保持 A1 canonical 字段名，不重命名；待 H4 对齐后才可作为正式指标口径。
+- **top_inst 依赖 5000 分档**：数据缺失时 DWD 无行、view 返回空，不报错（load/pipeline 不因缺该 endpoint 失败）。
+- 研究 DWD 为 **last-write-wins**（无 revision 列）；质量规则 RES-01..04（工作日 / 量纲 / 外键 / as_of 及时性）覆盖。
+- 本地链路验证（fixture 由 A1 `research.map_row` 生成）：
+
+```bash
+python3 -m warehouse.load \
+  --ods-root warehouse/tests/fixtures/research_ods --profile dev --dry-run
+python3 -m pytest warehouse/tests/test_research.py -q
+```
+
 ## 7. 落库（P0 唯一写库路径：`warehouse/load.py`）
 
 链路：`ODS 批次（L34：display + internal 两个 root）→ load_ods_roots（格式/来源校验，按 root 标记 origin）→ build_dwd（复用同一份 DWD 行）→ 质量门禁 → 单事务 upsert`。
