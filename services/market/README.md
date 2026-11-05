@@ -1,6 +1,6 @@
 # services/market —— A3 行情/内容域插件
 
-按 `contracts/{market,fundamental,watchlist}/openapi.yaml`（0.2.0）实现，导出 Fastify plugin 由 `services/api` 外壳挂载。
+按 `contracts/{market,fundamental,watchlist}/openapi.yaml`（market 0.4.0 / fundamental 0.2.0 / watchlist 0.3.0）实现，导出 Fastify plugin 由 `services/api` 外壳挂载。
 **不拥有** Fastify 实例、全局错误映射、进程入口；`/healthz` 的存活语义归 A0，本域只通过 `marketPlugin.health()`
 贡献 `data_ready` / `data_ready_reason` / `data_quality` 三个字段（见下文「数据就绪」）。**不直接读** `warehouse/` 的 dwd/dim 表（只读 A2 的 `serving.*` view）。
 
@@ -13,6 +13,9 @@
 | GET | `/instruments/{instrument_id}/bars` | 同上 | `serving.serving_bar_daily`（adj_type 已固化，TS 不复权） |
 | GET | `/instruments/{instrument_id}/fundamental-summary` | 同上 | `serving.serving_fundamental_summary`（P0 常无数据 → 404 NOT_FOUND） |
 | GET/POST/DELETE | `/watchlist[/{instrument_id}]` | bearerAuth；恒 `platform_user_data/true`，不参与 F1 矩阵 | 本域表 `watchlist_items`（迁移 `migrations/001_watchlist.sql`） |
+| GET | `/watchlist/review` | bearerAuth；已授权 200 / 受限 403；`meta=platform_eod` + adjustment + disclaimer | `serving.*` bars + 自选清单（B1-01） |
+| GET | `/market/limit-ladder` | 已授权 200 / 受限 403（只读行情聚合） | `serving.serving_bar_daily` + `serving_instrument`（B1-02） |
+| GET | `/instruments/{instrument_id}/page-summary` | 已授权 200；受限/降级 200 + restricted 骨架（无行情数值） | quote + fundamental（B1-03） |
 
 403 Problem 的人类可读层为中性产品语言（`title=行情数据暂不可用`、`detail=当前版本暂不提供该标的行情数据`），**不得出现「授权/未取得/法律」等定性**；`code=ENTITLEMENT_RESTRICTED` 保持不变（机器可读、契约冻结，A11/A12 断言依赖）。契约未要求客户端回显该码，前端如塞进 DOM 属性属二次暴露（A7 在改）。
 
@@ -26,7 +29,7 @@ import { marketPlugin } from '../../market/src/plugin.js';
 export const domainPlugins = [marketPlugin];
 ```
 
-`marketPlugin` 已带 `Object.assign(..., { domain: 'market', contractVersion: '0.3.0' })`；插件自建 `pg.Pool`（`DATABASE_URL`）并在 `onClose` 中 `pool.end()`。单测用 `createMarketPlugin({ config, servingRepo, watchlistRepo, authenticate })` 注入假实现。
+`marketPlugin` 已带 `Object.assign(..., { domain: 'market', contractVersion: '0.4.0' })`；插件自建 `pg.Pool`（`DATABASE_URL`）并在 `onClose` 中 `pool.end()`。单测用 `createMarketPlugin({ config, servingRepo, watchlistRepo, authenticate })` 注入假实现。
 
 ## 配置（env，仅本域）
 
@@ -121,7 +124,7 @@ export const domainPlugins = [marketPlugin];
 
 ```bash
 pnpm --filter @market-sense/market typecheck   # tsc --noEmit（依赖 A0 修 packages/api-client/src/index.ts 的 SharedComponents 编译错误）
-pnpm --filter @market-sense/market test        # node:test + fastify.inject，124 条，无需 PG
+pnpm --filter @market-sense/market test        # node:test + fastify.inject，143 条，无需 PG
 ```
 
 测试覆盖：F1 三接口 403 / instrument 200+internal_eval / watchlist platform_user_data、blocked 时 403 先于 serving 读（正常档位存在性 404 保留）、
@@ -131,6 +134,34 @@ tier=internal_eval、非 internal 缺 expires/期望指纹拒绝启动、effecti
 getInstrument 白名单、**no-store、display_safe 受众过滤、control hold/stale/缺失/瞬态降级/熔断、指纹不一致、
 事件重试与上报、copy.ts 中性文案**、**KD-ENT-01 启动矩阵（`test/startup-matrix.test.ts`，18 组合：tier×profile×
 HOLD_CHECK×AUDIT×EXPECTED_SHA256 + L44/L46/L73 守卫；证明 fail-closed 四条同时生效）**。
+
+## B1 功能切片（ADR-007 §D5 第 1 批，确定性、无 LLM）
+
+三个端点只做确定性计算/汇总，不生成 AI 文案、不给投资结论；缺口一律显式（`gaps[].code`），不得用 0/"--"/空对象伪装。
+
+### B1-01 `GET /v1/watchlist/review`（自选组合绝对表现）
+
+- bearerAuth（私有自选数据）；`adjustment` 仅 `none|qfq`，默认 `qfq`；`from`/`to` 缺省由服务端按交易日历回溯（最多 250 个交易日），显式跨度 >250 交易日 → 400。
+- 只统计历史足够的标的：**少于 2 个日收益点不进入 `items`**，进 `gaps[]` 的 `PARTIAL_HISTORY`；不补数、不插值。
+- 区间收益 `(end/start-1)*100`；波动率=日收益样本标准差×√252×100；最大回撤 `≤0`（如 -12.34 表示 -12.34%）；等权组合=当日可用标的日收益等权平均后链式累乘，`portfolio` 在空自选/不足 2 个收益点时为 `null`。
+- `universe.count` 为自选总数，`indicators_available` 为实际进入 `items` 的标的数；相对基准/板块对比第 2 批（`BENCHMARK_PENDING`）。
+- 措辞固定为「自选组合」复盘，**不得称「真实持仓」**（P0 无持仓账本）。
+
+### B1-02 `GET /v1/market/limit-ladder`（涨跌停梯队，provisional）
+
+- 参数：`trade_date`（缺省库内最新交易日）、`lookback`（1–10，默认 10，连板回溯窗口）。
+- **P0 临时口径**（`rule.name=provisional_board_pct`、`rule.version=b1-02-provisional-v1`、`rule.price_basis=none`）：
+  主板 10%、创业板/科创板 20%、北交所 30%；ST/*ST 按 5% 判定但**一律不进梯队**，只进 `excluded_st`；仅 `security_type=stock && list_status=listed` 参与。
+- 价格以「分」整数比较（拒绝 >2 位小数）；涨停价=round(prev_close×(1+pct/100),2)，`close>=涨停价` 命中，跌停同理；`consecutive_boards` 从当日向前连续同向命中计数（缺 bar 打断），min 1、缺数据少报不猜。
+- 精确 `stk_limit` 待第 2 批（H4 确认后替换），因此 `gaps` 恒含 `STK_LIMIT_PRECISE_PENDING`、`MARKET_BREADTH_PENDING`；不含 LHB/两融/北向/大宗。
+
+### B1-03 `GET /v1/instruments/{instrument_id}/page-summary`（个股页五段骨架 + 缺口）
+
+- 固定五段各一次：`quote/fundamental/valuation/capital/risk`；`availability ∈ available|gap|pending|restricted`。
+- 第 1 批只有行情、财务摘要有真实数据；估值/资金/风险恒 `pending` + `DAILY_BASIC_MISSING`/`MONEYFLOW_MISSING`/`RISK_DATASETS_MISSING`。
+- 缺行情/财务 → `gap` + `DATA_NOT_READY`/`FUNDAMENTAL_NOT_READY`；**不得用 0/空串/骨架屏占位**。
+- 受限/降级档（`internal_eval`）仍 200：quote/fundamental 段 `restricted`、不带 `data_refs`/数值/内部原因；不读行情/财务，不暴露是否存在数据。标的确实不存在 → 404 `INSTRUMENT_NOT_FOUND`（正常档位）。
+- 只覆盖已接入标的；不伪装全市场。
 
 ## 真栈验证脚本（task-8 / A11 复跑）
 

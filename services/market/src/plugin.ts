@@ -56,6 +56,7 @@ import {
 import type { ServingRepo } from './ports/serving-repo.js';
 import type { WatchlistRepo } from './ports/watchlist-repo.js';
 import { registerMarketRoutes } from './routes.js';
+import { registerB1Routes } from './routes-b1.js';
 
 export interface MarketPluginOptions {
   /** 显式配置（测试）；缺省从 env 读取 */
@@ -241,14 +242,16 @@ async function installMarketPlugin(
     return payload;
   });
 
-  registerMarketRoutes(app, {
+  const routeDeps = {
     config,
     serving,
     watchlist,
     authenticate,
     cache: options.cache ?? new SnapshotCache(),
     entitlement: gate,
-  });
+  } as const;
+  registerMarketRoutes(app, routeDeps);
+  registerB1Routes(app, routeDeps);
 
   if (options.pool === undefined && pool !== null) {
     const ownedPool = pool;
@@ -277,7 +280,7 @@ function buildPlugin(
     }) as FastifyPluginAsync<DomainPluginOptions>,
     {
       domain: 'market',
-      contractVersion: '0.3.0',
+      contractVersion: '0.4.0',
       health: createMarketHealthContribution(env, () => {
         const status = healthState.gate?.status();
         return status === undefined ? { degraded: false } : status;

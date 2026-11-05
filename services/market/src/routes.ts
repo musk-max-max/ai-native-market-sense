@@ -63,7 +63,7 @@ function asRecord(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
 }
 
-function parseInstrumentId(request: FastifyRequest): string {
+export function parseInstrumentId(request: FastifyRequest): string {
   const value = asRecord(request.params).instrument_id;
   if (typeof value !== 'string' || !INSTRUMENT_ID_PATTERN.test(value)) {
     throw validationError();
@@ -71,7 +71,7 @@ function parseInstrumentId(request: FastifyRequest): string {
   return value;
 }
 
-function isCalendarDate(value: string): boolean {
+export function isCalendarDate(value: string): boolean {
   const [yearText, monthText, dayText] = value.split('-');
   const year = Number(yearText);
   const month = Number(monthText);

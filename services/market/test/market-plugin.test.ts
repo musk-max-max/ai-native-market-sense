@@ -942,10 +942,10 @@ describe('market 插件：H3 红线与降级边界', () => {
     await app.close();
   });
 
-  it('插件导出 shell 需要的元数据（domain=market, contractVersion=0.3.0）', () => {
+  it('插件导出 shell 需要的元数据（domain=market, contractVersion=0.4.0）', () => {
     const plugin = createMarketPlugin({ config: marketConfig(), servingRepo: new FakeServing(), watchlistRepo: new FakeWatchlist() });
     assert.equal(plugin.domain, 'market');
-    assert.equal(plugin.contractVersion, '0.3.0');
+    assert.equal(plugin.contractVersion, '0.4.0');
   });
 });
 
