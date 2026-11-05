@@ -144,5 +144,36 @@
       "approved_by": null
     }
   },
-  "change_process": "先改 docs/metrics/P0-metrics.md → H4 签字 → 再改 SQL/代码；docs 与 SQL 由 warehouse/tests/test_docs_sql_sync.py 强制一致"
+  "change_process": "先改 docs/metrics/P0-metrics.md → H4 签字 → 再改 SQL/代码；docs 与 SQL 由 warehouse/tests/test_docs_sql_sync.py 强制一致",
+  "research_datasets": {
+    "note": "研究数据集（ADR-007 第 2 批）当前状态；internal-only，不进 C 端契约。hk_hold 在 A1 港股后缀映射落地前 blocked。",
+    "datasets": {
+      "daily_basic": {
+        "status": "active_internal"
+      },
+      "index_daily": {
+        "status": "active_internal"
+      },
+      "top_list": {
+        "status": "active_internal"
+      },
+      "top_inst": {
+        "status": "active_internal",
+        "note": "依赖 5000 分档；缺失时 view 空/缺口不报错"
+      },
+      "moneyflow": {
+        "status": "active_internal"
+      },
+      "margin": {
+        "status": "active_internal"
+      },
+      "hk_hold": {
+        "status": "blocked",
+        "blocked_by": "A1 适配层缺港股后缀映射（00700.HK → HKEX:00700）；读取端已支持 HKEX 命名空间",
+        "fixture": "warehouse/tests/fixtures/research_ods/internal/hk_hold 仅命名空间健壮性样例（source=a2.fixture.hkex_namespace），不作为数据验收依据",
+        "unblock": "A1 映射落地后重跑全量套件并回报 H4/lead",
+        "since": "2026-11-05"
+      }
+    }
+  }
 }
