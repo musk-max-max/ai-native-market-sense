@@ -41,3 +41,6 @@ htmlcov/
 test-results/
 playwright-report/
 blob-report/
+
+# A11 research-boundary runtime evidence (release job temp output)
+tests/data/acceptance/artifacts/research-source-boundary-*.md
