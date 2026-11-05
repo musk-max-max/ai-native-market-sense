@@ -18,6 +18,16 @@ BOUNDARY_CASES = {
     "G13": "新股首日",
     "G21": "ST 恰好 +5.00% 边界",
     "G22": "ST 限价取整边界（10.5525→10.55）",
+    "G25": "主板 ST 2026-07-06 前 5% 恰好边界",
+    "G26": "主板 ST 2026-07-06 起 10% 生效日边界",
+    "G27": "创业板 2020-08-24 前 10%",
+    "G28": "创业板 2020-08-24 起 20%",
+    "G29": "主板 S 股 5%",
+    "G30": "北交所 2021-11-15 前无口径（NULL）",
+    "G31": "北交所 2021-11-15 起 30%",
+    "G32": "新股首日无涨跌幅（NULL）",
+    "G33": "RES-05 2026-07 后 ST 10% 档候选重算",
+    "G34": "RES-05 北交所 920xxx 分档取整（截断）",
 }
 
 
@@ -25,11 +35,11 @@ def _results():
     return {r.case_id: r for r in run_fixture(FIXTURE)}
 
 
-def test_fixture_has_22_positive_and_9_negative():
+def test_fixture_has_34_positive_and_9_negative():
     cases = load_fixture(FIXTURE)["cases"]
     positive = [c for c in cases if c["id"].startswith("G")]
     negative = [c for c in cases if c["id"].startswith("N")]
-    assert len(positive) == 24, f"golden 正例应为 24 条，实际 {len(positive)}"
+    assert len(positive) == 34, f"golden 正例应为 34 条，实际 {len(positive)}"
     assert len(negative) == 9, f"golden 负例应为 9 条，实际 {len(negative)}"
 
 

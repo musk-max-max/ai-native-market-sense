@@ -21,7 +21,7 @@ import json
 import re
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta, timezone
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import ROUND_DOWN, ROUND_HALF_UP, ROUND_UP, Decimal
 from pathlib import Path
 from typing import Any
 
@@ -43,7 +43,7 @@ RULE_META: dict[str, tuple[str, str]] = {
     "STRUCT-04": ("struct", "价格 > 0，volume/amount ≥ 0"),
     "STRUCT-05": ("struct", "价格小数位 ≤ 2（人民币分）"),
     "STRUCT-06": ("struct", "复权因子 > 0 且每根 bar 都有因子"),
-    "BIZ-01": ("business", "涨跌幅在板块限内（主板 10% / ST 5% / 创业科创 20% / 北交所 30%）"),
+    "BIZ-01": ("business", "涨跌幅在当日板块限内（M04 时点规则：主板 10% / 主板 ST *2026-07-06 前 5%、之后 10% / 创业板 *2020-08-24 前 10%、之后 20% / 科创 20% / 北交所 2021-11-15 后 30%、之前不判 / 主板 S 股 5% / 首日不判）"),
     "BIZ-02": ("business", "涨跌幅基准 prev_close 缺失（告警，上市首日豁免）"),
     "BIZ-03": ("business", "ST 判定时点性限制（warn：当前名称快照 vs 历史交易日，L80）"),
     "COMP-01": ("completeness", "不生成周末 bar"),
@@ -162,11 +162,47 @@ def is_st(instrument: dict[str, Any] | None) -> bool:
     return name.startswith("ST")
 
 
-def board_limit_pct(instrument: dict[str, Any], config: dict[str, Any]) -> Decimal:
-    board = instrument["board"]
-    if is_st(instrument) and board in config.get("st_limit_boards", ["main"]):
-        return Decimal(str(config["st_limit_pct"]))
-    return Decimal(str(config["board_limit_pct"][board]))
+def is_s_share(instrument: dict[str, Any] | None) -> bool:
+    """主板 S 股（如 600182 S佳通）：名称以 S 开头但不是 ST/*ST，限价 5%。"""
+    if not instrument:
+        return False
+    name = str(instrument.get("name", "")).upper().replace("*", "").strip()
+    return name.startswith("S") and not name.startswith("ST")
+
+
+def _regime_date(config: dict[str, Any], key: str, fallback: str) -> date:
+    return date.fromisoformat(str(config.get("limit_regimes", {}).get(key, fallback)))
+
+
+def board_limit_pct(instrument: dict[str, Any], trade_date: date, config: dict[str, Any]) -> Decimal | None:
+    """M04 时点规则：按板块 + 交易日给出当日涨跌幅上限（%）。
+
+    返回 None 表示该交易日无涨跌幅限制（首日、或北交所 2021-11-15 前不猜精选层规则），
+    调用方必须跳过判定而不是按 0/no-limit 处理。
+    """
+    board = instrument.get("board")
+    if board is None:
+        return None
+    listed_at = instrument.get("listed_at")
+    if listed_at is not None and listed_at == trade_date:
+        return None  # 首日无涨跌幅；新股上市初期特殊档 P1 处理
+    if board == "main":
+        if is_st(instrument):
+            start = _regime_date(config, "main_st_10pct_from", "2026-07-06")
+            return Decimal("10.0") if trade_date >= start else Decimal(str(config["st_limit_pct"]))
+        if is_s_share(instrument):
+            return Decimal(str(config.get("s_limit_pct", 5.0)))
+        return Decimal(str(config["board_limit_pct"]["main"]))
+    if board == "gem":
+        start = _regime_date(config, "gem_20pct_from", "2020-08-24")
+        return Decimal("20.0") if trade_date >= start else Decimal(str(config["board_limit_pct"]["main"]))
+    if board == "star":
+        start = _regime_date(config, "star_open_from", "2019-07-22")
+        return None if trade_date < start else Decimal(str(config["board_limit_pct"]["star"]))
+    if board == "bse":
+        start = _regime_date(config, "bse_30pct_from", "2021-11-15")
+        return None if trade_date < start else Decimal(str(config["board_limit_pct"]["bse"]))
+    return None
 
 
 def round_price(value: Decimal) -> Decimal:
@@ -380,8 +416,10 @@ def _check_bar_business(c: _Collector, state: DwdState, bar: dict[str, Any], con
         c.flag("BIZ-01", iid, td, f"prev_close 必须 > 0: {prev_close}")
         return
 
+    limit_pct = board_limit_pct(instrument, td, config)
+    if limit_pct is None:
+        return  # 首日 / 北交所 2021-11-15 前：当日无涨跌幅限制口径，不判（M04 输出 NULL）
     c.bump("BIZ-01")
-    limit_pct = board_limit_pct(instrument, config)
     tolerance = Decimal(str(config["limit_tolerance_pp"]))
     change_pct = (bar["close"] / prev_close - 1) * PCT
     upper, lower = limit_pct + tolerance, -(limit_pct + tolerance)
@@ -596,6 +634,35 @@ def _check_research_row(
             )
 
 
+def _expected_limit_prices(iid: str, prev: Decimal, limit_pct: Decimal) -> tuple[Decimal, Decimal, Decimal]:
+    """按交易所取整口径重算涨跌停价，返回 (up, down, tolerance)。
+
+    A1 受控样本证据（2026-11-05）：SSE/SZSE 0.01 元 half-up；北交所 920xxx 涨停向下截断、
+    跌停向上截断（0.01 元）；北交所 900xxx 为 0.001 元报价单位、half-up。
+    容差只吸收十进制/浮点边界，不放宽分档（±0.005 / ±0.0005）。
+    """
+    code = iid.split(":", 1)[1] if ":" in iid else ""
+    bse_prefixes = ("43", "83", "87", "88", "92")
+    if iid.startswith("BSE:") and code.startswith(bse_prefixes):
+        # 北交所 A 股：涨停向下截断、跌停向上截断（0.01 元报价单位；A1 真实样本 354/354 命中）。
+        up = (prev * (1 + limit_pct / 100)).quantize(Decimal("0.01"), rounding=ROUND_DOWN)
+        down = (prev * (1 - limit_pct / 100)).quantize(Decimal("0.01"), rounding=ROUND_UP)
+        return up, down, Decimal("0.005")
+    if iid.startswith("SSE:") and code.startswith("900"):
+        # 沪市 B 股：0.001 美元报价单位，half-up（H4 规则未签，实现先行；测试标 pending-clarification）。
+        up = (prev * (1 + limit_pct / 100)).quantize(Decimal("0.001"), rounding=ROUND_HALF_UP)
+        down = (prev * (1 - limit_pct / 100)).quantize(Decimal("0.001"), rounding=ROUND_HALF_UP)
+        return up, down, Decimal("0.0005")
+    if iid.startswith("SZSE:") and code.startswith("200"):
+        # 深市 B 股：0.01 港元报价单位，half-up（同上，实现先行）。
+        up = (prev * (1 + limit_pct / 100)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        down = (prev * (1 - limit_pct / 100)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        return up, down, Decimal("0.005")
+    up = (prev * (1 + limit_pct / 100)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    down = (prev * (1 - limit_pct / 100)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    return up, down, Decimal("0.005")
+
+
 def _check_stk_limit(c: _Collector, row: dict[str, Any], td: date | None) -> None:
     """RES-05：只做原始价自洽，不派生 limit_pct/ST 档位（H4 口径待定，A2 不加工）。"""
     c.bump("RES-05")
@@ -618,13 +685,7 @@ def _check_stk_limit(c: _Collector, row: dict[str, Any], td: date | None) -> Non
         if limit_pct not in candidates:
             c.flag("RES-05", iid, td, f"limit_pct={limit_pct} 不属于 5/10/20/30 档")
         elif prev > 0:
-            up_expected = (prev * (1 + limit_pct / 100)).quantize(
-                Decimal("0.01"), rounding=ROUND_HALF_UP
-            )
-            down_expected = (prev * (1 - limit_pct / 100)).quantize(
-                Decimal("0.01"), rounding=ROUND_HALF_UP
-            )
-            tolerance = Decimal("0.005")
+            up_expected, down_expected, tolerance = _expected_limit_prices(iid, prev, limit_pct)
             if abs(up - up_expected) > tolerance:
                 c.flag(
                     "RES-05", iid, td,

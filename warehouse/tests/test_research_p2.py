@@ -474,7 +474,7 @@ def test_res_05_accepts_limit_pct_within_rounding_tolerance():
     assert "RES-05" not in _rules(report)
 
 
-def _stk_row(prev, up, down, pct, *, iid="SSE:600519", td=date(2024, 1, 2)):
+def _stk_row(prev, up, down, pct, *, iid="SSE:600519", td=date(2024, 1, 2), exchange="SSE"):
     return {
         "instrument_id": iid,
         "trade_date": td,
@@ -486,6 +486,31 @@ def _stk_row(prev, up, down, pct, *, iid="SSE:600519", td=date(2024, 1, 2)):
         "asset_type": "stock",
         "exchange": "SSE",
     }
+
+
+def test_res_05_bse_920_rounding_truncates():
+    """北交所 920xxx：涨停向下截断、跌停向上截断（A1 受控样本证据）。"""
+    row = _stk_row("1.26", "1.63", "0.89", "30", iid="BSE:920001", exchange="BSE")
+    report = _quality(stk=[row, {**STK_LIMIT[1], "instrument_id": "BSE:920001", "exchange": "BSE"}])
+    assert "RES-05" not in _rules(report)
+
+
+def test_res_05_bse_920_half_up_would_be_wrong():
+    row = _stk_row("1.26", "1.64", "0.88", "30", iid="BSE:920001", exchange="BSE")
+    report = _quality(stk=[row, {**STK_LIMIT[1], "instrument_id": "BSE:920001", "exchange": "BSE"}])
+    assert "RES-05" in _rules(report)
+
+
+@pytest.mark.skip(reason="沪市 B 股 900xxx 0.001 报价单位规则待 H4/A1 澄清（未签）")
+def test_res_05_sse_b_share_3dp_rounding():  # pragma: no cover
+    row = _stk_row("1.234", "1.358", "1.111", "10", iid="SSE:900901", exchange="SSE")
+    assert "RES-05" not in _rules(_quality(stk=[row]))
+
+
+@pytest.mark.skip(reason="深市 B 股 200xxx 0.01 港元报价单位规则待 H4/A1 澄清（未签）")
+def test_res_05_szse_b_share_rounding():  # pragma: no cover
+    row = _stk_row("1.23", "1.35", "1.11", "10", iid="SZSE:200002", exchange="SZSE")
+    assert "RES-05" not in _rules(_quality(stk=[row]))
 
 
 def test_res_05_low_price_rounding_135_is_valid():

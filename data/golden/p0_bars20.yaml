@@ -893,7 +893,7 @@ cases:
     blocked: false
     violations: []
 - id: G21
-  title: 主板 ST 恰好 +5.00%（涨停价边界）：不得误杀，也不得把恰好 5% 当违规
+  title: 主板 ST（2026-07-06 前 5% 规则）恰好 +5.00%（涨停价边界）：不得误杀，也不得把恰好 5% 当违规
   instrument:
     instrument_id: SSE:600703
     exchange: SSE
@@ -904,10 +904,10 @@ cases:
     list_status: listed
     lot_size: 100
     listed_at: '1996-05-28'
-  as_of: '2026-09-30T20:05:00+08:00'
-  fetched_at: '2026-09-30T20:06:00+08:00'
+  as_of: '2026-06-12T20:05:00+08:00'
+  fetched_at: '2026-06-12T20:06:00+08:00'
   bars:
-  - trade_date: '2026-09-28'
+  - trade_date: '2026-06-10'
     open: '10.18'
     high: '10.22'
     low: '10.16'
@@ -915,7 +915,7 @@ cases:
     volume: '1000000'
     amount: '10200000.00'
     prev_close: '10.00'
-  - trade_date: '2026-09-29'
+  - trade_date: '2026-06-11'
     open: '10.38'
     high: '10.42'
     low: '10.36'
@@ -923,7 +923,7 @@ cases:
     volume: '1000000'
     amount: '10400000.00'
     prev_close: '10.20'
-  - trade_date: '2026-09-30'
+  - trade_date: '2026-06-12'
     open: '10.91'
     high: '10.92'
     low: '10.90'
@@ -937,7 +937,7 @@ cases:
     violations:
     - BIZ-03
 - id: G22
-  title: 主板 ST 限价取整边界：10.05×1.05=10.5525→10.55，收盘 10.55 为涨停（涨幅 4.9751%，不得按 >5% 误判）
+  title: 主板 ST（2026-07-06 前 5%）限价取整边界：10.05×1.05=10.5525→10.55，收盘 10.55 为涨停（涨幅 4.9751%，不得按 >5% 误判）
   instrument:
     instrument_id: SSE:600704
     exchange: SSE
@@ -948,10 +948,10 @@ cases:
     list_status: listed
     lot_size: 100
     listed_at: '1994-02-04'
-  as_of: '2026-10-09T20:05:00+08:00'
-  fetched_at: '2026-10-09T20:06:00+08:00'
+  as_of: '2026-06-15T20:05:00+08:00'
+  fetched_at: '2026-06-15T20:06:00+08:00'
   bars:
-  - trade_date: '2026-10-09'
+  - trade_date: '2026-06-15'
     open: '10.20'
     high: '10.55'
     low: '10.18'
@@ -1076,7 +1076,7 @@ cases:
     violations:
     - BIZ-01
 - id: N05
-  title: 主板 ST +6% 超过 5%：BIZ-01（不能按主板 10% 放行）
+  title: 主板 ST（2026-07-06 前 5%）+6% 超过 5%：BIZ-01（不能按主板 10% 放行）
   instrument:
     instrument_id: SZSE:000005
     exchange: SZSE
@@ -1087,10 +1087,10 @@ cases:
     list_status: listed
     lot_size: 100
     listed_at: '1991-01-14'
-  as_of: '2026-09-28T20:05:00+08:00'
-  fetched_at: '2026-09-28T20:06:00+08:00'
+  as_of: '2026-06-15T20:05:00+08:00'
+  fetched_at: '2026-06-15T20:06:00+08:00'
   bars:
-  - trade_date: '2026-09-28'
+  - trade_date: '2026-06-15'
     open: '10.20'
     high: '10.60'
     low: '10.10'
@@ -1304,6 +1304,294 @@ cases:
       limit_pct_source: exchange_price_ratio
       asset_type: stock
       exchange: SZSE
+  expect:
+    grade: green
+    blocked: false
+    violations: []
+
+- id: G25
+  title: 主板 ST（2026-07-06 前，5% 规则）恰好 +5.00%：涨停价边界，不得误杀
+  instrument:
+    instrument_id: SSE:600705
+    exchange: SSE
+    code: '600705'
+    name: ST航通
+    board: main
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '1993-06-01'
+  as_of: '2026-06-15T20:05:00+08:00'
+  fetched_at: '2026-06-15T20:06:00+08:00'
+  bars:
+  - trade_date: '2026-06-15'
+    open: '10.10'
+    high: '10.50'
+    low: '10.10'
+    close: '10.50'
+    volume: '1000000'
+    amount: '10500000.00'
+    prev_close: '10.00'
+  expect:
+    grade: green
+    blocked: false
+    violations: []
+
+- id: G26
+  title: 主板 ST（2026-07-06 起 10% 规则）恰好 +10.00%：新规生效日
+  instrument:
+    instrument_id: SZSE:000006
+    exchange: SZSE
+    code: '000006'
+    name: '*ST深业'
+    board: main
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '1992-04-01'
+  as_of: '2026-07-06T20:05:00+08:00'
+  fetched_at: '2026-07-06T20:06:00+08:00'
+  bars:
+  - trade_date: '2026-07-06'
+    open: '10.20'
+    high: '11.00'
+    low: '10.15'
+    close: '11.00'
+    volume: '1000000'
+    amount: '11000000.00'
+    prev_close: '10.00'
+  expect:
+    grade: green
+    blocked: false
+    violations: []
+
+- id: G27
+  title: 创业板 2019（2020-08-24 前 10% 规则）恰好 +10.00%
+  instrument:
+    instrument_id: SZSE:300001
+    exchange: SZSE
+    code: '300001'
+    name: 特锐德
+    board: gem
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '2009-10-30'
+  as_of: '2019-06-03T20:05:00+08:00'
+  fetched_at: '2019-06-03T20:06:00+08:00'
+  bars:
+  - trade_date: '2019-06-03'
+    open: '10.30'
+    high: '11.00'
+    low: '10.25'
+    close: '11.00'
+    volume: '1000000'
+    amount: '11000000.00'
+    prev_close: '10.00'
+  expect:
+    grade: green
+    blocked: false
+    violations: []
+
+- id: G28
+  title: 创业板 2021（2020-08-24 起 20% 规则）恰好 +20.00%
+  instrument:
+    instrument_id: SZSE:300002
+    exchange: SZSE
+    code: '300002'
+    name: 神州泰岳
+    board: gem
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '2009-10-30'
+  as_of: '2021-06-01T20:05:00+08:00'
+  fetched_at: '2021-06-01T20:06:00+08:00'
+  bars:
+  - trade_date: '2021-06-01'
+    open: '10.50'
+    high: '12.00'
+    low: '10.40'
+    close: '12.00'
+    volume: '1000000'
+    amount: '12000000.00'
+    prev_close: '10.00'
+  expect:
+    grade: green
+    blocked: false
+    violations: []
+
+- id: G29
+  title: 主板 S 股（未股改，600182 S佳通）恰好 +5.00%：单列 5%，不得按普通 10% 放行/误判
+  instrument:
+    instrument_id: SSE:600182
+    exchange: SSE
+    code: '600182'
+    name: S佳通
+    board: main
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '1999-05-07'
+  as_of: '2026-06-15T20:05:00+08:00'
+  fetched_at: '2026-06-15T20:06:00+08:00'
+  bars:
+  - trade_date: '2026-06-15'
+    open: '10.10'
+    high: '10.50'
+    low: '10.10'
+    close: '10.50'
+    volume: '1000000'
+    amount: '10500000.00'
+    prev_close: '10.00'
+  expect:
+    grade: green
+    blocked: false
+    violations: []
+
+- id: G30
+  title: 北交所 2021-11-15 前（无 30% 口径）：+50% 不判涨跌幅，limit_pct=NULL 不误判
+  instrument:
+    instrument_id: BSE:830799
+    exchange: BSE
+    code: '830799'
+    name: 艾融软件
+    board: bse
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '2020-01-02'
+  as_of: '2021-06-01T20:05:00+08:00'
+  fetched_at: '2021-06-01T20:06:00+08:00'
+  bars:
+  - trade_date: '2021-06-01'
+    open: '10.50'
+    high: '15.00'
+    low: '10.40'
+    close: '15.00'
+    volume: '1000000'
+    amount: '15000000.00'
+    prev_close: '10.00'
+  expect:
+    grade: green
+    blocked: false
+    violations: []
+
+- id: G31
+  title: 北交所 2021-11-15 开市起 30%：生效日恰好 +30.00%
+  instrument:
+    instrument_id: BSE:830799
+    exchange: BSE
+    code: '830799'
+    name: 艾融软件
+    board: bse
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '2020-01-02'
+  as_of: '2021-11-15T20:05:00+08:00'
+  fetched_at: '2021-11-15T20:06:00+08:00'
+  bars:
+  - trade_date: '2021-11-15'
+    open: '10.50'
+    high: '13.00'
+    low: '10.40'
+    close: '13.00'
+    volume: '1000000'
+    amount: '13000000.00'
+    prev_close: '10.00'
+  expect:
+    grade: green
+    blocked: false
+    violations: []
+
+- id: G32
+  title: 新股首日（listed_at=trade_date）无涨跌幅：+35% 不判，limit_pct=NULL（listed_at 可得）
+  instrument:
+    instrument_id: SSE:688222
+    exchange: SSE
+    code: '688222'
+    name: 成都先导
+    board: star
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '2026-09-28'
+  as_of: '2026-09-28T20:05:00+08:00'
+  fetched_at: '2026-09-28T20:06:00+08:00'
+  bars:
+  - trade_date: '2026-09-28'
+    open: '12.00'
+    high: '13.50'
+    low: '11.80'
+    close: '13.50'
+    volume: '1000000'
+    amount: '13500000.00'
+    prev_close: '10.00'
+  expect:
+    grade: green
+    blocked: false
+    violations: []
+
+- id: G33
+  title: RES-05：2026-07-06 后主板 ST 声明 10% 档，候选档重算精确命中（5% 桶留给 S 股/历史 ST）
+  instrument:
+    instrument_id: SSE:600706
+    exchange: SSE
+    code: '600706'
+    name: ST示例
+    board: main
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '1993-06-01'
+  as_of: '2026-07-06T20:05:00+08:00'
+  fetched_at: '2026-07-06T20:06:00+08:00'
+  bars: []
+  research_batches:
+  - endpoint: stk_limit
+    rows:
+    - instrument_id: SSE:600706
+      trade_date: '2026-07-06'
+      previous_close: '10.00'
+      up_limit: '11.00'
+      down_limit: '9.00'
+      limit_pct: '10.0'
+      limit_pct_source: exchange_price_ratio
+      asset_type: stock
+      exchange: SSE
+  expect:
+    grade: green
+    blocked: false
+    violations: []
+
+- id: G34
+  title: RES-05 北交所 920xxx 取整：prev=1.26、30% 档 → up=1.63（向下截断）/down=0.89（向上截断），half-up 会错判
+  instrument:
+    instrument_id: BSE:920001
+    exchange: BSE
+    code: '920001'
+    name: 北交示例
+    board: bse
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '2021-01-04'
+  as_of: '2026-07-06T20:05:00+08:00'
+  fetched_at: '2026-07-06T20:06:00+08:00'
+  bars: []
+  research_batches:
+  - endpoint: stk_limit
+    rows:
+    - instrument_id: BSE:920001
+      trade_date: '2026-07-06'
+      previous_close: '1.26'
+      up_limit: '1.63'
+      down_limit: '0.89'
+      limit_pct: '30.0'
+      limit_pct_source: exchange_price_ratio
+      asset_type: stock
+      exchange: BSE
   expect:
     grade: green
     blocked: false

@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "weights": {
     "struct": 0.2,
     "business": 0.3,
@@ -114,7 +114,7 @@
     "main"
   ],
   "limit_tolerance_pp": 0.5,
-  "ruleset_note": "v3（2026-11-05）：新增 P2 研究规则 RES-05..08（stk_limit 价格自洽 / fina_indicator 公告时点 / index_classify 层级自洽 / index_member_all 时点自洽，均 blocker）；before/after 见 docs/metrics/P0-metrics.md §9。规则集变更待 H4 备案（P0 §8 不重签，研究域独立）。",
+  "ruleset_note": "v4（2026-11-05）：M04 改为时点规则（主板 ST 2026-07-06 起 10%、创业板 2020-08-24 起 20%、北交所 2021-11-15 前 NULL、S 股 5%、首日 NULL）；规则条数不变（23），before/after 见 docs/metrics/P0-metrics.md §9，待 H4 重签 M04 行。",
   "research_as_of": {
     "note": "RES-04 per-endpoint as_of 阈值（只对含 trade_date 的日频 endpoint 生效）：A 股研究数据当日 15:00；hk_hold 北向持股 T+1 披露，次日 15:00；index_daily 指数收盘当日 15:00；stk_limit 当日 15:00。财报/行业快照无 trade_date，时点校验由 RES-06/RES-08 承担。offset_days 相对 trade_date。",
     "default": {
@@ -153,5 +153,13 @@
       "offset_days": 0,
       "time": "15:00"
     }
-  }
+  },
+  "limit_regimes": {
+    "main_st_10pct_from": "2026-07-06",
+    "gem_20pct_from": "2020-08-24",
+    "bse_30pct_from": "2021-11-15",
+    "note": "M04 时点规则：主板 ST/*ST 2026-07-06 起 10%（之前 5%）；创业板 2020-08-24 起 20%（之前 10%）；科创板 20%；北交所 2021-11-15 起 30%，更早一律 NULL（不猜精选层规则）；首日（trade_date==listed_at）无涨跌幅→NULL；主板 S 股（非 ST）5%；科创板 2019-07-22 开板前不存在（NULL）",
+    "star_open_from": "2019-07-22"
+  },
+  "s_limit_pct": 5.0
 }

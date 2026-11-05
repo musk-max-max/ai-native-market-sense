@@ -121,14 +121,23 @@ WHERE EXISTS (SELECT 1 FROM ranked);
 
 | 板块 | 代码示例 | 涨跌幅限制 |
 | --- | --- | --- |
-| 主板 main（非 ST） | SSE:600519 / SZSE:000001 | ±10% |
-| 主板 main（ST / *ST） | SSE:600xxx | ±5% |
-| 创业板 gem | SZSE:300xxx | ±20% |
+| 主板 main（非 ST、非 S 股） | SSE:600519 / SZSE:000001 | ±10% |
+| 主板 main（ST / *ST） | SSE:600xxx | **时点**：`< 2026-07-06` ±5%；`≥ 2026-07-06` ±10%（沪深同步） |
+| 主板 main（S 股，非 ST） | SSE:600182 S佳通 | ±5% |
+| 创业板 gem | SZSE:300xxx | **时点**：`< 2020-08-24` ±10%；`≥ 2020-08-24` ±20% |
 | 科创板 star | SSE:688xxx | ±20% |
-| 北交所 bse | BSE:8xxxxx / 4xxxxx | ±30% |
+| 北交所 bse | BSE:43/83/87/88/92xxxxx | `≥ 2021-11-15` ±30%；更早 **NULL（不猜精选层规则）** |
+| 首日（trade_date = listed_at） | 任意 | **NULL**（无涨跌幅；创/科前 5 日特殊档 P1） |
 
 涨跌停价 = `prev_close × (1 ± limit_pct)` **四舍五入到分**后再比较；`limit_status` 取
-`limit_up | limit_down | none`。取整是交易所规则，不能用涨跌幅百分比直接判：例如主板 ST
+`limit_up | limit_down | none`。**时点规则（2026-11-05 H4 口径更正）**：主板 ST/*ST 在
+`2026-07-06` 前为 5%、之后为 10%（旧「一律 5%」作废）；创业板在 `2020-08-24` 前 10%、之后 20%；
+北交所在 `2021-11-15` 前 `limit_pct=NULL`（不猜精选层规则）；主板 S 股 5%；首日无涨跌幅（NULL）。
+
+**按市场取整（不能一律 half-up）**：沪深 A 股 0.01 元 half-up；北交所 A 股（43/83/87/88/92）
+涨停价 `floor`、跌停价 `ceil`（0.01 元，A1 真实样本 354/354 命中）；沪市 B 股 900xxx 0.001 美元
+half-up、深市 B 股 200xxx 0.01 港元 half-up（B 股规则待 H4 签字，实现先行、用例标 pending-clarification）。
+取整是交易所规则，不能用涨跌幅百分比直接判：例如主板 ST
 `prev_close=10.05`，`10.05×1.05=10.5525→10.55`，收盘 10.55 即涨停（当日涨幅 4.9751%，仍 ≤5%）。
 **不得硬编码 10%**（C11）。
 
@@ -145,30 +154,53 @@ WHERE EXISTS (SELECT 1 FROM ranked);
 除权日由适配层写除权参考价，否则除权会被误判为跌停。
 
 ```sql
--- M04 涨跌停状态（口径：按板块；P0 ST 判定=当前名称快照，L80）
+-- M04 涨跌停状态（口径：按板块 + 时点；P0 ST 判定=当前名称快照，L80）
 -- 依据：H4-D6 已批准「涨跌停按板块」，C11 禁止硬编码 10%；L80 裁定 P0 不还原历史 ST 状态。
--- 幅度：主板 10% / 创业板 20% / 科创板 20% / 北交所 30%；主板 ST、*ST 5%（st_limit_boards）。
+-- 时点规则（H4 2026-11-05 口径更正；旧「主板 ST 一律 5%」作废）：
+--   主板           10%
+--   主板 ST/*ST    < 2026-07-06 → 5%；>= 2026-07-06 → 10%（沪深同步，2026-07-06 起施行）
+--   创业板         < 2020-08-24 → 10%；>= 2020-08-24 → 20%
+--   科创板         < 2019-07-22（开板前不存在）→ NULL；>= 2019-07-22 → 20%
+--   北交所         >= 2021-11-15 → 30%；更早 → NULL（不猜精选层规则，禁止把 30% 套到更早日期）
+--   主板 S 股      名称 S 开头且非 ST（如 600182 S佳通）→ 5%
+--   首日           trade_date = listed_at → NULL（无涨跌幅；创/科上市前 5 日特殊档 P1 处理）
 -- 基准：M08 的 prev_close（除权日为除权参考价，由适配层写入，避免除权误判涨跌停）。
 -- fail-closed：板块未知/为空时 limit_pct=NULL、limit_status=NULL，禁止 CASE 静默落到 'none'
 --             （"不知道"≠"没涨跌停"）；质量规则 BIZ-01 对未知板块直接 blocker。
 -- ST 时点性（L80）：P0 只有 dim_instrument.name 当前快照，历史交易日未还原；
 --             输出 st_by_current_name / st_status_source / known_limitation，跨戴帽、摘帽、
 --             退市窗口的结果不适用。P1 接入 namechange 后改按交易日状态并转 blocker。
--- 限价取整：按交易所规则先用 prev_close×(1±幅度) 算理论价，再四舍五入到分（如
---             10.05×1.05=10.5525→10.55），比较用取整后的限价，不用涨跌幅百分比直接判。
+-- 限价取整（按交易所/报价单位，不能一律 half-up）：
+--   沪深 A 股 0.01 元 half-up（10.05×1.05=10.5525→10.55）；
+--   沪市 B 股 900xxx 0.001 美元 half-up；深市 B 股 200xxx 0.01 港元 half-up（B 股规则待 H4 签，先按此实现）；
+--   北交所 A 股（43/83/87/88/92）涨停向下截断、跌停向上截断（0.01 元）；
+--   比较用取整后的限价，不用涨跌幅百分比直接判。
+-- known limitation：B 股（沪 900xxx / 深 200xxx）报价单位规则待 H4 签字；
+--             新股上市初期特殊档（创/科前 5 日）P1 处理（P0 仅有 listed_at，无交易日历）。
 -- 参数：:start_date, :end_date
 WITH base AS (
     SELECT b.instrument_id,
            b.trade_date,
            b.close,
            b.prev_close,
+           i.exchange,
+           i.code,
            i.board,
            i.name,
+           i.listed_at,
            CASE
-               WHEN i.board = 'main' AND (i.name LIKE 'ST%' OR i.name LIKE '*ST%') THEN 5.0
+               WHEN i.board IS NULL THEN NULL
+               WHEN b.trade_date = i.listed_at THEN NULL
+               WHEN i.board = 'main' AND (i.name LIKE 'ST%' OR i.name LIKE '*ST%') THEN
+                   CASE WHEN b.trade_date < DATE '2026-07-06' THEN 5.0 ELSE 10.0 END
+               WHEN i.board = 'main' AND i.name LIKE 'S%' THEN 5.0
                WHEN i.board = 'main' THEN 10.0
-               WHEN i.board IN ('gem', 'star') THEN 20.0
-               WHEN i.board = 'bse' THEN 30.0
+               WHEN i.board = 'gem' THEN
+                   CASE WHEN b.trade_date < DATE '2020-08-24' THEN 10.0 ELSE 20.0 END
+               WHEN i.board = 'star' THEN
+                   CASE WHEN b.trade_date < DATE '2019-07-22' THEN NULL ELSE 20.0 END
+               WHEN i.board = 'bse' THEN
+                   CASE WHEN b.trade_date < DATE '2021-11-15' THEN NULL ELSE 30.0 END
                ELSE NULL
            END AS limit_pct
     FROM dwd_stock_bar_daily AS b
@@ -185,10 +217,20 @@ priced AS (
            limit_pct,
            CASE
                WHEN limit_pct IS NULL THEN NULL
+               WHEN board = 'bse' AND (code LIKE '43%' OR code LIKE '83%' OR code LIKE '87%'
+                                       OR code LIKE '88%' OR code LIKE '92%')
+                   THEN FLOOR(prev_close * (1 + limit_pct / 100.0) * 100) / 100
+               WHEN exchange = 'SSE' AND code LIKE '900%'
+                   THEN ROUND(prev_close * (1 + limit_pct / 100.0), 3)
                ELSE ROUND(prev_close * (1 + limit_pct / 100.0), 2)
            END AS limit_up_price,
            CASE
                WHEN limit_pct IS NULL THEN NULL
+               WHEN board = 'bse' AND (code LIKE '43%' OR code LIKE '83%' OR code LIKE '87%'
+                                       OR code LIKE '88%' OR code LIKE '92%')
+                   THEN CEIL(prev_close * (1 - limit_pct / 100.0) * 100) / 100
+               WHEN exchange = 'SSE' AND code LIKE '900%'
+                   THEN ROUND(prev_close * (1 - limit_pct / 100.0), 3)
                ELSE ROUND(prev_close * (1 - limit_pct / 100.0), 2)
            END AS limit_down_price,
            close
@@ -213,8 +255,15 @@ SELECT instrument_id,
        'dim_instrument.name@as_of' AS st_status_source,
        CASE
            WHEN board IS NULL THEN 'board 未知：fail-closed，不判涨跌停'
+           WHEN trade_date = listed_at THEN '首日无涨跌幅限制（listed_at 判定）'
+           WHEN board = 'star' AND trade_date < DATE '2019-07-22'
+               THEN '科创板 2019-07-22 开板前无该板块（limit_pct=NULL）'
+           WHEN board = 'bse' AND trade_date < DATE '2021-11-15'
+               THEN '北交所 2021-11-15 前无 30% 涨跌幅口径（不猜精选层），limit_pct=NULL'
+           WHEN board = 'bse'
+               THEN '北交所取整按交易所规则（涨停 floor / 跌停 ceil）；沪 B 900xxx / 深 B 200xxx 规则待 H4 签字'
            WHEN board = 'main' AND (name LIKE 'ST%' OR name LIKE '*ST%')
-               THEN 'ST 判定=当前名称快照，历史交易日未还原；跨戴帽/摘帽/退市窗口不适用（L80；P1 接 namechange 后转 blocker）'
+               THEN 'ST 判定=当前名称快照，历史交易日未还原；跨戴帽/摘帽/退市窗口不适用（L80；P1 接 namechange 后转 blocker）；ST 限价 2026-07-06 起为 10%'
            ELSE NULL
        END AS known_limitation
 FROM priced
@@ -344,14 +393,14 @@ ORDER BY trade_date;
 | --- | --- | --- | --- | --- |
 | 1 | M01 主口径不复权 | `warehouse/metrics/m01_bars_none.sql`；DWD 只存不复权 OHLC | 同意/修改 | **可签**（不动） |
 | 2 | M02 收益口径后复权 | `warehouse/metrics/m02_return_hfq.sql`；hfq = close × factor；新增 `anchor_date`/`factor_version`/`factor_as_of` | 同意/修改 | **可签**（L3 条件见 #6） |
-| 3 | M04 涨跌停按板块 | `warehouse/metrics/m04_limit_status.sql`；主板 10% / 创业科创 20% / 北交所 30% / 主板 ST 5%；未知 board fail-closed；ST 时点性输出 `known_limitation` | 同意/修改 | **H4 重签 2026-11-04（见 `p0_metrics.json::sign_off`）**（曾拒签，批注修复）：①ST 判定时点性（L80：P0 限定 + 输出 known_limitation + BIZ-03 warn）；②`CASE` 无 `ELSE` 的静默放行已改 fail-closed（`limit_status=NULL`）；③限价取整边界补 G22 |
+| 3 | M04 涨跌停按板块 | `warehouse/metrics/m04_limit_status.sql`；主板 10% / 主板 ST 2026-07-06 前 5%、之后 10% / 创业板 2020-08-24 前 10%、之后 20% / 科创 2019-07-22 开板后 20% / 北交所 2021-11-15 起 30%、之前 NULL / S 股 5% / 首日 NULL；按市场取整（沪深 A half-up、北交所 floor/ceil、B 股待签）；未知 board 与首日 fail-closed；ST 时点性 known_limitation | 同意/修改 | **待 H4 重签（KD-M04-EFFECTIVE-DATE 2026-11-05：时点生效日 + 按市场取整）**；上一版 H4 重签 2026-11-04 仅覆盖 fail-closed/ST 时点性，不覆盖本次口径变化 |
 | 4 | M08 涨跌幅基准=prev_close | `warehouse/metrics/m08_change_pct.sql`；除权日由适配层写入除权参考价 | 同意/修改 | **可签** |
 | 5 | M03/M05/M06/M07 立法但 P0 无数据 | §5；M06 的 DDL 已备（`dwd_fundamental_report`），数据待 A1 | 同意"P0 只立法" | **可签** |
 | 6 | **L3 因子归一** `adj_factor = raw / anchor` | 锚=该标的最早可得因子日，老股锚 1990-12-19；DWD 不二次归一；M02 收益两锚等价、hfq 绝对价不同 | **复权算法变更，需会签** | **条件签（三件已落）**：①`m02_return_hfq.sql` 注释已改 L3（不再写"首个上市交易日"）；②输出 `anchor_date` + `factor_version`（锚变则版本串变、须重新会签）；③hfq 绝对价不进 C 端（仅收益），展示绝对价需另签 |
 | 7 | **L9 质量分只计 blocker** | warn 违规不进分子；warn 规则计入该类分母 1 个槽；`violation_counts` 与 `score` 拆成两个独立指标；`quality_config.json::scoring` | 同意/修改 | **可签**（已注明 warn 计入分母，与声明一致） |
 | 8 | L7/L8 输入前提 | bar 必带 `prev_close`（首日可空）；停牌保留 `suspended:true` 证据行（约 4,860 次/20 年） | 同意/修改 | **可签** |
 | 9 | 质量阈值与一票否决 | 权重 0.2/0.3/0.3/0.2，阈值 95/90/85（H4-D8 已批）；叠加"任一 blocker → black + 阻断下游" | 确认叠加方式 | **可签**（分数照算、状态 black） |
-| 10 | P0 边界样本 | `data/golden/p0_bars20.yaml`：24 正例 + 9 负例，含 ST 恰好 +5.00%（G21）、ST 取整边界（G22）、低价股 limit_pct 候选档重算（G23/G24）、停牌、除权、新股首日 | 确认覆盖充分 | **可签**（覆盖基本够；G22/G23/G24 随本次补） |
+| 10 | P0 边界样本 | `data/golden/p0_bars20.yaml`：34 正例 + 9 负例，含 M04 时点规则边界（G25–G32：ST 生效日前后/创业板前后/S 股/北交所前后/首日 NULL）、按市场取整（G34 北交所截断）、ST 恰好 +5.00%（G21）、ST 取整边界（G22）、低价股候选档重算（G23/G24/G33）、停牌、除权、新股首日 | 确认覆盖充分 | **可签**（覆盖基本够；G22–G34 随本次补） |
 
 签字栏（H4）：
 
@@ -383,3 +432,5 @@ ORDER BY trade_date;
 | 2026-11-05 | **KD-DSW-P2 研究数据集第 2 批**：DWD 新增 `dwd_stk_limit`/`dwd_fina_indicator`/`dwd_index_classify`/`dwd_index_member_all` 4 表，serving 新增 4 个 `serving_research_*` 内部 view（不接 C 端、不改 `ports.yaml`）；loader 注册 `stk_limit.v1`/`fina_indicator.v1`/`index_classify.v1`/`index_member_all.v1`（ENDPOINT_SCHEMAS 11→15）；质量规则新增 RES-05..08（均 blocker），规则数 18→22，before/after：业务 4→6（同一 blocker 75.00→83.33、总分 92.50→95.00，仍 black）、一致性 3→5；完整性 5、结构 6 不变；阈值/权重/否决不变。H4 口径：`fina_indicator` 可见时点=announced_at（禁按 report_end_date join）、`index_member_all` 保留全历史时点字段、`index_classify` PK 含 snapshot_date、`stk_limit.limit_pct` 由 A1 派生 A2 只透传、质量层用原始价独立交叉验证（±0.3pp）；`_meta/research_coverage.json` 的 `current_snapshot_only` 显式标记为不可用于历史回测 | 已备案 2026-11-05（H4；加固三条同日落） |
 | 2026-11-05 | **KD-RES-HARDEN（H4 备案加固）**：RES-07 增加树结构校验（同快照 parent 存在、层级差 1、链≤2 跳到 L1、无环）；RES-08 增加 `is_new=N → out_date 非空`；RES-05 增加 `limit_pct` 与原始价比值的独立交叉验证（±0.3pp）并在原始价合法时校验 5–30 区间；新增 RES-09（warn）`out_date > snapshot_date`。规则数 22→23（一致性 5→6），业务分母不变。**before/after（一致性单 blocker 场景）**：一致性类别分 100×(1−1/5)=80.00 → 100×(1−1/6)=83.33；其余三类满分时总分 = 0.2×100+0.3×100+0.3×100+0.2×类别分 = **96.00 → 96.67**（round 2）。仍因一票否决为 black，不跨 95/90/85 阈值、门禁结论不变；新增 warn 规则只改变分母不改变 blocker 判定。阈值/权重/否决均不变 | 已备案 2026-11-05（H4） |
 | 2026-11-05 | **KD-RES-PRECISE（H4 新口径）**：RES-05 的 `limit_pct` 交叉验证由比值容差（±0.3pp）改为**候选档重算精确匹配**——声明档必须 ∈{5,10,20,30}，`round_half_up(previous_close×(1±pct/100),2)` 与 `up_limit/down_limit` 精确比对（±0.005 仅吸收浮点），与 A1 分档算法同一套；低价股舍入边界不再误伤。golden 增 G23（prev=1.35→up=1.49）/G24（prev=0.45→up=0.50），正例 22→24、总数 31→33。接口对齐：`index_member_all.out_date` 改为可选日期（键可缺/为 null，DWD 存 NULL）、`fina_indicator.update_flag`→`revision_flag`（A1 canonical，C01）。规则数仍 23、阈值/权重/否决不变 | 已备案 2026-11-05（H4；RES-05 算法按 H4 指示修订） |
+
+| 2026-11-05 | **KD-M04-EFFECTIVE-DATE（H4 口径更正，待重签）**：M04 `limit_pct` 由静态 CASE 改按 `trade_date` 生效日规则——主板 ST `<2026-07-06` 5%、`≥` 10%；创业板 `<2020-08-24` 10%、`≥` 20%；科创板 `<2019-07-22`（开板前）NULL；北交所 `<2021-11-15` NULL、`≥` 30%；主板 S 股（S 开头非 ST）5%；首日（`trade_date=listed_at`）NULL。限价取整按市场：沪深 A 0.01 half-up、北交所 43/83/87/88/92 涨停 floor/跌停 ceil、沪 B 900xxx 0.001 half-up、深 B 200xxx 0.01 half-up（B 股待 H4 签）。quality `limit_regimes` v4 同步；golden 增 G25–G32（时点/板块/首日）、G34（北交所截断）+ G33（ST 10% 档 RES-05），正例 24→34、总数 33→43。规则条数 23 不变；对历史回补的行为变化：2026-07-06 前主板 ST 命中 5%、之后 10%；2020-08-24 前创业板 10%；2021-11-15 前北交所不判。**待 H4 重签 §8 M04 行（2026-11-04 签字不覆盖本次口径变化）** | 待重签 |
