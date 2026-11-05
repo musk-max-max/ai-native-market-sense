@@ -187,7 +187,17 @@ RULESET = {
 }
 
 
+RESEARCH_RULES = {"RES-01", "RES-02", "RES-03", "RES-04"}
+
+
 def test_rule_catalog_is_fully_exercised():
-    """14 条规则必须全部被本文件单独触发；新增规则必须在同一 PR 补单测。"""
+    """14 条 A 股 bar 规则必须全部被本文件单独触发；研究域 4 条由 A2 research pipeline 评估。
+
+    研究数据集规则（RES-01..04，KD-RES-FIX / H4 2026-11-05 备案）不作用于 A 股 bar 样本，
+    本文件只钉住「口径清单包含且仅包含这 4 条」，触发用例在 warehouse/tests（A2 写域）。
+    """
     policy = load_policy()
     assert set(policy["rules"]) == RULESET, "口径规则清单变了：先补单测与质量分配置"
+    assert set(policy.get("research_rules") or {}) == RESEARCH_RULES, (
+        "研究域规则清单变了：先改口径（H4 备案）再改本断言"
+    )

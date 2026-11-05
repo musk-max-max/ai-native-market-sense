@@ -51,7 +51,9 @@ def test_veto_and_market_rules_are_approved(policy, runtime):
 
 
 def test_rule_catalog_matches_approved(policy, runtime):
-    approved = policy["rules"]
+    # A 股 bar 规则 + 研究数据集规则（KD-RES-FIX）分域登记；运行时不得多/少/降级。
+    approved = dict(policy["rules"])
+    approved.update(policy.get("research_rules") or {})
     actual = runtime.get("rules") or {}
     missing = sorted(set(approved) - set(actual))
     unknown = sorted(set(actual) - set(approved))

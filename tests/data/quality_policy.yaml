@@ -16,7 +16,7 @@ version: 1
 owner: A11
 reviewers: [H4]
 approved_by: H4
-decision_refs: [H4-D8, H4-D9, task-6, L9, L80]
+decision_refs: [H4-D8, H4-D9, task-6, L9, L80, KD-RES-FIX]
 
 weights:
   struct: 0.2
@@ -81,3 +81,12 @@ rules:
   COMP-03: {category: completeness, severity: blocker, label: 工作日覆盖（bar ∪ 停牌证据）}
   CONS-01: {category: consistency, severity: blocker, label: prev_close 与前一日 close 一致}
   CONS-02: {category: consistency, severity: blocker, label: bar/因子的 instrument 必须在维表}
+
+# 研究数据集规则（KD-RES-FIX，H4 2026-11-05 备案；见 docs/metrics/P0-metrics.md 规则清单）。
+# 评估对象是研究数据集（daily_basic/index_daily/top_list/top_inst/moneyflow/margin/hk_hold），
+# 由 A2 的 research pipeline 执行；它们 internal-only，不进 display_safe，也不参与 A 股 bar 质量分。
+research_rules:
+  RES-01: {category: completeness, severity: blocker, label: 研究数据不生成周末行（周末粗筛，非法定节假日/交易日历）}
+  RES-02: {category: business, severity: blocker, label: 研究数据量纲（金额/量/市值非负，百分比 |x| ≤ 1000，仅 DWD canonical 字段）}
+  RES-03: {category: consistency, severity: blocker, label: 研究数据 instrument_id 必须在 dim_instrument（指数/两融豁免；HKEX 港股命名空间显式豁免并计数）}
+  RES-04: {category: completeness, severity: blocker, label: 研究数据 per-endpoint as_of 阈值（A 股/指数当日 15:00，hk_hold T+1 次日 15:00）}
