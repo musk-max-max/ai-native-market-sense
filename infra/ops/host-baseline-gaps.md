@@ -21,7 +21,7 @@
 - 方案：`infra/drift/HOST-EXPOSURE-01.md`；检测公网端口通配监听、容器通配绑定、非 IaC 容器、公网未认证 `/healthz`/`/metrics`；命中告警，可选自动 `docker stop`（默认关闭）。
 - 验收：A19 注入 `docker create -p 0.0.0.0:8888`，一周期内检出+告警+处置，证据入 manifest。
 - owner：A13（检测/证据）+ A19（注入用例）；**任何公网测试窗口开启前必须先跑起来**。
-- 状态：H5 m03665 拍板 A=b/B=b；检测、systemd timer、HostExposureDrift、部署钩子、ECS 注入与自动隔离验收已完成（证据入 manifest）；待 A19 复核/H5 核签。
+- 状态：**PASS（H5 m03818 终签，2026-11-05）**；A=b/B=b 已落地，A19 独立复核入库（commit `740131e`）；residual：`HOST_AUDIT_SSH` 未配（fail-closed，L106 绑 11-12）、22 Anywhere/`EXPECTED_PUBLIC_HOST` UNVERIFIED、一周误报观察期。
 
 ## ⑤-3 residual：root 直登 + 无具名 sudo 账号（待用户确认）
 

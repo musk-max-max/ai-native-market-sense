@@ -43,4 +43,4 @@
 - 已做：ECS 安装 timer（首次 2026-11-06 09:13 CST）、A19 指定注入验收（`host-exposure-01-detection-20261105T014106Z`）、自动隔离路径验收（`host-exposure-01-isolation-20261105T014128Z`），均入 manifest。
 - 部署绑定：`host-baseline-audit.sh` sha256 `119277ab56306208a9f8a00e991e7106d8f33467cb6b0c7a1a3deca558984ccb`、`host-baseline.expected.env` `5da1bc8c213ff9331630582073ac508c149d04d48f43051a20a41d15a12023ba`（仓库与 ECS 一致）。过程消息里出现过的 `44608e4c…` 是打补丁前旧版，不是登记 artifact，不作签字绑定。
 - A19 独立注入复核已入 manifest：`host-exposure-01-a19-verify-20261105T014333Z.txt` sha256 `9ece8b1b…`（created/running 两路径均检出并处置，清理无残留）。
-- 待 H5 去 conditional（PASS-conditional → PASS）；`HOST_AUDIT_SSH` 仓库变量待 Lead 配置（未配时暴露面变更发布会按 B=b 阻塞）。
+- **H5 m03818 终签 PASS**（2026-11-05，A13 实现 + A19 独立复核；绑定 script `119277ab…` / expected `5da1bc8c…` / 检测 `f8060272…` / 隔离 `266eb67f…` / A19 `9ece8b1b…` / commit `740131e`）。residual 不变：`HOST_AUDIT_SSH` 未配（fail-closed exit 8，L106 绑 11-12）、22 Anywhere/`EXPECTED_PUBLIC_HOST` UNVERIFIED（既有 ⑤）、一周误报观察期照跑。`HOST_AUDIT_SSH` 仓库变量待 Lead 配置（未配时暴露面变更发布会按 B=b 阻塞）。
