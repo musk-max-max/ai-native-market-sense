@@ -1,0 +1,26 @@
+# host-baseline audit (read-only)
+# time_utc=2026-11-05T00:02:40Z host=heyuan
+# expected=/tmp/host-baseline.expected.env
+
+PASS  通配监听仅限 22
+WARN  e2e 栈容器 a13-r3-audit restart=no（允许，仅限 e2e/临时）
+WARN  e2e 栈容器 market-sense-e2e-api-1 restart=no（允许，仅限 e2e/临时）
+WARN  e2e 栈容器 market-sense-e2e-web-1 restart=no（允许，仅限 e2e/临时）
+WARN  e2e 栈容器 market-sense-e2e-postgres-1 restart=no（允许，仅限 e2e/临时）
+WARN  e2e 栈容器 market-sense-e2e-redis-1 restart=no（允许，仅限 e2e/临时）
+WARN  e2e 栈容器 market-sense-e2e-tushare-replay-1 restart=no（允许，仅限 e2e/临时）
+PASS  ufw 允许列表与基线一致
+FAIL  22/tcp 来源为 Anywhere（未白名单；待用户 CIDR，期望: <未配置>）
+FAIL  22/tcp 来源为 Anywhere（未白名单；待用户 CIDR，期望: <未配置>）
+PASS  fail2ban active
+PASS  fail2ban sshd jail 存在
+FAIL  sshd permitrootlogin=yes（期望 no）
+FAIL  sshd passwordauthentication=yes（期望 no）
+FAIL  sshd maxauthtries=6（期望 3）
+PASS  a13-r3-audit ENTITLEMENT_AUDIT=1
+PASS  a13-r3-audit ENTITLEMENT_HOLD_CHECK=1
+PASS  market-sense-e2e-api-1 ENTITLEMENT_AUDIT=1
+PASS  market-sense-e2e-api-1 ENTITLEMENT_HOLD_CHECK=1
+
+RESULT DRIFT 存在基线漂移
+after_exit=1

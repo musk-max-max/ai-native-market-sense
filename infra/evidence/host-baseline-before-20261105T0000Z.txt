@@ -1,0 +1,21 @@
+# host-baseline audit (read-only)
+# time_utc=2026-11-04T23:58:16Z host=heyuan
+# expected=/tmp/host-baseline.expected.env
+
+PASS  通配监听仅限 22
+FAIL  容器 ms-nginx 存在 0.0.0.0 端口绑定 (status=exited restart=no): {"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"80"}]}
+FAIL  非 compose/k8s 管理容器：ms-nginx（主机手工残留，无法从仓库重建）
+WARN  e2e 栈容器 market-sense-e2e-web-1 restart=no（允许，仅限 e2e/临时）
+WARN  e2e 栈容器 market-sense-e2e-api-1 restart=no（允许，仅限 e2e/临时）
+WARN  e2e 栈容器 market-sense-e2e-postgres-1 restart=no（允许，仅限 e2e/临时）
+WARN  e2e 栈容器 market-sense-e2e-redis-1 restart=no（允许，仅限 e2e/临时）
+WARN  e2e 栈容器 market-sense-e2e-tushare-replay-1 restart=no（允许，仅限 e2e/临时）
+FAIL  ufw 多放行端口: 8888/tcp 20/tcp 21/tcp 80/tcp 443/tcp 888/tcp 25730/tcp 39000:40000/tcp 8888/tcp 20/tcp 21/tcp 80/tcp 443/tcp 888/tcp 25730/tcp 39000:40000/tcp（期望: 22/tcp）
+FAIL  sshd permitrootlogin=yes（期望 no）
+FAIL  sshd passwordauthentication=yes（期望 no）
+FAIL  sshd maxauthtries=6（期望 3）
+FAIL  market-sense-e2e-api-1 ENTITLEMENT_AUDIT=0（期望 1）
+FAIL  market-sense-e2e-api-1 ENTITLEMENT_HOLD_CHECK=0（期望 1）
+
+RESULT DRIFT 存在基线漂移
+exit=1
