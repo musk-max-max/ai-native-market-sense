@@ -9,3 +9,8 @@
   2. 主机定期漂移巡检纳入值班（每班一次，输出进 manifest）；A13 负责。
   3. 非 compose/手工容器禁止：CI 静态检查无法覆盖主机，需发布 runbook 明确「生产主机只允许 compose/k8s 拉起」。
 - 上述 1–3 完成前，⑤ 主机管理面保持 **PARTIAL/DRIFT**，不得签字。
+
+## HOST-AUDIT-01（P2）：非交互 SSH 命令无审计留存
+
+- **事实**：Lead 于 23:58:17Z 以非交互 SSH 执行 `docker rm ms-nginx` 等命令，命令不进 `bash_history`，ECS 侧无 auditd/journal 持久记录，导致归因一度只能 UNATTRIBUTED；同类操作（停机、删容器、改 ufw）无法事后追责。
+- **验收**：注入一条非交互 SSH 命令，必须能查到「命令原文 / 来源 IP / 时间 / 执行人」四元组；实现候选：`auditd`（execve 审计）、docker events 持久采集、journald 持久化/转发。owner：A9 方案 + A13 落地；**11-12 前挂账**，不阻塞 ⑤ 当前四项。

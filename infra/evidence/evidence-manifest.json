@@ -390,8 +390,8 @@
     },
     {
       "path": "infra/evidence/host-hardening-20261105T0008Z.md",
-      "sha256": "19af05269b7f5af5546f005c7d1a4cb4b4308fd81ebda319fac5dc946b236847",
-      "bytes": 7105,
+      "sha256": "725efd90cb0a50baea6ec4dbf91ab884a83ec331cb879e8f4a9a58180de5f215",
+      "bytes": 7681,
       "recompute": "sha256sum infra/evidence/host-hardening-20261105T0008Z.md",
       "role": "host-hardening-report",
       "authority": "authoritative",
@@ -417,6 +417,21 @@
         "HOST-BASELINE-01"
       ],
       "notes": "A9 R7 五类注入自证（0.0.0.0/:: 通配、非 compose、ufw 多放行、22 Anywhere、缺 env、fail2ban inactive、弱 sshd）+ 干净态 exit 0；macOS sh 与 Linux dash 各跑。"
+    },
+    {
+      "path": "infra/evidence/host/ms-nginx-removal-20261104T235817Z.txt",
+      "sha256": "dd5cd4baaa764fde58055058278b65fd542b009b46e9cf72b2c4f11157494957",
+      "bytes": 2231,
+      "recompute": "sha256sum infra/evidence/host/ms-nginx-removal-20261104T235817Z.txt",
+      "role": "ms-nginx-removal-capture",
+      "authority": "authoritative",
+      "phase": "post-fix",
+      "case_ids": [
+        "P2",
+        "H5-R10",
+        "HOST-AUDIT-01"
+      ],
+      "notes": "Lead 23:58:17Z 非交互 SSH 移除 ms-nginx 前的取证原始文件：inspect binds=0.0.0.0:80 + 日志尾部；从 /tmp 取回归档，未改字节。"
     }
   ],
   "related_manifests": [

@@ -10,8 +10,8 @@
 |---|---|---|
 | **`高危漏洞=0`** | **BLOCKED（不成立）** | SEC-001（P1，公网 22 + root 密码认证 + fail2ban inactive + 1130 次爆破）未闭环；SEC-002（P2）网络层仍对 Internet 放行 80/8888 |
 | **`越权测试全绿`** | **BLOCKED（不成立）** | 现有用例集只覆盖 API 层；SEC-004 证明「授权只在 API 层」，主机层→DB 直读与隧道二次转发两类用例尚未落地（EXC-HOST-01 / EXC-TUNNEL-01） |
-| **`审计不可篡改`（基线 #7）** | **BLOCKED（无事实证据）** | SEC-003：运行态 `ENTITLEMENT_AUDIT=0`/`HOLD_CHECK=0`，`audit.entitlement_events` 0 行，门禁 4/6 条无证据 |
-| **`只走 IaC`（基线 #11）** | **BLOCKED（基线违反）** | R7：sshd/ufw/SG/非 compose 容器零 IaC 表达，见 `../baselines/BL-11-R7-host-state-not-in-iac.md` |
+| **`审计不可篡改`（基线 #7）** | **BLOCKED（门禁 4/6 未签）** | SEC-003 主机侧漂移已消除（A13 重建 + 隔离验证：AUDIT/HOLD=1、hold 403→200、事件 hash 链连续，见 §3.1）；但门禁 4/6 仍须 A11/task-8 按门禁口径签署，当前不写 PASS |
+| **`只走 IaC`（基线 #11）** | **BLOCKED（基线违反；B 档过渡已就绪）** | R7：sshd/ufw/SG/非 compose 容器零 IaC 表达；B 档（清单 + 变异自证漂移检测）已具备（§3.1），但 A 档 IaC 未做，见 `../baselines/BL-11-R7-host-state-not-in-iac.md` |
 
 **门禁处置**：在 SEC-001 闭环并取得 ⑤ 主机管理面全部 7 项证据前，**11-12 发布不签**（H5 口径：未闭环则发布卡点不签）。
 该阻断状态须写入发布证据链（与 `docs/release/` 现有 release-gate 记录并列），不得以「内网访问」为由豁免 —— L100：

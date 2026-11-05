@@ -21,6 +21,13 @@
 - **移除前取证（Lead）**：`/tmp/ms-nginx-removed-20261104T235817Z.txt`（2231B，sha256 `dd5cd4baaa764fde58055058278b65fd542b009b46e9cf72b2c4f11157494957`），含 `image=sha256:65645c7b… status=exited restart=no binds=map[80/tcp:[{0.0.0.0 80}]]` + 日志尾部；**这是本项唯一可复算的移除前状态证据**。
 - A13 归档补充：`/root/a13-archive/ms-nginx-20261105T0002Z/`（`nginx.conf` `caa0ac56…`、`PROVENANCE.txt` `de062627…`、`SHA256SUMS.new`；inspect.json/docker.log 在 00:02Z 采集时容器已删，内容分别为 `error: no such object`/`No such container`，**不是状态证据**；`SHA256SUMS` 旧文件误含自身空哈希，以 `SHA256SUMS.new` 为准）。未重启、未 `docker start`。
 - htpasswd 归档：`/opt/ms-nginx/htpasswd.archived-20261104T235817Z`（0600，51B，sha256 `9b0dfe9c38e8e0f9309335f63aa87c6d15c6d3da68f810e041772e1f7adb70e6`）。
+
+| 物件 | 采集时间 | 归档时间/位置 | 是否为状态证据 |
+| --- | --- | --- | --- |
+| Lead 移除前取证 `ms-nginx-removed-20261104T235817Z.txt` | 23:58:17Z | 00:07Z / `infra/evidence/host/`（2231B，sha `dd5cd4ba…`） | **是**（唯一可复算） |
+| Lead 的 `/tmp` 原件 | 23:58:17Z | 未归档（易失；repo 副本已取回） | 是 |
+| A13 `inspect.json`/`docker.log` | 00:02Z（容器已删） | 00:02Z / `a13-archive` | 否（error 输出） |
+| A13 23:57:4xZ 终端只读输出 | 23:57:4xZ | 未落盘 | 仅 transcript 佐证，不可复采 |
 - 复核：`docker ps -a` 无 `ms-nginx`；`ss -ltnp` 无 80 监听。
 
 ## 3. ufw（H5 m03440 第 3 项）— PASS（白名单待用户）
