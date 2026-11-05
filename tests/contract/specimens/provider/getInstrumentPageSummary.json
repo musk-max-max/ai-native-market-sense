@@ -1,0 +1,173 @@
+{
+  "operation_id": "getInstrumentPageSummary",
+  "origin": "synthetic",
+  "recorded_at": "2026-11-05T16:40:00+08:00",
+  "note": "provider 侧录播（合成样本）。覆盖 available/gap/pending、部分受限 200、页面级全受限 403、400、404。",
+  "cases": [
+    {
+      "name": "五段骨架（quote available / fundamental gap / 其余 pending）",
+      "status": 200,
+      "body": {
+        "data": {
+          "instrument_id": "SSE:600519",
+          "sections": [
+            {
+              "id": "quote",
+              "availability": "available",
+              "reason": "已接入收盘行情",
+              "data_refs": [
+                {
+                  "module": "market",
+                  "as_of": "2026-11-04T09:00:00+08:00"
+                }
+              ],
+              "summary": "最新收盘价 1680.50 元"
+            },
+            {
+              "id": "fundamental",
+              "availability": "gap",
+              "reason": "该标的暂无已披露财务摘要"
+            },
+            {
+              "id": "valuation",
+              "availability": "pending",
+              "reason": "估值数据集尚未接入"
+            },
+            {
+              "id": "capital",
+              "availability": "pending",
+              "reason": "资金流数据集尚未接入"
+            },
+            {
+              "id": "risk",
+              "availability": "pending",
+              "reason": "风险数据集尚未接入"
+            }
+          ],
+          "gaps": [
+            {
+              "code": "DAILY_BASIC_MISSING",
+              "message": "估值数据集待接入。"
+            },
+            {
+              "code": "MONEYFLOW_MISSING",
+              "message": "资金流数据集待接入。"
+            },
+            {
+              "code": "RISK_DATASETS_MISSING",
+              "message": "质押/解禁/股东户数待接入。"
+            }
+          ]
+        },
+        "meta": {
+          "source": {
+            "source": "platform_eod",
+            "as_of": "2026-11-04T09:00:00+08:00",
+            "staleness_ms": 0,
+            "source_id": "tushare"
+          },
+          "entitlement": {
+            "tier": "c_end_display",
+            "is_entitled": true
+          },
+          "disclaimer": {
+            "text": "本平台行情数据仅供参考，不构成投资建议。",
+            "version": "2026.11.1",
+            "closable": false
+          }
+        }
+      }
+    },
+    {
+      "name": "部分段受限（200，restricted 段无数值/摘要/data_refs）",
+      "status": 200,
+      "body": {
+        "data": {
+          "instrument_id": "SZSE:300750",
+          "sections": [
+            {
+              "id": "quote",
+              "availability": "restricted",
+              "reason": "该段当前不可展示"
+            },
+            {
+              "id": "fundamental",
+              "availability": "gap",
+              "reason": "该标的暂无已披露财务摘要"
+            },
+            {
+              "id": "valuation",
+              "availability": "pending",
+              "reason": "估值数据集尚未接入"
+            },
+            {
+              "id": "capital",
+              "availability": "pending",
+              "reason": "资金流数据集尚未接入"
+            },
+            {
+              "id": "risk",
+              "availability": "pending",
+              "reason": "风险数据集尚未接入"
+            }
+          ],
+          "gaps": []
+        },
+        "meta": {
+          "source": {
+            "source": "platform_eod",
+            "as_of": "2026-11-04T09:00:00+08:00",
+            "staleness_ms": 0,
+            "source_id": "tushare"
+          },
+          "entitlement": {
+            "tier": "internal_eval",
+            "is_entitled": false
+          },
+          "disclaimer": {
+            "text": "本平台行情数据仅供参考，不构成投资建议。",
+            "version": "2026.11.1",
+            "closable": false
+          }
+        }
+      },
+      "note": "部分受限仍 200"
+    },
+    {
+      "name": "页面级全受限",
+      "status": 403,
+      "body": {
+        "type": "about:blank",
+        "title": "行情数据暂不可用",
+        "status": 403,
+        "code": "ENTITLEMENT_RESTRICTED",
+        "detail": "当前版本暂不提供该标的行情数据",
+        "trace_id": "trace-synthetic-403"
+      }
+    },
+    {
+      "name": "未收录证券",
+      "status": 404,
+      "body": {
+        "type": "about:blank",
+        "title": "标的不存在",
+        "status": 404,
+        "code": "INSTRUMENT_NOT_FOUND",
+        "detail": "该标识未收录",
+        "trace_id": "trace-synthetic-404"
+      }
+    },
+    {
+      "name": "非法标识",
+      "status": 400,
+      "body": {
+        "type": "about:blank",
+        "title": "参数校验失败",
+        "status": 400,
+        "code": "VALIDATION_ERROR",
+        "detail": "instrument_id 需为 EXCH:CODE",
+        "trace_id": "trace-synthetic-400"
+      }
+    }
+  ]
+}

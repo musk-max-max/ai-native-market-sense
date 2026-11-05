@@ -1,0 +1,149 @@
+{
+  "operation_id": "getWatchlistReview",
+  "origin": "synthetic",
+  "recorded_at": "2026-11-05T16:40:00+08:00",
+  "note": "provider 侧录播（合成样本）。覆盖正常统计/空自选/400/401/403。",
+  "cases": [
+    {
+      "name": "两只自选区间统计",
+      "status": 200,
+      "body": {
+        "data": {
+          "from": "2026-10-08",
+          "to": "2026-11-03",
+          "adjustment": "qfq",
+          "items": [
+            {
+              "instrument_id": "SSE:600519",
+              "name": "贵州茅台",
+              "start_close": 1600.0,
+              "end_close": 1680.5,
+              "range_return_pct": 5.03,
+              "volatility_pct": 1.42,
+              "max_drawdown_pct": -2.11,
+              "data_points": 18
+            },
+            {
+              "instrument_id": "SZSE:300750",
+              "name": "宁德时代",
+              "start_close": 210.0,
+              "end_close": 242.0,
+              "range_return_pct": 15.24,
+              "volatility_pct": 2.87,
+              "max_drawdown_pct": -5.32,
+              "data_points": 18
+            }
+          ],
+          "portfolio": {
+            "equal_weight_return_pct": 10.14,
+            "volatility_pct": 2.15,
+            "max_drawdown_pct": -3.72,
+            "start_date": "2026-10-08",
+            "end_date": "2026-11-03",
+            "data_points": 18
+          },
+          "universe": {
+            "count": 2,
+            "indicators_available": 2
+          },
+          "gaps": [
+            {
+              "code": "BENCHMARK_PENDING",
+              "message": "基准指数数据待接入，暂不提供相对收益。"
+            }
+          ]
+        },
+        "meta": {
+          "source": {
+            "source": "platform_eod",
+            "as_of": "2026-11-04T09:00:00+08:00",
+            "staleness_ms": 0,
+            "source_id": "tushare"
+          },
+          "entitlement": {
+            "tier": "c_end_display",
+            "is_entitled": true
+          },
+          "adjustment": "qfq",
+          "disclaimer": {
+            "text": "本平台行情数据仅供参考，不构成投资建议。",
+            "version": "2026.11.1",
+            "closable": false
+          }
+        }
+      }
+    },
+    {
+      "name": "空自选（200 + items=[] + portfolio=null）",
+      "status": 200,
+      "body": {
+        "data": {
+          "from": "2026-10-08",
+          "to": "2026-11-03",
+          "adjustment": "qfq",
+          "items": [],
+          "portfolio": null,
+          "universe": {
+            "count": 0,
+            "indicators_available": 0
+          },
+          "gaps": []
+        },
+        "meta": {
+          "source": {
+            "source": "platform_eod",
+            "as_of": "2026-11-04T09:00:00+08:00",
+            "staleness_ms": 0,
+            "source_id": "tushare"
+          },
+          "entitlement": {
+            "tier": "c_end_display",
+            "is_entitled": true
+          },
+          "adjustment": "qfq",
+          "disclaimer": {
+            "text": "本平台行情数据仅供参考，不构成投资建议。",
+            "version": "2026.11.1",
+            "closable": false
+          }
+        }
+      }
+    },
+    {
+      "name": "区间超过 250 交易日",
+      "status": 400,
+      "body": {
+        "type": "about:blank",
+        "title": "参数校验失败",
+        "status": 400,
+        "code": "VALIDATION_ERROR",
+        "detail": "区间跨度不得超过 250 个交易日",
+        "trace_id": "trace-synthetic-400"
+      }
+    },
+    {
+      "name": "未认证",
+      "status": 401,
+      "body": {
+        "type": "about:blank",
+        "title": "需要登录",
+        "status": 401,
+        "code": "UNAUTHENTICATED",
+        "detail": "缺少或无效的凭据",
+        "trace_id": "trace-synthetic-401"
+      }
+    },
+    {
+      "name": "无权限",
+      "status": 403,
+      "body": {
+        "type": "about:blank",
+        "title": "无权限",
+        "status": 403,
+        "code": "FORBIDDEN",
+        "detail": "当前用户无权访问该资源",
+        "trace_id": "trace-synthetic-403"
+      }
+    }
+  ]
+}

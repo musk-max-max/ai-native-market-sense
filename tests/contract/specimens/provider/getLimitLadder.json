@@ -1,0 +1,179 @@
+{
+  "operation_id": "getLimitLadder",
+  "origin": "synthetic",
+  "recorded_at": "2026-11-05T16:40:00+08:00",
+  "note": "provider 侧录播（合成样本）。覆盖涨停/跌停梯队、空梯队+gaps、400、403。",
+  "cases": [
+    {
+      "name": "主板/创业板/科创板/北交所梯队",
+      "status": 200,
+      "body": {
+        "data": {
+          "trade_date": "2026-11-04",
+          "rule": {
+            "name": "provisional_board_pct",
+            "version": "2026.11.1",
+            "st_handling": "excluded",
+            "price_basis": "none",
+            "board_pct": {
+              "main": 10,
+              "gem": 20,
+              "star": 20,
+              "bse": 30,
+              "st": 5
+            },
+            "note": "P0 临时口径：按板块涨跌幅上限从不复权日线推导，ST 不参与。"
+          },
+          "limit_up": [
+            {
+              "instrument_id": "SSE:600519",
+              "name": "贵州茅台",
+              "board": "main",
+              "consecutive_boards": 2,
+              "close": 1680.5,
+              "prev_close": 1632.0,
+              "change_pct": 2.97
+            },
+            {
+              "instrument_id": "SZSE:300750",
+              "name": "宁德时代",
+              "board": "gem",
+              "consecutive_boards": 1,
+              "close": 242.0,
+              "prev_close": 201.67,
+              "change_pct": 20.0
+            },
+            {
+              "instrument_id": "SSE:688981",
+              "name": "中芯国际",
+              "board": "star",
+              "consecutive_boards": 3,
+              "close": 88.8,
+              "prev_close": 74.0,
+              "change_pct": 20.0
+            }
+          ],
+          "limit_down": [
+            {
+              "instrument_id": "BSE:430047",
+              "name": "诺思兰德",
+              "board": "bse",
+              "consecutive_boards": 1,
+              "close": 9.1,
+              "prev_close": 13.0,
+              "change_pct": -30.0
+            }
+          ],
+          "excluded_st": [
+            {
+              "instrument_id": "SSE:600703",
+              "name": "ST三安"
+            }
+          ],
+          "gaps": [
+            {
+              "code": "STK_LIMIT_PRECISE_PENDING",
+              "message": "精确涨跌停价待接入，当前按板块幅度推导。"
+            },
+            {
+              "code": "MARKET_BREADTH_PENDING",
+              "message": "全市场涨跌家数聚合待接入。"
+            }
+          ]
+        },
+        "meta": {
+          "source": {
+            "source": "platform_eod",
+            "as_of": "2026-11-04T09:00:00+08:00",
+            "staleness_ms": 0,
+            "source_id": "tushare"
+          },
+          "entitlement": {
+            "tier": "c_end_display",
+            "is_entitled": true
+          },
+          "adjustment": "none",
+          "disclaimer": {
+            "text": "本平台行情数据仅供参考，不构成投资建议。",
+            "version": "2026.11.1",
+            "closable": false
+          }
+        }
+      }
+    },
+    {
+      "name": "该交易日无梯队数据（200 + 空列表 + gaps）",
+      "status": 200,
+      "body": {
+        "data": {
+          "trade_date": "2026-11-01",
+          "rule": {
+            "name": "provisional_board_pct",
+            "version": "2026.11.1",
+            "st_handling": "excluded",
+            "price_basis": "none",
+            "board_pct": {
+              "main": 10,
+              "gem": 20,
+              "star": 20,
+              "bse": 30,
+              "st": 5
+            }
+          },
+          "limit_up": [],
+          "limit_down": [],
+          "excluded_st": [],
+          "gaps": [
+            {
+              "code": "STK_LIMIT_PRECISE_PENDING",
+              "message": "精确涨跌停价待接入，当前按板块幅度推导。"
+            }
+          ]
+        },
+        "meta": {
+          "source": {
+            "source": "platform_eod",
+            "as_of": "2026-11-04T09:00:00+08:00",
+            "staleness_ms": 0,
+            "source_id": "tushare"
+          },
+          "entitlement": {
+            "tier": "c_end_display",
+            "is_entitled": true
+          },
+          "adjustment": "none",
+          "disclaimer": {
+            "text": "本平台行情数据仅供参考，不构成投资建议。",
+            "version": "2026.11.1",
+            "closable": false
+          }
+        }
+      },
+      "note": "无数据不返回 404"
+    },
+    {
+      "name": "lookback 非法",
+      "status": 400,
+      "body": {
+        "type": "about:blank",
+        "title": "参数校验失败",
+        "status": 400,
+        "code": "VALIDATION_ERROR",
+        "detail": "lookback 必须在 1–10 之间",
+        "trace_id": "trace-synthetic-400"
+      }
+    },
+    {
+      "name": "授权降级",
+      "status": 403,
+      "body": {
+        "type": "about:blank",
+        "title": "行情数据暂不可用",
+        "status": 403,
+        "code": "ENTITLEMENT_RESTRICTED",
+        "detail": "当前版本暂不提供该标的行情数据",
+        "trace_id": "trace-synthetic-403"
+      }
+    }
+  ]
+}

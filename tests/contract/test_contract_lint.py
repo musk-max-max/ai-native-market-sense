@@ -39,6 +39,10 @@ REQUIRED_META = {
     "watchlist:getWatchlist": {"source", "entitlement"},
     "watchlist:addWatchlistItem": {"source", "entitlement"},
     "watchlist:removeWatchlistItem": set(),  # 204 无响应体
+    # B1 新增（A0 market 0.4.0 / watchlist 0.3.0）
+    "market:getLimitLadder": {"adjustment", "disclaimer"},
+    "market:getInstrumentPageSummary": {"disclaimer"},
+    "watchlist:getWatchlistReview": {"adjustment", "disclaimer"},
 }
 
 # 响应对象必须闭合（additionalProperties: false）的基础定义白名单：

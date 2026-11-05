@@ -222,3 +222,28 @@ def test_not_found_semantics_are_distinguished(specimens):
                 f"{operation_id}: 基础信息接口只有「未收录」语义，404 不应出现 NOT_FOUND（资源无数据不适用），实际 {sorted(codes)}"
             )
     assert not problems, "\n".join(problems)
+
+
+def test_page_summary_restricted_sections_carry_no_values(specimens: dict) -> None:
+    """B1-03 语义：availability=restricted 的段不得携带 summary / data_refs（A0 0.4.0 描述）。"""
+    specimen = specimens["getInstrumentPageSummary"]
+    successful = [c for c in specimen["cases"] if c["status"] == 200]
+    assert successful, "page-summary 缺 200 样本"
+    for case in successful:
+        sections = case["body"]["data"]["sections"]
+        ids = [s["id"] for s in sections]
+        assert len(ids) == len(set(ids)) == 5, f"{case['name']}: 五段必须各出现一次，实际 {ids}"
+        for section in sections:
+            if section["availability"] != "restricted":
+                continue
+            assert "summary" not in section, f"{case['name']}: restricted 段 {section['id']} 不得带 summary"
+            assert not section.get("data_refs"), f"{case['name']}: restricted 段 {section['id']} 不得带 data_refs"
+
+
+def test_all_restricted_page_summary_is_403(specimens: dict) -> None:
+    """页面级全受限才是 403；样本必须存在，且 403 Problem code 为 ENTITLEMENT_RESTRICTED。"""
+    specimen = specimens["getInstrumentPageSummary"]
+    blocked = [c for c in specimen["cases"] if c["status"] == 403]
+    assert blocked, "缺页面级全受限 403 样本"
+    for case in blocked:
+        assert case["body"]["code"] == "ENTITLEMENT_RESTRICTED"

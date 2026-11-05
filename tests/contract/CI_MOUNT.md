@@ -182,12 +182,12 @@ G-IMPL 本体现在对 stub 自证通过；对真实实现的首跑等 A3/A7 服
 | seed | `infra/db/seed-entitlement-audit.sh` `febc9f77a239a9e290ef4b4359d9b42a93b54d18a685cf6ff698b95c04f35168`；`infra/db/seed-serving-fixture.sh` `72692a628e5f68fd47cf0b4fc1bcdb990ca3fad414d9b7e1cb829eaf59d1ac3c` |
 | 基线清单 | `tests/contract/baselines/v1/baseline_manifest.json` `0740ea4e1c1cbf0343774c34d2271539928af6e20340e7b73fa69e9ba96d287e` |
 | 工具链 | node v23.11.0；Python 3.12.2（pytest 7.4.4）；oasdiff 1.35.0；PostgreSQL 16.15 |
-| 契约版本 | shared 0.2.2（description-only，commit `0732adf`；403 短路/不泄露存在性）+ market 0.3.0；`pytest tests/contract` = 61 passed |
+| 契约版本 | shared 0.2.2（description-only，commit `0732adf`；403 短路/不泄露存在性）+ market **0.4.0**（B1：getLimitLadder/getInstrumentPageSummary）+ watchlist **0.3.0**（getWatchlistReview）；`pytest tests/contract` = **63 passed** |
 | #3 复跑锚 | A3 `7c177c6`（非文档-only：entitlement-gate.ts/entitlement-events.ts/测试）；契约门禁 61 passed + 两档顺序 PASS；A19 `b8e131c` 仅 tests/adversarial，不影响结论 |
 | 数据库 | `postgresql://ms@127.0.0.1:55432/a13_verify`（本机 PG16；35 条 / 10 类；跑完 `seed-entitlement-audit.sh --restore-fresh`，`audit.entitlement_hold.hold=f`） |
 | 验收脚本 sha256（全量） | audit_gap `bf399b973ead2187…`；base_info `b68d9c4022168a29…`；display_safe `3b1110919370f464…`；copy `92e82e80fd81fb07…`；events `3257ac8a612cd932…`；expiry `cc35e739ec793d4e…`；hold `b9adadefd6a736af…`；killswitch `0161ec4de4febe38…`；write_failure `51c4b9bcd94d9f0c…`；frontend `efb9895eb49ceec0…`；no_store `6286b83cbff427cb…`；rate_limit `5ac35c9228e2c967…`；probe `28a1c4779b4eef1c…`（完整值见 `sha256sum tests/data/acceptance/*`） |
 | 证据包 | **v3**（2026-11-04 10:35，v2 冻结后的增量）：在 v2 基础上补 L73 `env-switch-inventory.md`、L74 `ADVERSARIAL.md`、A19 产物（含重建的 run-scoped `http-attempts-20261104T012350680Z.jsonl` 175 条）与 `manifest-20261104T0235Z.json`；v1、v2 冻结不动。sha256 见 `SHA256SUMS-v3`（tar 内不嵌自身哈希）。收件校验脚本 `tests/data/acceptance/check_evidence_manifest.py` |
-| 日常门禁 | `pytest tests/contract tests/data` → **161 passed, 0 failed, 1 warning**（2026-11-04 14:38）；`pytest tests/contract` = 61 passed |
+| 日常门禁 | `pytest tests/contract tests/data` → **193 passed, 0 failed, 2 warnings**（2026-11-05 16:45；B1 三接口样本/语义测试后）；`pytest tests/contract` = 63 passed |
 | A2 display fixture（L44 登记） | `warehouse/tests/fixtures/display_manifest/` bundle digest（SHA256SUMS sha256）= `7f2a19491b38826d15c90f460033014b6de016c805e6d8a52994108879af6cb4`；旧 `a4bfd648…` 作废；`pytest warehouse/tests/test_display_safe.py` = 31 passed |
 
 **8+4 复核路径表**（每条 = 命令 → 断言 → 本次结果 → 证据位置）：
@@ -332,3 +332,11 @@ file-level 窄豁免且 H2 签，不给目录级）。扫描强度与全量数�
 - 状态（commit-bound，2026-11-04T12:25Z）：绑定 commit `471cec31f1e61382dff248f73f03d86c3bd0e997`（包含 A3 修复 `f9e5506`；干净 worktree，跑前 `git status --porcelain` 为空）；`pytest tests/contract tests/data` = **191 passed / 2 warnings**，矩阵 **18 passed**（15 组合 + 2 全局 + 1 静态回退断言）。证据 `artifacts/kd-ent-01-startup-matrix-471cec3-20261104T2025Z.md` sha256 `c2d01d3eeb17463aaf8f6b251414e43e76eedada3c12fafe2889f56ae1d67ed2`。
 - **绑定 commit**：旧证据 `artifacts/kd-ent-01-startup-matrix-20261104T1220Z.md`（sha `bf4a87df…`）已标 `preview/uncommitted-tree`（侧车 `.PREVIEW.md`，原字节不动）；A3 提交后必须在干净 HEAD 重跑，产物命名 `kd-ent-01-startup-matrix-<commit7>-<UTC>.md` 并记录 `git rev-parse HEAD`。
 - 第 4 条断言（H5 m03552）：`test_e2e_mode_does_not_participate_in_hold_audit_defaults` 直接读 `services/market/src/config.ts` 的 `entitlementHoldCheck:`/`entitlementAuditEnabled:` 赋值表达式，出现 `e2eMode`/`E2E_MODE` 即红。
+
+### 7.14 B1 新增三接口的契约覆盖（A0 market 0.4.0 / watchlist 0.3.0，2026-11-05）
+
+- `REQUIRED_META` 增：`market:getLimitLadder={adjustment,disclaimer}`、`market:getInstrumentPageSummary={disclaimer}`、`watchlist:getWatchlistReview={adjustment,disclaimer}`。
+- provider 样本：`specimens/provider/{getLimitLadder,getInstrumentPageSummary,getWatchlistReview}.json`；consumer 期望：`specimens/consumer/` 同名三件。
+- 语义钉点：`getLimitLadder` 无数据返回 200+空列表+gaps（不 404）、`rule.price_basis=none` 且 meta.adjustment=none、ST 只进 `excluded_st`；`getInstrumentPageSummary` 五段各一次、`availability=restricted` 段不得带 summary/data_refs、部分受限仍 200、页面级全受限才 403（`ENTITLEMENT_RESTRICTED`）；`getWatchlistReview` 空自选 200 + portfolio=null、adjustment 仅 none|qfq、meta.adjustment==data.adjustment、缺口用 BENCHMARK_PENDING。
+- 自证：`test_provider_contract.py::test_page_summary_restricted_sections_carry_no_values`、`test_all_restricted_page_summary_is_403`。
+- 状态：`pytest tests/contract` = 63 passed；`pytest tests/contract tests/data` = 193 passed / 2 warnings。

@@ -1,0 +1,24 @@
+{
+  "operation_id": "getInstrumentPageSummary",
+  "client": "web-h5 个股页五段骨架",
+  "note": "restricted 段不展示数值；gap/pending 段展示原因",
+  "calls": [
+    {
+      "name": "个股页骨架",
+      "request": {
+        "method": "GET",
+        "path": "/v1/instruments/SSE:600519/page-summary"
+      },
+      "expect": {
+        "status": 200,
+        "required_fields": [
+          "data.instrument_id",
+          "data.sections[].id",
+          "data.sections[].availability",
+          "meta.disclaimer.text",
+          "meta.disclaimer.closable"
+        ]
+      }
+    }
+  ]
+}

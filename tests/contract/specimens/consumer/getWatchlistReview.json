@@ -1,0 +1,31 @@
+{
+  "operation_id": "getWatchlistReview",
+  "client": "web-h5 自选组合复盘卡片",
+  "note": "私有数据，必须带 bearer；只读统计，不含投资结论",
+  "calls": [
+    {
+      "name": "区间复盘",
+      "request": {
+        "method": "GET",
+        "path": "/v1/watchlist/review",
+        "query": {
+          "adjustment": "qfq"
+        },
+        "headers": {
+          "authorization": "Bearer synthetic-token-for-contract-test"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "required_fields": [
+          "data.from",
+          "data.to",
+          "data.adjustment",
+          "data.items[].range_return_pct",
+          "data.universe.count",
+          "meta.adjustment"
+        ]
+      }
+    }
+  ]
+}

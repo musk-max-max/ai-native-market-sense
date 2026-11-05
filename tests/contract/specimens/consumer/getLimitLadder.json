@@ -1,0 +1,29 @@
+{
+  "operation_id": "getLimitLadder",
+  "client": "web-h5 盘后复盘数据卡",
+  "note": "只读梯队；无 403 时页面显示缺口码对应的占位说明",
+  "calls": [
+    {
+      "name": "最近交易日梯队",
+      "request": {
+        "method": "GET",
+        "path": "/v1/market/limit-ladder",
+        "query": {
+          "lookback": 3
+        }
+      },
+      "expect": {
+        "status": 200,
+        "required_fields": [
+          "data.trade_date",
+          "data.rule.version",
+          "data.rule.price_basis",
+          "data.limit_up[].instrument_id",
+          "data.limit_up[].consecutive_boards",
+          "meta.source.as_of",
+          "meta.adjustment"
+        ]
+      }
+    }
+  ]
+}
