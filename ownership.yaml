@@ -14,7 +14,7 @@
 # 本文件只登记「已创建目录」。尚未激活的 P2/P3 写域见文件末尾 notes.reserved_paths。
 
 schema_version: "0.1"
-updated_at: "2026-11-04"
+updated_at: "2026-11-05"
 owner: A0
 
 paths:
@@ -212,3 +212,9 @@ notes:
     - { path: design/, owner: A10 }
     - { path: tests/personas/, owner: A18 }
     - { path: ops/dashboards/, owner: A13 }
+    # 金融研究 agent（KD-ARCH-A20，2026-11-05）：按评估文档先登记 reserved_paths，
+    # 目录由 A0 在激活期补建；正式登记后 reviewer 含 H3（研究产物合规终审）。
+    - { path: research/quant/, owner: A20, reviewers: [H3] }
+    - { path: research/macro/, owner: A21, reviewers: [H3] }
+    - { path: research/fund/, owner: A22, reviewers: [H3] }
+    - { path: research/intel/, owner: A23, reviewers: [H3] }
