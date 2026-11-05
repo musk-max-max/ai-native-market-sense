@@ -29,10 +29,72 @@
     "watchlistToggle": "watchlist-toggle",
     "watchlistState": "watchlist-state",
     "errorBanner": "error-banner",
-    "loading": "stock-page-loading"
+    "loading": "stock-page-loading",
+    "aiGeneratedBadge": "ai-generated-badge",
+    "aiDisclaimer": "ai-disclaimer",
+    "aiInterpretation": "ai-interpretation",
+    "aiSegmentValuation": "ai-segment-valuation",
+    "aiSegmentGrowth": "ai-segment-growth",
+    "aiSegmentEarningsQuality": "ai-segment-earnings-quality",
+    "aiSegmentCapitalFlow": "ai-segment-capital-flow",
+    "aiSegmentRisk": "ai-segment-risk",
+    "dataGapCard": "data-gap-card",
+    "dataGapReason": "data-gap-reason",
+    "portfolioReviewPage": "portfolio-review-page",
+    "portfolioMetrics": "portfolio-metrics",
+    "portfolioMetric": "portfolio-metric",
+    "portfolioMetricValue": "portfolio-metric-value",
+    "portfolioScopeNote": "portfolio-scope-note",
+    "portfolioReviewLoading": "portfolio-review-loading",
+    "portfolioReviewError": "portfolio-review-error",
+    "portfolioReviewEmpty": "portfolio-review-empty",
+    "limitLadderPage": "limit-ladder-page",
+    "limitLadderTable": "limit-ladder-table",
+    "limitLadderRow": "limit-ladder-row",
+    "limitProvisionalBanner": "limit-provisional-banner",
+    "limitStExclusion": "limit-st-exclusion",
+    "limitLadderLoading": "limit-ladder-loading",
+    "limitLadderError": "limit-ladder-error",
+    "limitLadderEmpty": "limit-ladder-empty"
+  },
+  "groups": {
+    "aiInterpretation": [
+      "aiGeneratedBadge",
+      "aiDisclaimer",
+      "aiInterpretation",
+      "aiSegmentValuation",
+      "aiSegmentGrowth",
+      "aiSegmentEarningsQuality",
+      "aiSegmentCapitalFlow",
+      "aiSegmentRisk"
+    ],
+    "dataGap": [
+      "dataGapCard",
+      "dataGapReason"
+    ],
+    "portfolioReview": [
+      "portfolioReviewPage",
+      "portfolioMetrics",
+      "portfolioMetric",
+      "portfolioMetricValue",
+      "portfolioScopeNote",
+      "portfolioReviewLoading",
+      "portfolioReviewError",
+      "portfolioReviewEmpty"
+    ],
+    "limitLadder": [
+      "limitLadderPage",
+      "limitLadderTable",
+      "limitLadderRow",
+      "limitProvisionalBanner",
+      "limitStExclusion",
+      "limitLadderLoading",
+      "limitLadderError",
+      "limitLadderEmpty"
+    ]
   },
   "stateIds": {
-    "description": "异步状态不要复用业务 id：状态用独立 id，便于断言「先 loading 后内容」且不依赖时序。",
+    "description": "异步状态用独立 id，禁止复用业务 id（便于断言「先 loading 后内容」且不依赖时序）。本对象只列 stock 页示例；新增页面状态 id 同样必须在 ids 中登记，并在 docs/TESTID-CONVENTION.md 标注页面归属。",
     "loading": "stock-page-loading",
     "error": "stock-page-error",
     "empty": "stock-page-empty"
