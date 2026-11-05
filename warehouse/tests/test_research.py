@@ -97,6 +97,7 @@ def test_fixture_batches_and_rows():
     assert len(state.moneyflow) == 1
     assert len(state.margin) == 1
     assert len(state.hk_hold) == 2
+    assert {row["northbound_channel"] for row in state.hk_hold.values()} == {"HK"}
     assert state.issues == []
 
 

@@ -258,7 +258,7 @@ RESEARCH_ROW_SPECS: dict[str, dict[str, Any]] = {
         "required": ("name", "holding_volume", "holding_ratio_pct", "northbound_channel"),
         "decimal": ("holding_ratio_pct",),
         "integer": ("holding_volume",),
-        "text": ("name",),
+        "text": ("name", "northbound_channel"),
         "enums": {"northbound_channel": ("SH", "SZ", "HK")},
     },
 }

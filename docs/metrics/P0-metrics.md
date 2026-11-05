@@ -328,9 +328,10 @@ ORDER BY trade_date;
     RES-02 只对 DWD canonical 字段生效；RES-03 对 `hk_hold` 的港股命名空间 `HKEX:#####` 显式豁免并计数
     （`exemptions` 同时出现在 pipeline/load 运行摘要与 `quality.json`）；RES-04 按 endpoint 配 as_of 阈值。
     研究数据只能进 `internal/` root，**不得进 display root、不参与 `display_safe` 派生、不进 C 端 ports**
-    （隔离门禁 `infra/ci/check_display_safe_failclosed.py`）。**hk_hold 状态 blocked**：A1 港股后缀映射
-    （`00700.HK → HKEX:00700`）落地前，研究 fixture 仅为命名空间健壮性样例，不作为数据验收依据；
-    读取端对非法标识报错，不静默跳过、不降级成 A 股样例。
+    （隔离门禁 `infra/ci/check_display_safe_failclosed.py`）。**hk_hold 状态 active_internal**：A1 港股后缀映射
+    （`00700.HK → HKEX:00700`，commit `97c8f3e`）已落地，`HKEX:#####` 可经 A1 canonical 化进入
+    ODS→DWD→serving；fixture 为命名空间样例，另以 A1 `map_row` → A2 loader 交叉验证；读取端对非法标识
+    报错，不静默跳过、不降级成 A 股样例。
 
 ## 8. H4 会签记录（已签 2026-11-04；变更须重新会签）
 
@@ -372,6 +373,7 @@ ORDER BY trade_date;
 | 2026-11-04 | 记录 L9（质量分只计 blocker，warn 独立计数）与 §8 H4 会签清单；新增 G21（ST 恰好 +5.00%）边界样本 | 待 H4 |
 | 2026-11-04 | H4 核签 2026-11-04 后修复：M04 未知板块 fail-closed（`limit_status=NULL`，BIZ-01 blocker）+ ST 时点性 L80（`known_limitation`/`st_status_source`、BIZ-03 warn）；M02 注释改 L3 锚并输出 `anchor_date`/`factor_version`/`factor_as_of`；新增 G22 取整边界 | H4 重签通过 |
 | 2026-11-04 | **规则集变更 before/after（H4 条件 3）**：新增 BIZ-03（warn）后业务规则数 2→3；同一 blocker（BIZ-01）命中时 business 类别分 **50.00→66.67**、总分 **85.00→90.00**，仍因一票否决 `black`；结构 6 / 完整性 3 / 一致性 2 不变。阈值、权重、否决规则均不变；该变化不改变任何门禁结论。**signed / H4 / 2026-11-04 / 条件见 `sign_off.conditions`** | 已签 |
+| 2026-11-05 | **hk_hold unblocked（KD-HK-UNBLOCK）**：A1 `.HK → HKEX:#####` 映射落地（`97c8f3e`），hk_hold 状态 active_internal；A1 `map_row` 产出的 `HKEX:00700`/`HKEX:09988` 经 ODS→DWD 质量链路验证（quality 100 green、exemptions={RES-03:2}）；本轮回填 `northbound_channel` 被 normalizer 丢弃的缺陷（`text` 白名单遗漏）并加回归 | A1 映射 + A2 全量验证 |
 | 2026-11-05 | **H4 收口补充**：质量运行摘要（pipeline/load stdout）必带 `exemptions={...}`；`hk_hold` 在 A1 `.HK → HKEX` 映射落地前记 blocked，fixture 不冒充验收数据、非法标识不静默跳过 | H4 2026-11-05 收口 |
 | 2026-11-05 | **H4 备案附注已落（KD-RES-FIX）**：RES-01 明确为周末粗筛（非法定节假日/交易日历，P1 接 `trade_cal`）；RES-02 限定只对 DWD canonical 字段生效；`hk_hold` 换真实港股命名空间 `HKEX:#####` 并由 RES-03 显式豁免+计数（fixture 已改 `HKEX:00700`/`HKEX:09988`）；RES-04 改 per-endpoint 阈值（`hk_hold` T+1 次日 15:00，其余当日 15:00）；新增研究数据集不得进 display root 的隔离门禁（prod 拒绝、不参与 `display_safe` 派生） | H4 备案通过（2026-11-05） |
 | 2026-11-05 | 研究数据集（KD-INGEST-CONSUME）：DWD 新增 7 表、serving 新增 7 个 `serving_research_*` 内部 view（不接 C 端）；质量规则新增 RES-01..04（blocker），规则数 14→18，before/after：业务 3→4（同一 blocker 66.67→75.00、总分 90.00→92.50，仍 black）、完整性 3→5、一致性 2→3；阈值/权重/否决不变 | 待 H4 备案 |

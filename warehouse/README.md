@@ -207,9 +207,9 @@ A1 把 7 个研究数据集写入 `<ODS_ROOT>/internal/<endpoint>/dt=<trade_date
     `hk_hold` 为 T+1 披露，次日 15:00；`index_daily` 指数收盘当日 15:00。
 - **运行摘要**：`pipeline` / `load` 的 stdout 质量行在存在豁免时输出 `exemptions={...}`
   （如 `RES-03: 2`），与 `quality.json` 内的 `exemptions` 同源，豁免不能只留在内部计数器。
-- **hk_hold 状态**：A1 港股后缀映射（`00700.HK → HKEX:00700`）落地前，`hk_hold` 记为 **blocked**——
-  fixture 只是命名空间健壮性样例（`source=a2.fixture.hkex_namespace`），不是数据验收依据；读取端对非法标识
-  报错、不静默跳过、不降级成 A 股样例。A1 映射落地后重跑全量套件再报。
+- **hk_hold 状态**：**active_internal**（A1 commit `97c8f3e` 落地 `00700.HK → HKEX:00700`，1–5 位左补 0、
+  可逆、前导零保留；A 股后缀与 P0 instrument pattern 不变）。`HKEX:#####` 经 A1 canonical 化后可进
+  ODS→DWD→serving，RES-03 豁免并计数；读取端对非法标识报错、不静默跳过、不降级成 A 股样例。
 - **隔离门禁**：研究数据集只能进 `internal/` root；写进 `display/` root 时 prod 直接拒绝（dev 告警且
   `display_safe` 恒 false）；研究数据不参与 `display_safe` 派生、`serving_research_*` 不进入 C 端 `ports.yaml`。
 - 本地链路验证（fixture 由 A1 `research.map_row` 生成）：
