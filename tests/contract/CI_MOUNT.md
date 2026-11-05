@@ -348,3 +348,21 @@ file-level 窄豁免且 H2 签，不给目录级）。扫描强度与全量数�
 - 语义钉点：`getLimitLadder` 无数据返回 200+空列表+gaps（不 404）、`rule.price_basis=none` 且 meta.adjustment=none、ST 只进 `excluded_st`；`getInstrumentPageSummary` 五段各一次、`availability=restricted` 段不得带 summary/data_refs、部分受限仍 200、页面级全受限才 403（`ENTITLEMENT_RESTRICTED`）；`getWatchlistReview` 空自选 200 + portfolio=null、adjustment 仅 none|qfq、meta.adjustment==data.adjustment、缺口用 BENCHMARK_PENDING。
 - 自证：`test_provider_contract.py::test_page_summary_restricted_sections_carry_no_values`、`test_all_restricted_page_summary_is_403`。
 - 状态（2026-11-05T16:45Z，HEAD `6266e47`）：`pytest tests/contract` = **63 passed**；`pytest tests/contract tests/data` = **193 passed / 2 warnings**。契约与 generated 由 A3 `6266e47` 提交入库（A0 确认此后未再改 schema）；复验即对该 commit 树。
+
+### 7.15 研究数据来源边界门禁（H4 m03988/m04083，A13 release-gate `b3b4248`）
+
+- 被测工具：A1 `services/ingest/tools/check_research_source_boundary.py`（A1 `bc118ce`），A11 **薄封装** `tests/data/acceptance/check_research_source_boundary.py`（commit `65f2e90`，sha256 `5345151f5731c0949ddc4a71d2b859cde391056cb42d81ae1630c00df96f8ff9`），不复制实现、不修改 A1 脚本。
+- 输入：A1 tracked smoke 产物 `services/ingest/var/research-ods-smoke`（11 个研究 endpoint + `_meta/research_sources.jsonl`）与 `research-ods-smoke-audit`（manifest 单事件）；支持 `--ods-root`/`--manifest-root` 覆盖，默认不改路径。
+- 断言：正样本 exit 0；负样本①mirror 批次 `display_safe=true` → 非 0 且点名 mirror；负样本②`research_sources.jsonl` 出现 `token` 键 → 非 0 且点名 credential/token；ods root 不存在 → exit 2。
+- 退出码 0/1/2 原样透传，release 步骤只认 0；`--evidence` 运行时生成 md（`tests/data/acceptance/artifacts/research-source-boundary-*.md` 已 gitignore，不入库）。
+- 实跑（2026-11-05）：正样本 rc=0；负样本①rc=1、②rc=1；缺 root rc=2。A13 已接 `.github/workflows/release-gate.yml` §7.3（`set -o pipefail` + tee，无 `|| true`，失败上传 `research-boundary.out` + evidence）。
+- 与 `check_display_safe_failclosed.py` 保持两个脚本：一个验 manifest/display_safe 派生，一个验来源边界，失败原因分开定位。
+
+### 7.16 M04 时点限价规则：A11 参考实现与 golden 逐条对照（H4 m04083）
+
+- 口径来源：`docs/metrics/P0-metrics.md` §6 + `agents/decisions.md` L118/L119/L120；H4 2026-11-05 已签（M04 + RES-05 取整）。`tests/data/quality_policy.yaml` 增 `limit_rules`（时点/板块/注册制前 5 日/首日/北交所开市/S 股），`decision_refs` 含 L118/L119/L120。
+- 参考实现（独立于 warehouse）：`tests/data/quality_lib.py` 的 `limit_pct_for` / `quote_unit` / `limit_prices` / `limit_status_for`；`evaluate_case` 的 BIZ-01 在 `limit_pct=NULL` 时不评估（首日/注册制前 5 日/北交所开市前不得错标涨停）。
+- 取整：沪深 A 0.01 half-up；北交所 43/83/87/88/92 涨停 floor、跌停 ceil；沪 B 900xxx 0.001 half-up；深 B 200xxx 0.01 half-up。
+- 逐条对照：`tests/data/acceptance/artifacts/limit-rule-crosscheck-20261105T1415Z.md`（sha256 `35854d212edd1bf59039b3e0beb0b45869ff1a71179cfdb4fdde63d32eaf9414`），G25–G37 / N10–N12 共 14 个 case、33 个 bar 行，**0 差异**；G33/G34 是 `research_batches`（stk_limit，RES-05 由 A2 pipeline 评估），A 股 bar 参考实现标注不适用。
+- BSE 样本：golden 覆盖 43 段（G04）与 83 段（G10/G30/G31）；87/88/92 段无 golden 样本，按同规则实现。
+- 状态（2026-11-05）：`pytest tests/data` = **150 passed / 1 warning**；`pytest tests/contract tests/data` = **213 passed / 2 warnings**。

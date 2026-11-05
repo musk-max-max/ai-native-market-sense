@@ -15,7 +15,10 @@ import re
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 
 PATTERN = re.compile(r"\bts_" r"code\b|\b\d{6}\.(?:SH|SZ|BJ)\b")
-IGNORE_DIRS = {"node_modules", ".git", "dist", "build", ".venv", "__pycache__"}
+IGNORE_DIRS = {
+    "node_modules", ".git", "dist", "build", ".venv", "__pycache__",
+    ".mypy_cache", ".pytest_cache", ".ruff_cache",
+}
 
 # D2a 原始层（只允许「接收源数据的最外沿」）
 RAW_LAYER = (

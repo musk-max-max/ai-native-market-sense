@@ -24,7 +24,7 @@ import json
 import os
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta, timezone
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, ROUND_CEILING, ROUND_FLOOR, ROUND_HALF_UP
 from pathlib import Path
 from typing import Any
 
@@ -245,6 +245,140 @@ class _Stats:
         return {v.rule_id for v in self.violations}
 
 
+
+# ---------------- 涨跌幅规则（L118/L119/L120） ----------------
+
+ST_MAIN_SWITCH = date(2026, 7, 6)
+GEM_SWITCH = date(2020, 8, 24)
+BSE_OPEN = date(2021, 11, 15)
+REGISTRATION_FIRST5 = {
+    "star": date(2019, 7, 22),
+    "gem": date(2020, 8, 24),
+    "main": date(2023, 4, 10),
+}
+
+
+def is_st_name(name: str) -> bool:
+    return name.startswith(("ST", "*ST"))
+
+
+def is_s_share(name: str) -> bool:
+    # S 股（未股改）优先于 ST：S*ST 仍按 5%（L120）。
+    return name.startswith("S") and not is_st_name(name)
+
+
+def limit_pct_for(
+    policy: dict[str, Any],
+    *,
+    board: str | None,
+    name: str,
+    listed_at: date | None,
+    trade_date: date | None,
+    trade_seq: int | None,
+) -> Decimal | None:
+    """返回该 bar 的涨跌幅档位（%）；None = 无涨跌幅限制，BIZ-01 不评估。
+
+    trade_seq 是从上市日起全历史窗口内的交易日序号（1-based）。P0 golden 以 fixture
+    首个 bar 近似，缺 bar 会让序号偏小（docs/metrics/P0-metrics.md known limitation）。
+    """
+    rules = policy["limit_rules"]
+    if trade_date is None:
+        return None
+    if listed_at is not None and trade_date == listed_at:
+        return None  # 首日无涨跌幅
+    registration_from = REGISTRATION_FIRST5.get(board or "")
+    if (
+        registration_from is not None
+        and listed_at is not None
+        and listed_at >= registration_from
+        and trade_seq is not None
+        and trade_seq <= 5
+    ):
+        return None  # 注册制上市前 5 个交易日无涨跌幅
+    if board == "bse":
+        if trade_date < BSE_OPEN:
+            return None  # 2021-11-15 北交所开市前不猜精选层规则
+        return Decimal(str(rules["bse_from_2021_11_15"]))
+    if board == "star":
+        if trade_date < date(2019, 7, 22):
+            return None
+        return Decimal(str(rules["star"]))
+    if board == "gem":
+        if trade_date < GEM_SWITCH:
+            return Decimal(str(rules["gem_before_2020_08_24"]))
+        return Decimal(str(rules["gem_from_2020_08_24"]))
+    if board == "main" or board is None:
+        if is_s_share(name):
+            return Decimal(str(rules["s_share_main"]))
+        if is_st_name(name):
+            if trade_date < ST_MAIN_SWITCH:
+                return Decimal(str(rules["st_main_before_2026_07_06"]))
+            return Decimal(str(rules["st_main_from_2026_07_06"]))
+        return Decimal(str(policy["board_limit_pct"]["main"]))
+    return Decimal(str(policy["board_limit_pct"].get(board, policy["board_limit_pct"]["main"])))
+
+
+def quote_unit(instrument: dict[str, Any]) -> Decimal:
+    """报价单位：沪 B 900xxx 为 0.001 美元，其余 A/B 股 0.01。"""
+    instrument_id = str(instrument.get("instrument_id") or "")
+    exchange, _, code = instrument_id.partition(":")
+    if exchange == "SSE" and code.startswith("900"):
+        return Decimal("0.001")
+    return Decimal("0.01")
+
+
+def limit_prices(
+    prev_close: Decimal,
+    limit_pct: Decimal,
+    *,
+    instrument: dict[str, Any],
+) -> tuple[Decimal, Decimal]:
+    """按交易所/报价单位计算涨停/跌停价（H4 2026-11-05 已签口径，docs §6）。"""
+    instrument_id = str(instrument.get("instrument_id") or "")
+    exchange, _, code = instrument_id.partition(":")
+    board = instrument.get("board")
+    unit = quote_unit(instrument)
+    if board == "bse" and code.startswith(("43", "83", "87", "88", "92")):
+        # 北交所 A：涨停 floor、跌停 ceil（不足 0.01 元也按交易所方向取整）
+        up = (prev_close * (1 + limit_pct / 100) / unit).to_integral_value(rounding=ROUND_FLOOR) * unit
+        down = (prev_close * (1 - limit_pct / 100) / unit).to_integral_value(rounding=ROUND_CEILING) * unit
+        return up, down
+    up = (prev_close * (1 + limit_pct / 100)).quantize(unit, rounding=ROUND_HALF_UP)
+    down = (prev_close * (1 - limit_pct / 100)).quantize(unit, rounding=ROUND_HALF_UP)
+    return up, down
+
+
+def limit_status_for(
+    policy: dict[str, Any],
+    instrument: dict[str, Any],
+    *,
+    trade_date: date | None,
+    trade_seq: int | None,
+    prev_close: Decimal | None,
+    close: Decimal | None,
+) -> tuple[Decimal | None, Decimal | None, Decimal | None, str | None]:
+    """返回 (limit_pct, limit_up, limit_down, limit_status)；None 表示无涨跌幅限制。"""
+    listed_at = parse_date(instrument.get("listed_at"))
+    limit_pct = limit_pct_for(
+        policy,
+        board=instrument.get("board"),
+        name=instrument.get("name") or "",
+        listed_at=listed_at,
+        trade_date=trade_date,
+        trade_seq=trade_seq,
+    )
+    if limit_pct is None or prev_close is None or prev_close <= 0:
+        return limit_pct, None, None, None
+    up, down = limit_prices(prev_close, limit_pct, instrument=instrument)
+    status = None
+    if close is not None:
+        if close >= up:
+            status = "limit_up"
+        elif close <= down:
+            status = "limit_down"
+    return limit_pct, up, down, status
+
+
 def evaluate_case(pack: Pack, case: CaseData, policy: dict[str, Any] | None = None) -> CaseReport:
     policy = policy or load_policy()
     stats = _Stats(policy)
@@ -252,17 +386,19 @@ def evaluate_case(pack: Pack, case: CaseData, policy: dict[str, Any] | None = No
     board = case.instrument.get("board")
     name = case.instrument.get("name") or ""
     listed_at = parse_date(case.instrument.get("listed_at"))
-    limits = policy["board_limit_pct"]
     tolerance = Decimal(str(policy["limit_tolerance_pp"]))
-    is_st = board in policy["st_limit_boards"] and name.startswith(("ST", "*ST"))
     # L80：ST 判定只有当期名称快照（dim.as_of）；历史交易日未还原，只做 warn 标注。
     dim_as_of = parse_datetime(case.instrument.get("as_of") or case.as_of)
-    limit_pct = Decimal(str(policy["st_limit_pct"] if is_st else limits.get(board, limits["main"])))
 
     # 排序后的 bar（fixture 允许乱序输入，规则按交易日顺序判定）
     indexed = [(parse_date(bar.get("trade_date")), bar) for bar in case.bars]
     indexed.sort(key=lambda item: (item[0] or date.min))
     bars: list[tuple[date | None, dict[str, Any]]] = indexed
+    sequence_by_date = {
+        trade_date: position
+        for position, (trade_date, _) in enumerate(bars, start=1)
+        if trade_date is not None
+    }
 
     # ---------------- 结构 ----------------
     seen_keys: dict[tuple[str, date], int] = {}
@@ -366,6 +502,16 @@ def evaluate_case(pack: Pack, case: CaseData, policy: dict[str, Any] | None = No
         if prev_close is None:
             stats.flag("BIZ-02", "缺涨跌幅基准 prev_close（告警，不阻断）", iid, td_text)
             continue
+        limit_pct = limit_pct_for(
+            policy,
+            board=board,
+            name=name,
+            listed_at=listed_at,
+            trade_date=trade_date,
+            trade_seq=sequence_by_date.get(trade_date),
+        )
+        if limit_pct is None:
+            continue  # 首日/注册制前 5 日/北交所早期：无涨跌幅限制，不得错标涨停
         close = parse_decimal(bar.get("close"))
         stats.bump("BIZ-01")
         if close is not None and prev_close > 0:

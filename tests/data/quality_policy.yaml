@@ -16,7 +16,7 @@ version: 1
 owner: A11
 reviewers: [H4]
 approved_by: H4
-decision_refs: [H4-D8, H4-D9, task-6, L9, L80, KD-RES-FIX]
+decision_refs: [H4-D8, H4-D9, task-6, L9, L80, L118, L119, L120, KD-RES-FIX, KD-DSW-P2, KD-RES-HARDEN]
 
 weights:
   struct: 0.2
@@ -63,6 +63,25 @@ st_limit_pct: 5.0
 st_limit_boards: [main]
 limit_tolerance_pp: 0.5
 
+# 涨跌幅规则（L118/L119/L120，H4 2026-11-05 口径更正；旧「ST 一律 5%」「静态板块档」作废）。
+# 时点生效 + 注册制前 5 交易日/首日无涨跌幅；limit_pct=NULL 时 BIZ-01 不评估（不得错标涨停）。
+limit_rules:
+  st_main_before_2026_07_06: 5.0
+  st_main_from_2026_07_06: 10.0
+  gem_before_2020_08_24: 10.0
+  gem_from_2020_08_24: 20.0
+  star: 20.0
+  bse_before_2021_11_15: null
+  bse_from_2021_11_15: 30.0
+  s_share_main: 5.0
+  st_main_switch_date: "2026-07-06"
+  gem_switch_date: "2020-08-24"
+  bse_open_date: "2021-11-15"
+  registration_first_5:
+    star: "2019-07-22"
+    gem: "2020-08-24"
+    main: "2023-04-10"
+
 # 规则 id -> (类别, 级别)。级别 blocker 触发一票否决（直接 black + blocked）。
 rules:
   STRUCT-01: {category: struct, severity: blocker, label: 必填字段与非空类型}
@@ -90,3 +109,8 @@ research_rules:
   RES-02: {category: business, severity: blocker, label: 研究数据量纲（金额/量/市值非负，百分比 |x| ≤ 1000，仅 DWD canonical 字段）}
   RES-03: {category: consistency, severity: blocker, label: 研究数据 instrument_id 必须在 dim_instrument（指数/两融豁免；HKEX 港股命名空间显式豁免并计数）}
   RES-04: {category: completeness, severity: blocker, label: 研究数据 per-endpoint as_of 阈值（A 股/指数当日 15:00，hk_hold T+1 次日 15:00）}
+  RES-05: {category: business, severity: blocker, label: 涨跌停原始价自洽（up>prev>down）+ limit_pct 候选档重算交叉验证}
+  RES-06: {category: business, severity: blocker, label: 财报公告时点（announced_at ≥ report_end_date、report_period 季末一致、不晚于 as-of）}
+  RES-07: {category: consistency, severity: blocker, label: 行业分类树层级自洽（parent/level/链≤2/无环）}
+  RES-08: {category: consistency, severity: blocker, label: 成分时点自洽（in_date ≤ snapshot、out_date ≥ in_date、is_new=N 需 out_date）}
+  RES-09: {category: consistency, severity: warn, label: 成分退出日合理性（out_date > snapshot_date 未来退出日告警）}

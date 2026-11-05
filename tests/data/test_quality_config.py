@@ -80,3 +80,30 @@ def test_score_mode_is_l9_blocker_rules(policy):
     q = next((item for item in questions if item.get("id") == "Q-WARN-SCORE"), None)
     assert q is not None, "warn 计分口径必须在 open_questions 留痕（不得口口相传）"
     assert q.get("decision") == "L9" and q.get("status") == "decided_pending_H4_countersign"
+
+
+def test_limit_rules_are_approved_time_aware(policy):
+    """涨跌幅档位必须是 H4 2026-11-05 签的时点口径（L118/L119/L120），不得退回静态板块档。"""
+    expected = {
+        "st_main_before_2026_07_06": 5.0,
+        "st_main_from_2026_07_06": 10.0,
+        "gem_before_2020_08_24": 10.0,
+        "gem_from_2020_08_24": 20.0,
+        "star": 20.0,
+        "bse_from_2021_11_15": 30.0,
+        "s_share_main": 5.0,
+        "st_main_switch_date": "2026-07-06",
+        "gem_switch_date": "2020-08-24",
+        "bse_open_date": "2021-11-15",
+    }
+    rules = policy["limit_rules"]
+    for key, value in expected.items():
+        assert rules.get(key) == value, f"limit_rules.{key} 应为 {value!r}，实际 {rules.get(key)!r}"
+    assert rules["bse_before_2021_11_15"] is None, "北交所开市前必须 NULL（不猜精选层规则）"
+    assert rules["registration_first_5"] == {
+        "star": "2019-07-22",
+        "gem": "2020-08-24",
+        "main": "2023-04-10",
+    }, "注册制前 5 交易日边界必须与 L120 一致"
+    for ref in ("L118", "L119", "L120"):
+        assert ref in policy["decision_refs"], f"limit_rules 变更缺 decision_refs {ref}"

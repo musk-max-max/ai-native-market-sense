@@ -15,6 +15,8 @@ from decimal import Decimal, ROUND_HALF_UP
 import pytest
 
 from quality_lib import (
+    is_s_share,
+    limit_pct_for,
     CATEGORY_ORDER,
     CaseData,
     evaluate_case,
@@ -123,25 +125,46 @@ def test_p0_boundary_classes_are_covered(pack):
     ), "缺除权除息样本（因子变化）"
 
 
+def _bar_limits(cases, policy):
+    """逐 bar 计算 (case, trade_date, trade_seq, limit_pct, change_pct, violations)。"""
+    rows = []
+    for case in cases:
+        instrument = case.instrument
+        listed_at = parse_date(instrument.get("listed_at"))
+        bars = sorted(case.bars, key=lambda bar: bar.get("trade_date") or "")
+        for position, bar in enumerate(bars, start=1):
+            trade_date = parse_date(bar.get("trade_date"))
+            prev = parse_decimal(bar.get("prev_close"))
+            close = parse_decimal(bar.get("close"))
+            change = None
+            if prev is not None and close is not None and prev > 0:
+                change = (close / prev - 1) * 100
+            limit = limit_pct_for(
+                policy,
+                board=instrument.get("board"),
+                name=instrument.get("name") or "",
+                listed_at=listed_at,
+                trade_date=trade_date,
+                trade_seq=position,
+            )
+            rows.append((case, trade_date, position, limit, change, case.expect.get("violations") or []))
+    return rows
+
+
 def test_limit_up_and_down_prices_are_exercised(pack, policy):
-    """涨跌停必须按板块价格四舍五入到分命中（C11 不得硬编码 10%）。"""
+    """涨跌停必须按「时点/板块档位」四舍五入到分命中（C11 不得硬编码 10%）。"""
     hits = {"limit_up": False, "limit_down": False}
     step = Decimal("0.01")
-    for case in pack.cases:
-        board = case.instrument.get("board")
-        name = case.instrument.get("name") or ""
-        limit = (
-            policy["st_limit_pct"]
-            if name.startswith(("ST", "*ST")) and board in policy["st_limit_boards"]
-            else policy["board_limit_pct"][board]
-        )
+    for case, _, _, limit, _, _ in _bar_limits(pack.cases, policy):
+        if limit is None:
+            continue
         for bar in case.bars:
             prev = parse_decimal(bar.get("prev_close"))
             close = parse_decimal(bar.get("close"))
             if prev is None or close is None or prev <= 0:
                 continue
-            up = (prev * (1 + Decimal(str(limit)) / 100)).quantize(step, rounding=ROUND_HALF_UP)
-            down = (prev * (1 - Decimal(str(limit)) / 100)).quantize(step, rounding=ROUND_HALF_UP)
+            up = (prev * (1 + limit / 100)).quantize(step, rounding=ROUND_HALF_UP)
+            down = (prev * (1 - limit / 100)).quantize(step, rounding=ROUND_HALF_UP)
             if close == up:
                 hits["limit_up"] = True
             if close == down:
@@ -150,33 +173,61 @@ def test_limit_up_and_down_prices_are_exercised(pack, policy):
     assert hits["limit_down"], "缺跌停价样本"
 
 
-def test_st_uses_five_percent_cap_not_ten(pack, policy):
-    """ST 必须按 5% 判定：超 5% 的 ST 涨跌幅要被 BIZ-01 拦下。
+def test_st_main_limit_is_time_aware(pack, policy):
+    """主板 ST 档位随时点变化（L118/L119）：<2026-07-06 = 5%，>= = 10%。
 
-    A2 已补 G21（ST 恰好 +5.00%），因此这里要求：恰好 5% 放行、>5%+容差被拦，
-    同时防「硬编码 10%」回归（+6% 在 10% 口径下会被误放行）。
+    证明三件事：①5% 档内不误报且存在「恰好 5%」样本（G21，被删即红灯）；
+    ②5% 档超限被拦（N05 +6%，防退回 10% 硬编码）；③10% 档恰好 10% 放行（G26，防仍按 5%）。
     """
-    st_cases = [c for c in pack.cases if (c.instrument.get("name") or "").startswith(("ST", "*ST"))]
-    assert st_cases, "缺 ST 样本"
-    changes = []
-    for case in st_cases:
-        for bar in case.bars:
-            prev = parse_decimal(bar.get("prev_close"))
-            close = parse_decimal(bar.get("close"))
-            if prev and close:
-                changes.append((case.case_id, float((close / prev - 1) * 100), case.expect.get("violations") or []))
-    over = [row for row in changes if row[1] > policy["st_limit_pct"] + policy["limit_tolerance_pp"]]
-    assert over, "缺 ST 超 5% 幅度样本，ST 5% 规则未被真实触发"
-    assert all("BIZ-01" in violations for _, _, violations in over), (
-        "ST 超过 5%+容差却被放行（疑似硬编码 10%）: " + repr(over)
-    )
-    within = [row for row in changes if row[1] <= policy["st_limit_pct"]]
-    assert all("BIZ-01" not in violations for _, _, violations in within), (
-        "ST 在 5% 以内（含）的合法涨跌幅被误判 BIZ-01: " + repr(within)
-    )
-    assert any(abs(row[1] - policy["st_limit_pct"]) < 1e-9 for row in changes), (
-        "缺「ST 恰好 5%」边界样本（G21 是 H4 要求补的样本，被删即红灯）"
-    )
+    tolerance = float(policy["limit_tolerance_pp"])
+    rows = [
+        row
+        for row in _bar_limits(pack.cases, policy)
+        if (row[0].instrument.get("board") == "main")
+        and (row[0].instrument.get("name") or "").startswith(("ST", "*ST"))
+        and not is_s_share(row[0].instrument.get("name") or "")
+        and row[3] is not None
+        and row[4] is not None
+    ]
+    before = [row for row in rows if row[3] == Decimal("5")]
+    after = [row for row in rows if row[3] == Decimal("10")]
+    assert before, "缺 2026-07-06 前主板 ST（5%）样本"
+    assert after, "缺 2026-07-06 起主板 ST（10%）样本"
+
+    exact_before = [row for row in before if abs(float(row[4]) - 5.0) < 1e-9]
+    assert exact_before, "缺「ST 恰好 5%」边界样本（G21 被删即红灯）"
+    assert all("BIZ-01" not in row[5] for row in exact_before), "5% 档恰好 5% 被误判 BIZ-01"
+
+    over_before = [row for row in before if abs(float(row[4])) > 5.0 + tolerance]
+    assert over_before, "缺「5% 档超限」负样本（N05）"
+    assert all("BIZ-01" in row[5] for row in over_before), "5% 档超限被放行（疑似硬编码 10%）"
+
+    exact_after = [row for row in after if abs(float(row[4]) - 10.0) < 1e-9]
+    assert exact_after, "缺「ST 恰好 10%」样本（G26 被删即红灯）"
+    assert all("BIZ-01" not in row[5] for row in exact_after), "10% 档恰好 10% 被误判 BIZ-01（疑似仍按 5%）"
+
+
+def test_no_limit_windows_follow_registration_and_bse_rules(pack, policy):
+    """首日/注册制前 5 交易日/北交所开市前 → limit_pct=NULL，不得错标涨停（L120）。"""
+    rows = {case.case_id: [row for row in _bar_limits([case], policy)] for case in pack.cases}
+    by_case = {case.case_id: case for case in pack.cases}
+
+    for case_id in ("G35", "G36", "G37"):
+        case_rows = rows[case_id]
+        assert all(row[3] is None for row in case_rows), f"{case_id}: 注册制前 5 交易日必须 NULL"
+        assert "BIZ-01" not in (by_case[case_id].expect.get("violations") or [])
+
+    for case_id in ("N10", "N11", "N12"):
+        case_rows = rows[case_id]
+        assert case_rows[-1][3] is not None, f"{case_id}: 第 6 个交易日起必须恢复档位"
+        assert "BIZ-01" in (by_case[case_id].expect.get("violations") or [])
+
+    bse_early = [row for row in rows["G30"] if row[3] is None]
+    assert bse_early, "G30：北交所 2021-11-15 前必须 NULL"
+    assert all(row[3] == Decimal("30") for row in rows["G31"]), "G31：北交所开市后必须 30%"
+
+    s_share = [row for row in rows["G29"] if row[3] is not None]
+    assert s_share and all(row[3] == Decimal("5") for row in s_share), "G29：主板 S 股必须 5%"
 
 
 def test_expect_adjustment_numbers_are_derivable(pack):
