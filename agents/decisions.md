@@ -1210,3 +1210,12 @@ A13 如实交了失败记录（本机无 iptables、pf 无权限），**没有�
 - **时限**：用户确认后 24h 完成 B+C，**11-05 24:00 前闭环**；做不到则 11-12 发布卡点不签，「内网所以降级」不成立。
 - **A19 事故（near-miss）**：红队复核临时绑 `0.0.0.0:8888/80` 验证外网放行（窗口约 2s、无数据读取、post-cleanup 未复测=事实缺口）→ 定 **P2 程序违规 near-miss**，`authority=drill` 不进验收 manifest，记 `drill/a19-exposure-boundary-deviation-20261105.md`。A19 后续转本地隔离栈用例（EXC-HOST-01 命中 BYPASS=API 403 但 DB 直读 2 行，授权只在 API 层成可复现事实；`audit_gap_status=INCOMPLETE` 不算 PASS）。
 - **用户出口 IP**：`223.166.54.234`（fail2ban 白名单用）。**ufw 遗留规则**（8888/20/21/888/25730/39000-40000）经 Lead 查**无进程监听=纯遗留**，待用户点头删。
+
+## §11 L102 SSH 关闭密码登录（H5 P0 处置，Lead 执行）
+- **时间**：2026-11-05T01:18:52Z（北京 09:18）。**入口**：Lead 非交互 SSH（命令不落 bash_history）。
+- **变更**：`/etc/ssh/sshd_config` 幂等追加 `PermitRootLogin prohibit-password` / `PasswordAuthentication no` / `MaxAuthTries 3`；`sshd -t` 语法通过后 `systemctl restart ssh`。备份 `/etc/ssh/sshd_config.bak.20261105T011852Z`。
+- **验证**：①新连接强制只走密钥→登录成功；②`PasswordAuthentication=yes + PubkeyAuthentication=no` 试连→`Permission denied (publickey)`，密码登录确认已死；③`sshd -T` 回读 `passwordauthentication no`/`permitrootlogin without-password`/`maxauthtries 3`。
+- **依据**：H5 SEC-001 P1（公网 22 开放+root 密码认证+1130 次爆破）；用户 m05431「关闭」授权；密钥/控制台兜底前提用户已确认（`~/.ssh/id_ed25519` 指纹 `sIQF8MQVzDMd…` 与 authorized_keys 一致）。
+- **22 白名单不锁（用户 m05441 裁定）**：用户出口 IP `223.166.54.234` 不稳定（换网络即变），锁白名单会导致用户换网络后无法 SSH，只能走控制台 VNC。故 22 保持 Anywhere 开放，仅靠 fail2ban 挡扫描、密码登录已关堵爆破。**⑤-4（22 白名单）记 residual，不因用户不锁而 FAIL 降级，按「已评估、用户明确接受」记**。
+- **未闭**：⑤ 仍 PARTIAL——⑤-5（云 SG 关 80/8888）归用户控制台，我无法执行；HOST-BASELINE-01（IaC）待提案。
+- **纪律**：后续 Lead 在 ECS 的操作走「命令+时间入 evidence」，不留同类可追性缺口。
