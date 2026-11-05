@@ -12,6 +12,7 @@
 | 2 | [data-source-gap-matrix.md](./data-source-gap-matrix.md) | **数据对照（交付物①）**：东方财富层级 × tushare 15000 逐项对照 + 缺口红标 | 产品 / 数据 / 决策 |
 | 3 | [ai-native-product-requirements.md](./ai-native-product-requirements.md) | **AI native PRD（交付物②）**：5 板块需求 + 合规护栏 + P0/P1/P2 路线 | 产品 / 研发 / 设计 |
 | 4 | [financial-research-agent-proposal.md](./financial-research-agent-proposal.md) | **金融研究子 agent 评估（交付物③）**：新增 A20/A21/A22 三席 + 权限分层 | 架构 / 治理 / 各 agent |
+| 5 | [free-research-sources-websearch-guide.md](./free-research-sources-websearch-guide.md) | **免费研报/资讯来源指南**：不采购资讯权限，用 Web Search 抓公开源（研究 agent 必读） | A20/A21/A22 / AI 研判 |
 
 ## 一句话脉络
 
@@ -23,8 +24,13 @@
 2. **as_of 时点**：所有数据展示与 AI 引用必带 `as_of`，禁止把延时数据当实时。
 3. **分级展示**：`internal_eval`（内部）/ `c_end_display`（面客）两级，受限档 403，AI 不得在面客侧输出受限原始内容。
 
-## 待决策的开放项（见各文档尾部）
+## 关键决策（2026-11-05 已拍板，见对照文档 §5）
 
-- **私募/著名投资人持仓缺口**：外部采购 / 代理指标 / 标注不可得 —— 三选一，影响「综合形势研判」可行性。
-- **盘中实时权限**：采购实时行情（¥200–1000/月）做实时版，或先按日频/延时降级版规划。
+- **D-1 私募/著名投资人持仓**：用「公募重仓 + 龙虎榜」代理指标（非真实持仓，UI 强制标注代理性质）。
+- **D-2 盘中实时**：先按日频/延时降级版规划（标注 as_of = 上一交易日），实时版作为后续采购升级项。
+- **D-3 资讯/政策/研报**：不采购（省 ¥2500/年），用 Web Search 抓公开免费源（指南见文档 5）。
+
+## 仍开放的项
+
+- **概念标签体系**：tushare 弱，需自建"概念→成分股"映射。
 - **tushare 接口范围核定**：待 H4 按商用授权套餐核定；红线清单待 H3、数据分级待 H5。
