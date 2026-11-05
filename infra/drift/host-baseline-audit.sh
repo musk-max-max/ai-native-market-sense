@@ -129,7 +129,8 @@ for n in $NAMES; do
       for c in $EXPECTED_PUBLIC_CONTAINERS; do [ "$n" = "$c" ] && allowed=1; done
       [ "$allowed" -eq 0 ] && fail "容器 $n 存在通配(0.0.0.0/::)端口绑定 (status=$st restart=$rest): $binds"
       for p in $EXPECTED_PUBLIC_PORTS; do
-        case "$binds" in *"$p/tcp"*) EXPOSURE_CONTAINERS="$EXPOSURE_CONTAINERS $n:$p:$st:wildcard" ;; esac
+        # 公网可达性看 HostPort（不是容器端口）：{"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"8888"}]}
+        case "$binds" in *"\"HostPort\":\"$p\""*) EXPOSURE_CONTAINERS="$EXPOSURE_CONTAINERS $n:$p:$st:wildcard" ;; esac
       done
       ;;
   esac
@@ -167,7 +168,10 @@ for hit in $EXPOSURE_CONTAINERS; do
   fail "HOST-EXPOSURE-01 容器 $c 在公网端口 $p 上发布 0.0.0.0/:: 绑定（status=$st）"
   echo "ALERT HOST-EXPOSURE-01 container=$c port=$p severity=critical"
   echo "SUGGEST docker stop $c && docker update --restart=no $c"
-  if [ "$st" = "running" ]; then ISOLATE_RC "$c" "$st"; else echo "ISOLATE-SKIP container=$c reason=not_running(status=$st); restart_policy_only"; read_state "docker update --restart=no $c" >/dev/null 2>&1 || true; fi
+  if [ "$st" = "running" ]; then ISOLATE_RC "$c" "$st"; else
+    echo "ISOLATE-SKIP container=$c reason=not_running(status=$st); restart_policy_only"
+    if [ "$SELFTEST" != 0 ] || [ "${HOST_EXPOSURE_AUTO_ISOLATE:-1}" = "0" ]; then :; else read_state "docker update --restart=no $c" >/dev/null 2>&1 && echo "ISOLATED-POLICY container=$c restart=no (no running process)"; fi
+  fi
 done
 for addr in $LISTEN; do
   port=${addr##*:}
@@ -265,10 +269,18 @@ for n in $NAMES; do
   envs=$(read_state "docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' $n" 2>/dev/null || true)
   case "$envs" in
     *ENTITLEMENT_TIER*|*APP_PROFILE*|*E2E_MODE*)
-      audit=$(printf '%s\n' "$envs" | awk -F= '$1=="ENTITLEMENT_AUDIT"{print $2}')
-      hold=$(printf '%s\n' "$envs" | awk -F= '$1=="ENTITLEMENT_HOLD_CHECK"{print $2}')
-      [ "$audit" = "$EXPECTED_ENTITLEMENT_AUDIT" ] && pass "$n ENTITLEMENT_AUDIT=$audit" || fail "$n ENTITLEMENT_AUDIT=${audit:-unset}（期望 ${EXPECTED_ENTITLEMENT_AUDIT}）"
-      [ "$hold" = "$EXPECTED_ENTITLEMENT_HOLD_CHECK" ] && pass "$n ENTITLEMENT_HOLD_CHECK=$hold" || fail "$n ENTITLEMENT_HOLD_CHECK=${hold:-unset}（期望 ${EXPECTED_ENTITLEMENT_HOLD_CHECK}）"
+      # 只对「行情 API」容器强制 hold/audit；web/静态前端即使同栈带 APP_PROFILE 也无授权门。
+      enforce=0
+      case "$n" in *selftest*|*api*) enforce=1 ;; esac
+      case "$envs" in *ENTITLEMENT_TIER*) enforce=1 ;; esac
+      if [ "$enforce" -eq 1 ]; then
+        audit=$(printf '%s\n' "$envs" | awk -F= '$1=="ENTITLEMENT_AUDIT"{print $2}')
+        hold=$(printf '%s\n' "$envs" | awk -F= '$1=="ENTITLEMENT_HOLD_CHECK"{print $2}')
+        [ "$audit" = "$EXPECTED_ENTITLEMENT_AUDIT" ] && pass "$n ENTITLEMENT_AUDIT=$audit" || fail "$n ENTITLEMENT_AUDIT=${audit:-unset}（期望 ${EXPECTED_ENTITLEMENT_AUDIT}）"
+        [ "$hold" = "$EXPECTED_ENTITLEMENT_HOLD_CHECK" ] && pass "$n ENTITLEMENT_HOLD_CHECK=$hold" || fail "$n ENTITLEMENT_HOLD_CHECK=${hold:-unset}（期望 ${EXPECTED_ENTITLEMENT_HOLD_CHECK}）"
+      else
+        pass "$n 非行情 API 容器（仅 APP_PROFILE），跳过 hold/audit 断言"
+      fi
       ;;
   esac
 done

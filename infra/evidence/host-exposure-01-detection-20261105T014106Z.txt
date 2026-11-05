@@ -1,0 +1,59 @@
+# HOST-EXPOSURE-01 检测验收证据（A19 注入 / A13 检测）
+# captured_utc=2026-11-05T01:41:06Z  operator=A13
+# scope: ECS host 47.120.16.239; systemd timer market-sense-host-baseline.timer
+# injection: docker create (not started) — H5 m03665 指定方式，避免真实公网暴露
+# note: 22/tcp Anywhere 与 EXPECTED_PUBLIC_HOST 未配为既有 ⑤ residual，不影响本项注入检出判定
+
+## host heyuan, utc 2026-11-05T01:41:07Z
+## script sha:
+119277ab56306208a9f8a00e991e7106d8f33467cb6b0c7a1a3deca558984ccb  /usr/local/sbin/market-sense-host-baseline-audit.sh
+## expected sha:
+5da1bc8c213ff9331630582073ac508c149d04d48f43051a20a41d15a12023ba  /etc/market-sense/host-baseline.expected.env
+## timer:
+NEXT                        LEFT     LAST PASSED UNIT                             ACTIVATES
+Fri 2026-11-06 09:14:40 CST 23h left n/a  n/a    market-sense-host-baseline.timer market-sense-host-baseline.service
+
+## injection: docker create --name a13-hx-inject -p 0.0.0.0:8888:80 <e2e image> true
+create_rc=0
+## inspect after create:
+name=/a13-hx-inject status=created restart=no binds={"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"8888"}]}
+## audit run (AUTO_ISOLATE=1):
+# host-baseline audit (read-only)
+# time_utc=2026-11-05T01:41:08Z host=heyuan
+# expected=/etc/market-sense/host-baseline.expected.env
+
+PASS  通配监听仅限 22
+FAIL  容器 a13-hx-inject 存在通配(0.0.0.0/::)端口绑定 (status=created restart=no): {"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"8888"}]}
+WARN  e2e 栈容器 market-sense-e2e-api-1 restart=no（允许，仅限 e2e/临时）
+WARN  e2e 栈容器 market-sense-e2e-web-1 restart=no（允许，仅限 e2e/临时）
+WARN  e2e 栈容器 market-sense-e2e-postgres-1 restart=no（允许，仅限 e2e/临时）
+WARN  e2e 栈容器 market-sense-e2e-redis-1 restart=no（允许，仅限 e2e/临时）
+WARN  e2e 栈容器 market-sense-e2e-tushare-replay-1 restart=no（允许，仅限 e2e/临时）
+FAIL  HOST-EXPOSURE-01 容器 a13-hx-inject 在公网端口 8888 上发布 0.0.0.0/:: 绑定（status=created）
+ALERT HOST-EXPOSURE-01 container=a13-hx-inject port=8888 severity=critical
+SUGGEST docker stop a13-hx-inject && docker update --restart=no a13-hx-inject
+ISOLATE-SKIP container=a13-hx-inject reason=not_running(status=created); restart_policy_only
+ISOLATED-POLICY container=a13-hx-inject restart=no (no running process)
+WARN  HOST-EXPOSURE-01 未配置 EXPECTED_PUBLIC_HOST，公网未认证可达性=UNVERIFIED（不计 PASS）
+PASS  ufw 允许列表与基线一致
+FAIL  22/tcp 来源为 Anywhere（未白名单；待用户 CIDR，期望: <未配置>）
+FAIL  22/tcp 来源为 Anywhere（未白名单；待用户 CIDR，期望: <未配置>）
+PASS  fail2ban active
+PASS  fail2ban sshd jail 存在
+PASS  sshd permitrootlogin=without-password
+PASS  sshd passwordauthentication=no
+PASS  sshd maxauthtries=3
+PASS  market-sense-e2e-api-1 ENTITLEMENT_AUDIT=1
+PASS  market-sense-e2e-api-1 ENTITLEMENT_HOLD_CHECK=1
+PASS  market-sense-e2e-web-1 非行情 API 容器（仅 APP_PROFILE），跳过 hold/audit 断言
+
+RESULT DRIFT 存在基线漂移
+## audit_rc=1
+## inspect after audit:
+status=created restart=no
+## cleanup: docker rm -f a13-hx-inject
+a13-hx-inject
+rm_rc=0
+## post-cleanup check: docker ps -a --filter name=a13-hx-inject
+## post-cleanup audit (expect no a13-hx-inject lines):
+RESULT DRIFT 存在基线漂移

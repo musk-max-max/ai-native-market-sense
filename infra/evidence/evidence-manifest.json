@@ -432,6 +432,20 @@
         "HOST-AUDIT-01"
       ],
       "notes": "Lead 23:58:17Z 非交互 SSH 移除 ms-nginx 前的取证原始文件：inspect binds=0.0.0.0:80 + 日志尾部；从 /tmp 取回归档，未改字节。"
+    },
+    {
+      "path": "infra/evidence/host-exposure-01-detection-20261105T014106Z.txt",
+      "sha256": "f8060272c8b80a20277adf30434396fc7e13e05b6a06e546e6b4528571da70e7",
+      "bytes": 3369,
+      "recompute": "sha256sum infra/evidence/host-exposure-01-detection-20261105T014106Z.txt",
+      "role": "host-exposure-01-detection",
+      "authority": "authoritative",
+      "phase": "post-fix",
+      "case_ids": [
+        "HOST-EXPOSURE-01",
+        "H5-R10"
+      ],
+      "notes": "A19 指定方式 docker create -p 0.0.0.0:8888:80（未启动，避免真实暴露）；系统检出 FAIL/ALERT/HOST-EXPOSURE-01 并落 restart=no，清理后无残留。22/tcp Anywhere 与 EXPECTED_PUBLIC_HOST 未配为既有 ⑤ residual。"
     }
   ],
   "related_manifests": [
@@ -442,7 +456,7 @@
       "notes": "A3 证据包（含 #3 采样两档：internal_eval 短路 + c_end_display+hold_active）；A3 更新 MANIFEST 时必须同 commit 更新本 sha；历史自指哈希 errata 见其 MANIFEST 正文。"
     }
   ],
-  "amended_by": "a19-red-team",
-  "amended_at": "2026-11-04T23:55:54Z",
-  "amend_note": "在 A13 生成的 evidence-manifest 上追加 A19 L91 内网暴露面复核 artifact；既有条目未改动。"
+  "amended_by": "a13-sre",
+  "amended_at": "2026-11-05T01:42:00Z",
+  "amend_note": "HOST-EXPOSURE-01 注入验收证据（A13 检测；待 A19 复核/H5 核签）"
 }
