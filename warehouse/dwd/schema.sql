@@ -313,3 +313,134 @@ CREATE TABLE IF NOT EXISTS dwd_hk_hold (
     PRIMARY KEY (instrument_id, trade_date)
 );
 COMMENT ON TABLE dwd_hk_hold IS '沪深股通持股明细（港交所源）；持股比例百分数，0–100';
+
+-- ==========================================================================
+-- 7.8–7.11 P2 研究数据集（KD-DSW-P2；A1 commit 9ebdb73，字段 provisional）
+-- ==========================================================================
+
+-- 7.8 涨跌停价格（stk_limit.v1，日频）——PK (instrument_id, trade_date)
+-- 只落 A1 canonical 原始价，不派生 limit_pct / ST 档位（H4 口径待定）。
+CREATE TABLE IF NOT EXISTS dwd_stk_limit (
+    instrument_id   text        NOT NULL,
+    trade_date      date        NOT NULL,
+    previous_close  numeric(18,4) NOT NULL CHECK (previous_close > 0),
+    up_limit        numeric(18,4) NOT NULL CHECK (up_limit > 0),
+    down_limit      numeric(18,4) NOT NULL CHECK (down_limit > 0),
+    limit_pct       numeric(10,4),           -- A1 比值分档 5/10/20/30（H4 口径，A2 不派生）
+    limit_pct_source text,                   -- exchange_price_ratio | NULL
+    asset_type      text        NOT NULL,
+    exchange        text        NOT NULL CHECK (exchange IN ('SSE','SZSE','BSE')),
+    source          text        NOT NULL,
+    as_of           timestamptz NOT NULL,
+    fetched_at      timestamptz NOT NULL,
+    batch_id        text        NOT NULL,
+    ingested_at     timestamptz NOT NULL,
+    PRIMARY KEY (instrument_id, trade_date)
+);
+COMMENT ON TABLE dwd_stk_limit IS '涨跌停原始价（stk_limit.v1）；不加工 ST/精度档位，原样透传 A1 canonical';
+
+-- 7.9 财务指标宽表（fina_indicator.v1，报告期维度）——PK (instrument_id, report_period)
+-- 可见时点 = announced_at（H4：serving/as-of 查询禁止按 report_end_date join，防未来函数）。
+CREATE TABLE IF NOT EXISTS dwd_fina_indicator (
+    instrument_id                    text        NOT NULL,
+    report_period                    text        NOT NULL,  -- YYYYQn
+    report_end_date                  date        NOT NULL,
+    announced_at                     date        NOT NULL,
+    update_flag                      text,
+    ar_turn                          numeric(20,4),
+    assets_turn                      numeric(20,4),
+    assets_yoy_pct                   numeric(20,4),
+    bps                              numeric(20,4),
+    bps_yoy_pct                      numeric(20,4),
+    current_ratio                    numeric(20,4),
+    debt_to_assets                   numeric(20,4),
+    dt_eps                           numeric(20,4),
+    dt_netprofit_yoy_pct             numeric(20,4),
+    ebit                             numeric(20,4),
+    ebitda                           numeric(20,4),
+    eps                              numeric(20,4),
+    eqt_yoy_pct                      numeric(20,4),
+    extra_item                       numeric(20,4),
+    fixed_assets                     numeric(20,4),
+    grossprofit_margin               numeric(20,4),
+    inv_turn                         numeric(20,4),
+    netprofit_margin                 numeric(20,4),
+    netprofit_yoy_pct                numeric(20,4),
+    npta                             numeric(20,4),
+    ocfps                            numeric(20,4),
+    op_yoy_pct                       numeric(20,4),
+    or_yoy_pct                       numeric(20,4),
+    profit_dedt                      numeric(20,4),
+    q_eps                            numeric(20,4),
+    q_gsprofit_margin                numeric(20,4),
+    q_netprofit_margin               numeric(20,4),
+    q_op_qoq_pct                     numeric(20,4),
+    q_profit_qoq_pct                 numeric(20,4),
+    q_roe                            numeric(20,4),
+    q_sales_qoq_pct                  numeric(20,4),
+    q_sales_yoy_pct                  numeric(20,4),
+    quick_ratio                      numeric(20,4),
+    revenue_ps                       numeric(20,4),
+    roa                              numeric(20,4),
+    roe                              numeric(20,4),
+    roe_dt                           numeric(20,4),
+    roe_waa                          numeric(20,4),
+    roe_yoy_pct                      numeric(20,4),
+    roic                             numeric(20,4),
+    total_revenue_ps                 numeric(20,4),
+    tr_yoy_pct                       numeric(20,4),
+    source                           text        NOT NULL,
+    as_of                            timestamptz NOT NULL,
+    fetched_at                       timestamptz NOT NULL,
+    batch_id                         text        NOT NULL,
+    ingested_at                      timestamptz NOT NULL,
+    PRIMARY KEY (instrument_id, report_period)
+);
+COMMENT ON TABLE dwd_fina_indicator IS '财务指标宽表（fina_indicator.v1）；可见时点=announced_at，禁止按 report_end_date 做 as-of join（H4 防未来函数）';
+
+-- 7.10 申万行业树（index_classify.v1，append-only 快照）——PK (index_code, snapshot_date)
+-- 历史快照不可原地更新；同快照日重跑同主键覆盖（幂等）。历史快照不可回补由 A1 采集约束。
+CREATE TABLE IF NOT EXISTS dwd_index_classify (
+    index_code             text        NOT NULL,
+    snapshot_date          date        NOT NULL,
+    industry_name          text        NOT NULL,
+    parent_code            text,
+    level                  text        NOT NULL,
+    industry_code          text        NOT NULL,
+    is_published           text        NOT NULL,
+    classification_source  text        NOT NULL,
+    coverage               text,        -- full_history | current_snapshot_only（A1 _meta；后者不得用于历史回测）
+    source                 text        NOT NULL,
+    as_of                  timestamptz NOT NULL,
+    fetched_at             timestamptz NOT NULL,
+    batch_id               text        NOT NULL,
+    ingested_at            timestamptz NOT NULL,
+    PRIMARY KEY (index_code, snapshot_date)
+);
+COMMENT ON TABLE dwd_index_classify IS '申万行业树快照（L1/L2/L3）；主键含 snapshot_date，多日快照共存，append-only，历史快照不可回补';
+
+-- 7.11 申万三级成分（index_member_all.v1，时点快照）——PK (instrument_id, l1/l2/l3_code, snapshot_date)
+-- 保留 in_date/out_date/is_new 全字段（H4：禁止只存最新快照，否则回测有幸存者偏差）；
+-- 支持按任意 as-of 日期查历史成分：WHERE snapshot_date <= :as_of AND in_date <= :as_of AND (out_date IS NULL OR out_date > :as_of)。
+CREATE TABLE IF NOT EXISTS dwd_index_member_all (
+    instrument_id   text        NOT NULL,
+    snapshot_date   date        NOT NULL,
+    name            text        NOT NULL,
+    l1_code         text        NOT NULL,
+    l1_name         text,
+    l2_code         text        NOT NULL,
+    l2_name         text,
+    l3_code         text        NOT NULL,
+    l3_name         text,
+    in_date         date        NOT NULL,
+    out_date        date,
+    is_new          text        NOT NULL CHECK (is_new IN ('Y','N')),
+    coverage        text,        -- full_history | current_snapshot_only（A1 _meta；后者不得用于历史回测）
+    source          text        NOT NULL,
+    as_of           timestamptz NOT NULL,
+    fetched_at      timestamptz NOT NULL,
+    batch_id        text        NOT NULL,
+    ingested_at     timestamptz NOT NULL,
+    PRIMARY KEY (instrument_id, l1_code, l2_code, l3_code, snapshot_date)
+);
+COMMENT ON TABLE dwd_index_member_all IS '申万三级成分时点快照；保留 in_date/out_date/is_new，多日快照共存，支持任意 as-of 历史成分（防幸存者偏差）';

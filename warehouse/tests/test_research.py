@@ -81,9 +81,12 @@ def _load_single(tmp_path: Path, endpoint: str, rows: list[dict]) -> list[Batch]
 # --------------------------------------------------------------------------
 
 
-def test_loader_registers_eleven_endpoints():
-    assert len(ENDPOINT_SCHEMAS) == 11
+def test_loader_registers_all_endpoints():
+    # 基础 4（bar/adj_factor/instrument/fundamental）+ 研究 11（7 原有 + 4 P2）。
+    assert len(ENDPOINT_SCHEMAS) == 15
     for endpoint in TABLE_BY_ENDPOINT:
+        assert ENDPOINT_SCHEMAS.get(endpoint) == f"{endpoint}.v1"
+    for endpoint in ("stk_limit", "fina_indicator", "index_classify", "index_member_all"):
         assert ENDPOINT_SCHEMAS.get(endpoint) == f"{endpoint}.v1"
 
 
@@ -321,10 +324,10 @@ def test_research_display_root_pipeline_exit_nonzero(tmp_path):
 
 def test_research_rules_declared_in_config():
     config = load_config()
-    for rid in ("RES-01", "RES-02", "RES-03", "RES-04"):
+    for rid in ("RES-01", "RES-02", "RES-03", "RES-04", "RES-05", "RES-06", "RES-07", "RES-08"):
         assert config["rules"][rid]["severity"] == "blocker"
-    # 每个研究表至少两条规则覆盖：RES-01/RES-02 全表、RES-03 股票级、RES-04 全表
-    assert len(config["rules"]) == 18
+    # P2 规则 RES-05..08 见 test_research_p2.py；总规则 22（6 结构 / 6 业务 / 5 完整性 / 5 一致性）
+    assert len(config["rules"]) == 22
     policies = config["research_as_of"]
     assert policies["hk_hold"] == {"offset_days": 1, "time": "15:00"}
     for endpoint in ("daily_basic", "index_daily", "top_list", "top_inst", "moneyflow", "margin"):

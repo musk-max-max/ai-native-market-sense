@@ -27,7 +27,7 @@ def schema_tables() -> dict[str, set[str]]:
     return {name: set(COLUMN.findall(body)) for name, body in TABLE.findall(text)}
 
 
-def test_thirteen_tables_present():
+def test_seventeen_tables_present():
     assert set(schema_tables()) == {
         "dwd_stock_bar_daily",
         "dwd_adj_factor",
@@ -42,6 +42,10 @@ def test_thirteen_tables_present():
         "dwd_moneyflow",
         "dwd_margin",
         "dwd_hk_hold",
+        "dwd_stk_limit",
+        "dwd_fina_indicator",
+        "dwd_index_classify",
+        "dwd_index_member_all",
     }
 
 

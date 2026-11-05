@@ -220,6 +220,39 @@ python3 -m warehouse.load \
 python3 -m pytest warehouse/tests/test_research.py -q
 ```
 
+### 6.2 研究数据集 P2（KD-DSW-P2；A1 commit 9ebdb73；internal-only）
+
+第 2 批 4 个 ODS endpoint（`<ODS_ROOT>/internal/<endpoint>/dt=<run_date>/`，schema `<endpoint>.v1`）：
+
+| DWD 表 | serving view | 主键 | 说明 |
+| --- | --- | --- | --- |
+| `dwd_stk_limit` | `serving.serving_research_stk_limit` | `(instrument_id, trade_date)` | 涨跌停原始价 `previous_close/up_limit/down_limit/asset_type/exchange` + A1 派生 `limit_pct`（5/10/20/30）/`limit_pct_source`；**A2 不派生、只透传**（H4 口径） |
+| `dwd_fina_indicator` | `serving.serving_research_fina_indicator` | `(instrument_id, report_period)` | 45 列财务指标；**可见时点 = `announced_at`**，as-of 查询必须按 `announced_at` join，禁止按 `report_end_date`（H4 防未来函数） |
+| `dwd_index_classify` | `serving.serving_research_index_classify` | `(index_code, snapshot_date)` | 申万行业树 L1/L2/L3；append-only 快照，多日快照共存；**历史快照不可原地更新、不可回补**（采集约束在 A1）；`coverage` 列标 `full_history/current_snapshot_only` |
+| `dwd_index_member_all` | `serving.serving_research_index_member_all` | `(instrument_id, l1_code, l2_code, l3_code, snapshot_date)` | 时点成分；保留 `in_date/out_date/is_new` 全字段（H4：禁止只存最新快照，否则回测有幸存者偏差），支持任意 as-of 历史成分查询；`coverage=current_snapshot_only` 的快照**不得用于历史回测** |
+
+快照类 endpoint 的 `snapshot_date` 优先取 ODS 行内 `snapshot_date`（A1 commit `93adfee` 起写入），缺失才回退信封 `source.as_of` 的日期。
+覆盖元数据由 A1 写在 `<root>/_meta/research_coverage.json`（`coverage=full_history|current_snapshot_only` + `snapshot_date`），
+A2 读取后落到 DWD `coverage` 列；`current_snapshot_only` 的快照在 serving 查询里必须排除，不能当全历史用。
+as-of 历史成分查询模板见 `warehouse/serving/schema.sql` 中 view 上方注释。
+
+P2 质量规则（均 blocker，纳入 `quality_config.json` v3；规则集变更待 H4 备案，研究域独立、P0 §8 不重签）：
+
+- **RES-05 涨跌停原始价自洽**：`previous_close>0` 且 `up_limit > previous_close > down_limit`；不判 5/10/20/30 档位（H4 口径待定）。
+- **RES-06 财务公告时点**：`announced_at ≥ report_end_date`；`report_period`（YYYYQn）与 `report_end_date` 季度末一致；`announced_at` 不晚于批次 as-of 日期。
+- **RES-07 行业分类层级自洽**：`level ∈ {1,2,3}`；`level>1` 必须有 `parent_code`，`level=1` 不得有，`parent_code ≠ index_code`。
+- **RES-08 成分时点自洽**：`in_date ≤ snapshot_date`；`out_date ≥ in_date`；`is_new=Y` 时 `out_date` 必须为空。
+
+边界：与 6.1 相同——internal-only、不接 C 端契约、不改 `ports.yaml`、不参与 `display_safe`；
+`stk_limit` 引用的标的可能不在 display 维表，RES-03 只按 dim_instrument 校验、不用 display fail-closed。
+
+```bash
+python3 -m warehouse.load \
+  --ods-root services/ingest/var/research-ods-smoke \
+  --internal-ods-root services/ingest/var/research-ods-smoke/internal --profile dev --dry-run
+python3 -m pytest warehouse/tests/test_research_p2.py -q
+```
+
 ## 7. 落库（P0 唯一写库路径：`warehouse/load.py`）
 
 链路：`ODS 批次（L34：display + internal 两个 root）→ load_ods_roots（格式/来源校验，按 root 标记 origin）→ build_dwd（复用同一份 DWD 行）→ 质量门禁 → 单事务 upsert`。

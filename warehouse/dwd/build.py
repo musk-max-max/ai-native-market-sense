@@ -16,7 +16,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Iterable
 
-from warehouse.ods.loader import Batch
+from warehouse.ods.loader import RESEARCH_ENDPOINTS, Batch
 
 BAR_VALUE_FIELDS = ("open", "high", "low", "close", "volume", "amount", "prev_close")
 FACTOR_VALUE_FIELDS = ("factor",)
@@ -113,6 +113,30 @@ RESEARCH_VALUE_FIELDS: dict[str, tuple[str, ...]] = {
         "holding_ratio_pct",
         "northbound_channel",
     ),
+    "fina_indicator": (
+        "report_end_date",
+        "announced_at",
+        "update_flag",
+        "ar_turn","assets_turn","assets_yoy_pct","bps","bps_yoy_pct","current_ratio",
+        "debt_to_assets","dt_eps","dt_netprofit_yoy_pct","ebit","ebitda","eps",
+        "eqt_yoy_pct","extra_item","fixed_assets","grossprofit_margin","inv_turn",
+        "netprofit_margin","netprofit_yoy_pct","npta","ocfps","op_yoy_pct","or_yoy_pct",
+        "profit_dedt","q_eps","q_gsprofit_margin","q_netprofit_margin","q_op_qoq_pct",
+        "q_profit_qoq_pct","q_roe","q_sales_qoq_pct","q_sales_yoy_pct","quick_ratio",
+        "revenue_ps","roa","roe","roe_dt","roe_waa","roe_yoy_pct","roic",
+        "total_revenue_ps","tr_yoy_pct",
+    ),
+    "stk_limit": (
+        "previous_close","up_limit","down_limit","limit_pct","limit_pct_source",
+        "asset_type","exchange",
+    ),
+    "index_classify": (
+        "industry_name","parent_code","level","industry_code","is_published",
+        "classification_source","coverage",
+    ),
+    "index_member_all": (
+        "name","l1_name","l2_name","l3_name","in_date","out_date","is_new","coverage",
+    ),
 }
 
 FUNDAMENTAL_VALUE_FIELDS = (
@@ -179,6 +203,16 @@ class DwdState:
     moneyflow: dict[tuple[Any, ...], dict[str, Any]] = field(default_factory=dict)
     margin: dict[tuple[Any, ...], dict[str, Any]] = field(default_factory=dict)
     hk_hold: dict[tuple[Any, ...], dict[str, Any]] = field(default_factory=dict)
+    # KD-DSW-P2（A1 commit 9ebdb73）：
+    #   stk_limit=(instrument_id, trade_date)；fina_indicator=(instrument_id, report_period)；
+    #   index_classify=(index_code, snapshot_date)；
+    #   index_member_all=(instrument_id, l1_code, l2_code, l3_code, snapshot_date)。
+    stk_limit: dict[tuple[Any, ...], dict[str, Any]] = field(default_factory=dict)
+    fina_indicator: dict[tuple[Any, ...], dict[str, Any]] = field(default_factory=dict)
+    index_classify: dict[tuple[Any, ...], dict[str, Any]] = field(default_factory=dict)
+    index_member_all: dict[tuple[Any, ...], dict[str, Any]] = field(default_factory=dict)
+    # 已注册为研究 endpoint、但尚未建模的批次（如 A1 新增而 A2 未跟进）——显式暴露，不静默丢。
+    unmodeled_research: set[str] = field(default_factory=set)
 
     def bars_for(self, instrument_id: str) -> list[dict[str, Any]]:
         return sorted(
@@ -214,6 +248,7 @@ def build_dwd(
     batches: list[Batch],
     *,
     display_safety: dict[str, bool] | None = None,
+    research_coverage: dict[tuple[str, str], str] | None = None,
 ) -> DwdState:
     """把 ODS 批次折叠为 DWD 状态。输入输出均为纯数据，可重复执行（幂等）。
 
@@ -223,6 +258,7 @@ def build_dwd(
     display root + manifest，或直接读 build 结果验证）。缺证据时 false，绝不默认 true。
     """
     state = DwdState()
+    coverage = research_coverage or {}
     ordered = sorted(batches, key=_sort_key)
     evidence = display_safety or {}
 
@@ -296,8 +332,11 @@ def build_dwd(
                 _upsert_fundamental(state, row, batch)
             continue
 
-        if batch.endpoint in RESEARCH_VALUE_FIELDS:
-            _upsert_research(state, row_batch=batch)
+        if batch.endpoint in RESEARCH_ENDPOINTS:
+            if batch.endpoint in RESEARCH_VALUE_FIELDS:
+                _upsert_research(state, row_batch=batch, coverage=coverage)
+            else:
+                state.unmodeled_research.add(batch.endpoint)
 
     return state
 
@@ -417,7 +456,15 @@ def _upsert_fundamental(state: DwdState, row: dict[str, Any], batch: Batch) -> N
 RESEARCH_KEY_FIELDS: dict[str, tuple[str, ...]] = {
     "top_inst": ("instrument_id", "trade_date", "seat_name", "side"),
     "margin": ("exchange", "trade_date"),
+    "stk_limit": ("instrument_id", "trade_date"),
+    "fina_indicator": ("instrument_id", "report_period"),
+    # index_classify / index_member_all 是快照：主键含 snapshot_date（由信封 as_of 的日期派生）。
+    "index_classify": ("index_code", "snapshot_date"),
+    "index_member_all": ("instrument_id", "l1_code", "l2_code", "l3_code", "snapshot_date"),
 }
+
+# snapshot 类 endpoint：行内没有 trade_date，快照日 = 信封 source.as_of 的日期（A1 dt=运行日）。
+RESEARCH_SNAPSHOT_ENDPOINTS: tuple[str, ...] = ("index_classify", "index_member_all")
 
 
 def _research_key(endpoint: str, row: dict[str, Any]) -> tuple[Any, ...]:
@@ -425,7 +472,12 @@ def _research_key(endpoint: str, row: dict[str, Any]) -> tuple[Any, ...]:
     return tuple(row[field] for field in fields)
 
 
-def _upsert_research(state: DwdState, *, row_batch: Batch) -> None:
+def _upsert_research(
+    state: DwdState,
+    *,
+    row_batch: Batch,
+    coverage: dict[tuple[str, str], str] | None = None,
+) -> None:
     """研究数据集 upsert：批次已按 (as_of, fetched_at, batch_id) 排序，后写覆盖。
 
     不做修订留痕（研究态快照；修订表只服务行情 bar）。批次内主键重复记 STRUCT-02，
@@ -435,7 +487,18 @@ def _upsert_research(state: DwdState, *, row_batch: Batch) -> None:
     target: dict[tuple[Any, ...], dict[str, Any]] = getattr(state, endpoint)
     fields = RESEARCH_VALUE_FIELDS[endpoint]
     seen: set[tuple[Any, ...]] = set()
+    coverage_map = coverage or {}
     for row in row_batch.rows:
+        if endpoint in RESEARCH_SNAPSHOT_ENDPOINTS:
+            # 快照日优先取行内 snapshot_date（A1 9ebdb73 起写入），缺失才回退信封 as_of 日期。
+            snapshot_date = row.get("snapshot_date") or row_batch.source.as_of.date()
+            if not isinstance(snapshot_date, date):
+                snapshot_date = row_batch.source.as_of.date()
+            row = {
+                **row,
+                "snapshot_date": snapshot_date,
+                "coverage": coverage_map.get((endpoint, snapshot_date.isoformat())),
+            }
         key = _research_key(endpoint, row)
         if key in seen:
             state.issues.append(

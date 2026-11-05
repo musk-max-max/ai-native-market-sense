@@ -52,6 +52,11 @@ ENDPOINT_SCHEMAS: dict[str, str] = {
     "moneyflow": "moneyflow.v1",
     "margin": "margin.v1",
     "hk_hold": "hk_hold.v1",
+    # 研究数据集第三批（A1 research-ods-smoke）：涨跌停价、财务指标、行业分类、指数成分快照。
+    "stk_limit": "stk_limit.v1",
+    "fina_indicator": "fina_indicator.v1",
+    "index_classify": "index_classify.v1",
+    "index_member_all": "index_member_all.v1",
 }
 
 BAR_FIELDS = ("instrument_id", "trade_date")
@@ -113,6 +118,11 @@ RESEARCH_ENDPOINTS: tuple[str, ...] = (
     "moneyflow",
     "margin",
     "hk_hold",
+    # 第三批（KD-DSW-P2 / A1 commit 9ebdb73）
+    "stk_limit",
+    "fina_indicator",
+    "index_classify",
+    "index_member_all",
 )
 
 RESEARCH_ROW_SPECS: dict[str, dict[str, Any]] = {
@@ -260,6 +270,43 @@ RESEARCH_ROW_SPECS: dict[str, dict[str, Any]] = {
         "integer": ("holding_volume",),
         "text": ("name", "northbound_channel"),
         "enums": {"northbound_channel": ("SH", "SZ", "HK")},
+    },
+    # 日频：交易所涨跌停价（asset_type 取值待 A1 确认，先按 text 收）。
+    "stk_limit.v1": {
+        "required": ("previous_close", "up_limit", "down_limit"),
+        # limit_pct 是 A1 已加工的 5/10/20/30 档（H4 口径，A2 不派生、只透传），可空。
+        "decimal": ("previous_close", "up_limit", "down_limit", "limit_pct"),
+        "text": ("asset_type", "limit_pct_source"),
+        "enums": {"exchange": EXCHANGES},
+    },
+    # 财务指标：dt=report_end_date，行内无 trade_date；45 列中除主键/日期/文本外均为数值。
+    "fina_indicator.v1": {
+        "required": ("report_end_date", "report_period", "announced_at"),
+        "trade_date": False,
+        "dates": ("report_end_date", "announced_at"),
+        "patterns": {"report_period": FUNDAMENTAL_REPORT_PERIOD_RE},
+        "text": ("update_flag",),
+        "decimal": ("*",),
+        # update_flag 是 tushare fina_indicator 源侧列名，正式 canonical 名待 A1/H4 定；
+        # 先白名单放行，避免 ODS 已落盘数据读不进来（已报 A1）。
+        "allowed_source_like": ("update_flag",),
+    },
+    # 行业分类快照：dt=运行日，行内无 instrument_id/trade_date；index_code 为业务主键。
+    "index_classify.v1": {
+        "id_field": "index_code",
+        "trade_date": False,
+        "required": ("snapshot_date", "industry_code", "industry_name", "level", "classification_source", "is_published"),
+        "dates": ("snapshot_date",),
+        "text": ("index_code", "industry_name", "parent_code", "level", "industry_code",
+                 "is_published", "classification_source"),
+    },
+    # 指数成分快照：dt=运行日，行内无 trade_date；在退市/调出日期在 in_date/out_date。
+    "index_member_all.v1": {
+        "trade_date": False,
+        "required": ("snapshot_date", "name", "l1_code", "l1_name", "in_date", "is_new"),
+        "dates": ("snapshot_date", "in_date", "out_date"),
+        "text": ("name", "l1_code", "l1_name", "l2_code", "l2_name", "l3_code", "l3_name"),
+        "enums": {"is_new": ("Y", "N")},
     },
 }
 
@@ -561,16 +608,30 @@ def normalize_research_row(schema: str, row: dict[str, Any], *, where: str) -> d
         raw_id = _require(row, id_field, where=where)
         if not isinstance(raw_id, str) or not raw_id.strip():
             raise OdsFormatError(f"{where}.{id_field}: 必须是非空字符串")
-    out: dict[str, Any] = {
-        id_field: raw_id,
-        "trade_date": parse_date(_require(row, "trade_date", where=where), where=f"{where}.trade_date"),
-    }
+    out: dict[str, Any] = {id_field: raw_id}
+    if spec.get("trade_date", True):
+        out["trade_date"] = parse_date(
+            _require(row, "trade_date", where=where), where=f"{where}.trade_date"
+        )
+    for key in spec.get("dates", ()):
+        out[key] = parse_date(_require(row, key, where=where), where=f"{where}.{key}")
     for key in spec.get("required", ()):
         if row.get(key) is None:
             raise OdsFormatError(f"{where}: 缺必填字段 {key}")
-    for key in spec.get("decimal", ()):
-        value = row.get(key)
-        out[key] = None if value is None else parse_decimal(value, where=f"{where}.{key}")
+    decimal_fields = spec.get("decimal", ())
+    if decimal_fields == ("*",):
+        # 财务指标等宽表：除主键/日期/文本/枚举外，其余字段一律按十进制字符串收，
+        # 拒绝 JSON float（丢精度）并保留 None（缺失不补 0）。
+        handled = {id_field, "trade_date", *spec.get("dates", ()), *spec.get("text", ()),
+                   *spec.get("enums", {}), *spec.get("patterns", {})}
+        for key, value in row.items():
+            if key in handled:
+                continue
+            out[key] = None if value is None else parse_decimal(value, where=f"{where}.{key}")
+    else:
+        for key in decimal_fields:
+            value = row.get(key)
+            out[key] = None if value is None else parse_decimal(value, where=f"{where}.{key}")
     for key in spec.get("integer", ()):
         value = row.get(key)
         if value is None:
@@ -584,9 +645,19 @@ def normalize_research_row(schema: str, row: dict[str, Any], *, where: str) -> d
         value = row.get(key)
         out[key] = None if value is None else str(value)
     for key, allowed in spec.get("enums", {}).items():
+        # 枚举字段（exchange/side/is_new 等）必须落键——曾只校验不输出，导致 DWD 列为 NULL。
+        raw = row.get(key)
+        out[key] = None if raw is None else str(raw)
         value = out.get(key)
         if value is not None and value not in allowed:
             raise OdsFormatError(f"{where}.{key}: 非法取值 {value!r}，允许 {allowed}")
+    for key, pattern in spec.get("patterns", {}).items():
+        # 模式字段（如 report_period）本身也是 canonical 输出，必须落键后再校验。
+        raw = row.get(key)
+        out[key] = None if raw is None else str(raw)
+        value = out.get(key)
+        if value is not None and not pattern.match(str(value)):
+            raise OdsFormatError(f"{where}.{key}: 不符合模式 {pattern.pattern}，得到 {value!r}")
     return out
 
 
@@ -742,6 +813,45 @@ def load_ods_roots(
         batches = load_batches(display, origin="flat")
     _ensure_unique_batches(batches)
     return batches
+
+
+RESEARCH_COVERAGE_FILE = "research_coverage.json"
+RESEARCH_COVERAGE_VALUES = ("full_history", "current_snapshot_only")
+
+
+def load_research_coverage(root: Path) -> dict[tuple[str, str], str]:
+    """读取 A1 生成的 <root>/_meta/research_coverage.json（也兼容 internal/display 子目录）。
+
+    返回 (endpoint, snapshot_date_str) -> coverage；`current_snapshot_only` 表示该快照
+    只有最新成分、无历史时点，消费方（回测/as-of 查询）必须排除，不能当全历史用。
+    文件缺失返回空映射（不报错：老 fixture 无此文件）。
+    """
+    root = Path(root)
+    result: dict[tuple[str, str], str] = {}
+    candidates = [root / "_meta" / RESEARCH_COVERAGE_FILE,
+                  root / "internal" / "_meta" / RESEARCH_COVERAGE_FILE,
+                  root / "display" / "_meta" / RESEARCH_COVERAGE_FILE]
+    for path in candidates:
+        if not path.is_file():
+            continue
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise OdsFormatError(f"{path}: 无法解析研究覆盖元数据: {exc}") from exc
+        datasets = payload.get("datasets") if isinstance(payload, dict) else None
+        if not isinstance(datasets, dict):
+            raise OdsFormatError(f"{path}: 缺 datasets 对象")
+        for endpoint, meta in datasets.items():
+            if not isinstance(meta, dict):
+                raise OdsFormatError(f"{path}.datasets.{endpoint}: 必须是对象")
+            coverage = str(meta.get("coverage") or "")
+            snapshot_date = str(meta.get("snapshot_date") or "")
+            if coverage not in RESEARCH_COVERAGE_VALUES:
+                raise OdsFormatError(f"{path}.datasets.{endpoint}.coverage: 非法取值 {coverage!r}")
+            if not snapshot_date:
+                raise OdsFormatError(f"{path}.datasets.{endpoint}: 缺 snapshot_date")
+            result[(endpoint, snapshot_date)] = coverage
+    return result
 
 
 def ensure_research_origin(batches: list[Batch], *, profile: str = "prod") -> list[Batch]:

@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "weights": {
     "struct": 0.2,
     "business": 0.3,
@@ -80,6 +80,22 @@
     "RES-04": {
       "severity": "blocker",
       "category": "completeness"
+    },
+    "RES-05": {
+      "severity": "blocker",
+      "category": "business"
+    },
+    "RES-06": {
+      "severity": "blocker",
+      "category": "business"
+    },
+    "RES-07": {
+      "severity": "blocker",
+      "category": "consistency"
+    },
+    "RES-08": {
+      "severity": "blocker",
+      "category": "consistency"
     }
   },
   "board_limit_pct": {
@@ -93,9 +109,9 @@
     "main"
   ],
   "limit_tolerance_pp": 0.5,
-  "ruleset_note": "v2（2026-11-05）：新增研究数据集 4 条规则 RES-01..04（KD-INGEST-CONSUME）；before/after 见 docs/metrics/P0-metrics.md §9",
+  "ruleset_note": "v3（2026-11-05）：新增 P2 研究规则 RES-05..08（stk_limit 价格自洽 / fina_indicator 公告时点 / index_classify 层级自洽 / index_member_all 时点自洽，均 blocker）；before/after 见 docs/metrics/P0-metrics.md §9。规则集变更待 H4 备案（P0 §8 不重签，研究域独立）。",
   "research_as_of": {
-    "note": "RES-04 per-endpoint as_of 阈值：A 股研究数据当日 15:00；hk_hold 北向持股 T+1 披露，次日 15:00；index_daily 指数收盘当日 15:00。offset_days 相对 trade_date。",
+    "note": "RES-04 per-endpoint as_of 阈值（只对含 trade_date 的日频 endpoint 生效）：A 股研究数据当日 15:00；hk_hold 北向持股 T+1 披露，次日 15:00；index_daily 指数收盘当日 15:00；stk_limit 当日 15:00。财报/行业快照无 trade_date，时点校验由 RES-06/RES-08 承担。offset_days 相对 trade_date。",
     "default": {
       "offset_days": 0,
       "time": "15:00"
@@ -126,6 +142,10 @@
     },
     "hk_hold": {
       "offset_days": 1,
+      "time": "15:00"
+    },
+    "stk_limit": {
+      "offset_days": 0,
       "time": "15:00"
     }
   }

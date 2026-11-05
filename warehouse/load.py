@@ -38,6 +38,7 @@ from warehouse.ods.loader import (
     display_instrument_ids,
     load_display_safety,
     ensure_research_origin,
+    load_research_coverage,
     load_ods_roots,
     require_display_evidence,
 )
@@ -261,6 +262,105 @@ HK_HOLD_COLUMNS = (
 )
 HK_HOLD_PK = ("instrument_id", "trade_date")
 
+
+STK_LIMIT_COLUMNS = (
+    "instrument_id",
+    "trade_date",
+    "previous_close",
+    "up_limit",
+    "down_limit",
+    "limit_pct",
+    "limit_pct_source",
+    "asset_type",
+    "exchange",
+    *_RESEARCH_META_COLUMNS,
+)
+STK_LIMIT_PK = ("instrument_id", "trade_date")
+
+FINA_INDICATOR_COLUMNS = (
+    "instrument_id",
+    "report_period",
+    "report_end_date",
+    "announced_at",
+    "update_flag",
+    "ar_turn",
+    "assets_turn",
+    "assets_yoy_pct",
+    "bps",
+    "bps_yoy_pct",
+    "current_ratio",
+    "debt_to_assets",
+    "dt_eps",
+    "dt_netprofit_yoy_pct",
+    "ebit",
+    "ebitda",
+    "eps",
+    "eqt_yoy_pct",
+    "extra_item",
+    "fixed_assets",
+    "grossprofit_margin",
+    "inv_turn",
+    "netprofit_margin",
+    "netprofit_yoy_pct",
+    "npta",
+    "ocfps",
+    "op_yoy_pct",
+    "or_yoy_pct",
+    "profit_dedt",
+    "q_eps",
+    "q_gsprofit_margin",
+    "q_netprofit_margin",
+    "q_op_qoq_pct",
+    "q_profit_qoq_pct",
+    "q_roe",
+    "q_sales_qoq_pct",
+    "q_sales_yoy_pct",
+    "quick_ratio",
+    "revenue_ps",
+    "roa",
+    "roe",
+    "roe_dt",
+    "roe_waa",
+    "roe_yoy_pct",
+    "roic",
+    "total_revenue_ps",
+    "tr_yoy_pct",
+    *_RESEARCH_META_COLUMNS,
+)
+FINA_INDICATOR_PK = ("instrument_id", "report_period")
+
+INDEX_CLASSIFY_COLUMNS = (
+    "index_code",
+    "snapshot_date",
+    "industry_name",
+    "parent_code",
+    "level",
+    "industry_code",
+    "is_published",
+    "classification_source",
+    "coverage",
+    *_RESEARCH_META_COLUMNS,
+)
+INDEX_CLASSIFY_PK = ("index_code", "snapshot_date")
+
+INDEX_MEMBER_ALL_COLUMNS = (
+    "instrument_id",
+    "snapshot_date",
+    "name",
+    "l1_code",
+    "l1_name",
+    "l2_code",
+    "l2_name",
+    "l3_code",
+    "l3_name",
+    "in_date",
+    "out_date",
+    "is_new",
+    "coverage",
+    *_RESEARCH_META_COLUMNS,
+)
+INDEX_MEMBER_ALL_PK = ("instrument_id", "l1_code", "l2_code", "l3_code", "snapshot_date")
+
 #: endpoint -> (表名, 列清单, PK, state 属性)。
 RESEARCH_TABLES: dict[str, tuple[str, tuple[str, ...], tuple[str, ...], str]] = {
     "daily_basic": ("dwd_daily_basic", DAILY_BASIC_COLUMNS, DAILY_BASIC_PK, "daily_basic"),
@@ -270,6 +370,11 @@ RESEARCH_TABLES: dict[str, tuple[str, tuple[str, ...], tuple[str, ...], str]] = 
     "moneyflow": ("dwd_moneyflow", MONEYFLOW_COLUMNS, MONEYFLOW_PK, "moneyflow"),
     "margin": ("dwd_margin", MARGIN_COLUMNS, MARGIN_PK, "margin"),
     "hk_hold": ("dwd_hk_hold", HK_HOLD_COLUMNS, HK_HOLD_PK, "hk_hold"),
+    # KD-DSW-P2（A1 commit 9ebdb73）
+    "stk_limit": ("dwd_stk_limit", STK_LIMIT_COLUMNS, STK_LIMIT_PK, "stk_limit"),
+    "fina_indicator": ("dwd_fina_indicator", FINA_INDICATOR_COLUMNS, FINA_INDICATOR_PK, "fina_indicator"),
+    "index_classify": ("dwd_index_classify", INDEX_CLASSIFY_COLUMNS, INDEX_CLASSIFY_PK, "index_classify"),
+    "index_member_all": ("dwd_index_member_all", INDEX_MEMBER_ALL_COLUMNS, INDEX_MEMBER_ALL_PK, "index_member_all"),
 }
 
 REVISION_COLUMNS = (
@@ -635,7 +740,12 @@ def run(
         print(f"[FAIL] ODS/manifest 校验失败（拒绝落库）: {exc}", file=sys.stderr)
         return EXIT_INPUT_MISSING
 
-    state = build_dwd(batches, display_safety=display_safety)
+    research_coverage = load_research_coverage(ods_root)
+    if internal_ods_root is not None:
+        research_coverage.update(load_research_coverage(internal_ods_root))
+    state = build_dwd(
+        batches, display_safety=display_safety, research_coverage=research_coverage
+    )
     if state.bars and not state.instruments:
         print(
             "[FAIL] ODS 缺少 instrument.v1 批次：dim_instrument 缺失时不得落库"

@@ -26,7 +26,7 @@ from warehouse.ods.loader import (
     load_ods_roots,
     require_display_evidence,
 )
-from warehouse.ods.loader import ensure_research_origin
+from warehouse.ods.loader import ensure_research_origin, load_research_coverage
 from warehouse.quality.checks import RESEARCH_STATE_TABLES, run_quality_checks
 
 
@@ -94,7 +94,18 @@ def _run_ods(
     except OdsFormatError as exc:
         print(f"[FAIL] ODS/manifest 校验失败（拒绝入库）: {exc}", file=sys.stderr)
         return 1
-    state = build_dwd(batches, display_safety=display_safety)
+    research_coverage = load_research_coverage(root)
+    if internal_root is not None:
+        research_coverage.update(load_research_coverage(internal_root))
+    state = build_dwd(
+        batches, display_safety=display_safety, research_coverage=research_coverage
+    )
+    if state.unmodeled_research:
+        print(
+            "[WARN] 以下研究 endpoint 已注册但 A2 尚未建模，批次被忽略（需 A2 跟进 DWD）："
+            + ", ".join(sorted(state.unmodeled_research)),
+            file=sys.stderr,
+        )
     if state.bars and not state.instruments:
         # fail-closed：缺 instrument master 时无法建 dim_instrument，BIZ-01（板块涨跌停）、
         # 首日豁免、serving_instrument 全部失去依据；不要在缺维表的情况下出质量分。
@@ -114,6 +125,7 @@ def _run_ods(
         "display_safe_false": sum(1 for row in state.instruments.values() if not row["display_safe"]),
         "fundamentals": len(state.fundamentals),
         "research": {name: len(getattr(state, name)) for name in RESEARCH_STATE_TABLES},
+        "unmodeled_research": sorted(state.unmodeled_research),
         "revisions": len(state.revisions),
         "quality": report.as_dict(),
     }

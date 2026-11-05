@@ -55,6 +55,10 @@ RULE_META: dict[str, tuple[str, str]] = {
     "RES-02": ("business", "研究指标量纲：仅 DWD canonical 字段；金额/量/市值非负，百分比 |x| ≤ 1000"),
     "RES-03": ("consistency", "研究数据 instrument_id 必须存在于 dim_instrument（指数/两融豁免；非 A 股命名空间显式豁免并计数）"),
     "RES-04": ("completeness", "研究批次 as_of 满足各 endpoint 的及时性阈值（默认交易日 15:00；hk_hold T+1 15:00）且 fetched_at ≥ as_of"),
+    "RES-05": ("business", "涨跌停原始价自洽：previous_close>0 且 up_limit > previous_close > down_limit（不判 5/10/20/30 档位，H4 口径待定）"),
+    "RES-06": ("business", "财务指标公告时点：announced_at ≥ report_end_date，且不晚于批次 as_of（防未来函数）"),
+    "RES-07": ("consistency", "行业分类层级自洽：level∈{1,2,3}；level>1 必须有 parent_code，level=1 不得有 parent_code，parent_code≠index_code"),
+    "RES-08": ("consistency", "成分时点自洽：in_date ≤ snapshot_date；out_date ≥ in_date；is_new=Y 时 out_date 必须为空"),
 }
 CST = timezone(timedelta(hours=8))
 CLOSE_TIME = time(15, 0, tzinfo=CST)
@@ -171,7 +175,7 @@ def round_price(value: Decimal) -> Decimal:
 # 研究数据集：哪些 endpoint 的 instrument_id 必须能在 dim_instrument 找到。
 # index_daily 的 instrument_id 是指数（不在 dim_instrument）；margin 以 exchange 为主键、无 instrument_id。
 RESEARCH_INSTRUMENT_ENDPOINTS = frozenset(
-    {"daily_basic", "top_list", "top_inst", "moneyflow", "hk_hold"}
+    {"daily_basic", "top_list", "top_inst", "moneyflow", "hk_hold", "stk_limit", "fina_indicator", "index_member_all"}
 )
 # 允许为负的业务字段（净额/涨跌/理论可负的净率）；其余金额/量/余额/股本/市值不得为负。
 RESEARCH_SIGNED_FIELDS = frozenset(
@@ -492,6 +496,11 @@ RESEARCH_STATE_TABLES: tuple[str, ...] = (
     "moneyflow",
     "margin",
     "hk_hold",
+    # KD-DSW-P2（A1 commit 9ebdb73）
+    "stk_limit",
+    "fina_indicator",
+    "index_classify",
+    "index_member_all",
 )
 
 
@@ -506,15 +515,26 @@ def _check_research(c: _Collector, state: DwdState) -> None:
             _check_research_row(c, state, endpoint, row)
 
 
+def _research_row_date(row: dict[str, Any]) -> date | None:
+    """研究行的代表日期：日频=trade_date；财报=report_end_date；快照=snapshot_date。"""
+    for key in ("trade_date", "report_end_date", "snapshot_date"):
+        value = row.get(key)
+        if isinstance(value, date):
+            return value
+    return None
+
+
 def _check_research_row(
     c: _Collector, state: DwdState, endpoint: str, row: dict[str, Any]
 ) -> None:
-    iid, td = _research_id(row), row["trade_date"]
+    iid = _research_id(row)
+    td = _research_row_date(row)
 
-    # RES-01：交易日必须是工作日（研究数据不得出现周末行）。
-    c.bump("RES-01")
-    if td.weekday() >= 5:
-        c.flag("RES-01", iid, td, f"{endpoint} 的 trade_date={td} 落在周末")
+    # RES-01：交易日必须是工作日（仅日频数据；财报/快照日期不是交易日语义）。
+    if "trade_date" in row:
+        c.bump("RES-01")
+        if td is not None and td.weekday() >= 5:
+            c.flag("RES-01", iid, td, f"{endpoint} 的 trade_date={td} 落在周末")
 
     # RES-02：量纲与符号。金额/量/余额/股本/市值非负，百分比不超过 ±1000。
     c.bump("RES-02")
@@ -545,9 +565,21 @@ def _check_research_row(
                 c.flag("RES-03", iid, td, f"{endpoint} 引用的 {iid} 不在 dim_instrument")
 
     # RES-04：研究批次及时性（as_of 不早于交易日 15:00；fetched_at ≥ as_of 由 loader 保证）。
-    c.bump("RES-04")
+    # 只对日频 endpoint 生效（财报/行业快照没有 trade_date，时点规则由 RES-06/RES-08 承担）。
     as_of = row.get("as_of")
-    if as_of is not None:
+    if endpoint == "stk_limit":
+        _check_stk_limit(c, row, td)
+    elif endpoint == "fina_indicator":
+        _check_fina_indicator(c, row, td, as_of)
+    elif endpoint == "index_classify":
+        _check_index_classify(c, row, td)
+    elif endpoint == "index_member_all":
+        _check_index_member_all(c, row, td)
+
+    if "trade_date" not in row:
+        return
+    c.bump("RES-04")
+    if as_of is not None and td is not None:
         policy = _as_of_policy(c.config, endpoint)
         offset_days = int(policy.get("offset_days", 0))
         hh, mm = (int(part) for part in str(policy.get("time", "15:00")).split(":"))
@@ -560,6 +592,84 @@ def _check_research_row(
                 f"{endpoint} 的 as_of={as_of.isoformat()} 早于阈值 "
                 f"{threshold.isoformat()}（offset_days={offset_days}，time={policy.get('time')}）",
             )
+
+
+def _check_stk_limit(c: _Collector, row: dict[str, Any], td: date | None) -> None:
+    """RES-05：只做原始价自洽，不派生 limit_pct/ST 档位（H4 口径待定，A2 不加工）。"""
+    c.bump("RES-05")
+    iid = _research_id(row)
+    prev, up, down = (row.get("previous_close"), row.get("up_limit"), row.get("down_limit"))
+    if prev is None or up is None or down is None:
+        c.flag("RES-05", iid, td, "涨跌停原始价缺失（previous_close/up_limit/down_limit 必填）")
+        return
+    if prev <= 0 or up <= 0 or down <= 0:
+        c.flag("RES-05", iid, td, f"涨跌停价格必须 > 0：prev={prev} up={up} down={down}")
+    elif not (up > prev > down):
+        c.flag("RES-05", iid, td, f"涨跌停价格不自洽，应 up_limit > previous_close > down_limit：prev={prev} up={up} down={down}")
+
+
+def _expected_quarter_end(report_period: str) -> date | None:
+    m = re.fullmatch(r"([0-9]{4})Q([1-4])", str(report_period or ""))
+    if not m:
+        return None
+    year, quarter = int(m.group(1)), int(m.group(2))
+    month = quarter * 3
+    day = {3: 31, 6: 30, 9: 30, 12: 31}[month]
+    return date(year, month, day)
+
+
+def _check_fina_indicator(c: _Collector, row: dict[str, Any], td: date | None, as_of: Any) -> None:
+    """RES-06：公告日必须 ≥ 报告期末；且公告日在批次 as_of 之前可见（防未来函数）。"""
+    c.bump("RES-06")
+    iid = _research_id(row)
+    report_end = row.get("report_end_date")
+    announced = row.get("announced_at")
+    if not isinstance(report_end, date) or not isinstance(announced, date):
+        c.flag("RES-06", iid, td, "report_end_date/announced_at 缺失或类型非法")
+        return
+    if announced < report_end:
+        c.flag("RES-06", iid, report_end, f"announced_at={announced} 早于 report_end_date={report_end}（报告期未结束就公告）")
+    expected = _expected_quarter_end(str(row.get("report_period") or ""))
+    if expected is not None and expected != report_end:
+        c.flag("RES-06", iid, report_end, f"report_period={row.get('report_period')} 与 report_end_date={report_end} 不一致（期望 {expected}）")
+    if isinstance(as_of, datetime) and announced > as_of.date():
+        c.flag("RES-06", iid, announced, f"announced_at={announced} 晚于批次 as_of 日期={as_of.date()}（未来函数）")
+
+
+def _check_index_classify(c: _Collector, row: dict[str, Any], td: date | None) -> None:
+    """RES-07：行业树层级自洽（字段 provisional，不校验行业编码格式）。"""
+    c.bump("RES-07")
+    index_code = str(row.get("index_code") or "")
+    level = str(row.get("level") or "")
+    parent = row.get("parent_code")
+    if level not in {"1", "2", "3"}:
+        c.flag("RES-07", index_code, td, f"level={level!r} 不是 1/2/3")
+        return
+    if level == "1" and parent:
+        c.flag("RES-07", index_code, td, f"level=1 不应有 parent_code={parent!r}")
+    if level in {"2", "3"}:
+        if not parent:
+            c.flag("RES-07", index_code, td, f"level={level} 缺少 parent_code")
+        elif str(parent) == index_code:
+            c.flag("RES-07", index_code, td, f"parent_code 不能等于自身 index_code={index_code}")
+
+
+def _check_index_member_all(c: _Collector, row: dict[str, Any], td: date | None) -> None:
+    """RES-08：时点成分自洽；H4 要求保留 in_date/out_date/is_new，禁止只存最新快照。"""
+    c.bump("RES-08")
+    iid = _research_id(row)
+    in_date, out_date, snapshot_date = row.get("in_date"), row.get("out_date"), row.get("snapshot_date")
+    if not isinstance(in_date, date) or not isinstance(snapshot_date, date):
+        c.flag("RES-08", iid, td, "in_date/snapshot_date 缺失或类型非法")
+        return
+    if in_date > snapshot_date:
+        c.flag("RES-08", iid, snapshot_date, f"in_date={in_date} 晚于 snapshot_date={snapshot_date}")
+    if out_date is not None and not isinstance(out_date, date):
+        c.flag("RES-08", iid, snapshot_date, "out_date 类型非法")
+    elif isinstance(out_date, date) and out_date < in_date:
+        c.flag("RES-08", iid, snapshot_date, f"out_date={out_date} 早于 in_date={in_date}")
+    if str(row.get("is_new") or "") == "Y" and out_date is not None:
+        c.flag("RES-08", iid, snapshot_date, "is_new=Y 的记录不得有 out_date")
 
 
 def _as_of_policy(config: dict[str, Any], endpoint: str) -> dict[str, Any]:

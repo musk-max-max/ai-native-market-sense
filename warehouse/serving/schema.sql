@@ -267,3 +267,48 @@ SELECT instrument_id, trade_date, name, holding_volume, holding_ratio_pct,
        northbound_channel, source, as_of,
        GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
 FROM dwd_hk_hold;
+
+-- ==========================================================================
+-- 7.8–7.11 研究数据集 P2（KD-DSW-P2 / A1 commit 9ebdb73），internal-only：
+-- 只读视图供内部 /v1/internal/* 查询，不进 ports.yaml、不接 C 端契约。
+-- ==========================================================================
+
+CREATE OR REPLACE VIEW serving.serving_research_stk_limit AS
+SELECT instrument_id, trade_date,
+       previous_close, up_limit, down_limit, limit_pct, limit_pct_source, asset_type, exchange,
+       source, as_of,
+       GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_stk_limit;
+
+-- 可见时点 = announced_at（H4：as-of join 必须按 announced_at，禁止按 report_end_date，防未来函数）。
+-- 示例：WHERE announced_at <= :as_of ORDER BY announced_at DESC LIMIT 1
+CREATE OR REPLACE VIEW serving.serving_research_fina_indicator AS
+SELECT instrument_id, report_period, report_end_date, announced_at, update_flag,
+       ar_turn, assets_turn, assets_yoy_pct, bps, bps_yoy_pct, current_ratio,
+       debt_to_assets, dt_eps, dt_netprofit_yoy_pct, ebit, ebitda, eps,
+       eqt_yoy_pct, extra_item, fixed_assets, grossprofit_margin, inv_turn,
+       netprofit_margin, netprofit_yoy_pct, npta, ocfps, op_yoy_pct, or_yoy_pct,
+       profit_dedt, q_eps, q_gsprofit_margin, q_netprofit_margin, q_op_qoq_pct,
+       q_profit_qoq_pct, q_roe, q_sales_qoq_pct, q_sales_yoy_pct, quick_ratio,
+       revenue_ps, roa, roe, roe_dt, roe_waa, roe_yoy_pct, roic,
+       total_revenue_ps, tr_yoy_pct,
+       source, as_of,
+       GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_fina_indicator;
+
+-- append-only 快照：多日 snapshot_date 共存；历史快照不可原地更新/不可回补。
+CREATE OR REPLACE VIEW serving.serving_research_index_classify AS
+SELECT index_code, snapshot_date, industry_name, parent_code, level, industry_code,
+       is_published, classification_source, source, as_of,
+       GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_index_classify;
+
+-- 时点成分：保留 in_date/out_date/is_new，支持任意 as-of 历史成分查询：
+--   WHERE snapshot_date = (SELECT max(snapshot_date) FROM dwd_index_member_all WHERE snapshot_date <= :as_of)
+--     AND in_date <= :as_of AND (out_date IS NULL OR out_date > :as_of)
+CREATE OR REPLACE VIEW serving.serving_research_index_member_all AS
+SELECT instrument_id, snapshot_date, name,
+       l1_code, l1_name, l2_code, l2_name, l3_code, l3_name,
+       in_date, out_date, is_new, source, as_of,
+       GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_index_member_all;

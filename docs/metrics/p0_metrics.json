@@ -178,6 +178,22 @@
           "note": "A 股 .SH/.SZ/.BJ 与 P0 instrument pattern 不变；HKEX 仅研究域 hk_hold"
         },
         "fixture": "warehouse/tests/fixtures/research_ods/internal/hk_hold 为命名空间样例（source=a2.fixture.hkex_namespace），另有 A1 map_row → A2 loader 端到端交叉验证"
+      },
+      "stk_limit": {
+        "status": "active_internal",
+        "note": "涨跌停原始价 + A1 派生 limit_pct（5/10/20/30，A2 不加工、只透传）；H4 口径已备案"
+      },
+      "fina_indicator": {
+        "status": "active_internal",
+        "note": "45 列财务指标；可见时点=announced_at，as-of 查询禁止按 report_end_date join（H4 防未来函数）"
+      },
+      "index_classify": {
+        "status": "active_internal",
+        "note": "申万行业树 append-only 快照；PK 含 snapshot_date；历史快照不可原地更新/不可回补"
+      },
+      "index_member_all": {
+        "status": "active_internal",
+        "note": "时点成分全历史；保留 in_date/out_date/is_new；PK 含 snapshot_date；coverage=full_history|current_snapshot_only 由 A1 _meta 提供，后者不得用于历史回测"
       }
     }
   }

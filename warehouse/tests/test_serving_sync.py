@@ -39,6 +39,10 @@ RESEARCH_VIEWS = {
     "serving_research_moneyflow",
     "serving_research_margin",
     "serving_research_hk_hold",
+    "serving_research_stk_limit",
+    "serving_research_fina_indicator",
+    "serving_research_index_classify",
+    "serving_research_index_member_all",
 }
 
 

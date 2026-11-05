@@ -128,14 +128,14 @@ def test_same_rule_hit_twice_counts_once(tmp_path):
     assert len([v for v in report.blocker_violations if v.rule_id == "STRUCT-03"]) == 2
 
 
-def test_business_rule_denominator_is_four(tmp_path):
-    # 业务规则总数 4（BIZ-01/BIZ-02/BIZ-03，后两个 warn + RES-02 研究量纲）：
-    # 命中 BIZ-01 → 类别分 75.00，总分 92.5；阈值不变，blocker 一票否决仍 black。
+def test_business_rule_denominator_is_six(tmp_path):
+    # 业务规则总数 6（BIZ-01/BIZ-02/BIZ-03 + RES-02 研究量纲 + RES-05/06 P2 研究规则）：
+    # 命中 BIZ-01 → 类别分 83.33，总分 95.0；阈值不变，blocker 一票否决仍 black。
     bars = [bar_row(trade_date=DAYS[-1], high="11.20", close="11.10", low="10.00",
                     open="10.10", prev_close="10.00")]
     report = run_quality_checks(_state(tmp_path, bars=bars))
-    assert round(report.category_scores["business"], 2) == round(100 * (1 - 1 / 4), 2)
-    assert report.score == 92.5
+    assert round(report.category_scores["business"], 2) == round(100 * (1 - 1 / 6), 2)
+    assert report.score == 95.0
     assert report.grade == "black" and report.blocked is True
 
 def test_unknown_board_is_fail_closed_not_silent(tmp_path):
