@@ -366,3 +366,5 @@ file-level 窄豁免且 H2 签，不给目录级）。扫描强度与全量数�
 - 逐条对照：`tests/data/acceptance/artifacts/limit-rule-crosscheck-20261105T1415Z.md`（sha256 `35854d212edd1bf59039b3e0beb0b45869ff1a71179cfdb4fdde63d32eaf9414`），G25–G37 / N10–N12 共 14 个 case、33 个 bar 行，**0 差异**；G33/G34 是 `research_batches`（stk_limit，RES-05 由 A2 pipeline 评估），A 股 bar 参考实现标注不适用。
 - BSE 样本：golden 覆盖 43 段（G04）与 83 段（G10/G30/G31）；87/88/92 段无 golden 样本，按同规则实现。
 - 状态（2026-11-05）：`pytest tests/data` = **150 passed / 1 warning**；`pytest tests/contract tests/data` = **213 passed / 2 warnings**。
+
+- 补充（H4 m04155）：B 股/北交所无 bar 路径覆盖，新增独立单测 `tests/data/test_limit_prices_unit.py`（11 passed，不依赖 golden）：沪 B 900xxx 0.001 half-up、深 B 200xxx 0.01 half-up、北交所 920/43/83 涨停 floor/跌停 ceil、主板 S 股 5% 进位；证据 `tests/data/acceptance/artifacts/limit-prices-unit-20261105T1425Z.md` sha256 `0ac07a2d13d1c1bd309e66605318cb7dca12fbe63dc858034d88b27897715119`。`pytest tests/data` = 161 passed / 1 warning，全量 = 224 passed / 2 warnings。
