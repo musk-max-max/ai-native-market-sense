@@ -390,8 +390,8 @@
     },
     {
       "path": "infra/evidence/host-hardening-20261105T0008Z.md",
-      "sha256": "c7768ca2bf3cd27a7ac9357e64fb7b5c0166d5494b938cf4d40e5c26dd69162e",
-      "bytes": 5575,
+      "sha256": "f4c0c89d19dc29cd26dce2162de9a96fc1812d07351f4ba7c9fef77c29ce2f22",
+      "bytes": 6404,
       "recompute": "sha256sum infra/evidence/host-hardening-20261105T0008Z.md",
       "role": "host-hardening-report",
       "authority": "authoritative",
