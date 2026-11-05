@@ -11,7 +11,7 @@
 import { TID } from '../lib/testids';
 
 export interface AiGeneratedBadgeProps {
-  /** 服务端注入的标识文案，例如「AI 生成 · 信息整合非投资建议」。 */
+  /** 服务端注入的标识文案，例如「AI 生成 · 仅供参考」（最终文案以 H3 m02666 为准，服务端注入）。 */
   label: string;
   /** 服务端注入的 AI 免责声明（不得由前端拼接）。 */
   disclaimer: string;

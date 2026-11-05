@@ -90,7 +90,7 @@ const NETWORK_ERROR: ErrorCopy = {
 
 const UNKNOWN_ERROR: ErrorCopy = {
   title: '数据暂时不可用',
-  message: '数据暂时不可用，请稍后重试。',
+  message: '数据暂时不可用。',
   hint: ERROR_HINT,
   retry: RETRY_LABEL,
 };
@@ -137,7 +137,7 @@ export const ERROR_COPY: Readonly<Record<string, ErrorCopy>> = {
   },
   status5xx: {
     title: '服务暂时不可用',
-    message: '行情服务暂时不可用，请稍后重试。',
+    message: '行情数据暂时无法获取。',
     hint: ERROR_HINT,
     retry: RETRY_LABEL,
   },
@@ -173,7 +173,7 @@ export const copy = {
     navWatchlist: '自选',
     navReview: '复盘',
     footerNote:
-      '本平台为客观数据工具，展示公开数据源与平台自有数据，不构成投资建议、要约或收益承诺。',
+      '本平台为客观数据工具，展示市场公开披露数据与平台自有数据，不构成投资建议、要约或收益承诺。',
     footerMeta: '数据均标注来源与截止时间 · 免责声明由服务端版本化下发且不可关闭',
   },
   home: {
@@ -363,7 +363,7 @@ export const copy = {
       subtitle:
         '按板块规则从日线汇总涨停/跌停家数与连板分布；只展示市场级计数，不含个股名单；ST 标的先排除并显式标注。',
       provisional:
-        '涨跌停口径为临时近似规则（provisional），后续随数据校准调整；页面会随口径版本更新。',
+        '涨跌停口径为临时近似规则（provisional），后续随数据校准调整；连板分布从首板（1 板）起逐档统计至最高连板，全部分段展示、不截断。',
       stExclusion: 'ST / *ST 标的已排除，不进入统计。',
       stExcludedLabel: '已排除数量',
       countUnit: '家',
@@ -376,7 +376,7 @@ export const copy = {
       },
       aggregateNote:
         '本页只展示市场级汇总计数，不展示个股名称、代码或排序名单；口径与排除规则见上方说明。',
-      emptyList: '当前无符合条件的标的。',
+      emptyList: '当前无可统计的涨跌停样本。',
       demoNote: '本地演示数据（mock），仅用于界面开发，不代表真实计算结果。',
       loading: '正在加载涨跌停概览…',
       unavailable: '涨跌停概览尚未接入汇总接口，本页不展示占位数值。',
@@ -395,7 +395,7 @@ export const copy = {
     title: '免责声明',
     versionLabel: '版本',
     notClosable: '不可关闭',
-    unavailable: '本次响应未携带免责声明元数据，页面已停止展示行情数据。请稍后重试或联系服务方。',
+    unavailable: '本次响应未携带免责声明元数据，当前版本暂不展示行情数据。',
   },
   entitlement: {
     title: UNAVAILABLE_TITLE,

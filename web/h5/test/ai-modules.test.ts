@@ -129,4 +129,27 @@ test('页面文案不越界：不写「我的持仓/真实持仓」，AI 标识�
   assert.match(copy.review.portfolio.subtitle, /不代表真实持仓/);
   assert.match(copy.ai.pendingText, /待接入/);
   assert.match(copy.review.limits.provisional, /provisional/);
+  assert.match(copy.review.limits.provisional, /逐档/);
+  assert.match(copy.review.limits.provisional, /不截断/);
+  assert.equal(copy.review.limits.emptyList, '当前无可统计的涨跌停样本。');
+  assert.match(copy.review.limits.provisional, /首板/);
+  // 连板分布从 1 板起全段连续，不跳段、不截断
+  const MOCK = read('data/ai/mockGateway.ts');
+  const days = [...MOCK.matchAll(/streakDays: (\d+)/g)].map((m) => Number(m[1]));
+  assert.ok(days.length >= 2, 'mock 应提供多段连板分布');
+  assert.equal(days[0], 1, '连板分布从 1 板起');
+  for (let i = 1; i < days.length; i += 1) assert.equal(days[i], days[i - 1] + 1, '连板分布分段连续');
+  // 个股明细只能存在于类型/mock 内部，组件与页面一律不得读取
+  for (const rel of ['pages/LimitLadderPage.tsx', 'pages/PortfolioReviewPage.tsx', 'components/AiInterpretation.tsx']) {
+    const src = stripComments(read(rel));
+    assert.doesNotMatch(src, /instrumentRows|\binstrumentId\b|data-instrument-id|data-limit-key/, `${rel} 不得读取个股明细字段`);
+  }
+  // C 端渲染路径不得读取个股明细/排序名单（§四承诺落成断言）
+  assert.doesNotMatch(stripComments(LADDER), /instrumentRows|instrumentId|data-instrument-id|data-limit-key|\brow\.name\b/);
+  // 连板分布必须全部分段渲染，禁止截断/取前 N
+  assert.doesNotMatch(stripComments(LADDER), /streakBuckets\.slice\(|\.slice\(0,/);
+  // 操作词禁区：龙头/接力/情绪/赚钱效应
+  for (const word of ['龙头', '接力', '情绪', '赚钱效应']) {
+    assert.equal(Object.values(copy.review.limits).some((v) => typeof v === 'string' && v.includes(word)), false, `limits copy 不得含「${word}」`);
+  }
 });

@@ -1,8 +1,8 @@
 # 2026.11.5 前端文案签字清单（一次性 · H3）
 
 - COPY_VERSION：`2026.11.5`（f56 → f57）
-- 完整快照：`docs/release/copy-snapshots/2026.11.5.5ce103f14b5f.frontend.json`
-- hash：`5ce103f14b5f1ac76123c6549602882bea7ea3e65e53ceb3e9c38a6d649d2138`（规范化文案清单 sha256，与 `copy-snapshot.mjs --check` 一致）
+- 完整快照：`docs/release/copy-snapshots/2026.11.5.2dfd627b35c1.frontend.json`
+- hash：`2dfd627b35c1d6c884b1d6ba185d287e8a63bafb945c6c94a8a4dbeafea777a3`（规范化文案清单 sha256，与 `copy-snapshot.mjs --check` 一致）
 - manifest：`docs/release/copy-version-manifest.md` 已 append `B1-P0` 行（旧行未改；backend 2026.11.5 由 A0 配对）
 - 覆盖范围：KD-AIP0-B1 第 1 批（INF-07 / B1-01 / B1-02 / B1-03），共 **69** 条新增用户可见文案
 
@@ -62,7 +62,7 @@
 | `copy.review.portfolio.error` | 组合复盘暂时无法加载。 | 页面/区块文案 | 自选组合复盘页 / PortfolioReviewPage / portfolio-review-error | 进入 /review/portfolio 且处于对应状态时显示 | 常驻（无关闭入口） | 否 | 否（本批无模型文本；AI 内容上线前逐条预审） | C 端 | 新增 | 固定模板的客观标签/说明，不含评价性表述、归因或预测 |
 | `copy.review.limits.title` | 涨跌停概览 | 页面/区块文案 | 涨跌停概览页 / LimitLadderPage / limit-ladder-page | 进入 /review/limits 且处于对应状态时显示 | 常驻（无关闭入口） | 否 | 否（本批无模型文本；AI 内容上线前逐条预审） | C 端 | 新增 | 市场级汇总口径说明，不含个股名单、排序或评价性表述 |
 | `copy.review.limits.subtitle` | 按板块规则从日线汇总涨停/跌停家数与连板分布；只展示市场级计数，不含个股名单；ST 标的先排除并显式标注。 | 页面/区块文案 | 涨跌停概览页 / LimitLadderPage / limit-ladder-page | 进入 /review/limits 且处于对应状态时显示 | 常驻（无关闭入口） | 否 | 否（本批无模型文本；AI 内容上线前逐条预审） | C 端 | 新增 | 市场级汇总口径说明，不含个股名单、排序或评价性表述 |
-| `copy.review.limits.provisional` | 涨跌停口径为临时近似规则（provisional），后续随数据校准调整；页面会随口径版本更新。 | 页面/区块文案 | 涨跌停概览页 / LimitLadderPage / limit-ladder-page / limit-provisional-banner | 进入 /review/limits 且处于对应状态时显示 | 常驻（无关闭入口） | 否 | 否（本批无模型文本；AI 内容上线前逐条预审） | C 端 | 新增 | 市场级汇总口径说明，不含个股名单、排序或评价性表述 |
+| `copy.review.limits.provisional` | 涨跌停口径为临时近似规则（provisional），后续随数据校准调整；连板分布从首板（1 板）起逐档统计至最高连板，全部分段展示、不截断。 | 页面/区块文案 | 涨跌停概览页 / LimitLadderPage / limit-ladder-page / limit-provisional-banner | 进入 /review/limits 且处于对应状态时显示 | 常驻（无关闭入口） | 否 | 否（本批无模型文本；AI 内容上线前逐条预审） | C 端 | 新增 | 市场级汇总口径说明，不含个股名单、排序或评价性表述 |
 | `copy.review.limits.stExclusion` | ST / *ST 标的已排除，不进入统计。 | 页面/区块文案 | 涨跌停概览页 / LimitLadderPage / limit-ladder-page / limit-st-exclusion | 进入 /review/limits 且处于对应状态时显示 | 常驻（无关闭入口） | 否 | 否（本批无模型文本；AI 内容上线前逐条预审） | C 端 | 新增 | 市场级汇总口径说明，不含个股名单、排序或评价性表述 |
 | `copy.review.limits.stExcludedLabel` | 已排除数量 | 页面/区块文案 | 涨跌停概览页 / LimitLadderPage / limit-ladder-page / limit-st-exclusion | 进入 /review/limits 且处于对应状态时显示 | 常驻（无关闭入口） | 否 | 否（本批无模型文本；AI 内容上线前逐条预审） | C 端 | 新增 | 市场级汇总口径说明，不含个股名单、排序或评价性表述 |
 | `copy.review.limits.countUnit` | 家 | 页面/区块文案 | 涨跌停概览页 / LimitLadderPage / limit-ladder-page | 进入 /review/limits 且处于对应状态时显示 | 常驻（无关闭入口） | 否 | 否（本批无模型文本；AI 内容上线前逐条预审） | C 端 | 新增 | 市场级汇总口径说明，不含个股名单、排序或评价性表述 |
@@ -72,7 +72,7 @@
 | `copy.review.limits.counts.maxStreak` | 最高连板 | 页面/区块文案 | 涨跌停概览页 / LimitLadderPage / limit-ladder-page / limit-max-streak | 进入 /review/limits 且处于对应状态时显示 | 常驻（无关闭入口） | 否 | 否（本批无模型文本；AI 内容上线前逐条预审） | C 端 | 新增 | 市场级汇总口径说明，不含个股名单、排序或评价性表述 |
 | `copy.review.limits.counts.distribution` | 连板分布 | 页面/区块文案 | 涨跌停概览页 / LimitLadderPage / limit-ladder-page / limit-streak-distribution | 进入 /review/limits 且处于对应状态时显示 | 常驻（无关闭入口） | 否 | 否（本批无模型文本；AI 内容上线前逐条预审） | C 端 | 新增 | 市场级汇总口径说明，不含个股名单、排序或评价性表述 |
 | `copy.review.limits.aggregateNote` | 本页只展示市场级汇总计数，不展示个股名称、代码或排序名单；口径与排除规则见上方说明。 | 页面/区块文案 | 涨跌停概览页 / LimitLadderPage / limit-ladder-page / limit-streak-distribution | 进入 /review/limits 且处于对应状态时显示 | 常驻（无关闭入口） | 否 | 否（本批无模型文本；AI 内容上线前逐条预审） | C 端 | 新增 | 市场级汇总口径说明，不含个股名单、排序或评价性表述 |
-| `copy.review.limits.emptyList` | 当前无符合条件的标的。 | 页面/区块文案 | 涨跌停概览页 / LimitLadderPage / limit-ladder-page / limit-streak-distribution | 进入 /review/limits 且处于对应状态时显示 | 常驻（无关闭入口） | 否 | 否（本批无模型文本；AI 内容上线前逐条预审） | C 端 | 新增 | 市场级汇总口径说明，不含个股名单、排序或评价性表述 |
+| `copy.review.limits.emptyList` | 当前无可统计的涨跌停样本。 | 页面/区块文案 | 涨跌停概览页 / LimitLadderPage / limit-ladder-page / limit-streak-distribution | 进入 /review/limits 且处于对应状态时显示 | 常驻（无关闭入口） | 否 | 否（本批无模型文本；AI 内容上线前逐条预审） | C 端 | 新增 | 市场级汇总口径说明，不含个股名单、排序或评价性表述 |
 | `copy.review.limits.demoNote` | 本地演示数据（mock），仅用于界面开发，不代表真实计算结果。 | 页面/区块文案 | 涨跌停概览页 / LimitLadderPage / limit-ladder-page | 进入 /review/limits 且处于对应状态时显示 | 常驻（无关闭入口） | 否 | 否（本批无模型文本；AI 内容上线前逐条预审） | C 端 | 新增 | 市场级汇总口径说明，不含个股名单、排序或评价性表述 |
 | `copy.review.limits.loading` | 正在加载涨跌停概览… | 页面/区块文案 | 涨跌停概览页 / LimitLadderPage / limit-ladder-page / limit-ladder-loading | 进入 /review/limits 且处于对应状态时显示 | 常驻（无关闭入口） | 否 | 否（本批无模型文本；AI 内容上线前逐条预审） | C 端 | 新增 | 市场级汇总口径说明，不含个股名单、排序或评价性表述 |
 | `copy.review.limits.unavailable` | 涨跌停概览尚未接入汇总接口，本页不展示占位数值。 | 页面/区块文案 | 涨跌停概览页 / LimitLadderPage / limit-ladder-page | 进入 /review/limits 且处于对应状态时显示 | 常驻（无关闭入口） | 否 | 否（本批无模型文本；AI 内容上线前逐条预审） | C 端 | 新增 | 市场级汇总口径说明，不含个股名单、排序或评价性表述 |
@@ -84,13 +84,15 @@
 
 扫描词表：`建议/推荐/值得/可关注/机会/买入/卖出/持有/目标价/高估/低估/强势/必涨/避险/为什么/原因`。
 
-扫描对象：上述 69 条原文 + 本清单全部文本（脚本逐条 includes）。
+扫描对象：主表 69 条新增文案 + 附录 7 条存量修订/保留说明 + 本清单全部文本（脚本逐条 includes）。
 
-结果：**0 命中**（逐条 includes，扫描范围：69 条原文 + 本清单逐条元数据列；不含本节词表自身）。
+结果：**1 命中，已逐条解释**。
+- 命中词：`建议`；位置：`copy.app.footerNote` 原文「…不构成投资建议、要约或收益承诺。」及本清单引用该句的行。
+- 解释：该词处于否定合规句式「不构成投资建议」中，属于免责声明必要组成部分，不是任何形式的投资建议、推荐或判断；删除会削弱免责。除此之外 0 命中。
 
 ## 三、AI 标识与免责（不在前端 copy，需后端 copy 同版本签字）
 
-- 按 ADR-007 D3/P7，「AI 生成 · 信息整合非投资建议」与 AI 免责正文由 services/api 从后端 copy.ts 注入；前端 `AiGeneratedBadge` 只接收必填 `label`/`disclaimer`，渲染 `ai-generated-badge`/`ai-disclaimer`，无关闭/隐藏入口。
+- 按 ADR-007 D3/P7 与 H3 m02666 定稿，「AI 生成 · 仅供参考」及 AI 免责正文（「本内容由 AI 生成，基于页面标注时点的市场数据整理，仅供参考，不构成投资建议，也不构成任何买卖依据。」）由 services/api 从后端 copy.ts 注入；前端 `AiGeneratedBadge` 只接收必填 `label`/`disclaimer`，渲染 `ai-generated-badge`/`ai-disclaimer`，无关闭/隐藏入口。
 - 因此这两段串不进入前端快照；本次 release 的 backend 2026.11.5 快照须同时登记（A0 负责，H3 签字）。
 - 本批 AI 文本位全部为 null，只显示「待接入」占位，不涉及模型生成内容；实际生成文案上线前需逐条预审。
 
@@ -99,3 +101,24 @@
 - **B1-02**：C 端仅市场级汇总计数（涨停/跌停/最高连板/连板分布 + ST 排除数量），**不含个股名称/代码/排序名单**；个股明细分层仅保留类型供将来内部评测，C 端渲染路径不读取。
 - **B1-01**：只展示客观数值（区间涨跌、年化波动、最大回撤、等权表现），不含推荐/归因/预测；相对基准与板块对比为缺口卡占位。
 - **B1-03**：本批只签「标题 + 待接入占位 + 缺口」，不构成对将来生成内容的放行。
+
+## 附录：存量文案修订（本批一并清，H3 m02565 §B/§C）
+
+| copy key | 原文全文 | 类型 | 出现位置（页面+组件+DOM testid） | 触发条件 | 常驻/可关闭 | 是否插值数据字段 | 是否 AI 生成内容 | 目标受众 | 变更 | 合规理由 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `ERROR_COPY.unknown.message` | 数据暂时不可用。 | 错误态文案 | 所有整页/区块错误态 / ErrorBlock / error-banner | 非网络、非映射状态码的协议异常（如响应体缺 data/meta、未知状态） | 状态性（仅错误时） | 否 | 否 | C 端 | 存量修订（原含「请稍后重试」） | 确定性契约缺口重试无意义；实际不用于缺口卡或 403 授权路径（403 走 UNAVAILABLE_BODY） |
+| `ERROR_COPY.status5xx.message` | 行情数据暂时无法获取。 | 错误态文案 | 行情相关整页错误态 / ErrorBlock / error-banner | 仅真实 5xx 响应 | 状态性（仅错误时） | 否 | 否 | C 端 | 存量修订（去「服务」暗示与重试引导） | 避免把服务方关系透给用户；403 授权路径不复用该文案 |
+| `copy.disclaimer.unavailable` | 本次响应未携带免责声明元数据，当前版本暂不展示行情数据。 | 免责兜底文案 | 个股页免责区 / DisclaimerUnavailable / disclaimer、disclaimer-text | 行情 2xx 但缺 disclaimer 元数据（本应 500） | 常驻（不可关闭） | 否 | 否 | C 端 | 存量修订（删除「稍后重试或联系服务方」） | 确定性契约缺口，重试无意义；不暴露服务方关系 |
+| `copy.app.footerNote` | 本平台为客观数据工具，展示市场公开披露数据与平台自有数据，不构成投资建议、要约或收益承诺。 | 全站合规声明 | 所有页面页脚 / App / footer | 全站常驻 | 常驻（不可关闭） | 否 | 否 | C 端 | 存量修订（「公开数据源」→「市场公开披露数据」） | 授权未落地时不用「公开」为数据权利背书 |
+| `ERROR_COPY.status429.message`（保留） | 当前请求暂时无法完成，请稍后重试。 | 错误态文案 | 429 错误态 / ErrorBlock | HTTP 429（配合 Retry-After） | 状态性 | 否 | 否 | C 端 | 保留 | 真可重试场景 |
+| `copy.watchlist.error`（保留） | 自选列表暂时无法加载，请稍后重试。 | 错误态文案 | 自选页/自选状态 / WatchlistPage / watchlist-state | 平台自有数据瞬态失败 | 状态性 | 否 | 否 | C 端 | 保留 | 瞬态可重试 |
+| `copy.watchlist.noticeFailed`（保留，说明触发场景） | 操作未成功，请稍后重试。 | 操作反馈 | 自选切换失败提示 / WatchlistToggle / notice | 非 401 的未知异常兜底（网络/5xx/协议异常）；输入类确定失败在入口校验，不会走到此文案 | 状态性（仅失败时） | 否 | 否 | C 端 | 保留 | 未知异常兜底可保留；未用于授权/缺口路径 |
+
+## 观测项（H3 m02683，非文案、不阻塞签字）
+
+`[88] copy.watchlist.noticeFailed` 保留现措辞，但该兜底路径在服务端/前端事件中必须能区分：
+
+- **真瞬态**：网络异常、真实 5xx —— 属于可用「稍后重试」消化的场景；
+- **确定性缺陷**：响应缺 `data`/`meta`、协议形状异常等 —— 重试不会自愈，必须单独告警，不得靠用户重试消化。
+
+前端数据层已保留区分信号：`GatewayError { status: number | null; network: boolean }`，`status === null && network === true` 为网络类，非空 `status` 为服务端状态类，模型层可据此分流事件。该项记入 11-12 前观测项，由 A0/H5 接；本文案不变。

@@ -72,6 +72,7 @@ function demoLadder(): LimitLadder {
     downCount: 3,
     maxStreakDays: 5,
     streakBuckets: [
+      { streakDays: 1, count: 8 },
       { streakDays: 2, count: 4 },
       { streakDays: 3, count: 3 },
       { streakDays: 4, count: 2 },
