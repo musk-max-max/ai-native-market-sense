@@ -21,7 +21,7 @@ import json
 import re
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta, timezone
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 from typing import Any
 
@@ -55,7 +55,7 @@ RULE_META: dict[str, tuple[str, str]] = {
     "RES-02": ("business", "研究指标量纲：仅 DWD canonical 字段；金额/量/市值非负，百分比 |x| ≤ 1000"),
     "RES-03": ("consistency", "研究数据 instrument_id 必须存在于 dim_instrument（指数/两融豁免；非 A 股命名空间显式豁免并计数）"),
     "RES-04": ("completeness", "研究批次 as_of 满足各 endpoint 的及时性阈值（默认交易日 15:00；hk_hold T+1 15:00）且 fetched_at ≥ as_of"),
-    "RES-05": ("business", "涨跌停原始价自洽且 limit_pct 交叉校验：previous_close>0、up_limit > previous_close > down_limit；limit_pct 非空时 |up/prev-1-limit_pct/100| ≤ 0.3pp（H4 口径已定：A2 不派生，只校验派生值是否与原始价一致）"),
+    "RES-05": ("business", "涨跌停原始价自洽且 limit_pct 交叉校验：previous_close>0、up_limit > previous_close > down_limit；limit_pct 非空时必须属于 {5,10,20,30}，按声明档重算 round_half_up(prev×(1±pct/100),2) 后与 up_limit/down_limit 精确比对（±0.005 仅吸收浮点；H4 口径，A2 不派生，只独立验证派生档位）"),
     "RES-06": ("business", "财务指标公告时点：announced_at ≥ report_end_date，且不晚于批次 as_of（防未来函数）；announced_at 为 null 按 blocker（无公告日无法 as-of join，不进可用数据）"),
     "RES-07": ("consistency", "行业分类树自洽：level∈{1,2,3}；level>1 必须有 parent_code、level=1 不得有；parent 必须在同一 snapshot 存在且 level(parent)=level(child)-1；链≤2 跳到 L1 且无环（每链唯一根）"),
     "RES-08": ("consistency", "成分时点自洽：in_date ≤ snapshot_date；out_date ≥ in_date；is_new=Y 时 out_date 必须为空；is_new=N 时 out_date 必须非空"),
@@ -609,17 +609,31 @@ def _check_stk_limit(c: _Collector, row: dict[str, Any], td: date | None) -> Non
     elif not (up > prev > down):
         c.flag("RES-05", iid, td, f"涨跌停价格不自洽，应 up_limit > previous_close > down_limit：prev={prev} up={up} down={down}")
 
-    # H4 加固：不能只信适配层透传的 limit_pct，必须用原始价独立交叉验证（防静默错档）。
+    # H4 加固（候选档重算比对）：不能只信适配层透传的 limit_pct。
+    # 比值区间在低价股上会踩 0.01 元最小变动单位（如 prev=1.35、10% 档 up=1.49 比值 10.37%），
+    # 因此按声明档重算涨跌停价再精确比对；±0.005 只吸收十进制/浮点边界。
     limit_pct = row.get("limit_pct")
     if isinstance(limit_pct, Decimal):
-        if not (Decimal("5") <= limit_pct <= Decimal("30")):
-            c.flag("RES-05", iid, td, f"limit_pct={limit_pct} 超出 5–30 合理区间")
+        candidates = (Decimal("5"), Decimal("10"), Decimal("20"), Decimal("30"))
+        if limit_pct not in candidates:
+            c.flag("RES-05", iid, td, f"limit_pct={limit_pct} 不属于 5/10/20/30 档")
         elif prev > 0:
-            derived = (up / prev - 1) * 100
-            if abs(derived - limit_pct) > Decimal("0.3"):
+            up_expected = (prev * (1 + limit_pct / 100)).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
+            down_expected = (prev * (1 - limit_pct / 100)).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
+            tolerance = Decimal("0.005")
+            if abs(up - up_expected) > tolerance:
                 c.flag(
                     "RES-05", iid, td,
-                    f"limit_pct={limit_pct} 与原始价比值推出 {derived.quantize(Decimal('0.0001'))}% 不一致（容差 0.3pp）",
+                    f"limit_pct={limit_pct} 档重算 up_limit 期望 {up_expected}，实际 {up}",
+                )
+            if abs(down - down_expected) > tolerance:
+                c.flag(
+                    "RES-05", iid, td,
+                    f"limit_pct={limit_pct} 档重算 down_limit 期望 {down_expected}，实际 {down}",
                 )
 
 

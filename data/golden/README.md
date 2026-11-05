@@ -12,8 +12,8 @@
 
 | 约定 | 说明 |
 | --- | --- |
-| 单一文件 | `p0_bars20.yaml`（文件名保留历史，现含 22 正例 + 9 负例；**不改名**，外部引用已固定） |
-| 用例 id | `G01`…`G22` = 正例（必须 green、score=100、不被阻断）；`N01`…`N09` = 负例（必须按 `expect` 精确命中） |
+| 单一文件 | `p0_bars20.yaml`（文件名保留历史，现含 24 正例 + 9 负例；**不改名**，外部引用已固定） |
+| 用例 id | `G01`…`G24` = 正例（必须 green、score=100、不被阻断）；`N01`…`N09` = 负例（必须按 `expect` 精确命中） |
 | 边界标记 | 正例中 ST / 停牌 / 除权除息 / 涨跌停 / 新股首日 / ST 恰好 5% / ST 限价取整 等边界在 `title` 写明，`warehouse/tests/test_golden.py::BOUNDARY_CASES` 登记 |
 | 编号只增 | 不回收编号；删条目不删语义，用新编号覆盖场景 |
 
@@ -66,13 +66,13 @@
 ## 门禁命令
 
 ```bash
-python3 -m warehouse.pipeline --golden data/golden/p0_bars20.yaml  # 期望 31/31 通过
+python3 -m warehouse.pipeline --golden data/golden/p0_bars20.yaml  # 期望 33/33 通过
 python3 -m pytest warehouse/tests -q                              # 含 golden 门禁测试
 ```
 
 当前清单：G01 主板正常 / G02 创业板 +15% / G03 科创 / G04 北交所 30% / G05 主板 ST / G06 *ST 5.05% 容差 /
 G07 主板涨停 10.02% / G08 跌停 / G09 创业板 20% / G10 北交所 30% / G11 除权除息 / G12 停牌无 bar /
 G13 新股首日 / G14 低价股涨停 / G15 跨周末 / G16 退市历史 bar / G17 qfq/hfq 连续 / G18 多批次幂等 /
-G19 历史修正 revision=1 / G20 +9.98% 未涨停 / **G21 ST 恰好 +5.00% 涨停边界** / **G22 ST 限价取整边界**；
+G19 历史修正 revision=1 / G20 +9.98% 未涨停 / **G21 ST 恰好 +5.00% 涨停边界** / **G22 ST 限价取整边界** / **G23/G24 低价股 limit_pct 候选档重算**；
 N01 high<low / N02 high<max(open,close) / N03 非正价格或负量 / N04 主板 +11% / N05 ST +6% /
 N06 因子≤0 / N07 缺 prev_close(warn) / N08 除权日缺参考价 / N09 内部缺日。

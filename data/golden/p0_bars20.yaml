@@ -1,7 +1,7 @@
 meta:
   version: 1
   owner: A2
-  description: P0 竖切片 golden dataset：22 条正例（含 ST/停牌/除权除息/涨跌停/新股首日/ST 恰好 5%/ST 限价取整边界）+ 9 条负例；由 warehouse.golden_runner 走 ODS→DWD→质量 全链路回归。
+  description: P0 竖切片 golden dataset：24 条正例（含 ST/停牌/除权除息/涨跌停/新股首日/ST 恰好 5%/ST 限价取整边界/低价股 limit_pct 候选档重算）+ 9 条负例；由 warehouse.golden_runner 走 ODS→DWD→质量 全链路回归。
   ods_format: warehouse/README.md §ODS 交换格式 v1
   decision_refs:
   - H4-D6
@@ -1246,3 +1246,65 @@ cases:
     blocked: true
     violations:
     - COMP-03
+- id: G23
+  title: 低价股 limit_pct 交叉验证：prev=1.35、10% 档 → up=1.49（比值 10.37%，候选档重算不误伤）
+  instrument:
+    instrument_id: SZSE:000725
+    exchange: SZSE
+    code: '000725'
+    name: 京东方A
+    board: main
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '2001-01-12'
+  as_of: '2026-09-30T20:05:00+08:00'
+  fetched_at: '2026-09-30T20:06:00+08:00'
+  bars: []
+  research_batches:
+  - endpoint: stk_limit
+    rows:
+    - instrument_id: SZSE:000725
+      trade_date: '2026-09-30'
+      previous_close: '1.35'
+      up_limit: '1.49'
+      down_limit: '1.22'
+      limit_pct: '10.0'
+      limit_pct_source: exchange_price_ratio
+      asset_type: stock
+      exchange: SZSE
+  expect:
+    grade: green
+    blocked: false
+    violations: []
+- id: G24
+  title: 低价股 limit_pct 交叉验证：prev=0.45、10% 档 → up=0.50（0.495 半入）
+  instrument:
+    instrument_id: SZSE:000725
+    exchange: SZSE
+    code: '000725'
+    name: 京东方A
+    board: main
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '2001-01-12'
+  as_of: '2026-09-30T20:05:00+08:00'
+  fetched_at: '2026-09-30T20:06:00+08:00'
+  bars: []
+  research_batches:
+  - endpoint: stk_limit
+    rows:
+    - instrument_id: SZSE:000725
+      trade_date: '2026-09-30'
+      previous_close: '0.45'
+      up_limit: '0.50'
+      down_limit: '0.41'
+      limit_pct: '10.0'
+      limit_pct_source: exchange_price_ratio
+      asset_type: stock
+      exchange: SZSE
+  expect:
+    grade: green
+    blocked: false
+    violations: []

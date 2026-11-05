@@ -283,7 +283,7 @@ FROM dwd_stk_limit;
 -- 可见时点 = announced_at（H4：as-of join 必须按 announced_at，禁止按 report_end_date，防未来函数）。
 -- 示例：WHERE announced_at <= :as_of ORDER BY announced_at DESC LIMIT 1
 CREATE OR REPLACE VIEW serving.serving_research_fina_indicator AS
-SELECT instrument_id, report_period, report_end_date, announced_at, update_flag,
+SELECT instrument_id, report_period, report_end_date, announced_at, revision_flag,
        ar_turn, assets_turn, assets_yoy_pct, bps, bps_yoy_pct, current_ratio,
        debt_to_assets, dt_eps, dt_netprofit_yoy_pct, ebit, ebitda, eps,
        eqt_yoy_pct, extra_item, fixed_assets, grossprofit_margin, inv_turn,

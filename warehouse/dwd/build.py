@@ -116,7 +116,7 @@ RESEARCH_VALUE_FIELDS: dict[str, tuple[str, ...]] = {
     "fina_indicator": (
         "report_end_date",
         "announced_at",
-        "update_flag",
+        "revision_flag",
         "ar_turn","assets_turn","assets_yoy_pct","bps","bps_yoy_pct","current_ratio",
         "debt_to_assets","dt_eps","dt_netprofit_yoy_pct","ebit","ebitda","eps",
         "eqt_yoy_pct","extra_item","fixed_assets","grossprofit_margin","inv_turn",

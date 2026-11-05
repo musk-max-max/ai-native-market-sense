@@ -23,7 +23,13 @@ import yaml
 
 from warehouse.dwd.adjust import adjust_bars
 from warehouse.dwd.build import build_dwd
-from warehouse.ods.loader import OdsFormatError, load_batches, parse_date, parse_shanghai_datetime
+from warehouse.ods.loader import (
+    ENDPOINT_SCHEMAS,
+    OdsFormatError,
+    load_batches,
+    parse_date,
+    parse_shanghai_datetime,
+)
 from warehouse.quality.checks import run_quality_checks
 
 DEFAULT_AS_OF_TIME = time(20, 5)
@@ -239,6 +245,28 @@ def _case_envelopes(case: dict[str, Any]) -> list[dict[str, Any]]:
         )
     )
 
+    for research in case.get("research_batches", []) or []:
+        endpoint = research["endpoint"]
+        if endpoint not in ENDPOINT_SCHEMAS:
+            raise ValueError(f"{case_id}: research_batches endpoint 非法 {endpoint!r}")
+        r_as_of = parse_shanghai_datetime(
+            research.get("as_of") or case.get("as_of") or _default_as_of(case),
+            where=f"{case_id}.research.{endpoint}.as_of",
+        )
+        r_fetched = parse_shanghai_datetime(
+            research.get("fetched_at") or (r_as_of + DEFAULT_FETCH_MARGIN).isoformat(),
+            where=f"{case_id}.research.{endpoint}.fetched_at",
+        )
+        envelopes.append(
+            _envelope(
+                f"{case_id}-{endpoint}",
+                endpoint,
+                ENDPOINT_SCHEMAS[endpoint],
+                _source(r_as_of, r_fetched, research.get("source", "tushare")),
+                list(research.get("rows", [])),
+            )
+        )
+
     for index, batch in enumerate(bar_batches, start=1):
         as_of = parse_shanghai_datetime(batch.get("as_of") or _default_as_of(case), where=f"{case_id}.batch{index}.as_of")
         fetched = parse_shanghai_datetime(
@@ -281,13 +309,17 @@ def _default_as_of(case: dict[str, Any]) -> str:
 
 def _write_envelope(root: Path, envelope: dict[str, Any]) -> None:
     endpoint = envelope.get("endpoint")
-    if endpoint not in ("bar", "adj_factor", "instrument", "fundamental"):
+    if endpoint not in ENDPOINT_SCHEMAS:
         raise ValueError(f"fixture 批次 endpoint 非法: {endpoint!r}")
     rows = envelope.get("rows") or []
     dt = None
     for row in rows:
         if isinstance(row, dict):
-            stamp = row.get("trade_date") or row.get("report_end_date")
+            stamp = (
+                row.get("trade_date")
+                or row.get("report_end_date")
+                or row.get("snapshot_date")
+            )
             if stamp:
                 dt = str(stamp)[:10]
                 break

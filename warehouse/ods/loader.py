@@ -285,11 +285,10 @@ RESEARCH_ROW_SPECS: dict[str, dict[str, Any]] = {
         "trade_date": False,
         "dates": ("report_end_date", "announced_at"),
         "patterns": {"report_period": FUNDAMENTAL_REPORT_PERIOD_RE},
-        "text": ("update_flag",),
+        # revision_flag：A1 已把 tushare update_flag 映射为正式 canonical 名（C01），
+        # 不再是源侧列名，因此不再需要 allowed_source_like 白名单。
+        "text": ("revision_flag",),
         "decimal": ("*",),
-        # update_flag 是 tushare fina_indicator 源侧列名，正式 canonical 名待 A1/H4 定；
-        # 先白名单放行，避免 ODS 已落盘数据读不进来（已报 A1）。
-        "allowed_source_like": ("update_flag",),
     },
     # 行业分类快照：dt=运行日，行内无 instrument_id/trade_date；index_code 为业务主键。
     "index_classify.v1": {

@@ -282,7 +282,7 @@ FINA_INDICATOR_COLUMNS = (
     "report_period",
     "report_end_date",
     "announced_at",
-    "update_flag",
+    "revision_flag",
     "ar_turn",
     "assets_turn",
     "assets_yoy_pct",

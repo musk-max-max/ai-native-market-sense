@@ -346,7 +346,7 @@ CREATE TABLE IF NOT EXISTS dwd_fina_indicator (
     report_period                    text        NOT NULL,  -- YYYYQn
     report_end_date                  date        NOT NULL,
     announced_at                     date        NOT NULL,
-    update_flag                      text,
+    revision_flag                    text,        -- A1 canonical：财报修订标记（源 tushare update_flag）
     ar_turn                          numeric(20,4),
     assets_turn                      numeric(20,4),
     assets_yoy_pct                   numeric(20,4),
