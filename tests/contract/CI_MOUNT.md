@@ -339,4 +339,4 @@ file-level 窄豁免且 H2 签，不给目录级）。扫描强度与全量数�
 - provider 样本：`specimens/provider/{getLimitLadder,getInstrumentPageSummary,getWatchlistReview}.json`；consumer 期望：`specimens/consumer/` 同名三件。
 - 语义钉点：`getLimitLadder` 无数据返回 200+空列表+gaps（不 404）、`rule.price_basis=none` 且 meta.adjustment=none、ST 只进 `excluded_st`；`getInstrumentPageSummary` 五段各一次、`availability=restricted` 段不得带 summary/data_refs、部分受限仍 200、页面级全受限才 403（`ENTITLEMENT_RESTRICTED`）；`getWatchlistReview` 空自选 200 + portfolio=null、adjustment 仅 none|qfq、meta.adjustment==data.adjustment、缺口用 BENCHMARK_PENDING。
 - 自证：`test_provider_contract.py::test_page_summary_restricted_sections_carry_no_values`、`test_all_restricted_page_summary_is_403`。
-- 状态：`pytest tests/contract` = 63 passed；`pytest tests/contract tests/data` = 193 passed / 2 warnings。
+- 状态（2026-11-05T16:45Z，HEAD `6266e47`）：`pytest tests/contract` = **63 passed**；`pytest tests/contract tests/data` = **193 passed / 2 warnings**。契约与 generated 由 A3 `6266e47` 提交入库（A0 确认此后未再改 schema）；复验即对该 commit 树。
