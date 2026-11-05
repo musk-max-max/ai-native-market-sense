@@ -1426,3 +1426,13 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 - **门禁/接线收口**：A11 薄封装 `65f2e90`（正样本 rc=0 / mirror+display_safe 两负样本 rc=1 / 缺 root rc=2）+ A13 release-gate `b3b4248` 接上（exit 0 放行、失败上传 `research-boundary.out`+运行时 evidence md、不吞退出码）。A11 独立参考实现 M04 时点限价（L118–L120 全规则 + 按市场取整）golden 37+12 **0 差异**，证据 `tests/data/acceptance/artifacts/limit-rule-crosscheck-20261105T1415Z.md`。C01 复绿（仅忽略 `.mypy_cache` 生成目录，未加业务豁免）。我复跑 tests/data 150 passed。
 - **Lead 边界声明**：M04-LISTED-AT-COVERAGE（回补验收，H4 条件 7）与 BSE universe/alias backlog **都属回补验收项，不占 11-12 门禁**；别让 A11/H5 把它们算进 8+4。BSE **未闭环**（幸存者偏差未解），汇总不得写「BSE 已闭环」。
 - **Open**：① A1 落「未知冲突 → 整批 blocked + 样本」进 sync 失败语义（改完回报）② A1 查 D/P 退市名单 + 2021-06 精选层 + 旧码名称映射（m06589 派，5 条 D 已回，转板/外部清单挂 known_limitation）③ mirror vs 官方 token 对比（mirror 取数路径 F1 风险）
+
+### L123 — BSE 三项事实补正（退市/转板拆分、精选层稀疏非缺失、转板 alias、mirror 冲突升级批准）
+- **H4 要求单记一条事实，别并进 L118/L119、也和 mirror 分开**（L118=取数路径是否官方、L119=涨跌幅规则随时点变、L121=BSE 代码空间迁移、L122=BSE 三证初版、本条=BSE 数据事实补正）。
+- **① 退市覆盖（D=5、P=0，在册 354）拆转板/真退市**：5 条里 **3 条是转板**（832317→688287、833874→301192、833994→301321），**2 条真退市**（920680、920305）。→ known_limitation + 回补验收项 universe completeness，**不阻塞 11-12**。
+- **② 精选层历史是稀疏非缺失（H4 原假设被证伪，H4 认）**：920000 从 **2019-05-24** 起有回溯，但 2019 全年 4 行、2020 年 22 行、2021H1 136 行、2021-07-27..11-14 72 行。口径：**2021-11-15 前 BSE 代码的 bar 打 `market_segment`（NEEQ/精选层）**，**不冒充北交所连续竞价、不进 C 端**；**bars 早于 `list_date` 是正常现象，不许过滤掉**。
+- **③ 转板 alias backlog（只做公司级关联、不合并 instrument_id）**：`BSE:833874→SZSE:301192`、`BSE:833994→SZSE:301321`、`BSE:832317→SSE:688287`；**来源须转板公告/官方清单**。
+- **④ mirror 冲突升级批准**：已知 41 行（900xxx 被标 `.BJ`）继续 warn；**其他后缀/exchange 冲突改整批 blocked**（原子性、exit 非 0、带样本证据），A1 改完单独回 H4。
+- **汇总红线**：**别写「BSE 已闭环」**——退市/转板清单不全是本源事实（幸存者偏差）。
+- **A11 补缺口（H4 抓）**：A11 独立对照收了（`bf2e159`、artifact `35854d21…` 复算一致、33 bar 0 差异、pytest tests/data 150 passed），但 **B 股没有 bar 路径覆盖**（A2 用例 skip）→ 让 A11 直接单测 `quote_unit`/`limit_prices`（沪 B 0.001、深 B 0.01、北交 1.26→1.63/0.89 各验一次），**别改 golden**。
+- **Open**：① A1 落「未知冲突→整批 blocked+样本」进 sync 失败语义 + 单独回 H4 ② A11 补 B 股 quote_unit/limit_prices 单测（不改 golden）③ A2 用 `market_segment` 打标 2021-11-15 前 BSE bar（NEEQ/精选层、不进 C 端、不过滤早于 list_date 的 bar）④ BSE universe 外部退市/转板清单（回补验收）⑤ mirror vs 官方 token 对比（F1 风险）
