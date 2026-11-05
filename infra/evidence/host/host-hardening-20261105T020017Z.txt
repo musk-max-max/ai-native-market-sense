@@ -1,0 +1,60 @@
+# artifact_utc=20261105T020017Z
+# host-hardening 证据：lyuddu 具名 sudo + root 禁登（H5 ⑤-3 转 PASS 用）
+# operator=A13; entry=本机非交互 SSH（BatchMode=yes）；captured_utc=2026-11-05T02:00:17Z
+# 私钥不落盘；host key 指纹省略；不贴任何 secret
+
+## [0] 执行入口与身份（本机 -> ECS lyuddu）
+$ ssh -o BatchMode=yes lyuddu@47.120.16.239 "whoami; sudo -n whoami"
+lyuddu
+root
+
+## [1] sshd 生效配置（sudo sshd -T）
+$ sudo -n sshd -T | grep -E "^(permitrootlogin|passwordauthentication|maxauthtries) "
+maxauthtries 3
+permitrootlogin no
+passwordauthentication no
+
+## [2] lyuddu 账号 / sudoers / authorized_keys 权限
+uid=1001(lyuddu) gid=1001(lyuddu) groups=1001(lyuddu),27(sudo)
+sudo:x:27:lyuddu
+drwx------ 2 lyuddu lyuddu 4096 Nov  5 09:57 /home/lyuddu/.ssh
+-rw------- 1 lyuddu lyuddu 107 Nov  5 09:57 /home/lyuddu/.ssh/authorized_keys
+-r--r----- 1 root root 30 Nov  5 09:57 /etc/sudoers.d/lyuddu
+/etc/sudoers.d/lyuddu: parsed OK
+
+## [3] sshd 配置备份 / 语法检查 / 服务状态
+-rw-r--r-- 1 root root 3278 Nov  5 09:18 /etc/ssh/sshd_config.bak.20261105T011852Z
+-rw-r--r-- 1 root root 3292 Nov  5 09:57 /etc/ssh/sshd_config.bak.20261105T015757Z
+sshd -t rc=0
+systemctl is-active ssh=active
+
+## [4] root 直登尝试（应 Permission denied）
+$ ssh -o BatchMode=yes root@47.120.16.239 true
+root@47.120.16.239: Permission denied (publickey).
+root_rc=255
+
+## [5] 改后主机基线巡检复跑（期望：sshd 各项 PASS；22 Anywhere 仍 FAIL 属既有 residual）
+WARN  HOST-EXPOSURE-01 未配置 EXPECTED_PUBLIC_HOST，公网未认证可达性=UNVERIFIED（不计 PASS）
+FAIL  22/tcp 来源为 Anywhere（未白名单；待用户 CIDR，期望: <未配置>）
+FAIL  22/tcp 来源为 Anywhere（未白名单；待用户 CIDR，期望: <未配置>）
+PASS  fail2ban sshd jail 存在
+PASS  sshd permitrootlogin=no
+PASS  sshd passwordauthentication=no
+PASS  sshd maxauthtries=3
+RESULT DRIFT 存在基线漂移
+audit_rc=1
+
+## [6] fail2ban（不自锁确认）
+Status for the jail: sshd
+|- Filter
+|  |- Currently failed:	2
+|  |- Total failed:	2
+|  `- Journal matches:	_SYSTEMD_UNIT=sshd.service + _COMM=sshd
+`- Actions
+   |- Currently banned:	0
+   |- Total banned:	0
+   `- Banned IP list:	
+
+## [7] 安装态 expected 与脚本 sha（复算）
+bfd967ec618b58e13721c50445fe4b17eef869ac9d01a91f9a606ec2255f446c  /etc/market-sense/host-baseline.expected.env
+119277ab56306208a9f8a00e991e7106d8f33467cb6b0c7a1a3deca558984ccb  /usr/local/sbin/market-sense-host-baseline-audit.sh

@@ -23,7 +23,7 @@
 - owner：A13（检测/证据）+ A19（注入用例）；**任何公网测试窗口开启前必须先跑起来**。
 - 状态：**PASS（H5 m03818 终签，2026-11-05）**；A=b/B=b 已落地，A19 独立复核入库（commit `740131e`）；residual：`HOST_AUDIT_SSH` 未配（fail-closed，L106 绑 11-12）、22 Anywhere/`EXPECTED_PUBLIC_HOST` UNVERIFIED、一周误报观察期。
 
-## ⑤-3 residual：root 直登 + 无具名 sudo 账号（待用户确认）
+## ⑤-3：root 直登 + 具名 sudo（L108 已落地，待 H5 签 PASS）
 
 - 现状（2026-11-05 09:36Z 只读审计）：`sshd -T` 为 `permitrootlogin without-password`（root 密钥仍可直登）、`passwordauthentication no`、`maxauthtries 3`；`sudo` 组成员仅 `sudo:x:27:`（空组）；非 root 登录用户只有 `www`（uid=1000，`/sbin/nologin`）。
 - 目标（L102/⑤-3）：`PermitRootLogin no` + 具名账号 + sudo 提权；当前缺「具名账号」前置，A13 不自行建账号/改 sshd。
@@ -36,4 +36,7 @@
   1. **任何第二操作者获得访问前**：必须建具名 sudo 账号并设 `PermitRootLogin no`；
   2. **任何公网测试窗口开启前**：同上必须完成；
   3. **2026-11-12 前**：A13 出「建具名账号」提案（用户名/密钥/sudoers 范围/回退步骤），Lead/用户确认后执行；提案前不得改 sshd、不得建账号。
-- 当前状态：提案未出（等 Lead 11-12 前向用户要账号名）；⑤ 保持 PARTIAL；本项不阻塞其它工作。
+- **L108 落地（2026-11-05，Lead 执行 + A13 取证）**：用户裁定 SG 与 root 风险书面接受；建具名 sudo 账号 `lyuddu`（`/etc/sudoers.d/lyuddu` = `NOPASSWD:ALL`，visudo OK），复用 ED25519 公钥；sshd 改 `PermitRootLogin no`（备份 `sshd_config.bak.20261105T015757Z`），`sshd -t` OK、`ssh` active。A13 复算证据：root 登录 `Permission denied (publickey)`、lyuddu 密钥登录 + `sudo whoami`=root、巡检 sshd 三项 PASS。
+- 证据：`infra/evidence/host/host-hardening-20261105T020017Z.txt`（sha256 `8a2acd42…`，commit 见 manifest），`case_ids: ⑤-3/root-login/L108`。
+- 状态：root 登录 residual 由 ACCEPTED-RISK 转 **CLOSED（待 H5 签 ⑤-3 PASS）**；预计 H5 m03827 核签。
+- **IaC 缺口（HOST-BASELINE-01 范围）**：`lyuddu`、`/etc/sudoers.d/lyuddu`、`authorized_keys`、sshd_config 的这次变更均为手工执行、仓库无声明；11-12 前提案必须包含：①账号/公钥/ sudoers 的声明化（cloud-init 或配置管理）；②sshd 目标态（`PermitRootLogin no`/`PasswordAuthentication no`/`MaxAuthTries 3`）与回滚；③22 CIDR 白名单参数；④变更审计（HOST-AUDIT-01）。
