@@ -368,3 +368,5 @@ file-level 窄豁免且 H2 签，不给目录级）。扫描强度与全量数�
 - 状态（2026-11-05）：`pytest tests/data` = **150 passed / 1 warning**；`pytest tests/contract tests/data` = **213 passed / 2 warnings**。
 
 - 补充（H4 m04155）：B 股/北交所无 bar 路径覆盖，新增独立单测 `tests/data/test_limit_prices_unit.py`（11 passed，不依赖 golden）：沪 B 900xxx 0.001 half-up、深 B 200xxx 0.01 half-up、北交所 920/43/83 涨停 floor/跌停 ceil、主板 S 股 5% 进位；证据 `tests/data/acceptance/artifacts/limit-prices-unit-20261105T1425Z.md` sha256 `0ac07a2d13d1c1bd309e66605318cb7dca12fbe63dc858034d88b27897715119`。`pytest tests/data` = 161 passed / 1 warning，全量 = 224 passed / 2 warnings。
+
+- **C01 当前红灯（2026-11-05T14:06Z）**：A1 `services/ingest/src/market_ingest/sync.py:1374` 在 canonical 编排层使用源格式字段 `item.get('ts_code')`（research sync blocked 的 conflicts 摘要），C01 判为源格式泄漏。已报 A1（属 services/ingest 写域）；A11 不改被测代码、不改扫描条件。上方「224 passed」是 A1 该改动落地前的记录，现为 **223 passed + 1 failed（C01）**，A1 修复或 A0/H2 正式豁免后复绿。
