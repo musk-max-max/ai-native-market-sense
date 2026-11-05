@@ -305,6 +305,9 @@ file-level 窄豁免且 H2 签，不给目录级）。扫描强度与全量数�
 | 2 | 删/清空 manifest：prod 非 0 退出，`load --dry-run` 也被拒，不静默全空 | 同上 | **PASS**（stderr 指出 manifest/无法派生） |
 | 3 | `synthetic: true` 样例事件整条忽略：不派生 true、不进 count/链 | 同上 | **PASS**（prod 拒绝、dev 全 false） |
 | 4 | 快照字节被改（`snapshot_sha256` 不符）→ prod 拒绝 | 同上 | **PASS**（复算 hash 不一致/快照哈希不符） |
+| 5 | KD-RES-FIX（H4 2026-11-05，A2 请求）：研究数据集批（`daily_basic`）写进 `ods/display/...` → prod 非 0 拒绝且 stderr 含「研究数据集批次不得写入 display root」；dev 放行但告警「研究数据集批次出现在 display root」 | 同上（场景 ⑤） | **PASS**（2026-11-05 17:45；场景在同脚本内构造，黑盒 `python -m warehouse.pipeline`；A2 的 `infra/ci/check_display_safe_failclosed.py` 同步实测 exit 0） |
+
+注：行 5 为 KD-RES-FIX 后追加，**未进入 v7 已签包**；v7 包内该脚本仍是旧 sha `3b111091…`，脚本新 sha 待 v8 触发时重算并登记。hk_hold 港股命名空间 `HKEX:#####` 的 RES-03 豁免计数属 A12 e2e 研究 fixture 口径，A11 侧无引用。
 
 ### 7.9 L74 红队产物索引
 

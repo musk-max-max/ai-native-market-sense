@@ -317,6 +317,55 @@ def case_tampered_snapshot(tmp: Path) -> list[str]:
     return problems
 
 
+
+def case_research_dataset_in_display(tmp: Path) -> list[str]:
+    """KD-RES-FIX（H4 2026-11-05）：研究数据集进 display root → prod 拒绝、dev 告警。"""
+    problems: list[str] = []
+    ods = tmp / "ods-research-in-display"
+    write_ods(ods, source_name="csv")
+    research_dir = ods / "display" / "daily_basic" / "dt=2026-11-03"
+    research_dir.mkdir(parents=True, exist_ok=True)
+    (research_dir / "ing-20261103-market-daily_basic.json").write_text(
+        json.dumps(
+            {
+                "batch_id": "ing-20261103-market-daily_basic",
+                "endpoint": "daily_basic",
+                "schema": "daily_basic.v1",
+                "source": {
+                    "source": "csv",
+                    "as_of": "2026-11-03T20:05:00+08:00",
+                    "fetched_at": "2026-11-03T20:06:00+08:00",
+                },
+                "rows_total": 1,
+                "rows_rejected": 0,
+                "rows": [{"instrument_id": "SSE:600519", "trade_date": "2026-11-03", "close": "1688.00"}],
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    manifest = write_manifest(
+        tmp / "manifest-research-in-display",
+        [event(event_id="evt-csv-001", channel="official_api", finished_at="2026-11-04T08:10:00+08:00")],
+    )
+
+    code, stdout, stderr = run_pipeline(ods, manifest, "prod")
+    combined = stdout + stderr
+    if code == 0:
+        problems.append("⑤ 研究数据集进 display root：prod pipeline 退出 0（应 fail-closed 非 0）")
+    if "研究数据集批次不得写入 display root" not in combined:
+        problems.append(f"⑤ prod 未给出研究数据集隔离的原因：{combined.strip()[-300:]!r}")
+
+    dev_code, dev_stdout, dev_stderr = run_pipeline(ods, manifest, "dev")
+    dev_combined = dev_stdout + dev_stderr
+    if "研究数据集批次出现在 display root" not in dev_combined:
+        problems.append(f"⑤ dev profile 未对研究数据集进 display root 告警：{dev_combined.strip()[-300:]!r}")
+    if dev_code != 0:
+        problems.append(f"⑤ dev profile 应放行并告警，实际退出 {dev_code}")
+    return problems
+
+
 def main() -> int:
     if not (REPO_ROOT / "warehouse" / "pipeline.py").exists():
         print("[FAIL] 找不到 warehouse/pipeline.py（repo root 判定错误）")
@@ -328,8 +377,9 @@ def main() -> int:
         problems.extend(case_missing_manifest(tmp))
         problems.extend(case_synthetic_only(tmp))
         problems.extend(case_tampered_snapshot(tmp))
+        problems.extend(case_research_dataset_in_display(tmp))
     verdict = "PASS" if not problems else "FAIL"
-    print(f"[{verdict}] display_safe fail-closed 三条（H4 m01217/m01084）")
+    print(f"[{verdict}] display_safe fail-closed 四条（H4 m01217/m01084 + KD-RES-FIX 研究数据集隔离）")
     for problem in problems:
         print(f"  - {problem}")
     return 0 if verdict == "PASS" else 1
