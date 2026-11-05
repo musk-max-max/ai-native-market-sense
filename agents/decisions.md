@@ -1225,3 +1225,9 @@ A13 如实交了失败记录（本机无 iptables、pf 无权限），**没有�
 - **技术澄清（Lead）**：22(SSH) 的门禁是密钥（已关密码登录），即使端口开放无密钥也进不来；80/8888 是 HTTP 层，**密钥保护不到**，其可达性只由 SG 决定。当前 80/8888 安全仅因 ms-nginx 已删、端口无服务（connection refused），非密钥在挡。SG 保留 = 纵深防御缺口：将来若误在 80/8888 绑服务，公网即可直连（ms-nginx P2 事件正是此路径）。
 - **流程边界（须 H5 认定）**：此前测试栈上公网（ms-nginx）已被 H5 定 P2（「未审批暴露测试 profile」）。**「测试阶段需开公网」是用户/业务决策权，但「开公网的审批流程」归 H5**。Lead 不擅自记为「已批准」——需 H5 判定：①测试开公网需走何审批 ②开时须 prod profile+无 E2E 后门+认证层（L99 后门已披露）③A19 需补 SG 永久开放的运行态监控（当前 ⑤-5 按 PARTIAL 记）。
 - **owner**：SG 本身归用户控制面；公网开栈的审批/暴露面规则归 H5；⑤-5 与 A19 R1 残留不因用户保留而关闭，按「用户风险接受 + 待 H5 认定流程」记。
+
+## §11 L104 公网测试窗口审批 + ACCEPTED-RISK 记法 + HOST-EXPOSURE-01（H5 认定）
+- **1 公网测试窗口审批（T2，不得自批）**：申请要素=窗口起止（单次≤24h）/暴露 host+路径/认证方式/profile+env 快照/SG 规则 ID/kill switch/具名 owner/回滚步骤；H5 书面批准后才准开，**每窗口重新批、无长期通行证**。开窗前置（缺一不批）：prod profile、无 E2E_MODE/E2E_AUTH_TOKEN/dev-token、tier=internal_eval+EXPIRES_AT（**公网窗口只测连通性与契约，不供真实行情；要公网出数据=F1+单独批**）、HOLD/AUDIT/EXPECTED_SHA 配齐、仅 /v1/**（/healthz /metrics /readyz /docs /internal 不可达）、边缘认证+TLS（**明文 HTTP 上 Basic Auth 不接受=ms-nginx 教训**）、无容器 0.0.0.0 绑定（边缘转 loopback）、trustProxy 只信边缘 CIDR、访问日志留存+窗口后 24h 复盘、开窗/关窗各一次外部探针取证。任一偏离→立即关窗+按未审批暴露处置。
+- **2 ⑤-4/⑤-5 记法**：ACCEPTED-RISK（含用户裁定 ref+复核日期+补偿控制），不混进 PARTIAL 计数；⑤ 整体仍 PARTIAL。补偿控制=80/8888 无监听+HOST-EXPOSURE-01 巡检；SG 状态每窗口由用户截图/JSON 背书。
+- **3 HOST-EXPOSURE-01（P2）立项**：每次部署+每日检查公网允许端口上是否有 0.0.0.0/:: 监听、容器绑定、非 IaC 变更、/healthz /metrics 未认证可达；命中即告警并自动停/隔离。验收=A19 注入 `docker create -p 0.0.0.0:8888` 一周期内被检出+告警+处置，证据入 manifest。**任何公网窗口开启前必须先跑起来。**
+- **L102 sshd 残留（转用户）**：`PermitRootLogin prohibit-password` 仍允许 root 密钥直登，H5 ⑤-3 要 root 禁登+具名 sudo 账号（归因与最小权限）。二选一：①`PermitRootLogin no`+建具名 sudo（需用户定账号名）②显式 ACCEPTED-RISK 写进 release note。**不得静默停在 prohibit-password。**
