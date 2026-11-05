@@ -254,7 +254,12 @@ def research_rows(rows: Sequence[Mapping[str, Any]], *, endpoint: str) -> list[d
         missing = [name for name in required if not row.get(name)]
         if missing:
             raise OdsFormatError(f"{endpoint} row {index} is missing {', '.join(missing)}")
-        out.append(dict(row))
+        normalized = dict(row)
+        if endpoint == "index_member_all" and normalized.get("out_date") in (None, ""):
+            # 当前成分（is_new=Y）没有退出日：省略该键而不是写 null，
+            # 下游质量规则（RES-08）要求「Y 行不得带 out_date」（H4 m02718/m02923）。
+            normalized.pop("out_date", None)
+        out.append(normalized)
     if endpoint in _DAILY_RESEARCH_ENDPOINTS:
         out.sort(
             key=lambda row: (

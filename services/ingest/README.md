@@ -333,6 +333,8 @@ PYTHONPATH=src python3 -m market_ingest sync-research --start 2024-01-02 --end 2
   **禁止按 `report_end_date` join**（前视偏差）；`announced_at=null` 的行不进 as-of join，
   不补不猜。字段清单由 `research.py` 的 `fina_indicator` 列定义集中维护，provisional 待 H4 对齐。
   「金额元/比率百分数」当前是假设，摘 provisional 前需真实样本（如 600519 2023 年报）核对。
+  canonical 字段名 `revision_flag`（源 `update_flag`，tushare 源侧列名不外泄，C01）；
+  `roe_waa` 为加权平均 ROE，是年报口径（源 `roe` 是另一口径，两个都保留，下游按需取）。
 - **`index_classify`**（申万分类树，snapshot）：一次运行按 `SW2021` 拉 L1/L2/L3 三层，
   canonical `index_code/industry_name/parent_code/level/industry_code/is_published/classification_source/snapshot_date`；
   分区 `dt=<运行日>`。**append-only 快照**（H4 m02718）：主键含 `snapshot_date`（拉取日），
@@ -340,16 +342,40 @@ PYTHONPATH=src python3 -m market_ingest sync-research --start 2024-01-02 --end 2
   不许用当前分类假装历史。
 - **`index_member_all`**（申万三级成分，snapshot）：**Y/N 两次调用拉全量（含历史退出成分）**，
   canonical `instrument_id/name/l1_code..l3_name/in_date/out_date/is_new/snapshot_date`；
-  `in_date/out_date` 保留原始时点字段，回测 join 两头都卡（含历史退出，避免幸存者偏差）。
+  `in_date/out_date` 保留原始时点字段，回测 join 两头都卡（含历史退出，避免幸存者偏差）；
+  `is_new=Y` 行**省略 `out_date` 键**（不写 `null`：下游 RES-08 规则要求 Y 行不得带退出日）。
   若源对 `is_new=N` 无数据，本次运行在 `<ods_root>/_meta/research_coverage.json` 记
   `coverage="current_snapshot_only"`，`ResearchSyncResult.current_snapshot_only` 同时给出该列表；
-  **下游必须把这部分数据排除出历史回测**，不得当全量成分使用。
+  **下游必须把这部分数据排除出历史回测**，不得当全量成分使用。行业/指数编码
+  （`index_code`、`l3_code` 等）保留源命名空间后缀（如 `.SI`）作为**不透明文本**，下游不解析；
+  是否归一待 H4 定。
 - 单测：`tests/test_research.py` 覆盖 4 个数据集的字段映射/单位/形态分派/失败不造数/
   快照幂等/append-only/覆盖率标记/逐标的 checkpoint；仓库根 `pytest services/ingest/tests`
-  = 190 passed。
+  = 191 passed。
 - **provisional 不摘**（H4 m02718）：摘除需三条证据齐——① `fina_indicator` 单位样本证据
   + H4 签字；② `stk_limit` 比值分档有已知 ST/创业板/北交所用例；③ index 两表快照/成分
   时点断言测试。齐之前四表只进研究域（internal-only），不进 serving 对外、不进 display root。
+
+### 受控真实样本核对（H4 m02923，2026-11-05，仅本地一次）
+
+样本落 `tests/fixtures/tushare/real-sample-20261105/`（独立 manifest，`channel=tushare`、
+`display_safe=false`、记 `source_url/fetched_at/sha256`；stk_limit 为按档抽样 subset，
+不是全量；**无生产验收证据效力**）。结论：
+
+- `fina_indicator` 600519.SH / 20231231：`eps=59.49`、`roe=36.1755`、`roe_waa=34.19`、
+  `ann_date=20240403`；`income`：`total_revenue=150560330316.45` 元、
+  `n_income_attr_p=74734071550.75` 元。与 2023 年报（营收 1505.6 亿、归母净利 747.3 亿、
+  EPS 59.49、加权 ROE 34.19%）一致 → **金额=元、比率=百分数**假设成立；
+  年报口径 ROE 对应 `roe_waa`（`roe=36.18` 是另一口径）。
+- `stk_limit` 三个交易日（20261103/04/05，各 5655 行）：比值分档覆盖 5/10/20/30 全部档位
+  （5% 每日仅 1 只 ST、10% ~3255 只、20% 2028 只、30% 353 只北交所）；±0.3pp 外分别
+  19/17/12 行（低价股按 0.01 元最小变动单位舍入导致，如 prev=1.35、10% 档位 up=1.49
+  即 10.37%），这些行 `limit_pct=null`，符合「不猜」口径。
+- `index_member_all`：`is_new=Y` 5922 行、`out_date` 全空；`is_new=N` 2006 行、
+  `out_date` 全非空、302 只股票有多段 `in_date`（如 000004.SZ 三段），证明 N 是历史退出
+  成分、可按 in/out 区间复原 → **默认 Y+N 全量成立**，非 `current_snapshot_only`。
+  （`index_member_all` 的 `ts_code` 参数是**股票代码**，用 `000300.SH` 查返回 0 行属预期。）
+- 去重键按 H4 m02923 定为 `l3_code+instrument_id+in_date`（保留退出再进入的多段区间）。
 
 ## A12 e2e 注入点
 

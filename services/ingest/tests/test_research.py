@@ -958,6 +958,24 @@ def test_sync_research_snapshot_appends_new_batch_on_later_day(tmp_path: Path) -
     for path in files:
         payload = json.loads(path.read_text("utf-8"))
         assert payload["schema"] == "index_classify.v1"
+    day2 = clock.now.date().isoformat()
+    coverage = json.loads((ods_root / "_meta" / "research_coverage.json").read_text("utf-8"))
+    entry_meta = coverage["datasets"]["index_classify"]
+    assert entry_meta["snapshot_date"] == day2
+    # H4 m02923：快照数据集必须在 coverage 里写「首快照日期」，供下游判断可回溯起点
+    assert entry_meta["first_snapshot_date"] == day1
+
+
+def test_dedupe_member_key_includes_in_date_keeps_reentry_segments() -> None:
+    """index_member_all 去重键含 in_date：退出后再进入要保留两段区间（H4 m02923）。"""
+    rows = [
+        {"instrument_id": "SZSE:000004", "l3_code": "851811.SI", "in_date": "1989-12-23", "out_date": "2008-12-30"},
+        {"instrument_id": "SZSE:000004", "l3_code": "851811.SI", "in_date": "2008-12-31", "out_date": "2021-06-10"},
+        {"instrument_id": "SZSE:000004", "l3_code": "851811.SI", "in_date": "2008-12-31", "out_date": "2021-06-10"},
+    ]
+    deduped = research.dedupe_rows("index_member_all", rows)
+    assert len(deduped) == 2
+    assert [row["in_date"] for row in deduped] == ["1989-12-23", "2008-12-31"]
 
 
 def test_estimate_research_plan_honours_dataset_modes() -> None:

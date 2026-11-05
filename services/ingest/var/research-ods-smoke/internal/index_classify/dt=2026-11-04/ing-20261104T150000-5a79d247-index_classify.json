@@ -1,0 +1,44 @@
+{
+  "batch_id": "ing-20261104T150000-5a79d247-index_classify",
+  "endpoint": "index_classify",
+  "rows": [
+    {
+      "classification_source": "SW2021",
+      "index_code": "801010.SI",
+      "industry_code": "801010",
+      "industry_name": "农林牧渔",
+      "is_published": "1",
+      "level": "L1",
+      "parent_code": null,
+      "snapshot_date": "2026-11-04"
+    },
+    {
+      "classification_source": "SW2021",
+      "index_code": "801011.SI",
+      "industry_code": "801011",
+      "industry_name": "种植业",
+      "is_published": "1",
+      "level": "L2",
+      "parent_code": "801010.SI",
+      "snapshot_date": "2026-11-04"
+    },
+    {
+      "classification_source": "SW2021",
+      "index_code": "850111.SI",
+      "industry_code": "850111",
+      "industry_name": "粮食种植",
+      "is_published": "1",
+      "level": "L3",
+      "parent_code": "801011.SI",
+      "snapshot_date": "2026-11-04"
+    }
+  ],
+  "rows_rejected": 0,
+  "rows_total": 3,
+  "schema": "index_classify.v1",
+  "source": {
+    "as_of": "2026-11-04T15:00:00+08:00",
+    "fetched_at": "2026-11-04T15:00:00+08:00",
+    "source": "tushare"
+  }
+}

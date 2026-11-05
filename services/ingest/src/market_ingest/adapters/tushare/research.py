@@ -239,7 +239,7 @@ _COLUMNS: dict[str, tuple[ColumnSpec, ...]] = {
         _c("q_sales_qoq_pct", "q_sales_qoq", "pct", required=False),
         _c("q_profit_qoq_pct", "q_profit_qoq", "pct", required=False),
         _c("q_op_qoq_pct", "q_op_qoq", "pct", required=False),
-        _c("update_flag", "update_flag", "text", required=False),
+        _c("revision_flag", "update_flag", "text", required=False),
     ),
     "stk_limit": (
         _c("instrument_id", "ts_code", "instrument"),
@@ -618,7 +618,12 @@ def has_historical_members(rows: Sequence[Mapping[str, Any]]) -> bool:
 
 
 def dedupe_rows(dataset: str, rows: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
-    """``index_member_all`` 的 Y/N 两次调用可能重叠；按成分主键去重（保序）。"""
+    """``index_member_all`` 的 Y/N 两次调用可能重叠；按成分主键去重（保序）。
+
+    H4 m02923：去重键必须是 ``index_code + con_code + in_date``（本域对应
+    ``l3_code + instrument_id + in_date``）。**不能**只按代码去重——同一只股票
+    「退出后又重新进入」对应多个 ``in_date`` 区间，压成一条会把历史区间丢掉。
+    """
     if dataset != "index_member_all":
         return list(rows)
     seen: set[tuple[str, ...]] = set()
@@ -628,7 +633,6 @@ def dedupe_rows(dataset: str, rows: Sequence[dict[str, Any]]) -> list[dict[str, 
             str(row.get("instrument_id") or ""),
             str(row.get("l3_code") or ""),
             str(row.get("in_date") or ""),
-            str(row.get("out_date") or ""),
         )
         if key in seen:
             continue

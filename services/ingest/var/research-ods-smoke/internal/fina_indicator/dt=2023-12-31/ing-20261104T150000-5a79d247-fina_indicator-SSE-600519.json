@@ -1,5 +1,5 @@
 {
-  "batch_id": "ing-20261104T150000-a34f6720-fina_indicator-SSE-600519",
+  "batch_id": "ing-20261104T150000-5a79d247-fina_indicator-SSE-600519",
   "endpoint": "fina_indicator",
   "rows": [
     {
@@ -41,6 +41,7 @@
       "report_end_date": "2023-12-31",
       "report_period": "2023Q4",
       "revenue_ps": "1.0",
+      "revision_flag": "SYNTHETIC",
       "roa": "1.0",
       "roe": "1.0",
       "roe_dt": "1.0",
@@ -48,8 +49,7 @@
       "roe_yoy_pct": "1.0",
       "roic": "1.0",
       "total_revenue_ps": "1.0",
-      "tr_yoy_pct": "1.0",
-      "update_flag": "SYNTHETIC"
+      "tr_yoy_pct": "1.0"
     }
   ],
   "rows_rejected": 0,

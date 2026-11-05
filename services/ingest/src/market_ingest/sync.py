@@ -1365,16 +1365,45 @@ def _write_research_coverage(
     """
     directory = root / "_meta"
     directory.mkdir(parents=True, exist_ok=True)
+    datasets: dict[str, dict[str, Any]] = {}
+    for name, meta in coverage.items():
+        enriched = dict(meta)
+        if enriched.get("mode") == "snapshot":
+            # H4 m02923：index_classify 等快照数据集必须把「首快照日期」写进 coverage，
+            # 下游据此判断历史分类/成分可回溯的最早时点（首快照之前不可回补）。
+            enriched["first_snapshot_date"] = _first_snapshot_partition(
+                root, name, fallback=enriched.get("snapshot_date")
+            )
+        datasets[name] = enriched
     payload = {
         "run_id": run_id,
         "generated_at": now.isoformat(),
-        "datasets": {name: dict(meta) for name, meta in coverage.items()},
+        "datasets": datasets,
     }
     target = directory / "research_coverage.json"
     tmp = target.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
     tmp.replace(target)
     return target
+
+
+def _first_snapshot_partition(root: Path, dataset: str, *, fallback: object = None) -> str | None:
+    """扫描 ``<root>/<dataset>/dt=*`` 得到该快照数据集的首个快照分区日期。"""
+    dates: list[str] = []
+    directory = root / dataset
+    if directory.is_dir():
+        for entry in directory.iterdir():
+            if not entry.is_dir() or not entry.name.startswith("dt="):
+                continue
+            value = entry.name[3:]
+            try:
+                date.fromisoformat(value)
+            except ValueError:
+                continue
+            dates.append(value)
+    if dates:
+        return min(dates)
+    return str(fallback) if fallback else None
 
 
 def _slug(instrument_id: str) -> str:

@@ -2,17 +2,19 @@
   "datasets": {
     "index_classify": {
       "coverage": "full_history",
+      "first_snapshot_date": "2026-11-04",
       "mode": "snapshot",
       "provisional": true,
       "snapshot_date": "2026-11-04"
     },
     "index_member_all": {
       "coverage": "full_history",
+      "first_snapshot_date": "2026-11-04",
       "mode": "snapshot",
       "provisional": true,
       "snapshot_date": "2026-11-04"
     }
   },
   "generated_at": "2026-11-04T15:00:00+08:00",
-  "run_id": "ing-20261104T150000-a34f6720"
+  "run_id": "ing-20261104T150000-5a79d247"
 }

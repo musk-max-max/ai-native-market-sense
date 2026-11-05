@@ -1,17 +1,17 @@
 {
-  "batch_id": "ing-20261104T150000-a34f6720-stk_limit-20240102",
+  "batch_id": "ing-20261104T150000-5a79d247-stk_limit-20240102",
   "endpoint": "stk_limit",
   "rows": [
     {
-      "asset_type": "SYNTHETIC",
-      "down_limit": "1.0",
+      "asset_type": "STK",
+      "down_limit": "9.00",
       "exchange": "SSE",
       "instrument_id": "SSE:600519",
-      "limit_pct": null,
-      "limit_pct_source": null,
-      "previous_close": "1.0",
+      "limit_pct": "10",
+      "limit_pct_source": "exchange_price_ratio",
+      "previous_close": "10.00",
       "trade_date": "2024-01-02",
-      "up_limit": "1.0"
+      "up_limit": "11.00"
     }
   ],
   "rows_rejected": 0,
