@@ -1,5 +1,5 @@
 {
-  "batch_id": "ing-20261104T150000-5a79d247-hk_hold-20240102",
+  "batch_id": "ing-20261104T150000-16a0eb80-hk_hold-20240102",
   "endpoint": "hk_hold",
   "rows": [
     {
@@ -15,7 +15,7 @@
   "rows_total": 1,
   "schema": "hk_hold.v1",
   "source": {
-    "as_of": "2024-01-02T15:00:00+08:00",
+    "as_of": "2024-01-03T15:00:00+08:00",
     "fetched_at": "2026-11-04T15:00:00+08:00",
     "source": "tushare"
   }

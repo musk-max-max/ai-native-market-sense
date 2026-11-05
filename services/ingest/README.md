@@ -363,6 +363,23 @@ PYTHONPATH=src python3 -m market_ingest sync-research --start 2024-01-02 --end 2
   + H4 签字；② `stk_limit` 比值分档有已知 ST/创业板/北交所用例；③ index 两表快照/成分
   时点断言测试。齐之前四表只进研究域（internal-only），不进 serving 对外、不进 display root。
 
+### 研究 ODS 全链路冒烟（可交付 A2 复验）
+
+`var/research-ods-smoke/` 是 11 个研究 endpoint + `instrument.v1` 的合成录播冒烟根
+（`fixture.jsonl` 为 ReplayTransport 输入，**非真实数据**）：
+
+- `internal/`：11 个研究数据集批次（`_meta/research_coverage.json` 记 coverage 与首快照日）；
+- `display/instrument/`：5 标的 `instrument.v1`（CSV 导出口径，供 RES-03 维度引用）；
+- `var/research-ods-smoke-audit/`：对应的主数据 manifest/snapshot/terms（`display_safe` 证据）。
+
+```bash
+# 仓库根执行；A2 ownership 内只读
+PYTHONPATH=services/ingest/src:. python3 -m warehouse.pipeline \
+  --ods-root services/ingest/var/research-ods-smoke \
+  --manifest-root services/ingest/var/research-ods-smoke-audit
+# batches=12 research=14 quality score=100.0 grade=green blocked=False
+```
+
 ### 受控真实样本核对（H4 m02923，2026-11-05，仅本地一次）
 
 样本落 `tests/fixtures/tushare/real-sample-20261105/`（独立 manifest，`channel=tushare`、

@@ -1295,7 +1295,7 @@ def sync_research(
                                 endpoint=dataset,
                                 source=SourceRef(
                                     source=adapter_name(source),
-                                    as_of=_close_as_of(day),
+                                    as_of=_research_as_of(dataset, day),
                                     fetched_at=fetched,
                                 ),
                                 rows=tuple(ods.research_rows(rows, endpoint=dataset)),
@@ -1414,6 +1414,19 @@ def _close_as_of(day: date) -> datetime:
     from .models import market_close_at
 
     return market_close_at(day)
+
+
+def _research_as_of(dataset: str, day: date) -> datetime:
+    """研究批次信封 as_of（A2 RES-04 阈值）。
+
+    ``hk_hold`` 是北向持股 T+1 披露：as_of = 下一自然日 15:00；其余日频数据集为当日
+    收盘 15:00。财报/行业快照无 trade_date，不在此函数内（时点由行内公告日/快照日承担）。
+    """
+    if dataset == "hk_hold":
+        from .models import market_close_at
+
+        return market_close_at(day + timedelta(days=1))
+    return _close_as_of(day)
 
 
 def adapter_name(source: object) -> str:

@@ -421,6 +421,34 @@ def test_sync_research_writes_ods_and_checkpoints(tmp_path: Path) -> None:
     storage.close()
 
 
+def test_sync_research_hk_hold_as_of_is_t_plus_one(tmp_path: Path) -> None:
+    """hk_hold 北向持股为 T+1 披露：ODS 信封 as_of 必须是下一自然日 15:00（RES-04）。"""
+    entries = [
+        calendar_entry(DAY1, DAY1, [DAY1]),
+        research_entry("hk_hold", DAY1, [hk_hold_row()]),
+    ]
+    adapter, guard, clock = _adapter(entries)
+    storage = SqliteStorage(":memory:")
+    ods_root = tmp_path / "internal"
+    result = sync_research(
+        adapter,
+        storage,
+        datasets=("hk_hold",),
+        start=DAY1,
+        end=DAY1,
+        ods_root=ods_root,
+        guard=guard,
+        clock=clock,
+    )
+    assert result.status == "succeeded"
+    files = sorted((ods_root / "hk_hold").glob("dt=*/*.json"))
+    assert len(files) == 1
+    payload = json.loads(files[0].read_text(encoding="utf-8"))
+    assert payload["source"]["as_of"] == "2024-01-03T15:00:00+08:00"
+    assert payload["source"]["fetched_at"].startswith("2024-01-05T19:30:00")
+    storage.close()
+
+
 def test_sync_research_resumes_after_interrupt(tmp_path: Path) -> None:
     storage = SqliteStorage(":memory:")
     ods_root = tmp_path / "internal"

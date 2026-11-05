@@ -1,5 +1,5 @@
 {
-  "batch_id": "ing-20261104T150000-5a79d247-stk_limit-20240102",
+  "batch_id": "ing-20261104T150000-16a0eb80-stk_limit-20240102",
   "endpoint": "stk_limit",
   "rows": [
     {
@@ -8,7 +8,7 @@
       "exchange": "SSE",
       "instrument_id": "SSE:600519",
       "limit_pct": "10",
-      "limit_pct_source": "exchange_price_ratio",
+      "limit_pct_source": "exchange_price_candidate",
       "previous_close": "10.00",
       "trade_date": "2024-01-02",
       "up_limit": "11.00"
