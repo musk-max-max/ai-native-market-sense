@@ -22,3 +22,9 @@
 - 验收：A19 注入 `docker create -p 0.0.0.0:8888`，一周期内检出+告警+处置，证据入 manifest。
 - owner：A13（检测/证据）+ A19（注入用例）；**任何公网测试窗口开启前必须先跑起来**。
 - 状态：检测核心已实现，systemd/告警/部署钩子与 ECS 注入验收待 H5 对方案两个选择题确认。
+
+## ⑤-3 residual：root 直登 + 无具名 sudo 账号（待用户确认）
+
+- 现状（2026-11-05 09:36Z 只读审计）：`sshd -T` 为 `permitrootlogin without-password`（root 密钥仍可直登）、`passwordauthentication no`、`maxauthtries 3`；`sudo` 组成员仅 `sudo:x:27:`（空组）；非 root 登录用户只有 `www`（uid=1000，`/sbin/nologin`）。
+- 目标（L102/⑤-3）：`PermitRootLogin no` + 具名账号 + sudo 提权；当前缺「具名账号」前置，A13 不自行建账号/改 sshd。
+- 需用户/Lead 确认：①是否同意建具名运维账号（A13 提案用户名、密钥、sudoers 范围）；②控制台兜底可用性；③改 sshd 的窗口与保留会话验证。改前保持现状，⑤ 继续 PARTIAL。
