@@ -50,12 +50,15 @@
     "portfolioReviewEmpty": "portfolio-review-empty",
     "limitLadderPage": "limit-ladder-page",
     "limitLadderTable": "limit-ladder-table",
-    "limitLadderRow": "limit-ladder-row",
     "limitProvisionalBanner": "limit-provisional-banner",
     "limitStExclusion": "limit-st-exclusion",
     "limitLadderLoading": "limit-ladder-loading",
     "limitLadderError": "limit-ladder-error",
-    "limitLadderEmpty": "limit-ladder-empty"
+    "limitLadderEmpty": "limit-ladder-empty",
+    "limitUpCount": "limit-up-count",
+    "limitDownCount": "limit-down-count",
+    "limitMaxStreak": "limit-max-streak",
+    "limitStreakDistribution": "limit-streak-distribution"
   },
   "groups": {
     "aiInterpretation": [
@@ -85,9 +88,12 @@
     "limitLadder": [
       "limitLadderPage",
       "limitLadderTable",
-      "limitLadderRow",
       "limitProvisionalBanner",
       "limitStExclusion",
+      "limitUpCount",
+      "limitDownCount",
+      "limitMaxStreak",
+      "limitStreakDistribution",
       "limitLadderLoading",
       "limitLadderError",
       "limitLadderEmpty"

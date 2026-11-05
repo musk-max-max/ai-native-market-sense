@@ -24,8 +24,7 @@
       `data-gap-reason`（同一 key 作用域内唯一），机器可读 reason code 放 `data-gap-code` 属性，不单独占 testid。
     - `portfolio-metric` / `portfolio-metric-value` 必须带 `data-metric-key`（如 `interval-return` / `volatility` /
       `max-drawdown` / `equal-weight-benchmark`）；值节点嵌在对应 metric 内。
-    - `limit-ladder-row` 必须带 `data-limit-key`（方向+梯队，如 `up-1` / `down-2`），不得用 `nth`。
-    - `limit-st-exclusion` 若逐标的标注，必须带 `data-instrument-id`（`SSE:600519` 形式）。
+    - `limit-streak-distribution` 的列表项（`li`）必须带 `data-streak-days`（连续板数）与 `data-count`（家数）；可见文本「N 板 / M 家」不设死，断言走属性。
 13. **AI 段位用固定 key**：五段固定为 `ai-segment-valuation`（估值）、`ai-segment-growth`（成长）、
     `ai-segment-earnings-quality`（盈利质量）、`ai-segment-capital-flow`（资金）、`ai-segment-risk`（风险）。
     段位状态放 `data-segment-status="filled|gap|pending"` 属性；**禁止**前端动态拼 `ai-segment-${任意字符串}`，
@@ -36,6 +35,14 @@
     第 1 批若 API 尚未注入文案，节点可不渲染，但 testid 契约先登记；一旦渲染，二者必须在 `ai-interpretation` 内可见。
 15. **新页面状态 id 独立**：`portfolio-review-page` 与 `limit-ladder-page` 的 loading/error/empty 分别用
     `portfolio-review-loading|error|empty`、`limit-ladder-loading|error|empty`；禁止复用页面根 id + 文案判断。
+
+16. **C 端聚合口径（B1-02 v2，H3 m02407 裁定）**：`limit-ladder-page` 是**市场级汇总计数**，C 端禁止渲染个股级
+    涨停/跌停/连板名单（含 ST 排除后的编选名单、排序榜）——不得出现个股名/代码/`data-instrument-id`/排序数据出口。
+    计数锚点：`limit-up-count`（涨停家数）、`limit-down-count`（跌停家数）、`limit-max-streak`（最高连板，空时显示 `—`）、
+    `limit-streak-distribution`（连板分布容器）。`limit-ladder-table` 复用为汇总容器并带 `data-mode="aggregate"`，
+    **不新增重复容器 id**；原 `limit-ladder-row`/`data-limit-key` 已从契约移除（C 端无个股行，不保留悬空登记）。
+    `limit-st-exclusion` 只表达「ST 已排除」的口径说明，不逐标的标注、不带 `data-instrument-id`。E2E 断言只允许
+    汇总数字/分布/口径，禁止断言任何个股名单。
     `portfolio-scope-note` 用于「自选组合绝对表现，非真实持仓」的口径说明（ADR-007 B1-01），属产品文案，可断言存在；
     持仓口径不得命名为 `portfolio-holdings` 之类暗示真实账本的 id。
 
@@ -46,7 +53,7 @@
 |---|---|---|
 | B1-03 个股 AI 解读骨架 + 缺口卡 | `ai-interpretation`（容器）、五段 `ai-segment-{valuation,growth,earnings-quality,capital-flow,risk}`、`ai-generated-badge`、`ai-disclaimer` | `data-gap-card` + `data-gap-key`、`data-gap-reason` |
 | B1-01 持仓复盘（自选组合绝对表现） | `portfolio-review-page`、`portfolio-metrics`、`portfolio-metric` + `portfolio-metric-value`（带 `data-metric-key`）、`portfolio-scope-note` | 页面态：`portfolio-review-loading|error|empty` |
-| B1-02 涨跌停梯队切片 | `limit-ladder-page`、`limit-ladder-table`、`limit-ladder-row`（带 `data-limit-key`）、`limit-provisional-banner`、`limit-st-exclusion` | 页面态：`limit-ladder-loading|error|empty` |
+| B1-02 涨跌停梯队（v2 市场级汇总） | `limit-ladder-page`、`limit-ladder-table`（`data-mode="aggregate"` 汇总容器）、`limit-up-count`、`limit-down-count`、`limit-max-streak`、`limit-streak-distribution`（li 带 `data-streak-days`/`data-count`）、`limit-provisional-banner`、`limit-st-exclusion` | 页面态：`limit-ladder-loading|error|empty` |
 
 命名调整：A7 候选名全部保留（不制造无谓改名）；补充 17 个 = AI 五段 5 + AI 免责/缺口内部 3 + 组合指标键/口径/页面态 5 +
 梯队表/行/页面态 4。这些是**登记**，不是实现完成；页面未落地前对应 E2E 用例保持 skip。
