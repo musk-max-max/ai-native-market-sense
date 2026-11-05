@@ -272,6 +272,10 @@ python -m market_ingest sync-bars --start 2026-10-28 --end 2026-11-03 \
 | `moneyflow` | `moneyflow`（doc 170） | 2000 | 按交易日 1 次 | `moneyflow.v1` |
 | `margin` | `margin`（doc 58） | 2000 | 按交易日 1 次 | `margin.v1` |
 | `hk_hold` | `hk_hold`（doc 188） | 2000 | 按交易日 1 次 | `hk_hold.v1` |
+| `stk_limit` | `stk_limit`（doc 183） | 2000 | 按交易日 1 次（2007-01-04 起） | `stk_limit.v1` |
+| `fina_indicator` | `fina_indicator`（doc 79） | 2000 | **逐标的** × 区间 1 次（单次最多 100 行） | `fina_indicator.v1` |
+| `index_classify` | `index_classify`（doc 181） | 2000 | 快照 × L1/L2/L3 三次（SW2021） | `index_classify.v1` |
+| `index_member_all` | `index_member_all`（doc 335） | 2000 | 快照 × 1 次（首轮 `is_new=Y`） | `index_member_all.v1` |
 
 ```bash
 # 预算（不联网）：datasets × 交易日 + index_daily 额外 × 指数数 + 日历 1 次
@@ -289,8 +293,9 @@ PYTHONPATH=src python3 -m market_ingest sync-research --start 2024-01-02 --end 2
   财务/涨跌停/ST 等「口径判定」不在本层。
 - **默认数据集与指数**：`config/ingest.yaml` 的 `research.datasets` / `research.index_codes`
   （默认 5 个基准指数：`SSE:000001`、`SZSE:399001`、`SZSE:399006`、`SSE:000300`、`SSE:000905`）。
-- **checkpoint**：按 dataset 独立记 `ingest_checkpoint(dataset, scope="market") = last_success_trade_date`；
-  中断（信号/配额耗尽）→ 退出码 3，同一命令重跑只补剩余交易日，不产生缺口。
+- **checkpoint**：日频数据集记 `ingest_checkpoint(dataset, scope="market") = last_success_trade_date`；
+  逐标的（`fina_indicator`）记 `scope=<instrument_id>`；快照（行业树/成分表）记 `scope="snapshot"`（同日幂等）。
+  中断（信号/配额耗尽）→ 退出码 3，同一命令重跑只补剩余范围，不产生缺口。
 - **失败语义**：接口无权限/不可用/字段漂移 → 运行 `failed`（退出码 1）并保留已完成 checkpoint；
   **不造数、不补 0**（验收口径：数据正确落到 ODS + 字段映射清晰，不以功能可用验收）。
   某交易日合法无记录 → 行数 0、不写空批次，仍推进 checkpoint。
@@ -305,6 +310,28 @@ PYTHONPATH=src python3 -m market_ingest sync-research --start 2024-01-02 --end 2
   改动只动 `research.py`，ODS/sync 下游不变。
 - **ODS 根**：研究批次进 `<root>/internal`（展示态白名单不含研究数据；L34）。
 - F1 授权不阻塞 ingest（ADR-007），但真实回补仍需 H4/运维 token 与预算；禁止为 E2E 跑真实回补。
+
+### 第 2 批（KD-INGEST-P2 / KD-INGEST-INDUSTRY）
+
+- **`stk_limit`**（B1-02 精确涨跌停依赖）：按交易日全市场拉原始字段，canonical 为
+  `instrument_id/trade_date/previous_close/up_limit/down_limit/asset_type/exchange`；
+  **ST 判定与精度口径不在本层**（等 H4 对齐，未加工、不推导）。
+- **`fina_indicator`**（财务指标，per-instrument 模式）：
+  ```bash
+  PYTHONPATH=src python3 -m market_ingest sync-research --start 2024-01-01 --end 2024-12-31 \
+    --datasets fina_indicator --instruments SSE:600519,SZSE:000001 --ods-root var/ods --budget-calls 100
+  ```
+  canonical 分区 `dt=report_end_date`（最新报告期）；`report_period`=`YYYYQn`；金额元、
+  比率百分数、缺失 `null`；`announced_at` 由源公告日按 ISO 日期记录（无时点推断）。
+  字段清单由 `research.py` 的 `fina_indicator` 列定义集中维护，provisional 待 H4 对齐。
+- **`index_classify`**（申万分类树，snapshot）：一次运行按 `SW2021` 拉 L1/L2/L3 三层，
+  canonical `index_code/industry_name/parent_code/level/industry_code/is_published/classification_source`；
+  分区 `dt=<运行日>`。
+- **`index_member_all`**（申万三级成分，snapshot）：首轮只拉最新（`is_new=Y`），canonical
+  `instrument_id/name/l1_code..l3_name/in_date/out_date/is_new`；`in_date/out_date` 保留原始
+  时点字段，**历史成分回补后续按 budget 单独跑**（当前接口不按日期切片）。
+- 单测：`tests/test_research.py` 覆盖 4 个数据集的字段映射/单位/形态分派/失败不造数/
+  快照幂等/逐标的 checkpoint；仓库根 `pytest services/ingest/tests` = 181 passed。
 
 ## A12 e2e 注入点
 

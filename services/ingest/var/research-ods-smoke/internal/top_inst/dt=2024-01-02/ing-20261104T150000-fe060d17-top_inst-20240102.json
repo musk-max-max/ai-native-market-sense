@@ -1,0 +1,26 @@
+{
+  "batch_id": "ing-20261104T150000-fe060d17-top_inst-20240102",
+  "endpoint": "top_inst",
+  "rows": [
+    {
+      "buy_amount": "1.0",
+      "buy_rate_pct": "1.0",
+      "instrument_id": "SSE:600519",
+      "net_buy_amount": "1.0",
+      "reason": "SYNTHETIC",
+      "seat_name": "SYNTHETIC",
+      "sell_amount": "1.0",
+      "sell_rate_pct": "1.0",
+      "side": "10",
+      "trade_date": "2024-01-02"
+    }
+  ],
+  "rows_rejected": 0,
+  "rows_total": 1,
+  "schema": "top_inst.v1",
+  "source": {
+    "as_of": "2024-01-02T15:00:00+08:00",
+    "fetched_at": "2026-11-04T15:00:00+08:00",
+    "source": "tushare"
+  }
+}

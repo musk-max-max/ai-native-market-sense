@@ -1,0 +1,35 @@
+{
+  "batch_id": "ing-20261104T150000-fe060d17-daily_basic-20240102",
+  "endpoint": "daily_basic",
+  "rows": [
+    {
+      "circulating_market_value": "10000.0",
+      "close": "1.0",
+      "dividend_yield_pct": "1.0",
+      "dividend_yield_ttm_pct": "1.0",
+      "float_shares": "10000.0",
+      "free_float_shares": "10000.0",
+      "free_float_turnover_rate_pct": "1.0",
+      "instrument_id": "SSE:600519",
+      "limit_status": "SYNTHETIC",
+      "pb": "1.0",
+      "pe": "1.0",
+      "pe_ttm": "1.0",
+      "ps": "1.0",
+      "ps_ttm": "1.0",
+      "total_market_value": "10000.0",
+      "total_shares": "10000.0",
+      "trade_date": "2024-01-02",
+      "turnover_rate_pct": "1.0",
+      "volume_ratio": "1.0"
+    }
+  ],
+  "rows_rejected": 0,
+  "rows_total": 1,
+  "schema": "daily_basic.v1",
+  "source": {
+    "as_of": "2024-01-02T15:00:00+08:00",
+    "fetched_at": "2026-11-04T15:00:00+08:00",
+    "source": "tushare"
+  }
+}

@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 from . import ods
 from .models import (
@@ -63,6 +63,8 @@ _ODS_SOURCE_METHODS = (
 )
 #: market-wide 模式的 checkpoint scope：checkpoint = 已完成的最后一个交易日。
 _MARKET_SCOPE = "market"
+#: 快照数据集的 checkpoint scope（无交易日概念，按「同步日」幂等）。
+_SNAPSHOT_SCOPE = "snapshot"
 
 
 @dataclass(frozen=True, slots=True)
@@ -954,36 +956,60 @@ def sync_fundamentals(
 # --------------------------------------------------------------------------
 
 
+def _research_mode(source: object, dataset: str) -> str:
+    """数据集抓取形态由适配器声明（业务层不 import 适配层实现）。"""
+    mode_fn = getattr(source, "research_mode", None)
+    if callable(mode_fn):
+        mode = mode_fn(dataset)
+        if mode in ("daily", "snapshot", "per_instrument"):
+            return str(mode)
+    return "daily"
+
+
 def estimate_research_plan(
     datasets: Sequence[str],
     start: date,
     end: date,
     *,
     index_codes: Sequence[str] = (),
+    instruments: Sequence[str] = (),
+    modes: Mapping[str, str] | None = None,
     calls_per_minute: int = 500,
     reserve_ratio: float = 0.2,
     trading_days_per_year: int = 243,
 ) -> dict[str, Any]:
-    """研究接入预算：每数据集每交易日 1 次；``index_daily`` 每个指数 1 次/日。"""
+    """研究接入预算：日频按交易日，快照按 1 次，逐标的按标的数。
+
+    ``modes`` 缺省全部按日频（调用方无法拿到适配器形态时用，属保守上界）。
+    """
     calendar_days = (end - start).days + 1
     trading_days = max(1, int(calendar_days / 366 * trading_days_per_year) + 1)
+    modes = dict(modes or {})
     calls_by_dataset: dict[str, int] = {}
     per_day = 0
     for dataset in datasets:
-        if dataset == "index_daily" and index_codes:
+        mode = modes.get(dataset, "daily")
+        if mode == "per_instrument":
+            calls = max(1, len(instruments))
+            per_day = max(per_day, calls)
+        elif mode == "snapshot":
+            calls = 1
+            per_day = max(per_day, 1)
+        elif dataset == "index_daily" and index_codes:
             calls = trading_days * len(index_codes)
             per_day += len(index_codes)
         else:
             calls = trading_days
             per_day += 1
         calls_by_dataset[dataset] = calls
-    calendar_calls = 1 if datasets else 0
+    calendar_calls = 1 if any(modes.get(name, "daily") != "snapshot" for name in datasets) else 0
     total = sum(calls_by_dataset.values()) + calendar_calls
     effective_per_minute = max(1, int(calls_per_minute * (1.0 - reserve_ratio)))
     eta_minutes = -(-total // effective_per_minute)
     return {
         "mode": "research",
         "datasets": list(datasets),
+        "dataset_modes": {name: modes.get(name, "daily") for name in datasets},
         "trading_days": trading_days,
         "calls_per_trading_day": per_day,
         "calls_by_dataset": calls_by_dataset,
@@ -1040,14 +1066,20 @@ def sync_research(
     end: date,
     ods_root: str | Path | None = None,
     index_codes: Sequence[str] = (),
+    instruments: Sequence[str] = (),
     clock: Callable[[], datetime] = market_now,
     guard: QuotaGuard | None = None,
     interrupt: Callable[[], bool] | None = None,
 ) -> ResearchSyncResult:
-    """研究数据集同步：按交易日抓取 → canonical ODS 行 → checkpoint 续跑。
+    """研究数据集同步：按数据集形态抓取 → canonical ODS 行 → checkpoint 续跑。
 
-    验收口径（KD-AIP0-INF-05）：只保证「数据正确落到 ODS + 字段映射清晰」；
-    DWD/DWS 由 A2 建。接口无权限/不可用 → 显式 ``failed``，**绝不造数**。
+    三种形态（由适配器 ``research_mode`` 声明）：
+    - ``daily``：按交易日逐日抓取，checkpoint 记到日；
+    - ``snapshot``：无日期快照（行业树/成分表），一次写入，同日重跑跳过；
+    - ``per_instrument``：逐标的按区间抓取（财务指标），checkpoint 记到标的。
+
+    验收口径：只保证「数据正确落到 ODS + 字段映射清晰」；DWD/DWS 由 A2 建。
+    接口无权限/不可用 → 显式 ``failed``，**绝不造数**。
     """
     requested = tuple(datasets)
     if not requested:
@@ -1055,24 +1087,31 @@ def sync_research(
     if start > end:
         raise ValueError("start must be <= end")
     _require_method(source, "fetch_research")
-    _require_method(source, "list_trading_days")
     supported = getattr(source, "research_datasets", None)
     if supported is not None:
         unknown = [name for name in requested if name not in supported]
         if unknown:
             raise ValueError(f"adapter does not support research datasets {unknown}; supported={tuple(supported)}")
 
+    modes = {name: _research_mode(source, name) for name in requested}
+    per_instrument = [name for name in requested if modes[name] == "per_instrument"]
+    if per_instrument and not instruments:
+        raise ValueError(f"datasets {per_instrument} require instruments (per-instrument mode)")
+
     is_interrupted = interrupt or (lambda: False)
     started_at = clock()
     run_id = new_run_id(started_at)
-    # 交易日历是控制查询（非研究数据集、不导出 ODS）：在 capture 外取，避免 raw sink 无批次可落。
-    trading_days = list(source.list_trading_days(start, end))  # type: ignore[attr-defined]
+    # 交易日历是控制查询（非研究数据集、不导出 ODS）：在 capture 外取一次，
+    # 避免 raw sink 无批次可落，也避免同一日历被多个数据集重复消耗配额。
+    trading_days: list[date] = []
+    if any(modes[name] == "daily" for name in requested):
+        _require_method(source, "list_trading_days")
+        trading_days = list(source.list_trading_days(start, end))  # type: ignore[attr-defined]
     rows_by_dataset: dict[str, int] = {name: 0 for name in requested}
     checkpoints: dict[str, str] = {}
     ods_batches = 0
     days_done = 0
-    status = "succeeded"
-    halted: str | None = None
+    rejected_total = 0
 
     current: dict[str, str | None] = {"batch": None}
 
@@ -1089,30 +1128,159 @@ def sync_research(
     capture_factory = getattr(source, "capture", None)
     context = capture_factory(_raw, _reject) if callable(capture_factory) else nullcontext()
 
+    status = "succeeded"
+    halted: str | None = None
+
+    def _fetch(dataset: str, **kwargs: Any) -> list[dict[str, Any]]:
+        return list(
+            source.fetch_research(dataset, **kwargs)  # type: ignore[attr-defined]
+        )
+
+    def _write(dataset: str, batch_id: str, rows: list[dict[str, Any]], rejected: int, **kwargs: Any) -> None:
+        nonlocal ods_batches
+        if ods_root is not None and rows:
+            fetched = clock()
+            ods.write_batch(
+                ods_root,
+                ods.OdsBatch(
+                    batch_id=batch_id,
+                    endpoint=dataset,
+                    source=SourceRef(
+                        source=adapter_name(source), as_of=fetched, fetched_at=fetched
+                    ),
+                    rows=tuple(ods.research_rows(rows, endpoint=dataset)),
+                    rows_rejected=rejected,
+                    partition_date_override=ods.partition_date_for(
+                        dataset, rows, fallback=fetched.date()
+                    ),
+                ),
+            )
+            ods_batches += 1
+        rows_by_dataset[dataset] += len(rows)
+
     try:
         with context:
             for dataset in requested:
+                mode = modes[dataset]
+                if mode == "snapshot":
+                    batch_id = f"{run_id}-{dataset}"
+                    current["batch"] = batch_id
+                    storage.create_batch(batch_id, dataset, adapter_name(source), clock())
+                    today = clock().date()
+                    resume = storage.get_checkpoint(dataset, _SNAPSHOT_SCOPE)
+                    if resume is not None and resume >= today:
+                        storage.finish_batch(
+                            batch_id,
+                            finished_at=clock(),
+                            status="succeeded",
+                            row_count=0,
+                            rejected_count=0,
+                            note="already_synced_today",
+                        )
+                        checkpoints[dataset] = resume.isoformat()
+                        continue
+                    rejected_before = storage.count_rejected(batch_id)
+                    try:
+                        rows = _fetch(dataset)
+                    except (QuotaExhaustedError, SourceAuthError, SchemaDriftError, SourceUnavailableError) as exc:
+                        status, halted = BarsSyncService._classify_failure(exc)
+                        storage.finish_batch(
+                            batch_id,
+                            finished_at=clock(),
+                            status=status,
+                            row_count=0,
+                            rejected_count=storage.count_rejected(batch_id),
+                            note=halted,
+                        )
+                        break
+                    _write(dataset, batch_id, rows, storage.count_rejected(batch_id) - rejected_before)
+                    storage.set_checkpoint(dataset, _SNAPSHOT_SCOPE, today, run_id, clock())
+                    checkpoints[dataset] = today.isoformat()
+                    days_done += 1
+                    storage.finish_batch(
+                        batch_id,
+                        finished_at=clock(),
+                        status="succeeded",
+                        row_count=rows_by_dataset[dataset],
+                        rejected_count=storage.count_rejected(batch_id),
+                    )
+                    continue
+
+                if mode == "per_instrument":
+                    dataset_failed = False
+                    for instrument in instruments:
+                        if is_interrupted():
+                            status, halted, dataset_failed = "interrupted", "interrupt_signal", True
+                            break
+                        batch_id = f"{run_id}-{dataset}-{_slug(instrument)}"
+                        current["batch"] = batch_id
+                        storage.create_batch(batch_id, dataset, adapter_name(source), clock())
+                        resume = storage.get_checkpoint(dataset, instrument)
+                        if resume is not None and resume >= end:
+                            storage.finish_batch(
+                                batch_id,
+                                finished_at=clock(),
+                                status="succeeded",
+                                row_count=0,
+                                rejected_count=0,
+                                note="already_synced_range",
+                            )
+                            checkpoints[f"{dataset}:{instrument}"] = resume.isoformat()
+                            continue
+                        window_start = start if resume is None else max(start, resume + timedelta(days=1))
+                        rejected_before = storage.count_rejected(batch_id)
+                        try:
+                            rows = _fetch(
+                                dataset, instrument_id=instrument, start=window_start, end=end
+                            )
+                        except (QuotaExhaustedError, SourceAuthError, SchemaDriftError, SourceUnavailableError) as exc:
+                            status, halted = BarsSyncService._classify_failure(exc)
+                            storage.finish_batch(
+                                batch_id,
+                                finished_at=clock(),
+                                status=status,
+                                row_count=0,
+                                rejected_count=storage.count_rejected(batch_id),
+                                note=halted,
+                            )
+                            dataset_failed = True
+                            break
+                        _write(dataset, batch_id, rows, storage.count_rejected(batch_id) - rejected_before)
+                        storage.set_checkpoint(dataset, instrument, end, run_id, clock())
+                        checkpoints[f"{dataset}:{instrument}"] = end.isoformat()
+                        days_done += 1
+                        storage.finish_batch(
+                            batch_id,
+                            finished_at=clock(),
+                            status="succeeded",
+                            row_count=rows_by_dataset[dataset],
+                            rejected_count=storage.count_rejected(batch_id),
+                        )
+                    if dataset_failed:
+                        break
+                    continue
+
+                # daily 模式
                 batch_id = f"{run_id}-{dataset}"
                 current["batch"] = batch_id
                 storage.create_batch(batch_id, dataset, adapter_name(source), clock())
                 resume = storage.get_checkpoint(dataset, _MARKET_SCOPE)
                 window = [day for day in trading_days if resume is None or day > resume]
-                dataset_status = "succeeded"
-                dataset_halted: str | None = None
+                dataset_failed = False
                 for day in window:
                     if is_interrupted():
-                        dataset_status, dataset_halted = "interrupted", "interrupt_signal"
+                        status, halted, dataset_failed = "interrupted", "interrupt_signal", True
                         break
                     rejected_before = storage.count_rejected(batch_id)
                     try:
-                        rows = source.fetch_research(  # type: ignore[attr-defined]
-                            dataset, day, index_codes=tuple(index_codes)
-                        )
+                        rows = _fetch(dataset, trade_date=day, index_codes=tuple(index_codes))
                     except (QuotaExhaustedError, SourceAuthError, SchemaDriftError, SourceUnavailableError) as exc:
-                        dataset_status, dataset_halted = BarsSyncService._classify_failure(exc)
+                        status, halted = BarsSyncService._classify_failure(exc)
+                        dataset_failed = True
                         break
                     day_rejected = storage.count_rejected(batch_id) - rejected_before
                     if ods_root is not None and rows:
+                        fetched = clock()
                         ods.write_batch(
                             ods_root,
                             ods.OdsBatch(
@@ -1121,7 +1289,7 @@ def sync_research(
                                 source=SourceRef(
                                     source=adapter_name(source),
                                     as_of=_close_as_of(day),
-                                    fetched_at=clock(),
+                                    fetched_at=fetched,
                                 ),
                                 rows=tuple(ods.research_rows(rows, endpoint=dataset)),
                                 rows_rejected=day_rejected,
@@ -1132,17 +1300,15 @@ def sync_research(
                     days_done += 1
                     storage.set_checkpoint(dataset, _MARKET_SCOPE, day, run_id, clock())
                     checkpoints[dataset] = day.isoformat()
-
                 storage.finish_batch(
                     batch_id,
                     finished_at=clock(),
-                    status=dataset_status,
+                    status=status if dataset_failed else "succeeded",
                     row_count=rows_by_dataset[dataset],
                     rejected_count=storage.count_rejected(batch_id),
-                    note=dataset_halted,
+                    note=halted if dataset_failed else None,
                 )
-                if dataset_status != "succeeded":
-                    status, halted = dataset_status, dataset_halted
+                if dataset_failed:
                     break
     except BaseException:
         failed_batch = current["batch"]
@@ -1157,6 +1323,9 @@ def sync_research(
             )
         raise
 
+    for name in requested:
+        rejected_total += storage.count_rejected(f"{run_id}-{name}")
+
     return ResearchSyncResult(
         run_id=run_id,
         datasets=requested,
@@ -1165,7 +1334,7 @@ def sync_research(
         days_done=days_done,
         rows_by_dataset=rows_by_dataset,
         ods_batches=ods_batches,
-        rejected_rows=sum(storage.count_rejected(f"{run_id}-{name}") for name in requested),
+        rejected_rows=rejected_total,
         calls_used=guard.run_calls if guard is not None else 0,
         started_at=started_at,
         finished_at=clock(),
@@ -1200,10 +1369,12 @@ __all__ = [
     "estimate_calls",
     "estimate_market_plan",
     "estimate_plan",
+    "estimate_research_plan",
     "iter_chunks",
     "new_run_id",
     "sync_fundamentals",
     "sync_instrument_master",
+    "sync_research",
     "RawPage",
     "RejectedRow",
 ]

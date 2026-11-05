@@ -1,0 +1,25 @@
+{
+  "batch_id": "ing-20261104T150000-fe060d17-margin-20240102",
+  "endpoint": "margin",
+  "rows": [
+    {
+      "exchange": "SSE",
+      "financing_balance": "1.0",
+      "financing_buy_amount": "1.0",
+      "financing_repayment_amount": "1.0",
+      "margin_balance": "1.0",
+      "securities_balance": "1.0",
+      "securities_sell_volume": "10",
+      "securities_volume": "10",
+      "trade_date": "2024-01-02"
+    }
+  ],
+  "rows_rejected": 0,
+  "rows_total": 1,
+  "schema": "margin.v1",
+  "source": {
+    "as_of": "2024-01-02T15:00:00+08:00",
+    "fetched_at": "2026-11-04T15:00:00+08:00",
+    "source": "tushare"
+  }
+}

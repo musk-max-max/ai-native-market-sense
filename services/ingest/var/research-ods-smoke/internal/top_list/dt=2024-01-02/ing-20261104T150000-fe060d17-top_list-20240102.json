@@ -1,0 +1,31 @@
+{
+  "batch_id": "ing-20261104T150000-fe060d17-top_list-20240102",
+  "endpoint": "top_list",
+  "rows": [
+    {
+      "amount": "1.0",
+      "close": "1.0",
+      "float_market_value": "1.0",
+      "instrument_id": "SSE:600519",
+      "lhb_amount": "1.0",
+      "lhb_amount_rate_pct": "1.0",
+      "lhb_buy_amount": "1.0",
+      "lhb_net_amount": "1.0",
+      "lhb_net_rate_pct": "1.0",
+      "lhb_sell_amount": "1.0",
+      "name": "SYNTHETIC",
+      "pct_change_pct": "1.0",
+      "reason": "SYNTHETIC",
+      "trade_date": "2024-01-02",
+      "turnover_rate_pct": "1.0"
+    }
+  ],
+  "rows_rejected": 0,
+  "rows_total": 1,
+  "schema": "top_list.v1",
+  "source": {
+    "as_of": "2024-01-02T15:00:00+08:00",
+    "fetched_at": "2026-11-04T15:00:00+08:00",
+    "source": "tushare"
+  }
+}

@@ -17,7 +17,7 @@ from market_ingest.ports import InvalidRequestError
 from market_ingest.quota import InMemoryCallLedger, QuotaGuard, QuotaPolicy
 from market_ingest.storage import SqliteStorage
 from market_ingest.sync import estimate_research_plan, sync_research
-from support import FakeClock, calendar_entry, research_entry
+from support import FakeClock, calendar_entry, entry, research_entry
 
 DAY1 = date(2024, 1, 2)
 DAY2 = date(2024, 1, 3)
@@ -301,6 +301,10 @@ def test_research_datasets_registry() -> None:
         "hk_hold",
         "daily_basic",
         "index_daily",
+        "stk_limit",
+        "fina_indicator",
+        "index_classify",
+        "index_member_all",
     }
     assert research.RESEARCH_DATASETS["top_inst"].points_min == 5000
     assert research.RESEARCH_DATASETS["index_daily"].requires_index_codes is True
@@ -491,7 +495,7 @@ def test_sync_research_rejects_unknown_dataset() -> None:
         sync_research(
             adapter,
             storage,
-            datasets=("stk_limit",),
+            datasets=("not_a_dataset",),
             start=DAY1,
             end=DAY2,
             guard=guard,
@@ -535,3 +539,287 @@ def test_cli_sync_research_dry_run_reports_budget(capsys: pytest.CaptureFixture[
     assert payload["budget"]["total_calls"] == 3  # 2 天 + 日历
     assert payload["budget"]["eta_minutes"] == 1
     assert payload["budget_table"][-1][0] == "= eta_minutes"
+
+
+# ---------------------------------------------------------------------------
+# 第 2 批（KD-INGEST-P2 / KD-INGEST-INDUSTRY）：fina_indicator、stk_limit、
+# index_classify、index_member_all —— 字段映射 / 形态分派 / 不造数
+# ---------------------------------------------------------------------------
+
+
+def fina_row(**overrides: str) -> dict[str, object]:
+    row: dict[str, object] = {
+        "ts_code": "600519.SH",
+        "ann_date": "20240402",
+        "end_date": "20231231",
+        "eps": "10.5",
+        "roe": "34.2",
+        "netprofit_yoy": "19.1",
+        "profit_dedt": "74700000000",
+        "update_flag": "1",
+    }
+    row.update(overrides)
+    return row
+
+
+def stk_limit_source_row(**overrides: str) -> dict[str, object]:
+    row: dict[str, object] = {
+        "trade_date": "20240102",
+        "ts_code": "600519.SH",
+        "pre_close": "10.0",
+        "up_limit": "11.0",
+        "down_limit": "9.0",
+        "asset_type": "STK",
+        "exchange": "SSE",
+    }
+    row.update(overrides)
+    return row
+
+
+def test_map_fina_indicator_canonical_fields_and_units() -> None:
+    canonical = research.map_row("fina_indicator", fina_row())
+    assert canonical["instrument_id"] == "SSE:600519"
+    assert canonical["report_end_date"] == "2023-12-31"
+    assert canonical["report_period"] == "2023Q4"
+    assert canonical["announced_at"] == "2024-04-02"
+    assert canonical["eps"] == "10.5"
+    assert canonical["roe"] == "34.2"
+    assert canonical["netprofit_yoy_pct"] == "19.1"
+    assert canonical["profit_dedt"] == "74700000000"
+    # 缺失字段为 None（禁止补 0，C10）
+    assert canonical["bps"] is None
+    assert set(canonical) == set(research.canonical_fields("fina_indicator"))
+
+
+def test_map_fina_indicator_requires_period_fields() -> None:
+    with pytest.raises(research.ResearchRowError, match="end_date"):
+        research.map_row("fina_indicator", {"ts_code": "600519.SH", "eps": "1"})
+
+
+def test_map_stk_limit_uses_previous_close_and_exchange() -> None:
+    canonical = research.map_row("stk_limit", stk_limit_source_row())
+    assert canonical["instrument_id"] == "SSE:600519"
+    assert canonical["previous_close"] == "10.0"
+    assert canonical["up_limit"] == "11.0"
+    assert canonical["down_limit"] == "9.0"
+    assert canonical["exchange"] == "SSE"
+    assert canonical["asset_type"] == "STK"
+
+
+def test_map_index_classify_and_member_envelopes() -> None:
+    classify = research.map_row(
+        "index_classify",
+        {
+            "index_code": "801050.SI",
+            "industry_name": "有色金属",
+            "level": "L1",
+            "industry_code": "801050",
+            "parent_code": "",
+        },
+    )
+    assert classify["index_code"] == "801050.SI"
+    assert classify["industry_name"] == "有色金属"
+    assert classify["parent_code"] is None
+
+    member = research.map_row(
+        "index_member_all",
+        {
+            "l1_code": "801050.SI",
+            "l1_name": "有色金属",
+            "l2_code": "801051.SI",
+            "l2_name": "工业金属",
+            "l3_code": "850531.SI",
+            "l3_name": "铝",
+            "ts_code": "600519.SH",
+            "name": "贵州茅台",
+            "in_date": "20200101",
+            "out_date": "",
+            "is_new": "Y",
+        },
+    )
+    assert member["instrument_id"] == "SSE:600519"
+    assert member["in_date"] == "2020-01-01"
+    assert member["out_date"] is None
+    assert member["is_new"] == "Y"
+
+
+def test_fetch_research_per_instrument_uses_range_params() -> None:
+    entries = [
+        entry(
+            "fina_indicator",
+            {
+                "ts_code": "600519.SH",
+                "start_date": "20240101",
+                "end_date": "20241231",
+                "offset": 0,
+                "limit": 6000,
+            },
+            [fina_row(), fina_row(end_date="20240630", ann_date="20240830", eps="11.0")],
+        )
+    ]
+    adapter, guard, _ = _adapter(entries)
+    rows = adapter.fetch_research(
+        "fina_indicator",
+        instrument_id="SSE:600519",
+        start=date(2024, 1, 1),
+        end=date(2024, 12, 31),
+    )
+    assert [row["report_period"] for row in rows] == ["2023Q4", "2024Q2"]
+    assert guard.run_calls == 1
+    assert adapter.research_mode("fina_indicator") == "per_instrument"
+    with pytest.raises(InvalidRequestError, match="requires instrument_id"):
+        adapter.fetch_research("fina_indicator", start=date(2024, 1, 1), end=date(2024, 12, 31))
+
+
+def test_fetch_research_snapshot_fans_out_batch_params() -> None:
+    entries = [
+        entry(
+            "index_classify",
+            {"level": "L1", "src": "SW2021", "offset": 0, "limit": 6000},
+            [{"index_code": "801050.SI", "industry_name": "有色金属", "level": "L1", "industry_code": "801050"}],
+        ),
+        entry(
+            "index_classify",
+            {"level": "L2", "src": "SW2021", "offset": 0, "limit": 6000},
+            [{"index_code": "801051.SI", "industry_name": "工业金属", "level": "L2", "industry_code": "801051", "parent_code": "801050.SI"}],
+        ),
+        entry(
+            "index_classify",
+            {"level": "L3", "src": "SW2021", "offset": 0, "limit": 6000},
+            [{"index_code": "850531.SI", "industry_name": "铝", "level": "L3", "industry_code": "850531", "parent_code": "801051.SI"}],
+        ),
+    ]
+    adapter, guard, _ = _adapter(entries)
+    rows = adapter.fetch_research("index_classify")
+    assert len(rows) == 3
+    assert guard.run_calls == 3
+    assert adapter.research_mode("index_classify") == "snapshot"
+    assert [row["index_code"] for row in rows] == ["801050.SI", "801051.SI", "850531.SI"]
+
+
+def test_fetch_research_bad_row_without_sink_refuses_silent_drop() -> None:
+    entries = [
+        entry(
+            "stk_limit",
+            {"trade_date": "20240102", "offset": 0, "limit": 6000},
+            [stk_limit_source_row(up_limit="not-a-number")],
+        )
+    ]
+    adapter, _, _ = _adapter(entries)
+    from market_ingest.ports import SchemaDriftError
+
+    with pytest.raises(SchemaDriftError):
+        adapter.fetch_research("stk_limit", DAY1)
+
+
+def test_sync_research_per_instrument_writes_one_batch_per_instrument(tmp_path: Path) -> None:
+    entries = [
+        entry(
+            "fina_indicator",
+            {
+                "ts_code": "600519.SH",
+                "start_date": "20240101",
+                "end_date": "20241231",
+                "offset": 0,
+                "limit": 6000,
+            },
+            [fina_row()],
+        ),
+        entry(
+            "fina_indicator",
+            {
+                "ts_code": "000001.SZ",
+                "start_date": "20240101",
+                "end_date": "20241231",
+                "offset": 0,
+                "limit": 6000,
+            },
+            [fina_row(ts_code="000001.SZ", eps="1.2", end_date="20240630", ann_date="20240830")],
+        ),
+    ]
+    adapter, guard, clock = _adapter(entries)
+    storage = SqliteStorage(":memory:")
+    ods_root = tmp_path / "ods"
+    result = sync_research(
+        adapter,
+        storage,
+        datasets=["fina_indicator"],
+        start=date(2024, 1, 1),
+        end=date(2024, 12, 31),
+        instruments=["SSE:600519", "SZSE:000001"],
+        ods_root=ods_root,
+        clock=clock,
+    )
+    assert result.status == "succeeded"
+    assert result.days_done == 2
+    assert result.rows_by_dataset == {"fina_indicator": 2}
+    assert result.ods_batches == 2
+    assert result.checkpoints["fina_indicator:SSE:600519"] == "2024-12-31"
+    files = sorted((ods_root / "fina_indicator").rglob("*.json"))
+    assert len(files) == 2
+    assert any("dt=2023-12-31" in str(path) for path in files)
+    assert guard.run_calls == 2
+
+
+def test_sync_research_snapshot_is_idempotent_per_day(tmp_path: Path) -> None:
+    entries = [
+        entry(
+            "index_member_all",
+            {"is_new": "Y", "offset": 0, "limit": 6000},
+            [
+                {
+                    "l1_code": "801050.SI",
+                    "l1_name": "有色金属",
+                    "l2_code": "801051.SI",
+                    "l2_name": "工业金属",
+                    "l3_code": "850531.SI",
+                    "l3_name": "铝",
+                    "ts_code": "600519.SH",
+                    "name": "贵州茅台",
+                    "in_date": "20200101",
+                    "is_new": "Y",
+                }
+            ],
+        )
+    ]
+    adapter, guard, clock = _adapter(entries)
+    storage = SqliteStorage(":memory:")
+    ods_root = tmp_path / "ods"
+    first = sync_research(
+        adapter,
+        storage,
+        datasets=["index_member_all"],
+        start=DAY1,
+        end=DAY2,
+        ods_root=ods_root,
+        clock=clock,
+    )
+    assert first.status == "succeeded"
+    assert first.days_done == 1
+    assert first.rows_by_dataset == {"index_member_all": 1}
+    assert guard.run_calls == 1
+    second = sync_research(
+        adapter,
+        storage,
+        datasets=["index_member_all"],
+        start=DAY1,
+        end=DAY2,
+        ods_root=ods_root,
+        clock=clock,
+    )
+    assert second.status == "succeeded"
+    assert second.days_done == 0
+    assert guard.run_calls == 1  # 同日快照幂等，不再调用上游
+
+
+def test_estimate_research_plan_honours_dataset_modes() -> None:
+    plan = estimate_research_plan(
+        ["fina_indicator", "index_classify"],
+        date(2024, 1, 1),
+        date(2024, 12, 31),
+        instruments=["SSE:600519", "SZSE:000001"],
+        modes={"fina_indicator": "per_instrument", "index_classify": "snapshot"},
+    )
+    assert plan["dataset_modes"] == {"fina_indicator": "per_instrument", "index_classify": "snapshot"}
+    assert plan["calls_by_dataset"]["fina_indicator"] == 2
+    assert plan["calls_by_dataset"]["index_classify"] == 1

@@ -16,6 +16,16 @@ top_list doc_id=106（2000 分）、top_inst doc_id=107（**5000 分**特色）�
 moneyflow doc_id=170（2000 分）、margin doc_id=58（2000 分）、
 hk_hold doc_id=188（2000 分）、daily_basic doc_id=32（2000 分）、
 index_daily doc_id=95（2000 分，``ts_code`` 必填，不可按日拉全市场）。
+第 2 批新增（KD-INGEST-P2 / KD-INGEST-INDUSTRY）：
+fina_indicator doc_id=79（2000 分，**只能按单只股票**取历史）、
+stk_limit doc_id=183（2000 分，按 trade_date 全市场）、
+index_classify doc_id=181（2000 分，申万行业分类树，snapshot）、
+index_member_all doc_id=335（2000 分，申万三级成分，snapshot；首轮只拉 is_new=Y）。
+
+接入模式（``ResearchDataset.mode``）：
+- ``daily``：按 trade_date 逐日全市场拉取；
+- ``snapshot``：一次拉全量快照（行业分类树/最新成分），按运行日分区；
+- ``per_instrument``：按单只标的 + 报告期区间拉取（fina_indicator 不支持全市场）。
 """
 
 from __future__ import annotations
@@ -53,6 +63,10 @@ class ResearchDataset:
     columns: tuple[ColumnSpec, ...]
     #: 需要显式指数代码列表（index_daily 不能只按 trade_date 拉全市场）。
     requires_index_codes: bool = False
+    #: 接入模式：daily（按交易日）/ snapshot（全量快照）/ per_instrument（按标的）。
+    mode: str = "daily"
+    #: snapshot 模式的分批参数（如申万分类树按 L1/L2/L3 三次调用；空=单次调用）。
+    batch_params: tuple[Mapping[str, str], ...] = ()
     #: 等 H4 确认接口字段/积分档（ADR-007 INF-05 前置）；确认后移除标记。
     provisional: bool = True
     note: str = ""
@@ -176,6 +190,88 @@ _COLUMNS: dict[str, tuple[ColumnSpec, ...]] = {
         _c("volume", "vol", "volume_lots"),
         _c("amount", "amount", "amount_thousand"),
     ),
+    # ---- 第 2 批（KD-INGEST-P2）----
+    "fina_indicator": (
+        _c("instrument_id", "ts_code", "instrument"),
+        _c("report_end_date", "end_date", "date_yyyymmdd"),
+        _c("report_period", "end_date", "quarter"),
+        _c("announced_at", "ann_date", "date_yyyymmdd", required=False),
+        _c("eps", "eps", "decimal", required=False),
+        _c("dt_eps", "dt_eps", "decimal", required=False),
+        _c("bps", "bps", "decimal", required=False),
+        _c("ocfps", "ocfps", "decimal", required=False),
+        _c("total_revenue_ps", "total_revenue_ps", "decimal", required=False),
+        _c("revenue_ps", "revenue_ps", "decimal", required=False),
+        _c("roe", "roe", "decimal", required=False),
+        _c("roe_waa", "roe_waa", "decimal", required=False),
+        _c("roe_dt", "roe_dt", "decimal", required=False),
+        _c("roa", "roa", "decimal", required=False),
+        _c("npta", "npta", "decimal", required=False),
+        _c("roic", "roic", "decimal", required=False),
+        _c("grossprofit_margin", "grossprofit_margin", "decimal", required=False),
+        _c("netprofit_margin", "netprofit_margin", "decimal", required=False),
+        _c("debt_to_assets", "debt_to_assets", "decimal", required=False),
+        _c("current_ratio", "current_ratio", "decimal", required=False),
+        _c("quick_ratio", "quick_ratio", "decimal", required=False),
+        _c("assets_turn", "assets_turn", "decimal", required=False),
+        _c("ar_turn", "ar_turn", "decimal", required=False),
+        _c("inv_turn", "inv_turn", "decimal", required=False),
+        _c("profit_dedt", "profit_dedt", "amount_yuan", required=False),
+        _c("extra_item", "extra_item", "amount_yuan", required=False),
+        _c("ebit", "ebit", "amount_yuan", required=False),
+        _c("ebitda", "ebitda", "amount_yuan", required=False),
+        _c("fixed_assets", "fixed_assets", "amount_yuan", required=False),
+        _c("or_yoy_pct", "or_yoy", "pct", required=False),
+        _c("tr_yoy_pct", "tr_yoy", "pct", required=False),
+        _c("netprofit_yoy_pct", "netprofit_yoy", "pct", required=False),
+        _c("dt_netprofit_yoy_pct", "dt_netprofit_yoy", "pct", required=False),
+        _c("op_yoy_pct", "op_yoy", "pct", required=False),
+        _c("roe_yoy_pct", "roe_yoy", "pct", required=False),
+        _c("bps_yoy_pct", "bps_yoy", "pct", required=False),
+        _c("assets_yoy_pct", "assets_yoy", "pct", required=False),
+        _c("eqt_yoy_pct", "eqt_yoy", "pct", required=False),
+        _c("q_eps", "q_eps", "decimal", required=False),
+        _c("q_roe", "q_roe", "decimal", required=False),
+        _c("q_netprofit_margin", "q_netprofit_margin", "decimal", required=False),
+        _c("q_gsprofit_margin", "q_gsprofit_margin", "decimal", required=False),
+        _c("q_sales_yoy_pct", "q_sales_yoy", "pct", required=False),
+        _c("q_sales_qoq_pct", "q_sales_qoq", "pct", required=False),
+        _c("q_profit_qoq_pct", "q_profit_qoq", "pct", required=False),
+        _c("q_op_qoq_pct", "q_op_qoq", "pct", required=False),
+        _c("update_flag", "update_flag", "text", required=False),
+    ),
+    "stk_limit": (
+        _c("instrument_id", "ts_code", "instrument"),
+        _c("trade_date", "trade_date", "date"),
+        _c("previous_close", "pre_close", "price", required=False),
+        _c("up_limit", "up_limit", "price"),
+        _c("down_limit", "down_limit", "price"),
+        _c("asset_type", "asset_type", "text", required=False),
+        _c("exchange", "exchange", "exchange_margin", required=False),
+    ),
+    # ---- 第 2 批（KD-INGEST-INDUSTRY）----
+    "index_classify": (
+        _c("index_code", "index_code", "text"),
+        _c("industry_name", "industry_name", "text"),
+        _c("parent_code", "parent_code", "text", required=False),
+        _c("level", "level", "text"),
+        _c("industry_code", "industry_code", "text"),
+        _c("is_published", "is_pub", "text", required=False),
+        _c("classification_source", "src", "text", required=False),
+    ),
+    "index_member_all": (
+        _c("instrument_id", "ts_code", "instrument"),
+        _c("name", "name", "text", required=False),
+        _c("l1_code", "l1_code", "text"),
+        _c("l1_name", "l1_name", "text"),
+        _c("l2_code", "l2_code", "text"),
+        _c("l2_name", "l2_name", "text"),
+        _c("l3_code", "l3_code", "text"),
+        _c("l3_name", "l3_name", "text"),
+        _c("in_date", "in_date", "date_yyyymmdd", required=False),
+        _c("out_date", "out_date", "date_yyyymmdd", required=False),
+        _c("is_new", "is_new", "text", required=False),
+    ),
 }
 
 _DATASET_META: dict[str, tuple[str, int, int, bool, str]] = {
@@ -187,6 +283,45 @@ _DATASET_META: dict[str, tuple[str, int, int, bool, str]] = {
     "hk_hold": ("hk_hold", 188, 2000, False, "沪深股通持股明细（港交所源，2000 分）"),
     "daily_basic": ("daily_basic", 32, 2000, False, "每日指标（PE/PB/换手/市值/涨跌停状态）"),
     "index_daily": ("index_daily", 95, 2000, True, "指数日线；ts_code 必填，按指数代码循环"),
+    "fina_indicator": (
+        "fina_indicator",
+        79,
+        2000,
+        False,
+        "财务指标（只能按单只股票取历史；单次最多 100 行）",
+    ),
+    "stk_limit": ("stk_limit", 183, 2000, False, "每日涨跌停价（2007-01-04 起，2000 分）"),
+    "index_classify": (
+        "index_classify",
+        181,
+        2000,
+        False,
+        "申万行业分类树（2021 版按 L1/L2/L3 快照）",
+    ),
+    "index_member_all": (
+        "index_member_all",
+        335,
+        2000,
+        False,
+        "申万三级成分（时点成分；首轮 is_new=Y 快照，历史回补后续 budget 控制）",
+    ),
+}
+
+#: 数据集接入模式（研究接口形态决定，非业务策略）。
+_DATASET_MODES: dict[str, str] = {
+    "fina_indicator": "per_instrument",
+    "index_classify": "snapshot",
+    "index_member_all": "snapshot",
+}
+
+#: snapshot 模式的分批参数（申万行业树按层级三次调用；成分表一次拉最新）。
+_DATASET_BATCH_PARAMS: dict[str, tuple[Mapping[str, str], ...]] = {
+    "index_classify": (
+        {"level": "L1", "src": "SW2021"},
+        {"level": "L2", "src": "SW2021"},
+        {"level": "L3", "src": "SW2021"},
+    ),
+    "index_member_all": ({"is_new": "Y"},),
 }
 
 #: dataset 名 → 定义（下游只按 name 取；源细节封闭在此）。
@@ -197,6 +332,8 @@ RESEARCH_DATASETS: dict[str, ResearchDataset] = {
         doc_id=meta[1],
         points_min=meta[2],
         requires_index_codes=meta[3],
+        mode=_DATASET_MODES.get(name, "daily"),
+        batch_params=_DATASET_BATCH_PARAMS.get(name, ()),
         note=meta[4],
         columns=_COLUMNS[name],
     )
@@ -212,6 +349,10 @@ DEFAULT_RESEARCH_DATASETS: tuple[str, ...] = (
     "moneyflow",
     "margin",
     "hk_hold",
+    "stk_limit",
+    "fina_indicator",
+    "index_classify",
+    "index_member_all",
 )
 
 #: 金额/量换算倍数（Decimal 运算，禁止 float 误差）。
@@ -324,6 +465,13 @@ def _decimal(value: Any, *, field: str) -> Decimal:
         raise ResearchRowError(f"invalid number for {field!r}: {value!r}") from exc
 
 
+def _parse_yyyymmdd(value: Any, *, field: str) -> date:
+    try:
+        return mapper.parse_trade_date(value)
+    except mapper.RowMapError as exc:
+        raise ResearchRowError(f"invalid {field}: {value!r}") from exc
+
+
 def _convert(column: ColumnSpec, raw: Any, dataset: str) -> Any:
     kind = column.kind
     if kind == "text":
@@ -343,6 +491,10 @@ def _convert(column: ColumnSpec, raw: Any, dataset: str) -> Any:
         if text not in _EXCHANGE_MARGIN:
             raise ResearchRowError(f"unknown exchange_id {text!r} ({dataset})")
         return _EXCHANGE_MARGIN[text]
+    if kind == "date_yyyymmdd":
+        return _parse_yyyymmdd(raw, field=column.source).isoformat()
+    if kind == "quarter":
+        return mapper.parse_report_period(_parse_yyyymmdd(raw, field=column.source))
     if kind == "exchange_hk":
         text = str(raw)
         if text not in _EXCHANGE_HK:
@@ -384,6 +536,31 @@ def map_row(dataset: str, row: Mapping[str, Any]) -> dict[str, Any]:
     return result
 
 
+def sort_key(dataset: str, row: Mapping[str, Any]) -> tuple[str, ...]:
+    """同一批次内的稳定顺序（按数据集主键，缺省回退全字段）。"""
+    spec = RESEARCH_DATASETS.get(dataset)
+    if spec is not None:
+        if spec.mode == "per_instrument":
+            return (str(row.get("instrument_id") or ""), str(row.get("report_end_date") or ""))
+        if dataset == "index_classify":
+            return (str(row.get("index_code") or ""),)
+        if dataset == "index_member_all":
+            return (str(row.get("instrument_id") or ""), str(row.get("l3_code") or ""))
+    return (
+        str(row.get("trade_date") or ""),
+        str(row.get("instrument_id") or row.get("exchange") or ""),
+    )
+
+
+def partition_date(dataset: str, rows: Sequence[Mapping[str, Any]], fallback: date) -> date:
+    """ODS 分区日：财务按报告期（最新一期），其它按调用日/交易日。"""
+    if dataset == "fina_indicator":
+        values = [str(row.get("report_end_date")) for row in rows if row.get("report_end_date")]
+        if values:
+            return max(date.fromisoformat(value) for value in values)
+    return fallback
+
+
 def canonical_fields(dataset: str) -> tuple[str, ...]:
     """该数据集的 canonical 列顺序（供文档/测试断言）。"""
     return tuple(column.canonical for column in RESEARCH_DATASETS[dataset].columns)
@@ -401,6 +578,7 @@ __all__ = [
     "ResearchRowError",
     "canonical_fields",
     "hk_source_code",
+    "partition_date",
     "instrument_id_for",
     "map_row",
     "research_datasets",

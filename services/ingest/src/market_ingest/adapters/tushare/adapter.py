@@ -415,19 +415,31 @@ class TushareAdapter:
         """本适配器支持的研究数据集名（CLI/sync 只按名字调度，不认接口）。"""
         return research.research_datasets()
 
+    def research_mode(self, dataset: str) -> str:
+        """数据集的抓取形态：daily（按日全市场）/ snapshot（无日期快照）/ per_instrument。"""
+        spec = research.RESEARCH_DATASETS.get(dataset)
+        if spec is None:
+            raise InvalidRequestError(f"unknown research dataset {dataset!r}")
+        return spec.mode
+
     def fetch_research(
         self,
         dataset: str,
-        trade_date: date,
+        trade_date: date | None = None,
         *,
         index_codes: Sequence[str] = (),
+        instrument_id: str | None = None,
+        start: date | None = None,
+        end: date | None = None,
     ) -> list[dict[str, Any]]:
-        """按交易日拉一个研究数据集 → canonical ODS 行（字段/单位已归一）。
+        """按数据集形态拉取 → canonical ODS 行（字段/单位已归一）。
 
-        - 全市场接口一次调用/日；``index_daily`` 按 ``index_codes``（canonical
-          ``EXCH:CODE``）循环，每个指数一次调用（源要求 ts_code 必填）；
+        - ``daily``：全市场接口一次调用/日；``index_daily`` 按 ``index_codes``（canonical
+          ``EXCH:CODE``）逐个指数调用（源要求代码必填）；
+        - ``snapshot``：无日期快照，按 ``spec.batch_params`` 分批（如申万 L1/L2/L3）；
+        - ``per_instrument``：按单只标的 + 日期区间取历史（财务指标接口形态）；
         - 单行映射失败落 DLQ（``capture()`` 注入），整页字段漂移抛 ``SchemaDriftError``；
-        - 无可取数据（无权限/无记录）→ 空列表；**不造数、不补 0**（探针任务验收）。
+        - 无可取数据（无权限/无记录）→ 空列表；**不造数、不补 0**。
         """
         spec = research.RESEARCH_DATASETS.get(dataset)
         if spec is None:
@@ -435,10 +447,38 @@ class TushareAdapter:
                 f"unknown research dataset {dataset!r}; supported={sorted(research.RESEARCH_DATASETS)}"
             )
         raw_rows: list[dict[str, Any]] = []
-        if spec.requires_index_codes:
+        if spec.mode == "per_instrument":
+            if instrument_id is None or start is None or end is None:
+                raise InvalidRequestError(
+                    f"{dataset} requires instrument_id/start/end (per-instrument dataset)"
+                )
+            if start > end:
+                raise InvalidRequestError(f"start {start} is after end {end}")
+            try:
+                source_code = mapper.to_source_code(instrument_id)
+            except ValueError as exc:
+                raise InvalidRequestError(f"invalid instrument_id {instrument_id!r}: {exc}") from exc
+            raw_rows = self._fetch_rows(
+                spec.api_name,
+                spec.fields,
+                {
+                    "ts_code": source_code,
+                    "start_date": start.strftime("%Y%m%d"),
+                    "end_date": end.strftime("%Y%m%d"),
+                },
+                dataset=spec.name,
+            )
+        elif spec.mode == "snapshot":
+            for params in spec.batch_params or ({},):
+                raw_rows.extend(
+                    self._fetch_rows(spec.api_name, spec.fields, dict(params), dataset=spec.name)
+                )
+        elif spec.requires_index_codes:
             codes = tuple(index_codes)
             if not codes:
                 raise InvalidRequestError(f"{dataset} requires --index-codes (canonical EXCH:CODE list)")
+            if trade_date is None:
+                raise InvalidRequestError(f"{dataset} requires trade_date")
             for code in codes:
                 try:
                     source_code = mapper.to_source_code(code)
@@ -453,6 +493,8 @@ class TushareAdapter:
                     )
                 )
         else:
+            if trade_date is None:
+                raise InvalidRequestError(f"{dataset} requires trade_date")
             raw_rows = self._fetch_rows(
                 spec.api_name,
                 spec.fields,
@@ -473,7 +515,7 @@ class TushareAdapter:
                     dataset=dataset,
                     endpoint=spec.api_name,
                 )
-        rows.sort(key=lambda canonical: (str(canonical.get("trade_date")), str(canonical.get("instrument_id") or canonical.get("exchange"))))
+        rows.sort(key=lambda canonical: research.sort_key(dataset, canonical))
         return rows
 
     def fetch_instruments(self) -> list[InstrumentRecord]:

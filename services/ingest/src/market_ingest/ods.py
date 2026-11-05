@@ -34,6 +34,11 @@ from .models import (
 )
 
 #: 研究数据集 endpoint（KD-AIP0-INF-05，A2 建研 DWD/DWS 的 ODS 输入）。
+#: 日频研究接口（必须有 trade_date）；其余为时点/财务快照。
+_DAILY_RESEARCH_ENDPOINTS: frozenset[str] = frozenset(
+    {"top_list", "top_inst", "moneyflow", "margin", "hk_hold", "daily_basic", "index_daily", "stk_limit"}
+)
+
 RESEARCH_ENDPOINTS: tuple[str, ...] = (
     "top_list",
     "top_inst",
@@ -42,6 +47,10 @@ RESEARCH_ENDPOINTS: tuple[str, ...] = (
     "hk_hold",
     "daily_basic",
     "index_daily",
+    "stk_limit",
+    "fina_indicator",
+    "index_classify",
+    "index_member_all",
 )
 
 #: endpoint -> schema（与 A2 loader 的 ENDPOINT_SCHEMAS 保持一致）。
@@ -202,25 +211,56 @@ def fundamental_rows(records: Sequence[FundamentalRecord]) -> list[dict[str, Any
     return rows
 
 
+def partition_date_for(endpoint: str, rows: Sequence[Mapping[str, Any]], fallback: date) -> date:
+    """研究批次的分区日：财务按报告期，其余按行内交易日/回退调用日。"""
+    if endpoint == "fina_indicator":
+        values = [str(row.get("report_end_date")) for row in rows if row.get("report_end_date")]
+        if values:
+            return max(date.fromisoformat(value) for value in values)
+        return fallback
+    dates = [str(row.get("trade_date")) for row in rows if row.get("trade_date")]
+    if dates:
+        return min(date.fromisoformat(value) for value in dates)
+    return fallback
+
+
 def research_rows(rows: Sequence[Mapping[str, Any]], *, endpoint: str) -> list[dict[str, Any]]:
     """研究数据集行 → ODS 行（canonical：金额元/量股/比率百分数，均为字符串）。
 
     行形状由适配层的 ``research.py`` 保证（字段映射与单位换算集中在适配层）；
-    本函数只做 endpoint 校验、``trade_date`` 存在性校验与确定性排序。
+    本函数只做 endpoint 校验、主键存在性校验与确定性排序。日频接口必须有
+    ``trade_date``；时点/财务接口按各自主键校验（禁止把无日期行伪装成日频）。
     """
     if endpoint not in RESEARCH_ENDPOINTS:
         raise OdsFormatError(f"unsupported research endpoint: {endpoint!r}")
+    required: tuple[str, ...]
+    if endpoint in _DAILY_RESEARCH_ENDPOINTS:
+        required = ("trade_date",)
+    elif endpoint == "fina_indicator":
+        required = ("instrument_id", "report_end_date", "report_period")
+    elif endpoint == "index_classify":
+        required = ("index_code",)
+    else:  # index_member_all
+        required = ("instrument_id",)
     out: list[dict[str, Any]] = []
     for index, row in enumerate(rows):
-        if "trade_date" not in row:
-            raise OdsFormatError(f"{endpoint} row {index} is missing trade_date")
+        missing = [name for name in required if not row.get(name)]
+        if missing:
+            raise OdsFormatError(f"{endpoint} row {index} is missing {', '.join(missing)}")
         out.append(dict(row))
-    out.sort(
-        key=lambda row: (
-            str(row["trade_date"]),
-            str(row.get("instrument_id") or row.get("exchange") or ""),
+    if endpoint in _DAILY_RESEARCH_ENDPOINTS:
+        out.sort(
+            key=lambda row: (
+                str(row["trade_date"]),
+                str(row.get("instrument_id") or row.get("exchange") or ""),
+            )
         )
-    )
+    elif endpoint == "fina_indicator":
+        out.sort(key=lambda row: (str(row["instrument_id"]), str(row["report_end_date"])))
+    elif endpoint == "index_classify":
+        out.sort(key=lambda row: str(row["index_code"]))
+    else:
+        out.sort(key=lambda row: (str(row["instrument_id"]), str(row.get("l3_code") or "")))
     return out
 
 
@@ -293,6 +333,7 @@ __all__ = [
     "bar_rows",
     "fundamental_rows",
     "instrument_rows",
+    "partition_date_for",
     "research_rows",
     "write_batch",
 ]

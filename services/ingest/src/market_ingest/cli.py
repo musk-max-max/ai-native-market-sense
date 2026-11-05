@@ -141,6 +141,8 @@ def build_parser() -> argparse.ArgumentParser:
     research.add_argument("--end", type=_parse_date, default=None, help="结束交易日（含），缺省=今天（市场时区）")
     research.add_argument("--index-codes", type=_parse_instruments, default=None,
                           help="指数日线代码（canonical EXCH:CODE），缺省读配置 research.index_codes")
+    research.add_argument("--instruments", type=_parse_instruments, default=None,
+                          help="逐标的抓取的数据集（如 fina_indicator）所需的 EXCH:CODE 列表")
     research.add_argument("--budget-calls", type=int, default=None, help="本次运行调用预算，缺省读配置")
     research.add_argument("--calls-per-minute", type=int, default=None, help="套餐每分钟上限，缺省读配置")
     _add_common_arguments(research)
@@ -514,12 +516,27 @@ def run_sync_research(args: argparse.Namespace) -> int:
     cpm = args.calls_per_minute if args.calls_per_minute is not None else config.quota.calls_per_minute
     datasets = tuple(args.datasets or config.research.datasets)
     index_codes = tuple(args.index_codes or config.research.index_codes)
+    instruments = tuple(args.instruments or ())
+    modes: dict[str, str] = {}
+    if args.replay_fixture is not None:
+        # 录播夹具可离线加载适配器，用真实形态估算预算（否则按日频保守上界）。
+        probe = load_adapter(
+            adapter_name,
+            options=_adapter_options(config, adapter_name, args),
+            guard=None,
+            ledger=None,
+        )
+        mode_fn = getattr(probe, "research_mode", None)
+        if callable(mode_fn):
+            modes = {name: str(mode_fn(name)) for name in datasets}
 
     plan = estimate_research_plan(
         datasets,
         args.start,
         end,
         index_codes=index_codes,
+        instruments=instruments,
+        modes=modes,
         calls_per_minute=cpm,
         reserve_ratio=config.quota.reserve_ratio,
     )
@@ -538,7 +555,9 @@ def run_sync_research(args: argparse.Namespace) -> int:
             "dry_run": True,
             "mode": "research",
             "datasets": list(datasets),
+            "dataset_modes": plan["dataset_modes"],
             "index_codes": list(index_codes),
+            "instruments": list(instruments),
             "start": args.start.isoformat(),
             "end": end.isoformat(),
             "budget": plan,
@@ -588,6 +607,7 @@ def run_sync_research(args: argparse.Namespace) -> int:
             end=end,
             ods_root=internal_root,
             index_codes=index_codes,
+            instruments=instruments,
             guard=guard,
             interrupt=lambda: stop["requested"],
         )

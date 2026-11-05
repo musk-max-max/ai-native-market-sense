@@ -1,0 +1,27 @@
+{
+  "batch_id": "ing-20261104T150000-fe060d17-index_member_all",
+  "endpoint": "index_member_all",
+  "rows": [
+    {
+      "in_date": "2020-01-01",
+      "instrument_id": "SSE:600519",
+      "is_new": "Y",
+      "l1_code": "SYNTHETIC",
+      "l1_name": "SYNTHETIC",
+      "l2_code": "SYNTHETIC",
+      "l2_name": "SYNTHETIC",
+      "l3_code": "SYNTHETIC",
+      "l3_name": "SYNTHETIC",
+      "name": "SYNTHETIC",
+      "out_date": "2021-01-01"
+    }
+  ],
+  "rows_rejected": 0,
+  "rows_total": 1,
+  "schema": "index_member_all.v1",
+  "source": {
+    "as_of": "2026-11-04T15:00:00+08:00",
+    "fetched_at": "2026-11-04T15:00:00+08:00",
+    "source": "tushare"
+  }
+}
