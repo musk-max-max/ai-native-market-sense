@@ -98,6 +98,7 @@ if [ -z "$(read_state "command -v docker" 2>/dev/null)" ]; then
   echo "UNKNOWN 无法检查：docker 不可用（需 root/目标主机）；exit 2"; exit 2
 fi
 
+EXPOSURE_CONTAINERS=""
 # 1) 监听面：通配监听必须只出现在 EXPECTED_WILDCARD_LISTEN_PORTS
 LISTEN=$(read_state "ss -ltnp 2>/dev/null | awk 'NR>1 {print \$4}'" || true)
 BAD_LISTEN=""
@@ -127,6 +128,9 @@ for n in $NAMES; do
       allowed=0
       for c in $EXPECTED_PUBLIC_CONTAINERS; do [ "$n" = "$c" ] && allowed=1; done
       [ "$allowed" -eq 0 ] && fail "容器 $n 存在通配(0.0.0.0/::)端口绑定 (status=$st restart=$rest): $binds"
+      for p in $EXPECTED_PUBLIC_PORTS; do
+        case "$binds" in *"$p/tcp"*) EXPOSURE_CONTAINERS="$EXPOSURE_CONTAINERS $n:$p" ;; esac
+      done
       ;;
   esac
   [ -z "$proj" ] && fail "非 compose/k8s 管理容器：${n}（主机手工残留，无法从仓库重建）"
@@ -137,6 +141,49 @@ for n in $NAMES; do
     esac
   fi
 done
+
+# 2b) HOST-EXPOSURE-01（P2）：公网放行端口上的通配监听 / 容器发布 / 未认证健康端点
+# 说明：这是「持续检查」的判定核心；部署时与每日由 systemd timer 跑，命中即 FAIL + ALERT。
+EXPOSURE_HIT=0
+for hit in $EXPOSURE_CONTAINERS; do
+  c=${hit%:*}; p=${hit##*:}
+  EXPOSURE_HIT=1
+  fail "HOST-EXPOSURE-01 容器 $c 在公网端口 $p 上发布 0.0.0.0/:: 绑定"
+  echo "ALERT HOST-EXPOSURE-01 container=$c port=$p severity=critical"
+  echo "SUGGEST docker stop $c && docker update --restart=no $c"
+done
+for addr in $LISTEN; do
+  port=${addr##*:}
+  case "$addr" in
+    0.0.0.0:*|\[::\]:*)
+      for p in $EXPECTED_PUBLIC_PORTS; do
+        if [ "$port" = "$p" ]; then
+          EXPOSURE_HIT=1
+          fail "HOST-EXPOSURE-01 公网端口 $p 存在通配监听 $addr（非 loopback）"
+          echo "ALERT HOST-EXPOSURE-01 listen=$addr port=$p severity=critical"
+        fi
+      done ;;
+  esac
+done
+if [ -n "${EXPECTED_PUBLIC_HOST:-}" ]; then
+  for path in /healthz /metrics; do
+    code=$(read_state "curl -sS -m 5 -o /dev/null -w '%{http_code}' http://$EXPECTED_PUBLIC_HOST$path" 2>/dev/null || echo 000)
+    case "$code" in
+      2*|3*) EXPOSURE_HIT=1; fail "HOST-EXPOSURE-01 $path 公网未认证可达 HTTP $code"; echo "ALERT HOST-EXPOSURE-01 url=http://$EXPECTED_PUBLIC_HOST$path http=$code severity=critical" ;;
+      *) pass "公网 $path 不可达/非 2xx（HTTP ${code:-000}）" ;;
+    esac
+  done
+else
+  warn "HOST-EXPOSURE-01 未配置 EXPECTED_PUBLIC_HOST，公网未认证可达性=UNVERIFIED（不计 PASS）"
+fi
+if [ "$EXPOSURE_HIT" -eq 1 ] && [ -n "${ALERT_WEBHOOK_URL:-}" ]; then
+  curl -sS -m 5 -X POST -H 'Content-Type: application/json' \
+    --data '{"alert":"HOST-EXPOSURE-01","severity":"critical","host":"'"$(read_state 'hostname' 2>/dev/null || echo unknown)"'"}' \
+    "$ALERT_WEBHOOK_URL" >/dev/null 2>&1 || warn "HOST-EXPOSURE-01 webhook 发送失败（告警出口不可用，需人工确认）"
+fi
+if [ -n "${HOST_BASELINE_TEXTFILE_DIR:-}" ]; then
+  { echo "# HELP host_baseline_exposure_hits 公网暴露命中数（HOST-EXPOSURE-01）"; echo "# TYPE host_baseline_exposure_hits gauge"; echo "host_baseline_exposure_hits $EXPOSURE_HIT"; } > "$HOST_BASELINE_TEXTFILE_DIR/host_baseline_exposure.prom" 2>/dev/null || warn "textfile 写入失败: $HOST_BASELINE_TEXTFILE_DIR"
+fi
 
 # 3) ufw 允许清单
 UFW_RAW=$(read_state "LC_ALL=C ufw status 2>/dev/null" || true)

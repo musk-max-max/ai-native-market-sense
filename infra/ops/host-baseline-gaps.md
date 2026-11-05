@@ -14,3 +14,11 @@
 
 - **事实**：Lead 于 23:58:17Z 以非交互 SSH 执行 `docker rm ms-nginx` 等命令，命令不进 `bash_history`，ECS 侧无 auditd/journal 持久记录，导致归因一度只能 UNATTRIBUTED；同类操作（停机、删容器、改 ufw）无法事后追责。
 - **验收**：注入一条非交互 SSH 命令，必须能查到「命令原文 / 来源 IP / 时间 / 执行人」四元组；实现候选：`auditd`（execve 审计）、docker events 持久采集、journald 持久化/转发。owner：A9 方案 + A13 落地；**11-12 前挂账**，不阻塞 ⑤ 当前四项。
+
+## HOST-EXPOSURE-01（P2）：公网暴露巡检
+
+- 现象：SG 永久放行 80/8888（用户 L103），ms-nginx 类「临时容器 + 0.0.0.0 绑定」可直达公网；现有 CI 只查渲染与端口，主机态无持续巡检。
+- 方案：`infra/drift/HOST-EXPOSURE-01.md`；检测公网端口通配监听、容器通配绑定、非 IaC 容器、公网未认证 `/healthz`/`/metrics`；命中告警，可选自动 `docker stop`（默认关闭）。
+- 验收：A19 注入 `docker create -p 0.0.0.0:8888`，一周期内检出+告警+处置，证据入 manifest。
+- owner：A13（检测/证据）+ A19（注入用例）；**任何公网测试窗口开启前必须先跑起来**。
+- 状态：检测核心已实现，systemd/告警/部署钩子与 ECS 注入验收待 H5 对方案两个选择题确认。
