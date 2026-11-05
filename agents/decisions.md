@@ -1265,3 +1265,56 @@ A13 如实交了失败记录（本机无 iptables、pf 无权限），**没有�
 - **H5 书面结论（L110）**：SG 与 root 两项**不再作为 11-12 发布签核前提**；公网测试窗口仍按 L104 逐次审批、不因本次接受放开。
 - **11-12 仍卡三项（不因这两项解除而签）**：值班姓名/手机（BLOCKED）、真实寻呼通道（BLOCKED）、staging 15min 演练（NO-ENV）。
 - **待办**：`HOST_AUDIT_SSH` 用 `lyuddu@…` 配好后，A19 验部署钩子「阻塞/放行」两路径再报 H5（不把「配了变量」当「验过钩子」）。
+
+## §12 L111 两类用户分层裁定（C端普通用户 + 内部员工用户，内部需后台审核）
+- **用户裁定原文（m06048）**：「客户端有两类用户。c端普通用户，以及内部员工用户。所以，注册和登录时需要区分角色，内部员工用户需要后台审核。所以，c端页面的合规性审查要考虑两种情况，内部员工可见的内容无需考虑合规性。」
+- **现状差距**：现有 entitlement 是服务级 tier（`internal_eval|c_end_display|research_only|platform_user_data`），无"用户角色/受众"维度。auth.ts 无 role 区分。注册/登录尚未实现。
+- **待澄清 4 点（Lead 提，未答前不派实现）**：
+  1. **内部员工审核流程**：注册后谁审？A15 自动审批 / H3 人工审 / 用户本人拍板？审批通过前权限如何（禁登/降级登/只读基础信息）？
+  2. **"无需考虑合规性"的具体范围**：是指 (a) 免除 C 端 UI 合规标识（免责标识/AI 标识）？(b) 可见 raw 数据（绕 entitlement 403）？(c) 可见 C 端被 H3 否决的形态（如涨跌停个股梯队）？(d) 可见 AI 生成内容而不走 H3 逐条预审？——**不同选项安全含义完全不同**。
+  3. **荐股红线是否仍然守**：证监会〔2012〕40号对"荐股软件"的约束是**面向不特定对象提供投资建议**，不是"是否面向公众"。**内部员工如果人数≥一定规模，仍可能被认定为"特定对象"范围内的受监管服务**。Lead 倾向：红线对全员仍守（不荐股/不目标价/不方向性结论），只是 C 端 UI 合规装饰（AI 标识/免责/footer）对内部可省。**待用户/H3 确认**。
+  4. **entitlement 数据档位是否对内部员工开放**：当前服务级 `ENTITLEMENT_TIER` 是全局单值（`internal_eval` / `c_end_display`）。两类用户是否共享同一服务 tier？还是按用户角色动态判（internal 用户可看 research_only / platform_user_data，c_end 用户只能看 c_end_display）？后者要改 entitlement 架构（用户上下文注入 → gate 按用户角色取不同 tier 集合）。
+- **Lead 初判（待用户澄清）**：
+  - **"合规性"三层，对内部员工的开放度不同**：
+    - **L1 数据授权（entitlement tier/403）**：**对内部员工适度放宽**——内部账号可绑定 `internal_eval`/`research_only` tier，看原始未过滤数据、内部评测形态（涨跌停梯队）、AI 未审生成内容；仍受数据源 tushare 合约边界约束（不二次分发、不商用）。
+    - **L2 C 端 UI 合规装饰（AI 标识/免责/footer/AI 文案 H3 逐条审）**：**对内部员工免除**——内部员工看到的是工具页/数据页，不需要 H3 逐条审的 C 端文案。
+    - **L3 荐股/投资建议监管红线**：**对全员仍守**——这是证监会约束，不是"是否面向公众"的问题。内部员工数量≥一定规模、或对外提供访问通道，仍可能被认定受监管。**不荐股/不目标价/不方向性结论/不适当性匹配/无收益承诺**，对两类用户都硬约束。
+  - **架构影响（待 ADR-008 细化）**：
+    - 注册/登录需 user_type 字段（`c_end` | `internal_pending` | `internal_active`）
+    - 内部审核流程：`internal_pending` 注册后不可登（或只读基础信息），审批通过后转 `internal_active`；审批人待定
+    - entitlement gate 需从"服务级单 tier"改成"用户上下文 + 服务 tier 双维度"——服务 tier 定义服务能提供的最高档位，用户 tier 取 min(user_tier, service_tier)
+    - 合规审查（A16/H3）分两条流水线：C 端审查（严格）+ 内部审查（仅查 L3 红线，不查 L2 UI 装饰）
+  - **不派实现**：等用户澄清 4 点后，派 A0 出 ADR-008，再派 A4（认证/角色）+ A3（gate 改造）+ A16/H3（审查流程）。
+- **风险提示**：如果"内部员工无需考虑合规性"被过度解读为"绕所有审查"，会造两个洞：①内部账号可看到未过滤数据，数据外泄风险（员工离职带走）②内部工具页可能被误用作对客触达（如截图给客户/内部链接外传），绕 C 端合规审查。ADR-008 需包含：内部工具页水印、访问日志、导出审计、防截图（可选）。
+- **Open**：等用户答 4 澄清点 → A0 ADR-008 → A4/A3/A16 分派。
+
+## §12 L112 两类用户分层：用户答 4 澄清点（Lead 记录，q3 待 H3 裁定）
+- **用户裁定（m06061 answers，11-05 17:12）**：
+  - **q1 内部审核流程 = H3 或用户人工审批，通过前禁登**。注册后 `internal_pending` 状态不可登录；审批通过转 `internal_active`。
+  - **q2 合规范围 = 全部审查都免，内部随便看**（含 UI 装饰/未过滤数据/C 端被否形态）。
+  - **q3 荐股红线 = 内部完全放开，AI 可给明确建议**（建议买入/目标价等）。
+  - **q4 entitlement tier = 内部员工绑定更高 tier，按用户角色取 tier**（服务 tier 为上限，用户角色决定实际档位）。
+- **Lead 立即可执行（不等 H3）**：q1 + q4 + q2 的「UI 装饰/形态/数据 tier」部分。
+  - 注册/登录加 `user_type`（`c_end` | `internal_pending` | `internal_active`），`internal_pending` 禁登。
+  - entitlement gate 从服务级单 tier 改「用户上下文 × 服务 tier」双维度：`effective_tier = min(user_tier, service_tier)`；`internal_active` 可绑 `internal_eval`/`research_only`，`c_end` 取服务 tier。
+  - 内部工具页豁免 C 端 UI 合规装饰（AI 标识/免责 footer/AI 文案 H3 逐条审）；可访问 C 端被否形态（如涨跌停梯队，内部形态单独登记不进 C 端契约）。
+- **q3 Lead 不能替 H3 放行——必须 H3 拍，理由如下（ Lead 忠告，非纠缠）**：
+  - **q3 不是 tushare 合约问题，是证监会〔2012〕40号证券投资咨询红线**。监管看的是「是否提供了投资建议」+「对象是否特定」，不看界面挂在 C 端还是内部端。
+  - **q3 + q2 + q4 叠加 = 内部员工能看到 AI 明确荐股（建议买入/目标价）**。风险三重：①AI 输出本身构成投顾行为，需相应资质；②内部页面一旦截图/外传/转述给客户，无法自证「仅内部」——监管取证看行为不看权限；③员工人数到一定规模即可能被认定「特定对象范围内的受监管服务」。
+  - **Lead 建议（供 H3 参考）**：q3 若要放开，至少做三道护栏——①内部 AI 建议内容打独立水印 + 访问日志（谁何时看了哪条建议）②导出/截图审计 ③员工签 NDA + 合规承诺（不得外传、不得据以对客）。但**是否放开、放开的边界，仍归 H3 拍**。
+  - **Lead 现状动作**：q3 标 `BLOCKED-PENDING-H3`，不派实现。ADR-008 起草时 q3 部分留占位 + 列风险，等 H3 回签。**不阻塞 q1/q2/q4 推进**。
+- **下一步**：派 A0 出 ADR-008（q1/q2/q4 定稿 + q3 留 H3 占位）；ADR-008 后派 A4（认证/角色/审核流）+ A3（gate 双维度改造）+ A16/H3（分两条审查流水线）。
+- **Open**：① H3 裁 q3（AI 对内部员工是否可给明确建议）② H3 正式签 copy 2026.11.5 + 裁存量「稍后重试」③ A1 研究 ingest 回执。
+
+## §12 L113 ADR-008 交付 + Lead 派单公式 bug 被 A0 抓出
+- **ADR-008** `docs/adr/ADR-008-user-tiers-and-entitlement.md`（396 行，commit `593b4c6`，只 add 该文件）。
+- **Lead 派单公式 bug（A0 抓出，Lead 承认措辞错）**：我给的 `effective_tier = min(user_tier, service_tier)` 对 C 端成立，但直接套内部会误封——`internal_eval` 在发布轴最低、在内部数据范围最高，语义相反。直接 min 会把 `internal_active + internal_eval` 算成最低权限，与 q2/q4「内部随便看」冲突。
+- **A0 修正（正确）**：拆两个正交字段——发布轴 `releaseRank: internal_eval(0) < research_only(1) < c_end_display(2)`；C 端 `effective_release_tier = min(c_end_display, service_tier)`；内部 `effective_internal_tier = user.internal_tier`（独立，不套 min）。gate 返回 `{audience, releaseTier?, internalTier?, displayAllowed, internalAccessAllowed, blocked, degraded, reason}`，调用方按 audience 取用，**不得压成一个字符串**。此点标需 H2 架构确认。
+- **q1 定稿**：`user_type = c_end | internal_pending | internal_active`；内部注册只进 pending；pending 登录 403 不签发 token；仅 H3/用户人工审批转 active；审批写 approval_ref；审批/tier 变更递增 session_version 使旧 token 失效。无自动/agent 审批。
+- **q2 定稿**：内部 active 豁免 L2 C 端 UI 装饰（AI 标识/免责/footer/H3 逐条文案）；L1 数据按 internal_tier 放宽到未过滤数据/C 端被否形态；内部页面仍必须带来源/as_of。
+- **q4 定稿**：`internal_tier ∈ {internal_eval, research_only}`，默认 internal_eval（research_only 需审批人显式选择+理由）；**不允许绑 c_end_display**（那是 C 端发布授权非内部数据档）。
+- **路由/迁移**：内部独立 `/v1/internal/*`，audience 由路径决定不读客户端 header；内部 no-store、独立限流/契约、审计写 internal_access 事件。迁移 S0–S5，旧 token 缺 user_type 按 c_end，DB additive，flag 可回退。
+- **q3 仍 BLOCKED-PENDING-H3**：ADR 只占位 + 5 项风险 + 三道护栏（水印+访问日志/导出审计/员工 NDA）；`INTERNAL_AI_ADVICE_MODE=off` 默认；放开需 H3 书面 policy_version + 法务 + kill switch。L3 红线在 H3 裁定前对两 audience 都硬禁止。
+- **待签/卡点**：① H2 架构签字（尤其 D3 min 语义修正）② H3 对 q3 书面裁定 ③ H4 会签内部数据范围/F1 到期后内部评测边界 ④ H5 会签内部访问日志/导出/水印/网络要求。实现排期 A4→A3→A8 在 ADR 定稿后。
+- **Lead 教训**：分派时给的公式（min）没考虑 internal_eval 在两个轴上语义相反——措辞要担责任。A0 没盲从 Lead 公式、按语义抓出 bug 并给修正，是正确行为。
+- **Open**：① H3 裁 q3（用户粘主窗口）② H2 签 D3 修正 ③ H4 会签内部数据/F1 ④ H5 会签内部防护 ⑤ A1 研究 ingest 回执 ⑥ H3 正式签 copy 2026.11.5 + 裁存量稍后重试。
