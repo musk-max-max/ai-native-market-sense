@@ -1,0 +1,91 @@
+# A19 independent HOST-EXPOSURE-01 verification (H5 m01387 / A13 m01355)
+# host=47.120.16.239 heyuan
+# local_utc_start=2026-11-05T01:43:33Z
+# note: temp expected override adds 9999 to EXPECTED_PUBLIC_PORTS ONLY for this audit; installed expected untouched
+2026-11-05T01:43:34Z
+--- installed sha ---
+119277ab56306208a9f8a00e991e7106d8f33467cb6b0c7a1a3deca558984ccb  /usr/local/sbin/market-sense-host-baseline-audit.sh
+5da1bc8c213ff9331630582073ac508c149d04d48f43051a20a41d15a12023ba  /etc/market-sense/host-baseline.expected.env
+--- create (not started) ---
+38d7303b43c868e804e12cd4545a8d565629122afc546460ee165f6b52b7ff9a
+create_rc=0
+--- run (ephemeral, SG-unreleased 9999) ---
+b92f5314ba989abf0e19e51922bd62407d2f3d7d1a96f762f8758d29ff07827e
+run_rc=0
+--- inspect before audit ---
+name=/a19-hx-verify status=created restart=no binds={"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"8888"}]}
+name=/a19-hx-verify-run status=running restart=no binds={"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"9999"}]}
+--- ss before audit (9999) ---
+LISTEN 0      4096         0.0.0.0:9999       0.0.0.0:*    users:(("docker-proxy",pid=162187,fd=8))    
+--- temp expected override ---
+temp_sha=6be492f25d8f99bc053036d14b1adac813e38705f1674158f97a7e3bfce7ece9
+9:EXPECTED_PUBLIC_PORTS="80 8888 9999"
+--- audit (AUTO_ISOLATE=1) ---
+# host-baseline audit (read-only)
+# time_utc=2026-11-05T01:43:36Z host=heyuan
+# expected=/tmp/a19-host-baseline.expected.verify.env
+
+FAIL  出现非基线通配监听: 0.0.0.0:9999
+FAIL  容器 a19-hx-verify-run 存在通配(0.0.0.0/::)端口绑定 (status=running restart=no): {"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"9999"}]}
+WARN  e2e 栈容器 a19-hx-verify-run restart=no（允许，仅限 e2e/临时）
+FAIL  容器 a19-hx-verify 存在通配(0.0.0.0/::)端口绑定 (status=created restart=no): {"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"8888"}]}
+WARN  e2e 栈容器 market-sense-e2e-api-1 restart=no（允许，仅限 e2e/临时）
+WARN  e2e 栈容器 market-sense-e2e-web-1 restart=no（允许，仅限 e2e/临时）
+WARN  e2e 栈容器 market-sense-e2e-postgres-1 restart=no（允许，仅限 e2e/临时）
+WARN  e2e 栈容器 market-sense-e2e-redis-1 restart=no（允许，仅限 e2e/临时）
+WARN  e2e 栈容器 market-sense-e2e-tushare-replay-1 restart=no（允许，仅限 e2e/临时）
+FAIL  HOST-EXPOSURE-01 容器 a19-hx-verify-run 在公网端口 9999 上发布 0.0.0.0/:: 绑定（status=running）
+ALERT HOST-EXPOSURE-01 container=a19-hx-verify-run port=9999 severity=critical
+SUGGEST docker stop a19-hx-verify-run && docker update --restart=no a19-hx-verify-run
+ISOLATED container=a19-hx-verify-run action='docker stop && update --restart=no' status_before=running
+FAIL  HOST-EXPOSURE-01 容器 a19-hx-verify 在公网端口 8888 上发布 0.0.0.0/:: 绑定（status=created）
+ALERT HOST-EXPOSURE-01 container=a19-hx-verify port=8888 severity=critical
+SUGGEST docker stop a19-hx-verify && docker update --restart=no a19-hx-verify
+ISOLATE-SKIP container=a19-hx-verify reason=not_running(status=created); restart_policy_only
+ISOLATED-POLICY container=a19-hx-verify restart=no (no running process)
+FAIL  HOST-EXPOSURE-01 公网端口 9999 存在通配监听 0.0.0.0:9999（非 loopback）
+ALERT HOST-EXPOSURE-01 listen=0.0.0.0:9999 port=9999 severity=critical
+ISOLATE-SKIP listen=0.0.0.0:9999 reason=not_attributable_to_container(manual)
+WARN  HOST-EXPOSURE-01 未配置 EXPECTED_PUBLIC_HOST，公网未认证可达性=UNVERIFIED（不计 PASS）
+PASS  ufw 允许列表与基线一致
+FAIL  22/tcp 来源为 Anywhere（未白名单；待用户 CIDR，期望: <未配置>）
+FAIL  22/tcp 来源为 Anywhere（未白名单；待用户 CIDR，期望: <未配置>）
+PASS  fail2ban active
+PASS  fail2ban sshd jail 存在
+PASS  sshd permitrootlogin=without-password
+PASS  sshd passwordauthentication=no
+PASS  sshd maxauthtries=3
+PASS  market-sense-e2e-api-1 ENTITLEMENT_AUDIT=1
+PASS  market-sense-e2e-api-1 ENTITLEMENT_HOLD_CHECK=1
+PASS  market-sense-e2e-web-1 非行情 API 容器（仅 APP_PROFILE），跳过 hold/audit 断言
+
+RESULT DRIFT 存在基线漂移
+audit_rc=1
+--- inspect after audit (expect created / exited+restart=no) ---
+name=/a19-hx-verify status=created restart=no running=false
+name=/a19-hx-verify-run status=exited restart=no running=false
+--- ss after audit (9999 expect none) ---
+none
+--- cleanup ---
+a19-hx-verify
+a19-hx-verify-run
+rm_rc=0
+--- post-cleanup docker ps -a (a19) ---
+post_ps_done
+--- post-cleanup standard audit (grep a19/HOST-EXPOSURE container lines) ---
+no a19 container lines
+post_audit_done
+--- post-cleanup ss 8888/9999 ---
+none
+2026-11-05T01:43:48Z
+# local_utc_end=2026-11-05T01:43:48Z
+
+## 结论（A19 检测复核，供 H5 终签；不签门禁）
+- 注入：① `docker create --name a19-hx-verify -p 0.0.0.0:8888:80 market-sense-e2e-web:latest true`（未启动，无监听）；② `docker run -d --name a19-hx-verify-run -p 0.0.0.0:9999:80 ...`（临时运行于 SG 未放行端口 9999）。
+- 检出：① created 容器命中 `FAIL 容器 ... 通配端口绑定 (status=created)` + `FAIL HOST-EXPOSURE-01 ... port=8888` + `ALERT ... severity=critical` + `SUGGEST`；② running 容器命中 `FAIL 出现非基线通配监听: 0.0.0.0:9999` + `FAIL 容器 ... (status=running)` + `FAIL HOST-EXPOSURE-01 ... port=9999` + `ALERT` + `SUGGEST`。
+- 处置：① created → `ISOLATE-SKIP reason=not_running(status=created); restart_policy_only` + `ISOLATED-POLICY restart=no`；② running → `ISOLATED container=a19-hx-verify-run action='docker stop && update --restart=no' status_before=running`，审计后 `status=exited restart=no running=false`；9999 监听消失。
+- 清理：`docker rm -f a19-hx-verify a19-hx-verify-run` 成功；`docker ps -a` 无 a19 容器；清理后标准 expected 再跑巡检无任何 a19 容器行；`ss` 无 8888/9999 监听。
+- 说明：自动隔离按 H5 L105 窄口径，仅对 `HostPort ∈ EXPECTED_PUBLIC_PORTS` 生效；9999 不在安装态 expected（"80 8888"）中，故本次 running 隔离验证用临时 expected 覆盖（`EXPECTED_PUBLIC_PORTS="80 8888 9999"`，`/tmp/a19-host-baseline.expected.verify.env`，sha256 `6be492f2…`，用后即删），**安装态 `/etc/market-sense/host-baseline.expected.env` 未改**。标准 expected 下 running 于 9999 只 ALERT 不隔离（窄口径预期行为）。
+- 既有残差（与本次注入无关）：`22/tcp Anywhere` FAIL、`EXPECTED_PUBLIC_HOST` 未配 UNVERIFIED、`RESULT DRIFT`——属 L91/⑤ 既有 residual，本次未改 SG/ufw/sshd。
+- 时间：UTC 2026-11-05T01:43:34Z 注入；01:43:36Z 巡检；01:43:48Z 清理完成。脚本 sha256 `119277ab…`、expected sha256 `5da1bc8c…`（与 A13 m01355 一致）。
+- 结论：检出、告警、处置、无残留四要素成立，可并入 H5 终签材料。

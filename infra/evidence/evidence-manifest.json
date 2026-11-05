@@ -459,6 +459,21 @@
         "HOST-EXPOSURE-01"
       ],
       "notes": "自动隔离路径验收：非公网端口 9999（SG 未放行）上 running 容器 0.0.0.0 绑定 → 检出 + ISOLATED（docker stop + update --restart=no，status=exited/restart=no），随后清理容器。 部署绑定：script sha256=119277ab56306208a9f8a00e991e7106d8f33467cb6b0c7a1a3deca558984ccb、expected sha256=5da1bc8c213ff9331630582073ac508c149d04d48f43051a20a41d15a12023ba（仓库与 ECS 实算一致；44608e4c… 为打补丁前旧版，只在过程消息里出现过，非登记 artifact）。"
+    },
+    {
+      "path": "infra/evidence/host-exposure-01-a19-verify-20261105T014333Z.txt",
+      "sha256": "9ece8b1bc8d46a012f690dbedfe9acba9eea61ad523b33df48cfbd8bae2fd9ac",
+      "bytes": 6792,
+      "recompute": "sha256sum infra/evidence/host-exposure-01-a19-verify-20261105T014333Z.txt",
+      "role": "host-exposure-01-a19-independent-verify",
+      "authority": "authoritative",
+      "phase": "post-fix",
+      "case_ids": [
+        "HOST-EXPOSURE-01"
+      ],
+      "owner": "A13",
+      "amended_by": "a19-red-team",
+      "notes": "A19 独立注入复核（非复用 A13 自测）：create 8888(未启动) + running 9999；AUTO_ISOLATE=1 巡检 → created ISOLATED-POLICY restart=no、running ISOLATED status=exited/restart=no；01:43:48Z 清理，docker ps -a 无残留、无 8888/9999 监听；deployed script/expected sha 与登记一致。口径：9999 为临时 expected 覆盖（temp sha 6be492f2…，用后即删；安装态 EXPECTED_PUBLIC_PORTS=\"80 8888\" 未改）——标准 expected 下 9999 只 ALERT 不隔离，符合 H5 L105 窄口径预期。"
     }
   ],
   "related_manifests": [
@@ -470,6 +485,6 @@
     }
   ],
   "amended_by": "a13-sre",
-  "amended_at": "2026-11-05T01:46:00Z",
-  "amend_note": "HOST-EXPOSURE-01 证据部署绑定 sha 更正（script 119277ab… / expected 5da1bc8c…）"
+  "amended_at": "2026-11-05T01:45:00Z",
+  "amend_note": "HOST-EXPOSURE-01 A19 独立注入复核证据入 manifest（待 H5 去 conditional）"
 }
