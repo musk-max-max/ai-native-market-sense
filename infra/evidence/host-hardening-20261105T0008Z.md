@@ -17,8 +17,10 @@
 
 - 审计时（23:58:16Z）容器 `ms-nginx` 为 `exited/restart=no`，但 `PortBindings={"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"80"}]}`（A19 R1）。
 - 23:58:17Z（北京时间 07:58:17）容器被移除；同一分钟内 `/opt/ms-nginx/htpasswd` 被归档为 `htpasswd.archived-20261104T235817Z`（0600，51B）。A13 在 23:58:56Z 复核时容器已不存在，`/opt/ms-nginx` 权限 700/文件 600。
-- **归因状态：UNATTRIBUTED（待 Lead 认领）**。A13 可查范围：`/opt/ms-nginx` 归档 mtime=`2026-11-05 07:58:17 +0800`；ECS `last`/`journalctl _COMM=sshd`/`/root/.bash_history`（mtime 2026-06-10）均无该时段命令记录；`docker events` 无历史（daemon 未持久化）。A13 自身首个只读审计为 23:57:4xZ、移除前容器仍在；A13 未执行该移除。按 H5 m03558 要求**不得写「另一执行者」**，此项在 Lead 认领前保持 UNATTRIBUTED，不影响「当前无 ms-nginx/无 0.0.0.0:80 绑定」的事实。
-- A13 归档补充：`/root/a13-archive/ms-nginx-20261105T0002Z/`（inspect.json、nginx.conf、docker.log；`SHA256SUMS`：inspect `d213eadc…`、nginx.conf `caa0ac56…`、docker.log `0115fa2c…`）。未重启、未 `docker start`。
+- **归因：Lead（lead）执行**（Lead m03590 认领），执行时间 `2026-11-05 07:58:17 +08`（= `2026-11-04T23:58:17Z`），SSH 会话 `root@47.120.16.239`。命令原文：①取证 `docker inspect ms-nginx --format "image=... status=... restart=... binds=..." > /tmp/ms-nginx-removed-$(date -u +%Y%m%dT%H%M%SZ).txt` + `docker logs ms-nginx --tail 20 >> 同文件`；②`docker rm ms-nginx`；③`mv /opt/ms-nginx/htpasswd /opt/ms-nginx/htpasswd.archived-$(date -u +%Y%m%dT%H%M%SZ)` + `chmod 600 ...`。授权依据 H5 P2 处置指令 A 档第 2 条（Lead 写域，L99 已记）。
+- **移除前取证（Lead）**：`/tmp/ms-nginx-removed-20261104T235817Z.txt`（2231B，sha256 `dd5cd4baaa764fde58055058278b65fd542b009b46e9cf72b2c4f11157494957`），含 `image=sha256:65645c7b… status=exited restart=no binds=map[80/tcp:[{0.0.0.0 80}]]` + 日志尾部；**这是本项唯一可复算的移除前状态证据**。
+- A13 归档补充：`/root/a13-archive/ms-nginx-20261105T0002Z/`（`nginx.conf` `caa0ac56…`、`PROVENANCE.txt` `de062627…`、`SHA256SUMS.new`；inspect.json/docker.log 在 00:02Z 采集时容器已删，内容分别为 `error: no such object`/`No such container`，**不是状态证据**；`SHA256SUMS` 旧文件误含自身空哈希，以 `SHA256SUMS.new` 为准）。未重启、未 `docker start`。
+- htpasswd 归档：`/opt/ms-nginx/htpasswd.archived-20261104T235817Z`（0600，51B，sha256 `9b0dfe9c38e8e0f9309335f63aa87c6d15c6d3da68f810e041772e1f7adb70e6`）。
 - 复核：`docker ps -a` 无 `ms-nginx`；`ss -ltnp` 无 80 监听。
 
 ## 3. ufw（H5 m03440 第 3 项）— PASS（白名单待用户）
