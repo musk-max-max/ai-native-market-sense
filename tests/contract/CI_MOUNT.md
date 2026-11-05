@@ -233,6 +233,11 @@ C01 门禁（L81/L83，2026-11-04 14:12 转绿）：`tests/contract/test_c01_sou
 `SSE:600519`** 消除——未启用 L83 的 `services/*/test/**` 豁免（H4 m03103：不默认豁免；若确需豁免，只许
 file-level 窄豁免且 H2 签，不给目录级）。扫描强度与全量数字不变。
 
+2026-11-05 再次红→绿（KD-RES-FIX 后续）：A1 `services/ingest/config/ingest.yaml:72` 注释含 `ts_code` 字面量；
+按「测试挂了先判归属」判为实现侧文档用词问题（未改扫描条件、未加豁免），A1 在 commit `97c8f3e` 改为
+「上游只读接口要求原始代码字段必填」。`pytest tests/contract/test_c01_source_format.py` = 3 passed；
+当日在 `97c8f3e` 上 `pytest tests/contract tests/data` = **193 passed / 2 warnings**。
+
 ### 7.11 证据包防竞态门禁（H4 m03197 / H5 m03202）
 
 规则：**证据包必须可追溯到单一 commit，打包后不得再以工作树为准。**
