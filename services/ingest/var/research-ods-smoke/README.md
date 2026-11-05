@@ -7,7 +7,7 @@
 
 - 日频：daily_basic、index_daily、top_list、top_inst、moneyflow、margin、hk_hold、stk_limit
 - 逐标的：fina_indicator（`dt=2023-12-31`，按报告期分区）
-- 快照：index_classify（L1/L2/L3 三层，`dt=2026-11-04`）、index_member_all（`is_new=Y`）
+- 快照：index_classify（L1/L2/L3 三层，`dt=2026-11-04`）、index_member_all（`is_new=Y`+`N` 全量）
 
 重生成（确定性时钟，录播夹具，不联网）：
 

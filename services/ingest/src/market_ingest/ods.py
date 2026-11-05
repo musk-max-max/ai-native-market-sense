@@ -212,12 +212,17 @@ def fundamental_rows(records: Sequence[FundamentalRecord]) -> list[dict[str, Any
 
 
 def partition_date_for(endpoint: str, rows: Sequence[Mapping[str, Any]], fallback: date) -> date:
-    """研究批次的分区日：财务按报告期，其余按行内交易日/回退调用日。"""
+    """研究批次的分区日：财务按报告期，快照按拉取日，其余按行内交易日/回退调用日。"""
     if endpoint == "fina_indicator":
         values = [str(row.get("report_end_date")) for row in rows if row.get("report_end_date")]
         if values:
             return max(date.fromisoformat(value) for value in values)
         return fallback
+    snapshot_dates = [
+        str(row.get("snapshot_date")) for row in rows if row.get("snapshot_date")
+    ]
+    if snapshot_dates:  # H4 m02718：快照 append-only，主键含 snapshot_date（拉取日）
+        return max(date.fromisoformat(value) for value in snapshot_dates)
     dates = [str(row.get("trade_date")) for row in rows if row.get("trade_date")]
     if dates:
         return min(date.fromisoformat(value) for value in dates)
@@ -239,8 +244,10 @@ def research_rows(rows: Sequence[Mapping[str, Any]], *, endpoint: str) -> list[d
     elif endpoint == "fina_indicator":
         required = ("instrument_id", "report_end_date", "report_period")
     elif endpoint == "index_classify":
-        required = ("index_code",)
-    else:  # index_member_all
+        required = ("index_code", "snapshot_date")
+    elif endpoint == "index_member_all":
+        required = ("instrument_id", "snapshot_date")
+    else:
         required = ("instrument_id",)
     out: list[dict[str, Any]] = []
     for index, row in enumerate(rows):
@@ -258,9 +265,20 @@ def research_rows(rows: Sequence[Mapping[str, Any]], *, endpoint: str) -> list[d
     elif endpoint == "fina_indicator":
         out.sort(key=lambda row: (str(row["instrument_id"]), str(row["report_end_date"])))
     elif endpoint == "index_classify":
-        out.sort(key=lambda row: str(row["index_code"]))
+        out.sort(
+            key=lambda row: (
+                str(row["snapshot_date"]),
+                str(row["index_code"]),
+            )
+        )
     else:
-        out.sort(key=lambda row: (str(row["instrument_id"]), str(row.get("l3_code") or "")))
+        out.sort(
+            key=lambda row: (
+                str(row["snapshot_date"]),
+                str(row["instrument_id"]),
+                str(row.get("l3_code") or ""),
+            )
+        )
     return out
 
 

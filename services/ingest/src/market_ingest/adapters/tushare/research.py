@@ -20,7 +20,8 @@ index_daily doc_id=95（2000 分，``ts_code`` 必填，不可按日拉全市场
 fina_indicator doc_id=79（2000 分，**只能按单只股票**取历史）、
 stk_limit doc_id=183（2000 分，按 trade_date 全市场）、
 index_classify doc_id=181（2000 分，申万行业分类树，snapshot）、
-index_member_all doc_id=335（2000 分，申万三级成分，snapshot；首轮只拉 is_new=Y）。
+index_member_all doc_id=335（2000 分，申万三级成分，snapshot；拉全量含 is_new=N，
+历史进出成分保留 in_date/out_date，避免幸存者偏差）。
 
 接入模式（``ResearchDataset.mode``）：
 - ``daily``：按 trade_date 逐日全市场拉取；
@@ -303,7 +304,7 @@ _DATASET_META: dict[str, tuple[str, int, int, bool, str]] = {
         335,
         2000,
         False,
-        "申万三级成分（时点成分；首轮 is_new=Y 快照，历史回补后续 budget 控制）",
+        "申万三级成分（时点成分；Y/N 两次调用拉全量含历史退出，保留 in_date/out_date）",
     ),
 }
 
@@ -321,7 +322,9 @@ _DATASET_BATCH_PARAMS: dict[str, tuple[Mapping[str, str], ...]] = {
         {"level": "L2", "src": "SW2021"},
         {"level": "L3", "src": "SW2021"},
     ),
-    "index_member_all": ({"is_new": "Y"},),
+    # 全量 = 当前成分 + 历史退出成分（H4 m02718：只拉 is_new=Y 会引入幸存者偏差）。
+    # 若源对 N 无数据，sync 侧会把该数据集标记为 current_snapshot_only 并落 coverage 元数据。
+    "index_member_all": ({"is_new": "Y"}, {"is_new": "N"}),
 }
 
 #: dataset 名 → 定义（下游只按 name 取；源细节封闭在此）。
@@ -369,6 +372,27 @@ _FACTORS: dict[str, Decimal] = {
 
 _EXCHANGE_MARGIN = {"SSE": "SSE", "SZSE": "SZSE", "BSE": "BSE"}
 _EXCHANGE_HK = {"SH": "SH", "SZ": "SZ", "HK": "HK"}
+
+#: ``stk_limit`` 涨跌幅档位（H4 m02718）：只用交易所公布的限价/前收比值分档，
+#: 不重算限价、不改精度、不从证券简称/``asset_type`` 推 ST（M04 已否过按今天的名字
+#: 定历史 ST）。容差 ±0.3pp 吸收交易所四舍五入。
+LIMIT_PCT_BUCKETS: tuple[Decimal, ...] = (
+    Decimal("5"),
+    Decimal("10"),
+    Decimal("20"),
+    Decimal("30"),
+)
+LIMIT_PCT_TOLERANCE = Decimal("0.3")
+LIMIT_PCT_SOURCE = "exchange_price_ratio"
+LIMIT_PCT_FIELDS: tuple[str, ...] = ("limit_pct", "limit_pct_source")
+
+#: snapshot 数据集的主键/审计字段：主键含 ``snapshot_date``（拉取日），
+#: 快照 append-only，不原地 UPDATE，历史快照不可回补（H4 m02718）。
+SNAPSHOT_DATE_FIELD = "snapshot_date"
+SNAPSHOT_DATASETS: frozenset[str] = frozenset({"index_classify", "index_member_all"})
+
+#: 历史成分标记值（源 ``is_new``：Y=当前成分、N=历史退出成分）。
+_HISTORICAL_IS_NEW = frozenset({"N", "0", "否", "FALSE", "False", "false"})
 
 #: 港股通（南向）标的命名空间：仅 ``hk_hold`` 研究域使用。
 #: 源返回 ``00700.HK``；P0 canonical pattern（SSE/SZSE/BSE:6 位）不变，
@@ -533,7 +557,84 @@ def map_row(dataset: str, row: Mapping[str, Any]) -> dict[str, Any]:
                 raise ResearchRowError(str(exc)) from exc
         else:
             result[column.canonical] = _convert(column, raw, dataset)
+    _apply_derived(dataset, result)
     return result
+
+
+def _optional_decimal(value: Any, *, field: str) -> Decimal | None:
+    """canonical 字符串 → Decimal；缺失返回 None，非法抛 ResearchRowError。"""
+    if value in (None, ""):
+        return None
+    try:
+        return Decimal(str(value))
+    except (InvalidOperation, ValueError) as exc:
+        raise ResearchRowError(f"invalid number for {field!r}: {value!r}") from exc
+
+
+def _apply_derived(dataset: str, result: dict[str, Any]) -> None:
+    """按 H4 口径补派生字段（不覆盖任何源值）。"""
+    if dataset == "stk_limit":
+        _derive_limit_pct(result)
+    if dataset in SNAPSHOT_DATASETS:
+        # 实际值由适配层在抓取时点注入；这里先占位，保证列顺序/键集稳定。
+        result.setdefault(SNAPSHOT_DATE_FIELD, None)
+
+
+def _derive_limit_pct(result: dict[str, Any]) -> None:
+    """``up_limit / previous_close`` 比值分档（H4 m02718）。
+
+    - 只用于分档，**不改** ``up_limit``/``down_limit`` 原值与精度；
+    - ST 由分档识别（5%），不读证券简称/``asset_type``；
+    - 除权日 ``pre_close`` 是除权调整值，与日线前收不可直接对账（仅本行比值自洽）；
+    - 比值不落在任何档位（±容差）→ ``limit_pct=None``，不猜。
+    """
+    up_limit = _optional_decimal(result.get("up_limit"), field="up_limit")
+    previous_close = _optional_decimal(result.get("previous_close"), field="previous_close")
+    if up_limit is None or previous_close is None or previous_close <= 0:
+        result["limit_pct"] = None
+        result["limit_pct_source"] = None
+        return
+    ratio_pct = (up_limit / previous_close - Decimal(1)) * Decimal(100)
+    matched: Decimal | None = None
+    for bucket in LIMIT_PCT_BUCKETS:
+        if abs(ratio_pct - bucket) <= LIMIT_PCT_TOLERANCE:
+            matched = bucket
+            break
+    result["limit_pct"] = None if matched is None else format(matched, "f")
+    result["limit_pct_source"] = LIMIT_PCT_SOURCE if matched is not None else None
+
+
+def has_historical_members(rows: Sequence[Mapping[str, Any]]) -> bool:
+    """``index_member_all`` 是否拿到历史退出成分（``is_new=N``）。
+
+    为 False 时，该批只是当前快照（幸存者偏差），sync 会标记
+    ``current_snapshot_only`` 并让下游把该数据集排除出历史回测（H4 m02718）。
+    """
+    for row in rows:
+        value = str(row.get("is_new") or "").strip()
+        if value in _HISTORICAL_IS_NEW or value.upper() in {"N", "0", "FALSE"}:
+            return True
+    return False
+
+
+def dedupe_rows(dataset: str, rows: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
+    """``index_member_all`` 的 Y/N 两次调用可能重叠；按成分主键去重（保序）。"""
+    if dataset != "index_member_all":
+        return list(rows)
+    seen: set[tuple[str, ...]] = set()
+    out: list[dict[str, Any]] = []
+    for row in rows:
+        key = (
+            str(row.get("instrument_id") or ""),
+            str(row.get("l3_code") or ""),
+            str(row.get("in_date") or ""),
+            str(row.get("out_date") or ""),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(row)
+    return out
 
 
 def sort_key(dataset: str, row: Mapping[str, Any]) -> tuple[str, ...]:
@@ -543,9 +644,16 @@ def sort_key(dataset: str, row: Mapping[str, Any]) -> tuple[str, ...]:
         if spec.mode == "per_instrument":
             return (str(row.get("instrument_id") or ""), str(row.get("report_end_date") or ""))
         if dataset == "index_classify":
-            return (str(row.get("index_code") or ""),)
+            return (
+                str(row.get(SNAPSHOT_DATE_FIELD) or ""),
+                str(row.get("index_code") or ""),
+            )
         if dataset == "index_member_all":
-            return (str(row.get("instrument_id") or ""), str(row.get("l3_code") or ""))
+            return (
+                str(row.get("instrument_id") or ""),
+                str(row.get("l3_code") or ""),
+                str(row.get("in_date") or ""),
+            )
     return (
         str(row.get("trade_date") or ""),
         str(row.get("instrument_id") or row.get("exchange") or ""),
@@ -553,17 +661,30 @@ def sort_key(dataset: str, row: Mapping[str, Any]) -> tuple[str, ...]:
 
 
 def partition_date(dataset: str, rows: Sequence[Mapping[str, Any]], fallback: date) -> date:
-    """ODS 分区日：财务按报告期（最新一期），其它按调用日/交易日。"""
+    """ODS 分区日：财务按报告期（最新一期）；快照按拉取日；其它按调用日/交易日。"""
     if dataset == "fina_indicator":
         values = [str(row.get("report_end_date")) for row in rows if row.get("report_end_date")]
         if values:
             return max(date.fromisoformat(value) for value in values)
+    if dataset in SNAPSHOT_DATASETS:
+        snapshot_dates = [
+            str(row.get(SNAPSHOT_DATE_FIELD))
+            for row in rows
+            if row.get(SNAPSHOT_DATE_FIELD)
+        ]
+        if snapshot_dates:
+            return max(date.fromisoformat(value) for value in snapshot_dates)
     return fallback
 
 
 def canonical_fields(dataset: str) -> tuple[str, ...]:
     """该数据集的 canonical 列顺序（供文档/测试断言）。"""
-    return tuple(column.canonical for column in RESEARCH_DATASETS[dataset].columns)
+    fields = [column.canonical for column in RESEARCH_DATASETS[dataset].columns]
+    if dataset == "stk_limit":
+        fields.extend(LIMIT_PCT_FIELDS)
+    if dataset in SNAPSHOT_DATASETS:
+        fields.append(SNAPSHOT_DATE_FIELD)
+    return tuple(fields)
 
 
 def research_datasets() -> tuple[str, ...]:
@@ -573,10 +694,18 @@ def research_datasets() -> tuple[str, ...]:
 __all__ = [
     "ColumnSpec",
     "DEFAULT_RESEARCH_DATASETS",
+    "LIMIT_PCT_BUCKETS",
+    "LIMIT_PCT_FIELDS",
+    "LIMIT_PCT_SOURCE",
+    "LIMIT_PCT_TOLERANCE",
     "RESEARCH_DATASETS",
     "ResearchDataset",
     "ResearchRowError",
+    "SNAPSHOT_DATASETS",
+    "SNAPSHOT_DATE_FIELD",
     "canonical_fields",
+    "dedupe_rows",
+    "has_historical_members",
     "hk_source_code",
     "partition_date",
     "instrument_id_for",

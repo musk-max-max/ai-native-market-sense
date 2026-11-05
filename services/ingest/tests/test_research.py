@@ -604,6 +604,36 @@ def test_map_stk_limit_uses_previous_close_and_exchange() -> None:
     assert canonical["down_limit"] == "9.0"
     assert canonical["exchange"] == "SSE"
     assert canonical["asset_type"] == "STK"
+    # H4 m02718：只用交易所限价/前收比值分档（10% 档），不重算限价、不看简称/asset_type。
+    assert canonical["limit_pct"] == "10"
+    assert canonical["limit_pct_source"] == "exchange_price_ratio"
+    assert set(canonical) == set(research.canonical_fields("stk_limit"))
+
+
+@pytest.mark.parametrize(
+    ("previous_close", "up_limit", "expected"),
+    [
+        ("10.0", "10.5", "5"),  # ST 档由比值识别，不靠名字/asset_type
+        ("10.0", "10.52", "5"),  # ±0.3pp 容差吸收交易所四舍五入
+        ("10.0", "11.0", "10"),
+        ("10.0", "12.0", "20"),
+        ("10.0", "13.0", "30"),
+        ("10.0", "11.2", None),  # 不落任何档位 → 不猜
+    ],
+)
+def test_stk_limit_limit_pct_buckets(previous_close: str, up_limit: str, expected: str | None) -> None:
+    canonical = research.map_row(
+        "stk_limit",
+        stk_limit_source_row(pre_close=previous_close, up_limit=up_limit),
+    )
+    assert canonical["limit_pct"] == expected
+
+
+def test_stk_limit_limit_pct_missing_previous_close_is_null() -> None:
+    canonical = research.map_row("stk_limit", stk_limit_source_row(pre_close=""))
+    assert canonical["previous_close"] is None
+    assert canonical["limit_pct"] is None
+    assert canonical["limit_pct_source"] is None
 
 
 def test_map_index_classify_and_member_envelopes() -> None:
@@ -689,12 +719,15 @@ def test_fetch_research_snapshot_fans_out_batch_params() -> None:
             [{"index_code": "850531.SI", "industry_name": "铝", "level": "L3", "industry_code": "850531", "parent_code": "801051.SI"}],
         ),
     ]
-    adapter, guard, _ = _adapter(entries)
+    adapter, guard, clock = _adapter(entries)
     rows = adapter.fetch_research("index_classify")
     assert len(rows) == 3
     assert guard.run_calls == 3
     assert adapter.research_mode("index_classify") == "snapshot"
     assert [row["index_code"] for row in rows] == ["801050.SI", "801051.SI", "850531.SI"]
+    # H4 m02718：快照行主键含 snapshot_date（拉取日，可用 MARKET_NOW/clock 钉住）。
+    snapshot_date = clock.now.date().isoformat()
+    assert {row["snapshot_date"] for row in rows} == {snapshot_date}
 
 
 def test_fetch_research_bad_row_without_sink_refuses_silent_drop() -> None:
@@ -762,6 +795,67 @@ def test_sync_research_per_instrument_writes_one_batch_per_instrument(tmp_path: 
 
 
 def test_sync_research_snapshot_is_idempotent_per_day(tmp_path: Path) -> None:
+    member = {
+        "l1_code": "801050.SI",
+        "l1_name": "有色金属",
+        "l2_code": "801051.SI",
+        "l2_name": "工业金属",
+        "l3_code": "850531.SI",
+        "l3_name": "铝",
+        "ts_code": "600519.SH",
+        "name": "贵州茅台",
+        "in_date": "20200101",
+        "is_new": "Y",
+    }
+    entries = [
+        entry(
+            "index_member_all",
+            {"is_new": "Y", "offset": 0, "limit": 6000},
+            [member],
+        ),
+        entry(
+            "index_member_all",
+            {"is_new": "N", "offset": 0, "limit": 6000},
+            [],
+        ),
+    ]
+    adapter, guard, clock = _adapter(entries)
+    storage = SqliteStorage(":memory:")
+    ods_root = tmp_path / "ods"
+    first = sync_research(
+        adapter,
+        storage,
+        datasets=["index_member_all"],
+        start=DAY1,
+        end=DAY2,
+        ods_root=ods_root,
+        clock=clock,
+    )
+    assert first.status == "succeeded"
+    assert first.days_done == 1
+    assert first.rows_by_dataset == {"index_member_all": 1}
+    assert guard.run_calls == 2  # Y + N 两次调用拉全量
+    # 源无历史成分（N 返回空）→ 显式标记 current_snapshot_only，下游回测排除（H4 m02718）
+    assert first.current_snapshot_only == ("index_member_all",)
+    coverage = json.loads((ods_root / "_meta" / "research_coverage.json").read_text("utf-8"))
+    assert coverage["datasets"]["index_member_all"]["coverage"] == "current_snapshot_only"
+    snapshot_date = clock.now.date().isoformat()
+    assert coverage["datasets"]["index_member_all"]["snapshot_date"] == snapshot_date
+    second = sync_research(
+        adapter,
+        storage,
+        datasets=["index_member_all"],
+        start=DAY1,
+        end=DAY2,
+        ods_root=ods_root,
+        clock=clock,
+    )
+    assert second.status == "succeeded"
+    assert second.days_done == 0
+    assert guard.run_calls == 2  # 同日快照幂等，不再调用上游
+
+
+def test_sync_research_member_full_history_keeps_in_and_out_members(tmp_path: Path) -> None:
     entries = [
         entry(
             "index_member_all",
@@ -780,12 +874,31 @@ def test_sync_research_snapshot_is_idempotent_per_day(tmp_path: Path) -> None:
                     "is_new": "Y",
                 }
             ],
-        )
+        ),
+        entry(
+            "index_member_all",
+            {"is_new": "N", "offset": 0, "limit": 6000},
+            [
+                {
+                    "l1_code": "801050.SI",
+                    "l1_name": "有色金属",
+                    "l2_code": "801051.SI",
+                    "l2_name": "工业金属",
+                    "l3_code": "850531.SI",
+                    "l3_name": "铝",
+                    "ts_code": "000001.SZ",
+                    "name": "平安银行",
+                    "in_date": "20100101",
+                    "out_date": "20200101",
+                    "is_new": "N",
+                }
+            ],
+        ),
     ]
-    adapter, guard, clock = _adapter(entries)
+    adapter, _, clock = _adapter(entries)
     storage = SqliteStorage(":memory:")
     ods_root = tmp_path / "ods"
-    first = sync_research(
+    result = sync_research(
         adapter,
         storage,
         datasets=["index_member_all"],
@@ -794,22 +907,57 @@ def test_sync_research_snapshot_is_idempotent_per_day(tmp_path: Path) -> None:
         ods_root=ods_root,
         clock=clock,
     )
-    assert first.status == "succeeded"
-    assert first.days_done == 1
-    assert first.rows_by_dataset == {"index_member_all": 1}
-    assert guard.run_calls == 1
+    assert result.rows_by_dataset == {"index_member_all": 2}
+    assert result.current_snapshot_only == ()
+    coverage = json.loads((ods_root / "_meta" / "research_coverage.json").read_text("utf-8"))
+    assert coverage["datasets"]["index_member_all"]["coverage"] == "full_history"
+    batch_files = sorted((ods_root / "index_member_all").rglob("*.json"))
+    assert len(batch_files) == 1
+    rows = json.loads(batch_files[0].read_text("utf-8"))["rows"]
+    assert {row["is_new"] for row in rows} == {"Y", "N"}
+    assert {row["out_date"] for row in rows if row["is_new"] == "N"} == {"2020-01-01"}
+
+
+def test_sync_research_snapshot_appends_new_batch_on_later_day(tmp_path: Path) -> None:
+    """index_classify 快照 append-only：第二天再跑写新批次，不原地覆盖（H4 m02718）。"""
+    classify = [
+        entry(
+            "index_classify",
+            {"level": level, "src": "SW2021", "offset": 0, "limit": 6000},
+            [
+                {
+                    "index_code": f"80105{index}.SI",
+                    "industry_name": f"行业{index}",
+                    "level": level,
+                    "industry_code": f"80105{index}",
+                }
+            ],
+        )
+        for index, level in enumerate(("L1", "L2", "L3"), start=1)
+    ] * 2  # 两个拉取日各一份（ReplayTransport 严格消费，每次调用独立夹具）
+    adapter, _, clock = _adapter(classify)
+    storage = SqliteStorage(":memory:")
+    ods_root = tmp_path / "ods"
+    sync_research(
+        adapter, storage, datasets=["index_classify"], start=DAY1, end=DAY1,
+        ods_root=ods_root, clock=clock,
+    )
+    first_files = sorted((ods_root / "index_classify").rglob("*.json"))
+    assert len(first_files) == 1
+    first_payload = json.loads(first_files[0].read_text("utf-8"))
+    day1 = clock.now.date().isoformat()
+    assert {row["snapshot_date"] for row in first_payload["rows"]} == {day1}
+    clock.sleep(86400)  # 第二个拉取日
     second = sync_research(
-        adapter,
-        storage,
-        datasets=["index_member_all"],
-        start=DAY1,
-        end=DAY2,
-        ods_root=ods_root,
-        clock=clock,
+        adapter, storage, datasets=["index_classify"], start=DAY2, end=DAY2,
+        ods_root=ods_root, clock=clock,
     )
     assert second.status == "succeeded"
-    assert second.days_done == 0
-    assert guard.run_calls == 1  # 同日快照幂等，不再调用上游
+    files = sorted((ods_root / "index_classify").rglob("*.json"))
+    assert len(files) == 2  # append-only：旧快照保留，新快照新增批次
+    for path in files:
+        payload = json.loads(path.read_text("utf-8"))
+        assert payload["schema"] == "index_classify.v1"
 
 
 def test_estimate_research_plan_honours_dataset_modes() -> None:

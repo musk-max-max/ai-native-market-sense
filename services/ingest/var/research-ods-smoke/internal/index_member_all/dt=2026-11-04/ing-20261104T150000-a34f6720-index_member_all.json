@@ -1,5 +1,5 @@
 {
-  "batch_id": "ing-20261104T150000-fe060d17-index_member_all",
+  "batch_id": "ing-20261104T150000-a34f6720-index_member_all",
   "endpoint": "index_member_all",
   "rows": [
     {
@@ -13,11 +13,26 @@
       "l3_code": "SYNTHETIC",
       "l3_name": "SYNTHETIC",
       "name": "SYNTHETIC",
-      "out_date": "2021-01-01"
+      "out_date": "2021-01-01",
+      "snapshot_date": "2026-11-04"
+    },
+    {
+      "in_date": "2000-01-01",
+      "instrument_id": "SZSE:000001",
+      "is_new": "N",
+      "l1_code": "SYNTHETIC",
+      "l1_name": "SYNTHETIC",
+      "l2_code": "SYNTHETIC",
+      "l2_name": "SYNTHETIC",
+      "l3_code": "SYNTHETIC_OUT",
+      "l3_name": "SYNTHETIC_OUT",
+      "name": "SYNTHETIC_OUT",
+      "out_date": "2019-01-01",
+      "snapshot_date": "2026-11-04"
     }
   ],
   "rows_rejected": 0,
-  "rows_total": 1,
+  "rows_total": 2,
   "schema": "index_member_all.v1",
   "source": {
     "as_of": "2026-11-04T15:00:00+08:00",

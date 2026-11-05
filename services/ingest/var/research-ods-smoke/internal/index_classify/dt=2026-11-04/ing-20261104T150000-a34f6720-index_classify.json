@@ -1,5 +1,5 @@
 {
-  "batch_id": "ing-20261104T150000-fe060d17-index_classify",
+  "batch_id": "ing-20261104T150000-a34f6720-index_classify",
   "endpoint": "index_classify",
   "rows": [
     {
@@ -9,7 +9,8 @@
       "industry_name": "SYNTHETIC",
       "is_published": "SYNTHETIC",
       "level": "SYNTHETIC",
-      "parent_code": "SYNTHETIC"
+      "parent_code": "SYNTHETIC",
+      "snapshot_date": "2026-11-04"
     },
     {
       "classification_source": "SYNTHETIC",
@@ -18,7 +19,8 @@
       "industry_name": "SYNTHETIC",
       "is_published": "SYNTHETIC",
       "level": "SYNTHETIC",
-      "parent_code": "SYNTHETIC"
+      "parent_code": "SYNTHETIC",
+      "snapshot_date": "2026-11-04"
     },
     {
       "classification_source": "SYNTHETIC",
@@ -27,7 +29,8 @@
       "industry_name": "SYNTHETIC",
       "is_published": "SYNTHETIC",
       "level": "SYNTHETIC",
-      "parent_code": "SYNTHETIC"
+      "parent_code": "SYNTHETIC",
+      "snapshot_date": "2026-11-04"
     }
   ],
   "rows_rejected": 0,

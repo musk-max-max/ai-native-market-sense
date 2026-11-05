@@ -1038,6 +1038,8 @@ class ResearchSyncResult:
     started_at: datetime
     finished_at: datetime
     checkpoints: dict[str, str] = field(default_factory=dict)
+    #: 只有当前快照、缺历史进出成分的数据集（H4 m02718）：下游回测必须排除。
+    current_snapshot_only: tuple[str, ...] = ()
 
     def summary(self) -> dict[str, Any]:
         return {
@@ -1054,6 +1056,7 @@ class ResearchSyncResult:
             "started_at": self.started_at.isoformat(),
             "finished_at": self.finished_at.isoformat(),
             "checkpoints": dict(self.checkpoints),
+            "current_snapshot_only": list(self.current_snapshot_only),
         }
 
 
@@ -1112,6 +1115,7 @@ def sync_research(
     ods_batches = 0
     days_done = 0
     rejected_total = 0
+    coverage: dict[str, dict[str, Any]] = {}
 
     current: dict[str, str | None] = {"batch": None}
 
@@ -1194,6 +1198,9 @@ def sync_research(
                         )
                         break
                     _write(dataset, batch_id, rows, storage.count_rejected(batch_id) - rejected_before)
+                    meta = getattr(source, "last_research_meta", {}).get(dataset)
+                    if isinstance(meta, Mapping):
+                        coverage[dataset] = dict(meta)
                     storage.set_checkpoint(dataset, _SNAPSHOT_SCOPE, today, run_id, clock())
                     checkpoints[dataset] = today.isoformat()
                     days_done += 1
@@ -1326,6 +1333,9 @@ def sync_research(
     for name in requested:
         rejected_total += storage.count_rejected(f"{run_id}-{name}")
 
+    if ods_root is not None and coverage:
+        _write_research_coverage(Path(ods_root), run_id, coverage, clock())
+
     return ResearchSyncResult(
         run_id=run_id,
         datasets=requested,
@@ -1339,7 +1349,32 @@ def sync_research(
         started_at=started_at,
         finished_at=clock(),
         checkpoints=checkpoints,
+        current_snapshot_only=tuple(
+            name for name, meta in coverage.items() if meta.get("coverage") == "current_snapshot_only"
+        ),
     )
+
+
+def _write_research_coverage(
+    root: Path, run_id: str, coverage: Mapping[str, Mapping[str, Any]], now: datetime
+) -> Path:
+    """写 ``<ods_root>/_meta/research_coverage.json``（快照覆盖率审计，H4 m02718）。
+
+    该目录位于 endpoint 目录之外，A2 loader 按 ``<root>/<endpoint>/dt=*`` 读取时不会
+    把它当批次文件；下游可用它判断 ``index_member_all`` 是否只是当前快照（回测排除）。
+    """
+    directory = root / "_meta"
+    directory.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "run_id": run_id,
+        "generated_at": now.isoformat(),
+        "datasets": {name: dict(meta) for name, meta in coverage.items()},
+    }
+    target = directory / "research_coverage.json"
+    tmp = target.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
+    tmp.replace(target)
+    return target
 
 
 def _slug(instrument_id: str) -> str:

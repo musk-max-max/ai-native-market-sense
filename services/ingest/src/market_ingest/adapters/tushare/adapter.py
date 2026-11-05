@@ -111,6 +111,9 @@ class TushareAdapter:
         self._sleep = sleep
         self._capture_stack: list[_Capture] = []
         self._last_error: str | None = None
+        #: 最近一次 ``fetch_research`` 的批次级元数据（覆盖率等），供 sync 写审计元数据
+        #: 而不让业务层解析源字段（H4 m02718：index_member_all 需能标记 current_snapshot_only）。
+        self.last_research_meta: dict[str, dict[str, Any]] = {}
 
     # ---------- raw/DLQ 注入点（A12 fixture 机制与 sync 落库都走这里） ----------
 
@@ -515,6 +518,27 @@ class TushareAdapter:
                     dataset=dataset,
                     endpoint=spec.api_name,
                 )
+        if spec.mode == "snapshot":
+            # H4 m02718：快照 append-only，主键含 snapshot_date（=拉取日，由适配层时钟
+            # 决定、可被 MARKET_NOW 钉住），用于区分同日重复运行与历史快照。
+            snapshot_date = (trade_date or self._clock().date()).isoformat()
+            for canonical in rows:
+                canonical[research.SNAPSHOT_DATE_FIELD] = snapshot_date
+            rows = research.dedupe_rows(dataset, rows)
+        self.last_research_meta[dataset] = {
+            "mode": spec.mode,
+            "snapshot_date": (trade_date or self._clock().date()).isoformat()
+            if spec.mode == "snapshot"
+            else None,
+            "coverage": (
+                "full_history"
+                if research.has_historical_members(rows)
+                else "current_snapshot_only"
+            )
+            if dataset == "index_member_all"
+            else "full_history",
+            "provisional": spec.provisional,
+        }
         rows.sort(key=lambda canonical: research.sort_key(dataset, canonical))
         return rows
 

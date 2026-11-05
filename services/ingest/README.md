@@ -275,7 +275,7 @@ python -m market_ingest sync-bars --start 2026-10-28 --end 2026-11-03 \
 | `stk_limit` | `stk_limit`（doc 183） | 2000 | 按交易日 1 次（2007-01-04 起） | `stk_limit.v1` |
 | `fina_indicator` | `fina_indicator`（doc 79） | 2000 | **逐标的** × 区间 1 次（单次最多 100 行） | `fina_indicator.v1` |
 | `index_classify` | `index_classify`（doc 181） | 2000 | 快照 × L1/L2/L3 三次（SW2021） | `index_classify.v1` |
-| `index_member_all` | `index_member_all`（doc 335） | 2000 | 快照 × 1 次（首轮 `is_new=Y`） | `index_member_all.v1` |
+| `index_member_all` | `index_member_all`（doc 335） | 2000 | 快照 × 2 次（`is_new=Y` + `N`，拉全量含历史退出） | `index_member_all.v1` |
 
 ```bash
 # 预算（不联网）：datasets × 交易日 + index_daily 额外 × 指数数 + 日历 1 次
@@ -290,7 +290,8 @@ PYTHONPATH=src python3 -m market_ingest sync-research --start 2024-01-02 --end 2
 - **canonical 行**：`instrument_id`(`EXCH:CODE`) / `trade_date`(`YYYY-MM-DD`) / 金额一律
   **元**、量一律 **股**、比率**百分数**，全部十进制字符串；源侧 `万元 ×10000`、
   `千元 ×1000`、`手 ×100` 在适配层换算；缺失值 `null`，**禁止补 0**（C10）。
-  财务/涨跌停/ST 等「口径判定」不在本层。
+  来源数据里没有直接给出、但 H4 明确要求的研究辅助字段（如 `stk_limit.limit_pct`）
+  按「源值比值派生 + 记 `*_source`」处理；**不重算交易所价格、不从名称猜 ST**。
 - **默认数据集与指数**：`config/ingest.yaml` 的 `research.datasets` / `research.index_codes`
   （默认 5 个基准指数：`SSE:000001`、`SZSE:399001`、`SZSE:399006`、`SSE:000300`、`SSE:000905`）。
 - **checkpoint**：日频数据集记 `ingest_checkpoint(dataset, scope="market") = last_success_trade_date`；
@@ -314,8 +315,13 @@ PYTHONPATH=src python3 -m market_ingest sync-research --start 2024-01-02 --end 2
 ### 第 2 批（KD-INGEST-P2 / KD-INGEST-INDUSTRY）
 
 - **`stk_limit`**（B1-02 精确涨跌停依赖）：按交易日全市场拉原始字段，canonical 为
-  `instrument_id/trade_date/previous_close/up_limit/down_limit/asset_type/exchange`；
-  **ST 判定与精度口径不在本层**（等 H4 对齐，未加工、不推导）。
+  `instrument_id/trade_date/previous_close/up_limit/down_limit/asset_type/exchange`。
+  **不重算限价、不改精度**：`up_limit/down_limit` 按交易所原值入库（各家四舍五入规则不同，
+  重算必错）。**ST 不从证券简称推、也不靠 `asset_type` 猜**（M04：名字会变/会漏）：
+  用 `up_limit/previous_close` 比值分档（5/10/20/30，±0.3pp 容差）派生
+  `limit_pct`（档位）与 `limit_pct_source="exchange_price_ratio"`；比值不落任何档位 → `limit_pct=null`。
+  ⚠️ **除权日**交易所 `pre_close` 是除权调整后的值，**不能与日线前收盘直接对账**；
+  需要比较时用 `ex_rights` 标记（当前 ODS 不含，后续补）。
 - **`fina_indicator`**（财务指标，per-instrument 模式）：
   ```bash
   PYTHONPATH=src python3 -m market_ingest sync-research --start 2024-01-01 --end 2024-12-31 \
@@ -323,15 +329,27 @@ PYTHONPATH=src python3 -m market_ingest sync-research --start 2024-01-02 --end 2
   ```
   canonical 分区 `dt=report_end_date`（最新报告期）；`report_period`=`YYYYQn`；金额元、
   比率百分数、缺失 `null`；`announced_at` 由源公告日按 ISO 日期记录（无时点推断）。
-  字段清单由 `research.py` 的 `fina_indicator` 列定义集中维护，provisional 待 H4 对齐。
+  **时点口径（A2 下游必读）**：研究查询一律按 `announced_at`（公告日）做 as-of join，
+  **禁止按 `report_end_date` join**（前视偏差）；`announced_at=null` 的行不进 as-of join，
+  不补不猜。字段清单由 `research.py` 的 `fina_indicator` 列定义集中维护，provisional 待 H4 对齐。
+  「金额元/比率百分数」当前是假设，摘 provisional 前需真实样本（如 600519 2023 年报）核对。
 - **`index_classify`**（申万分类树，snapshot）：一次运行按 `SW2021` 拉 L1/L2/L3 三层，
-  canonical `index_code/industry_name/parent_code/level/industry_code/is_published/classification_source`；
-  分区 `dt=<运行日>`。
-- **`index_member_all`**（申万三级成分，snapshot）：首轮只拉最新（`is_new=Y`），canonical
-  `instrument_id/name/l1_code..l3_name/in_date/out_date/is_new`；`in_date/out_date` 保留原始
-  时点字段，**历史成分回补后续按 budget 单独跑**（当前接口不按日期切片）。
+  canonical `index_code/industry_name/parent_code/level/industry_code/is_published/classification_source/snapshot_date`；
+  分区 `dt=<运行日>`。**append-only 快照**（H4 m02718）：主键含 `snapshot_date`（拉取日），
+  每次运行写新批次、绝不原地 UPDATE；**首快照之前的分类时点不可回补**，回测在首快照前要显式排除，
+  不许用当前分类假装历史。
+- **`index_member_all`**（申万三级成分，snapshot）：**Y/N 两次调用拉全量（含历史退出成分）**，
+  canonical `instrument_id/name/l1_code..l3_name/in_date/out_date/is_new/snapshot_date`；
+  `in_date/out_date` 保留原始时点字段，回测 join 两头都卡（含历史退出，避免幸存者偏差）。
+  若源对 `is_new=N` 无数据，本次运行在 `<ods_root>/_meta/research_coverage.json` 记
+  `coverage="current_snapshot_only"`，`ResearchSyncResult.current_snapshot_only` 同时给出该列表；
+  **下游必须把这部分数据排除出历史回测**，不得当全量成分使用。
 - 单测：`tests/test_research.py` 覆盖 4 个数据集的字段映射/单位/形态分派/失败不造数/
-  快照幂等/逐标的 checkpoint；仓库根 `pytest services/ingest/tests` = 181 passed。
+  快照幂等/append-only/覆盖率标记/逐标的 checkpoint；仓库根 `pytest services/ingest/tests`
+  = 190 passed。
+- **provisional 不摘**（H4 m02718）：摘除需三条证据齐——① `fina_indicator` 单位样本证据
+  + H4 签字；② `stk_limit` 比值分档有已知 ST/创业板/北交所用例；③ index 两表快照/成分
+  时点断言测试。齐之前四表只进研究域（internal-only），不进 serving 对外、不进 display root。
 
 ## A12 e2e 注入点
 
@@ -357,7 +375,7 @@ manifest 声明合成、无未登记孤儿文件，并由脚本重算 path+sha25
 
 ```bash
 cd services/ingest
-PYTHONPATH=src /opt/anaconda3/bin/python3 -m pytest -q      # 171 tests
+PYTHONPATH=src /opt/anaconda3/bin/python3 -m pytest -q      # 190 tests
 PYTHONPATH=src /opt/anaconda3/bin/python3 -m mypy           # 23 files clean
 ```
 
