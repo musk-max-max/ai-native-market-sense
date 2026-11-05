@@ -325,12 +325,20 @@ PYTHONPATH=src python3 -m market_ingest sync-research --start 2024-01-02 --end 2
   低价股舍入边界（prev=1.35→up=1.49 归 10 档、0.45→0.50 归 10 档）由此正确落档。
   ⚠️ **除权日**交易所 `pre_close` 是除权调整后的值，**不能与日线前收盘直接对账**；
   需要比较时用 `ex_rights` 标记（当前 ODS 不含，后续补）。
-  **按交易所分取整**（H4 m03258 要求先给数据；诊断见
-  `tests/fixtures/tushare/real-sample-20261105/stk_limit_bj_rounding.json`）：
-  北交所 A 股（非 900xxx）涨停向下截断、跌停向上截断，真实样本 **354/354 行 × 3 日全中**；
-  900xxx.BJ 为 B 股（0.001 元报价单位、四舍五入），**41/41 × 3 日全中**；
-  SSE/SZSE 维持 0.01 元四舍五入。三类规则不同、不能统一 half-up，也不得放宽容差凑命中。
-  首日无涨跌幅（`up_limit=999999.999`）等仍自然落 `null`。
+  **按交易所 + 报价单位分取整**（H4 m03419；证据
+  `tests/fixtures/tushare/real-sample-20261105/stk_limit_rounding_rules.json`）：
+  - 北交所 A 股前缀 43/83/87/88/92：涨停向下截断、跌停向上截断，0.01 元；
+    三日窗口内**仅 92 前缀有样本**（354 行/日，**1062/1062 全中**）；
+    43/83/87/88 **无样本**（不写成"全中"），规则按 H4 签字全前缀启用。
+  - 沪市 B 股 `SSE:900xxx`：0.001 美元、四舍五入（样本 41 行/日，41/41）；
+    深市 B 股 `SZSE:200xxx`：0.01 港元、四舍五入（35 行/日，35/35）；
+    **B 股规则待 H4 签字**（`limit_pct_b_share_rule_status=pending_h4_sign`）。
+  - SSE/SZSE 其余：0.01 元四舍五入。首日无涨跌幅等自然落 `null`。
+  **市场判定看 exchange+code，不看 `ts_code` 后缀**：真实样本里 41 行沪市 B 股被源标成
+  `900901.BJ` 但 `exchange=SSE`（镜面标注错位），以 exchange 为准映射为 `SSE:900901`。
+  **每日对账**：按规则的候选价与交易所 `up_limit/down_limit` 不等 → 该行 `limit_pct=null`，
+  计数写 `_meta/research_source_quality.json` 的 `limit_pct_unresolved(_days)`；不接受
+  「多命中挑一个」「放宽容差凑命中」。
 - **`fina_indicator`**（财务指标，per-instrument 模式）：
   ```bash
   PYTHONPATH=src python3 -m market_ingest sync-research --start 2024-01-01 --end 2024-12-31 \
@@ -360,7 +368,7 @@ PYTHONPATH=src python3 -m market_ingest sync-research --start 2024-01-02 --end 2
   是否归一待 H4 定。
 - 单测：`tests/test_research.py` 覆盖 4 个数据集的字段映射/单位/形态分派/失败不造数/
   快照幂等/append-only/覆盖率标记/逐标的 checkpoint；仓库根 `pytest services/ingest/tests`
-  = 200 passed。
+  = 208 passed。
 - **provisional 不摘**（H4 m02718/m03258）：摘除需证据齐——① `fina_indicator` 单位样本证据
   + H4 签字；② `stk_limit` 分档有交易所/档位用例；③ index 两表快照/成分时点断言测试。
   齐之前四表只进研究域（internal-only），不进 serving 对外、不进 display root。
@@ -411,17 +419,30 @@ PYTHONPATH=services/ingest/src:. python3 -m warehouse.pipeline \
   **5% 唯一行是 `600182.SH`（S 股「S佳通」，非 ST）**；用 `stock_basic` 名称含「ST」
   的 198 只做交集：**ST∩5% = 0**，198 只全部不在 5% 档（主板 ST 142 只落 10%、
   创业板/科创板 ST 53 只落 20%、北交所 ST 2 只落 30%、1 只 null）；198 只 ST 全部出现在
-  `stk_limit`，无 missing → **排除分页截断**。即：该数据源当期给主板 ST 的限价是 10%、不是 5%，
-  比值同样≈9.8–10.4%，不是比值法漏判。**5% 档 ST 语义未通过验证**，摘 `stk_limit`
-  provisional 前需 H4 确认这是官方当期口径还是 mirror 源差异（H4 m03085 的第 1 条验收）。
+  `stk_limit`，无 missing → **排除分页截断**。H4 m03352 更正：主板 ST/*ST 涨跌幅自
+  **2026-07-06** 起为 10%，142/53/2 全部符合现行规则 → **ST 语义通过**；5% 档适用 S 股
+  （600182）与 2026-07-06 前历史 ST。批次 metadata 记事实字段
+  `st_pct_rule_version="2026-07-06"`，不改源值、不反推 ST；mirror 来源风险另行审计
+  （见 `source_channel`/`authorization_status`）。
   诊断明细落 `real-sample-20261105/stk_limit_st_diagnosis.json`（只存聚合统计，不含全量数据）。
-- null 行（约 164–177/日）主要是北交所（920xxx.BJ）+ 001381.SZ（首日无涨跌停，
-  `up_limit=999999.999`/`down_limit=0.01`，自然 null），按「不猜」记 null。
+- null 行：按规则重算无唯一命中的行（北交所 43/83/87/88 无样本前缀、首日无涨跌停
+  `001381.SZ` 等）自然落 null；每日 unresolved 计数见 `research_source_quality.json`。
 - `index_member_all`：`is_new=Y` 5922 行、`out_date` 全空；`is_new=N` 2006 行、
   `out_date` 全非空、302 只股票有多段 `in_date`（如 000004.SZ 三段），证明 N 是历史退出
   成分、可按 in/out 区间复原 → **默认 Y+N 全量成立**，非 `current_snapshot_only`。
   （`index_member_all` 的 `ts_code` 参数是**股票代码**，用 `000300.SH` 查返回 0 行属预期。）
 - 去重键按 H4 m02923 定为 `l3_code+instrument_id+in_date`（保留退出再进入的多段区间）。
+
+## 研究来源边界门禁（H4 m03419 第 ④ 条）
+
+```bash
+python services/ingest/tools/check_research_source_boundary.py   --ods-root services/ingest/var/research-ods-smoke   --manifest-root services/ingest/var/research-ods-smoke-audit --json
+```
+
+断言：研究数据集不得出现在 display root；mirror 批次不得 `display_safe=true`、
+manifest root 不得落在 display 路径；`_meta/research_sources.jsonl` 出现 token/凭证类键名
+即失败。退出码 0/1/2。H4 要求挂到 `check_display_safe_failclosed.py`（A11/A13 写域），
+A1 侧先提供可执行断言，等 owner 接线。
 
 ## A12 e2e 注入点
 

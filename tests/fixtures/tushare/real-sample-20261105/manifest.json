@@ -186,6 +186,34 @@
       "purpose": "KD-STKLIMIT-VERIFY：ST 名称集合与候选档 limit_pct 的交集/差集统计（不含全量数据副本）",
       "fetched_at": "2026-11-05T21:47:00+08:00",
       "sha256": "b565a2833eca852be5e07c2cb714a3b35c999e9f4b8a1ac0be69c538f5d82281"
+    },
+    {
+      "file": "stk_limit_rounding_rules.json",
+      "api_name": "stk_limit",
+      "params": {
+        "trade_dates": [
+          "20261103",
+          "20261104",
+          "20261105"
+        ],
+        "universe": "*.BJ / 900xxx / 200xxx"
+      },
+      "fields": [
+        "ts_code",
+        "trade_date",
+        "pre_close",
+        "up_limit",
+        "down_limit",
+        "asset_type",
+        "exchange"
+      ],
+      "row_count_full": 0,
+      "rows_in_file": 41,
+      "subset": true,
+      "aggregate_only": false,
+      "purpose": "KD-STKLIMIT-VERIFY：北交所按 43/83/87/88/92 前缀分行数+命中率；沪市B股 41 行原始行（后缀 .BJ 与 exchange=SSE 冲突，以 exchange 为准）",
+      "fetched_at": "2026-11-05T21:55:00+08:00",
+      "sha256": "7cccaead2f01f3f65db6a38d904c4775557c4a7a0b5a1442f4e64875014fc8b9"
     }
   ]
 }

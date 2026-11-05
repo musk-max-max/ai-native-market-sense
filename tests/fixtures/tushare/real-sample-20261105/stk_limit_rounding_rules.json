@@ -1,0 +1,470 @@
+{
+  "sample_type": "real-controlled",
+  "sample_window": "2026-11-03..2026-11-05",
+  "fetched_at": "2026-11-05T21:55:00+08:00",
+  "source_api": "stk_limit (doc 183)",
+  "token_recorded": false,
+  "production_evidence": false,
+  "caveat": "三日样本内结论；43/83/87/88 在窗口内无数据，不代表规则不存在。",
+  "bse_prefix_stats": {
+    "43": {
+      "rows": 0,
+      "b_trunc_hits": 0,
+      "half_up_001_hits": 0,
+      "no_sample": true
+    },
+    "83": {
+      "rows": 0,
+      "b_trunc_hits": 0,
+      "half_up_001_hits": 0,
+      "no_sample": true
+    },
+    "87": {
+      "rows": 0,
+      "b_trunc_hits": 0,
+      "half_up_001_hits": 0,
+      "no_sample": true
+    },
+    "88": {
+      "rows": 0,
+      "b_trunc_hits": 0,
+      "half_up_001_hits": 0,
+      "no_sample": true
+    },
+    "92": {
+      "rows": 1062,
+      "b_trunc_hits": 1062,
+      "half_up_001_hits": 154,
+      "no_sample": false
+    }
+  },
+  "sh_b_900": {
+    "market": "SSE B 股（美元；报价单位 0.001）",
+    "day": "20261103",
+    "rows": 41,
+    "feed_anomaly": "该源把 41 行沪市 B 股 ts_code 标成 .BJ，但 exchange=SSE，且 asset_type=STK；以 exchange 为准，不存在 900xxx.BJ 市场。",
+    "raw_rows": [
+      {
+        "instrument_id": "SSE:900901",
+        "ts_code": "900901.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 0.554,
+        "up_limit": 0.609,
+        "down_limit": 0.499
+      },
+      {
+        "instrument_id": "SSE:900902",
+        "ts_code": "900902.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 0.153,
+        "up_limit": 0.168,
+        "down_limit": 0.138
+      },
+      {
+        "instrument_id": "SSE:900903",
+        "ts_code": "900903.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 0.17,
+        "up_limit": 0.187,
+        "down_limit": 0.153
+      },
+      {
+        "instrument_id": "SSE:900904",
+        "ts_code": "900904.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 0.407,
+        "up_limit": 0.448,
+        "down_limit": 0.366
+      },
+      {
+        "instrument_id": "SSE:900905",
+        "ts_code": "900905.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 2.306,
+        "up_limit": 2.537,
+        "down_limit": 2.075
+      },
+      {
+        "instrument_id": "SSE:900906",
+        "ts_code": "900906.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 0.155,
+        "up_limit": 0.171,
+        "down_limit": 0.14
+      },
+      {
+        "instrument_id": "SSE:900908",
+        "ts_code": "900908.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 0.506,
+        "up_limit": 0.557,
+        "down_limit": 0.455
+      },
+      {
+        "instrument_id": "SSE:900909",
+        "ts_code": "900909.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 0.49,
+        "up_limit": 0.539,
+        "down_limit": 0.441
+      },
+      {
+        "instrument_id": "SSE:900910",
+        "ts_code": "900910.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 0.529,
+        "up_limit": 0.582,
+        "down_limit": 0.476
+      },
+      {
+        "instrument_id": "SSE:900911",
+        "ts_code": "900911.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 0.668,
+        "up_limit": 0.735,
+        "down_limit": 0.601
+      },
+      {
+        "instrument_id": "SSE:900912",
+        "ts_code": "900912.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 0.61,
+        "up_limit": 0.671,
+        "down_limit": 0.549
+      },
+      {
+        "instrument_id": "SSE:900913",
+        "ts_code": "900913.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 0.203,
+        "up_limit": 0.223,
+        "down_limit": 0.183
+      },
+      {
+        "instrument_id": "SSE:900914",
+        "ts_code": "900914.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 0.404,
+        "up_limit": 0.444,
+        "down_limit": 0.364
+      },
+      {
+        "instrument_id": "SSE:900915",
+        "ts_code": "900915.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 0.182,
+        "up_limit": 0.2,
+        "down_limit": 0.164
+      },
+      {
+        "instrument_id": "SSE:900916",
+        "ts_code": "900916.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 0.487,
+        "up_limit": 0.536,
+        "down_limit": 0.438
+      },
+      {
+        "instrument_id": "SSE:900917",
+        "ts_code": "900917.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 0.242,
+        "up_limit": 0.266,
+        "down_limit": 0.218
+      },
+      {
+        "instrument_id": "SSE:900918",
+        "ts_code": "900918.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 0.294,
+        "up_limit": 0.323,
+        "down_limit": 0.265
+      },
+      {
+        "instrument_id": "SSE:900920",
+        "ts_code": "900920.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 0.321,
+        "up_limit": 0.353,
+        "down_limit": 0.289
+      },
+      {
+        "instrument_id": "SSE:900921",
+        "ts_code": "900921.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 0.158,
+        "up_limit": 0.174,
+        "down_limit": 0.142
+      },
+      {
+        "instrument_id": "SSE:900922",
+        "ts_code": "900922.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 0.608,
+        "up_limit": 0.669,
+        "down_limit": 0.547
+      },
+      {
+        "instrument_id": "SSE:900923",
+        "ts_code": "900923.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 0.506,
+        "up_limit": 0.557,
+        "down_limit": 0.455
+      },
+      {
+        "instrument_id": "SSE:900924",
+        "ts_code": "900924.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 0.282,
+        "up_limit": 0.31,
+        "down_limit": 0.254
+      },
+      {
+        "instrument_id": "SSE:900925",
+        "ts_code": "900925.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 1.046,
+        "up_limit": 1.151,
+        "down_limit": 0.941
+      },
+      {
+        "instrument_id": "SSE:900926",
+        "ts_code": "900926.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 0.716,
+        "up_limit": 0.788,
+        "down_limit": 0.644
+      },
+      {
+        "instrument_id": "SSE:900927",
+        "ts_code": "900927.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 0.303,
+        "up_limit": 0.333,
+        "down_limit": 0.273
+      },
+      {
+        "instrument_id": "SSE:900928",
+        "ts_code": "900928.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 0.534,
+        "up_limit": 0.587,
+        "down_limit": 0.481
+      },
+      {
+        "instrument_id": "SSE:900929",
+        "ts_code": "900929.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 0.785,
+        "up_limit": 0.864,
+        "down_limit": 0.707
+      },
+      {
+        "instrument_id": "SSE:900932",
+        "ts_code": "900932.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 0.386,
+        "up_limit": 0.425,
+        "down_limit": 0.347
+      },
+      {
+        "instrument_id": "SSE:900934",
+        "ts_code": "900934.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 1.496,
+        "up_limit": 1.646,
+        "down_limit": 1.346
+      },
+      {
+        "instrument_id": "SSE:900936",
+        "ts_code": "900936.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 1.316,
+        "up_limit": 1.448,
+        "down_limit": 1.184
+      },
+      {
+        "instrument_id": "SSE:900937",
+        "ts_code": "900937.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 0.17,
+        "up_limit": 0.187,
+        "down_limit": 0.153
+      },
+      {
+        "instrument_id": "SSE:900938",
+        "ts_code": "900938.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 0.201,
+        "up_limit": 0.221,
+        "down_limit": 0.181
+      },
+      {
+        "instrument_id": "SSE:900939",
+        "ts_code": "900939.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 0.324,
+        "up_limit": 0.356,
+        "down_limit": 0.292
+      },
+      {
+        "instrument_id": "SSE:900940",
+        "ts_code": "900940.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 0.189,
+        "up_limit": 0.208,
+        "down_limit": 0.17
+      },
+      {
+        "instrument_id": "SSE:900941",
+        "ts_code": "900941.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 0.398,
+        "up_limit": 0.438,
+        "down_limit": 0.358
+      },
+      {
+        "instrument_id": "SSE:900942",
+        "ts_code": "900942.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 0.586,
+        "up_limit": 0.645,
+        "down_limit": 0.527
+      },
+      {
+        "instrument_id": "SSE:900943",
+        "ts_code": "900943.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 0.402,
+        "up_limit": 0.442,
+        "down_limit": 0.362
+      },
+      {
+        "instrument_id": "SSE:900945",
+        "ts_code": "900945.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 0.185,
+        "up_limit": 0.204,
+        "down_limit": 0.167
+      },
+      {
+        "instrument_id": "SSE:900946",
+        "ts_code": "900946.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 0.174,
+        "up_limit": 0.191,
+        "down_limit": 0.157
+      },
+      {
+        "instrument_id": "SSE:900947",
+        "ts_code": "900947.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 0.247,
+        "up_limit": 0.272,
+        "down_limit": 0.222
+      },
+      {
+        "instrument_id": "SSE:900948",
+        "ts_code": "900948.BJ",
+        "exchange": "SSE",
+        "asset_type": "STK",
+        "pre_close": 3.201,
+        "up_limit": 3.521,
+        "down_limit": 2.881
+      }
+    ],
+    "distinct_instrument_ids": [
+      "SSE:900901",
+      "SSE:900902",
+      "SSE:900903",
+      "SSE:900904",
+      "SSE:900905",
+      "SSE:900906",
+      "SSE:900908",
+      "SSE:900909",
+      "SSE:900910",
+      "SSE:900911",
+      "SSE:900912",
+      "SSE:900913",
+      "SSE:900914",
+      "SSE:900915",
+      "SSE:900916",
+      "SSE:900917",
+      "SSE:900918",
+      "SSE:900920",
+      "SSE:900921",
+      "SSE:900922",
+      "SSE:900923",
+      "SSE:900924",
+      "SSE:900925",
+      "SSE:900926",
+      "SSE:900927",
+      "SSE:900928",
+      "SSE:900929",
+      "SSE:900932",
+      "SSE:900934",
+      "SSE:900936",
+      "SSE:900937",
+      "SSE:900938",
+      "SSE:900939",
+      "SSE:900940",
+      "SSE:900941",
+      "SSE:900942",
+      "SSE:900943",
+      "SSE:900945",
+      "SSE:900946",
+      "SSE:900947",
+      "SSE:900948"
+    ],
+    "half_up_0.001_hits": 41,
+    "bse_trunc_hits": 10,
+    "conclusion": "沪市 B 股 0.001 美元 half-up 41/41；源后缀 .BJ 是镜面标注错位，exchange=SSE 为准"
+  },
+  "sz_b_200": {
+    "market": "SZSE B 股（港元；报价单位 0.01）",
+    "day": "20261103",
+    "count": 35,
+    "note": "probe days: 35 行/日，half-up 0.01 35/35 命中；不在 BJ 集合内。"
+  }
+}

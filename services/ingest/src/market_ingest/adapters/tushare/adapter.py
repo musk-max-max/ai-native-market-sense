@@ -433,6 +433,14 @@ class TushareAdapter:
 
     # ---------- 研究数据集（KD-AIP0-INF-05：adapter 批量抽取，不进 MarketDataSource 端口） ----------
 
+    def research_rule_metadata(self) -> dict[str, str]:
+        """研究派生规则的版本/证据窗口（审计用；业务层只读声明，不 import 适配层）。"""
+        return {
+            "limit_pct_rule_version": research.LIMIT_PCT_RULE_VERSION,
+            "limit_pct_evidence_window": research.LIMIT_PCT_EVIDENCE_WINDOW,
+            "limit_pct_b_share_rule_status": research.LIMIT_PCT_B_SHARE_RULE_STATUS,
+        }
+
     @property
     def research_datasets(self) -> tuple[str, ...]:
         """本适配器支持的研究数据集名（CLI/sync 只按名字调度，不认接口）。"""

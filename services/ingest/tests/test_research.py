@@ -452,6 +452,11 @@ def test_sync_research_coverage_records_source_channel_and_st_quality(tmp_path: 
     )
     stk = quality["datasets"]["stk_limit"]
     assert stk["st_pct_rule_version"] == "2026-07-06"
+    assert stk["limit_pct_rule_version"] == "exchange_quote_unit_2026-11-05"
+    assert stk["limit_pct_evidence_window"] == "2026-11-03..2026-11-05"
+    assert stk["limit_pct_b_share_rule_status"] == "pending_h4_sign"
+    assert stk["limit_pct_unresolved"] == 0
+    assert stk["limit_pct_unresolved_days"] == {DAY1.isoformat(): 0}
     assert stk["st_named_but_pct10"] == 0  # 无 instrument 基线 → 0 + note
     assert "instrument baseline unavailable" in stk["st_named_but_pct10_note"]
     sources = (ods_root / "_meta" / "research_sources.jsonl").read_text(encoding="utf-8").strip().splitlines()
@@ -710,27 +715,52 @@ def test_stk_limit_limit_pct_buckets(
 
 
 @pytest.mark.parametrize(
-    ("ts_code", "previous_close", "up_limit", "down_limit", "expected"),
+    ("ts_code", "exchange", "expected_instrument", "previous_close", "up_limit", "down_limit", "expected"),
     [
-        # 北交所 A 股：涨停向下截断、跌停向上截断（真实样本 354/354×3 日全中）。
-        ("920023.BJ", "1.26", "1.63", "0.89", "30"),
-        ("920003.BJ", "13.56", "17.62", "9.50", "30"),
-        # 900xxx.BJ 是 B 股：0.001 元报价单位、四舍五入（41/41×3 日全中）。
-        ("900901.BJ", "0.549", "0.604", "0.494", "10"),
-        ("900902.BJ", "0.154", "0.169", "0.139", "10"),
+        # 北交所 A 股：涨停向下截断、跌停向上截断（920xxx 真实样本 354/354×3 日全中）。
+        ("920023.BJ", "BSE", "BSE:920023", "1.26", "1.63", "0.89", "30"),
+        ("920003.BJ", "BSE", "BSE:920003", "13.56", "17.62", "9.50", "30"),
+        # 43/83/87/88 前缀同样按北交所 A 股规则（样本内无数据，仅规则用例）。
+        ("430047.BJ", "BSE", "BSE:430047", "1.26", "1.63", "0.89", "30"),
+        # 900xxx 是沪市 B 股（0.001 美元 half-up）；源里可能标成 .BJ，市场以 exchange 为准。
+        ("900901.BJ", "SSE", "SSE:900901", "0.549", "0.604", "0.494", "10"),
+        ("900902.SH", "SSE", "SSE:900902", "0.154", "0.169", "0.139", "10"),
+        # 200xxx 是深市 B 股（0.01 港元 half-up）。
+        ("200011.SZ", "SZSE", "SZSE:200011", "2.88", "3.17", "2.59", "10"),
     ],
 )
 def test_stk_limit_limit_pct_is_exchange_aware(
-    ts_code: str, previous_close: str, up_limit: str, down_limit: str, expected: str
+    ts_code: str,
+    exchange: str,
+    expected_instrument: str,
+    previous_close: str,
+    up_limit: str,
+    down_limit: str,
+    expected: str,
 ) -> None:
     canonical = research.map_row(
         "stk_limit",
         stk_limit_source_row(
-            ts_code=ts_code, pre_close=previous_close, up_limit=up_limit, down_limit=down_limit
+            ts_code=ts_code,
+            exchange=exchange,
+            pre_close=previous_close,
+            up_limit=up_limit,
+            down_limit=down_limit,
         ),
     )
+    assert canonical["instrument_id"] == expected_instrument
     assert canonical["limit_pct"] == expected
     assert canonical["limit_pct_source"] == "exchange_price_candidate"
+
+
+def test_stk_limit_unknown_bse_prefix_keeps_null() -> None:
+    """北交所未知前缀不猜规则：该行 limit_pct=null（会被 sync 计入 warn 计数）。"""
+    canonical = research.map_row(
+        "stk_limit",
+        stk_limit_source_row(ts_code="899999.BJ", exchange="BSE", pre_close="10.0", up_limit="11.0", down_limit="9.0"),
+    )
+    assert canonical["instrument_id"] == "BSE:899999"
+    assert canonical["limit_pct"] is None
 
 
 def test_stk_limit_limit_pct_missing_previous_close_is_null() -> None:

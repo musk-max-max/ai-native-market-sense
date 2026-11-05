@@ -1357,6 +1357,7 @@ def sync_research(
             requested=requested,
             st_rows_by_day=st_rows_by_day,
             instrument_names=_load_instrument_names(root),
+            source=source,
         )
         if quality:
             _write_research_source_quality(root, run_id, quality, channel, auth, clock())
@@ -1485,6 +1486,21 @@ def _load_instrument_names(root: Path) -> dict[str, str] | None:
     return None
 
 
+def _count_limit_pct_unresolved(rows: Sequence[Mapping[str, Any]]) -> int:
+    """当日「有前收/上下限但候选档重算无唯一命中」的行数（H4 m03419 每日对账 warn 计数）。"""
+    count = 0
+    for row in rows:
+        if row.get("limit_pct"):
+            continue
+        if (
+            row.get("previous_close") not in (None, "")
+            and row.get("up_limit") not in (None, "")
+            and row.get("down_limit") not in (None, "")
+        ):
+            count += 1
+    return count
+
+
 def _count_st_named_pct10(rows: Sequence[Mapping[str, Any]], names: Mapping[str, str] | None) -> int:
     """统计「名称含 ST 且 limit_pct==10」的行数；基线缺失时返回 0 并在 coverage 标 note。"""
     if names is None:
@@ -1516,6 +1532,7 @@ def _research_source_quality(
     requested: Sequence[str],
     st_rows_by_day: Sequence[tuple[date, list[dict[str, Any]]]],
     instrument_names: Mapping[str, str] | None,
+    source: object,
 ) -> dict[str, dict[str, Any]]:
     """研究数据源事实标注（H4 m03258/m03352；与 coverage 分开存放，避免改 A2 契约）。
 
@@ -1533,6 +1550,18 @@ def _research_source_quality(
             "st_named_but_pct10_days": per_day,
             "st_named_but_pct10": sum(per_day.values()),
         }
+        declared = getattr(source, "research_rule_metadata", None)
+        if callable(declared):
+            entry.update({str(k): str(v) for k, v in declared().items()})
+        unresolved: dict[str, int] = {}
+        for day, day_rows in st_rows_by_day:
+            unresolved[day.isoformat()] = _count_limit_pct_unresolved(day_rows)
+        entry["limit_pct_unresolved_days"] = unresolved
+        entry["limit_pct_unresolved"] = sum(unresolved.values())
+        entry["limit_pct_reconcile_note"] = (
+            "每日按交易所+报价单位重算 up/down；与交易所原值不等则 limit_pct=null，"
+            "不接受多命中挑一个"
+        )
         if instrument_names is None:
             entry["st_named_but_pct10_note"] = (
                 "instrument baseline unavailable; run sync-instruments first for name intersection"

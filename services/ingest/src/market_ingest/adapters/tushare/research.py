@@ -242,7 +242,7 @@ _COLUMNS: dict[str, tuple[ColumnSpec, ...]] = {
         _c("revision_flag", "update_flag", "text", required=False),
     ),
     "stk_limit": (
-        _c("instrument_id", "ts_code", "instrument"),
+        _c("instrument_id", "ts_code", "instrument_exchange"),
         _c("trade_date", "trade_date", "date"),
         _c("previous_close", "pre_close", "price", required=False),
         _c("up_limit", "up_limit", "price"),
@@ -384,14 +384,20 @@ LIMIT_PCT_BUCKETS: tuple[Decimal, ...] = (
 )
 LIMIT_PCT_PRICE_STEP = Decimal("0.01")
 LIMIT_PCT_FLOAT_TOLERANCE = Decimal("0.005")
-#: 北交所 A 股真实样本 354/354×3 日验证：涨停向下截断、跌停向上截断（KD-STKLIMIT-VERIFY）。
-#: 900xxx.BJ 为 B 股，报价单位 0.001 元、四舍五入，与 A 股规则不同。
 LIMIT_PCT_B_SHARE_STEP = Decimal("0.001")
 LIMIT_PCT_B_SHARE_TOLERANCE = Decimal("0.0005")
-_LIMIT_PCT_BSE_PREFIX = "BSE:"
-_LIMIT_PCT_B_SHARE_CODE_PREFIX = "900"
 LIMIT_PCT_SOURCE = "exchange_price_candidate"
 LIMIT_PCT_FIELDS: tuple[str, ...] = ("limit_pct", "limit_pct_source")
+LIMIT_PCT_RULE_VERSION = "exchange_quote_unit_2026-11-05"
+#: 证据窗口（H4 m03419 要求写成三日样本，不是普适保证）：
+LIMIT_PCT_EVIDENCE_WINDOW = "2026-11-03..2026-11-05"
+#: B 股取整规则待 H4 签字前只作研究域派生，不宣称已验收。
+LIMIT_PCT_B_SHARE_RULE_STATUS = "pending_h4_sign"
+#: 北交所 A 股代码前缀（H4 m03419：全前缀 43/83/87/88/92；43/83/87/88 在样本内无数据）。
+BSE_LIMIT_PREFIXES: tuple[str, ...] = ("43", "83", "87", "88", "92")
+#: 沪市 B 股代码前缀（900xxx，报价单位 0.001 美元）；深市 B 股 200xxx（0.01 港元）。
+SH_B_SHARE_PREFIX = "900"
+SZ_B_SHARE_PREFIX = "200"
 
 #: snapshot 数据集的主键/审计字段：主键含 ``snapshot_date``（拉取日），
 #: 快照 append-only，不原地 UPDATE，历史快照不可回补（H4 m02718）。
@@ -503,6 +509,22 @@ def _parse_yyyymmdd(value: Any, *, field: str) -> date:
         raise ResearchRowError(f"invalid {field}: {value!r}") from exc
 
 
+def _instrument_with_exchange(
+    row: Mapping[str, Any], raw: Any, *, dataset: str
+) -> str:
+    """``stk_limit`` 的 instrument：优先 ``exchange`` + ``ts_code`` 的 code。
+
+    真实样本里 ``900901.BJ`` 的 ``exchange`` 是 ``SSE``（镜面源后缀标注错位）；
+    市场以 exchange 为准，避免把沪市 B 股错映射成北交所代码。
+    """
+    exchange = str(row.get("exchange") or "").strip().upper()
+    text = str(raw).strip()
+    code = text.split(".", 1)[0].strip()
+    if exchange in {"SSE", "SZSE", "BSE"} and code.isdigit() and len(code) == 6:
+        return f"{exchange}:{code}"
+    return instrument_id_for(raw, dataset=dataset)
+
+
 def _convert(column: ColumnSpec, raw: Any, dataset: str) -> Any:
     kind = column.kind
     if kind == "text":
@@ -557,6 +579,10 @@ def map_row(dataset: str, row: Mapping[str, Any]) -> dict[str, Any]:
             continue
         if column.kind in ("instrument", "instrument_hk"):
             result[column.canonical] = instrument_id_for(raw, dataset=dataset)
+        elif column.kind == "instrument_exchange":
+            # stk_limit：exchange 列权威（源里存在 900901.BJ + exchange=SSE 的镜面标注），
+            # ts_code 后缀只用来取 code。
+            result[column.canonical] = _instrument_with_exchange(row, raw, dataset=dataset)
         elif column.kind == "date":
             try:
                 result[column.canonical] = mapper.parse_trade_date(raw).isoformat()
@@ -605,6 +631,67 @@ def _round_limit_price(
     return raw.quantize(step, rounding=mode)
 
 
+@dataclass(frozen=True, slots=True)
+class LimitRoundingRule:
+    """交易所 + 报价单位决定的限价取整规则（H4 m03419）。
+
+    取值来自真实样本核对，但只在证据窗口内逐日对账；任何一行候选值对不上交易所
+    原值就落 null 并计数，绝不「多命中挑一个」。
+    """
+
+    step: Decimal
+    tolerance: Decimal
+    up_rounding: str
+    down_rounding: str
+
+
+_RULE_HALF_001 = LimitRoundingRule(
+    step=LIMIT_PCT_B_SHARE_STEP,
+    tolerance=LIMIT_PCT_B_SHARE_TOLERANCE,
+    up_rounding="half",
+    down_rounding="half",
+)
+_RULE_HALF_001_SSE = _RULE_HALF_001
+_RULE_HALF_001_SZSE = LimitRoundingRule(
+    step=LIMIT_PCT_PRICE_STEP,
+    tolerance=LIMIT_PCT_FLOAT_TOLERANCE,
+    up_rounding="half",
+    down_rounding="half",
+)
+_RULE_BSE_A = LimitRoundingRule(
+    step=LIMIT_PCT_PRICE_STEP,
+    tolerance=LIMIT_PCT_FLOAT_TOLERANCE,
+    up_rounding="down",
+    down_rounding="up",
+)
+
+
+def limit_rounding_rule(instrument_id: str) -> LimitRoundingRule | None:
+    """按「交易所 + 报价单位」返回取整规则；未知市场返回 None（该行 limit_pct=null）。
+
+    - 沪市 B 股 ``SSE:900xxx``：0.001 美元、四舍五入；
+    - 深市 B 股 ``SZSE:200xxx``：0.01 港元、四舍五入；
+    - 北交所 A 股 ``BSE:{43,83,87,88,92}xxxxx``：涨停向下截断、跌停向上截断；
+    - SSE/SZSE 其它：0.01 元四舍五入。
+
+    **不得用 ``900`` 前缀单独判市场**：源里出现过 ``900901.BJ`` 但 ``exchange=SSE``
+    的镜面标注；判定看 exchange+code，不看 ``ts_code`` 后缀。
+    """
+    text = str(instrument_id or "")
+    if ":" not in text:
+        return None
+    exchange, code = text.split(":", 1)
+    if exchange == "SSE":
+        return _RULE_HALF_001_SSE if code.startswith(SH_B_SHARE_PREFIX) else _RULE_HALF_001_SZSE
+    if exchange == "SZSE":
+        return _RULE_HALF_001_SZSE
+    if exchange == "BSE":
+        if code[:2] in BSE_LIMIT_PREFIXES:
+            return _RULE_BSE_A
+        return None
+    return None
+
+
 def _derive_limit_pct(result: dict[str, Any]) -> None:
     """限价档位判定：候选档重算比对（H4 m03085，取代 m02718 的比值容差法）。
 
@@ -628,33 +715,21 @@ def _derive_limit_pct(result: dict[str, Any]) -> None:
         result["limit_pct_source"] = None
         return
     matched: list[Decimal] = []
-    instrument_id = str(result.get("instrument_id") or "")
-    if instrument_id.startswith(_LIMIT_PCT_BSE_PREFIX):
-        code = instrument_id.split(":", 1)[1]
-        if code.startswith(_LIMIT_PCT_B_SHARE_CODE_PREFIX):
-            # B 股：0.001 元最小变动单位，四舍五入
-            step = LIMIT_PCT_B_SHARE_STEP
-            tolerance = LIMIT_PCT_B_SHARE_TOLERANCE
-            up_rounding, down_rounding = "half", "half"
-        else:
-            # 北交所 A 股：涨停向下截断、跌停向上截断（真实样本全中）
-            step = LIMIT_PCT_PRICE_STEP
-            tolerance = LIMIT_PCT_FLOAT_TOLERANCE
-            up_rounding, down_rounding = "down", "up"
-    else:
-        step = LIMIT_PCT_PRICE_STEP
-        tolerance = LIMIT_PCT_FLOAT_TOLERANCE
-        up_rounding, down_rounding = "half", "half"
+    rule = limit_rounding_rule(str(result.get("instrument_id") or ""))
+    if rule is None:
+        result["limit_pct"] = None
+        result["limit_pct_source"] = None
+        return
     for pct in LIMIT_PCT_BUCKETS:
         candidate_up = _round_limit_price(
-            previous_close, pct, Decimal(1), step=step, rounding=up_rounding
+            previous_close, pct, Decimal(1), step=rule.step, rounding=rule.up_rounding
         )
         candidate_down = _round_limit_price(
-            previous_close, pct, Decimal(-1), step=step, rounding=down_rounding
+            previous_close, pct, Decimal(-1), step=rule.step, rounding=rule.down_rounding
         )
         if (
-            abs(up_limit - candidate_up) <= tolerance
-            and abs(down_limit - candidate_down) <= tolerance
+            abs(up_limit - candidate_up) <= rule.tolerance
+            and abs(down_limit - candidate_down) <= rule.tolerance
         ):
             matched.append(pct)
     unique = matched[0] if len(matched) == 1 else None
@@ -757,7 +832,11 @@ __all__ = [
     "ColumnSpec",
     "DEFAULT_RESEARCH_DATASETS",
     "LIMIT_PCT_BUCKETS",
+    "BSE_LIMIT_PREFIXES",
+    "LIMIT_PCT_B_SHARE_RULE_STATUS",
+    "LIMIT_PCT_EVIDENCE_WINDOW",
     "LIMIT_PCT_FIELDS",
+    "LIMIT_PCT_RULE_VERSION",
     "LIMIT_PCT_SOURCE",
     "LIMIT_PCT_TOLERANCE",
     "RESEARCH_DATASETS",
@@ -767,7 +846,9 @@ __all__ = [
     "SNAPSHOT_DATE_FIELD",
     "canonical_fields",
     "dedupe_rows",
+    "LimitRoundingRule",
     "has_historical_members",
+    "limit_rounding_rule",
     "hk_source_code",
     "partition_date",
     "instrument_id_for",
