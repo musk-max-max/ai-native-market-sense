@@ -60,6 +60,8 @@ ENDPOINT_SCHEMAS: dict[str, str] = {
 }
 
 BAR_FIELDS = ("instrument_id", "trade_date")
+BSE_SELECT_CUTOFF = date(2021, 11, 15)
+MARKET_SEGMENT_NEEQ_SELECT = "neeq_select"
 BAR_PRICE_FIELDS = ("open", "high", "low", "close")
 BAR_VOLUME_FIELDS = ("volume", "amount")
 FACTOR_FIELDS = ("instrument_id", "trade_date", "factor")
@@ -450,6 +452,33 @@ def _check_research_instrument_id(schema: str, value: Any, *, where: str) -> str
     return _check_instrument_id(value, where=where)
 
 
+def _check_market_segment(
+    instrument_id: str, trade_date: date, row: dict[str, Any], *, where: str
+) -> str | None:
+    """内部 canonical 字段：BSE 2021-11-15 前必须标 neeq_select（精选层语义），其余行禁止出现。
+
+    fail-closed（H4 2026-11-05）：这是数据正确性而不是 warn——漏标会让北交所 2021-11-15 前的
+    market_segment 语义丢失，回补后无法区分精选层与北交所。字段不进 C 端契约（Bar 不增字段）。
+    """
+    value = row.get("market_segment")
+    if value is not None and not isinstance(value, str):
+        raise OdsFormatError(f"{where}.market_segment: 必须是字符串")
+    is_bse_select_period = instrument_id.startswith("BSE:") and trade_date < BSE_SELECT_CUTOFF
+    if is_bse_select_period:
+        if value != MARKET_SEGMENT_NEEQ_SELECT:
+            raise OdsFormatError(
+                f"{where}.market_segment: BSE 且 {trade_date.isoformat()} < 2021-11-15 必须为 "
+                f"'{MARKET_SEGMENT_NEEQ_SELECT}'（got {value!r}），fail-closed"
+            )
+        return MARKET_SEGMENT_NEEQ_SELECT
+    if value is not None:
+        raise OdsFormatError(
+            f"{where}.market_segment: 仅 BSE 且 trade_date < 2021-11-15 允许出现，"
+            f"其余行必须缺省（got {value!r}）"
+        )
+    return None
+
+
 def normalize_bar_row(row: dict[str, Any], *, where: str) -> dict[str, Any]:
     _check_no_source_leak(row, where=where)
     instrument_id = _check_instrument_id(_require(row, "instrument_id", where=where), where=where)
@@ -458,11 +487,15 @@ def normalize_bar_row(row: dict[str, Any], *, where: str) -> dict[str, Any]:
     if not isinstance(suspended, bool):
         raise OdsFormatError(f"{where}.suspended: 必须是布尔值")
 
+    market_segment = _check_market_segment(instrument_id, trade_date, row, where=where)
+
     out: dict[str, Any] = {
         "instrument_id": instrument_id,
         "trade_date": trade_date,
         "suspended": suspended,
     }
+    if market_segment is not None:
+        out["market_segment"] = market_segment
     if suspended:
         # 停牌日无有效 OHLC：只作为「该日无 bar」的证据（C08：不补 0、不合成 K 线）。
         return out

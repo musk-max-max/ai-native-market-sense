@@ -79,6 +79,10 @@ endpoint ∈ {bar, adj_factor, instrument, fundamental}
    禁止 0 冒充）；**不得出现** `trade_date/adjustment/suspended/factor` 等行情字段；批次分区 `dt=` 用
    `report_end_date`，`source.as_of` = 本批最大 `announced_at`。DWD 落 `dwd_fundamental_report`，
    PK=`instrument_id+report_period+statement_basis`，reported/restated 两套并存。
+10. `bar.v1` 可选内部 canonical 扩展 `market_segment`：唯一合法值 `neeq_select`，**仅 `BSE:` 且
+    `trade_date < 2021-11-15`（原精选层时期）允许出现**；loader fail-closed（BSE 早期缺标、非 BSE 或
+    ≥2021-11-15 带值均拒载）。DWD `dwd_stock_bar_daily.market_segment` 透传，**不进 C 端契约
+    （`contracts/market/openapi.yaml::Bar` 不动）、不进 serving/display**（H4 2026-11-05，L124①）。
 
 A1 的 raw payload（tushare 原始响应）**不进入我的读取路径**——审计/重放归 A1；我只消费 canonical 批次。
 

@@ -219,6 +219,13 @@
       "command": "psql -f warehouse/metrics/m04_listed_at_coverage.sql",
       "acceptance": "全量 20 年回补后出 listed_at IS NULL 只数与 bar 行占比并报 H4；>1% 回 H4 重议，<=1% 落 known_limitation",
       "evidence": "docs/metrics/P0-metrics.md §7-10；H4 2026-11-05 conditions 第 7 条"
+    },
+    {
+      "id": "BSE-MARKET-SEGMENT",
+      "owner": "A2",
+      "status": "pending_full_history_backfill",
+      "acceptance": "20 年回补后 BSE 2021-11-15 前行 100% 带 market_segment=neeq_select、无一行漏标；loader 已 fail-closed（缺标/越界带值拒载）",
+      "evidence": "docs/metrics/P0-metrics.md §1/§7-11；H4 2026-11-05 L124①"
     }
   ]
 }

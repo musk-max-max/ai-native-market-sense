@@ -109,3 +109,12 @@ def test_schema_exposes_serving_schema_and_staleness():
     assert sql.count("staleness_ms") >= 5
     # 停牌时价格不得为 0：三态用 NULL 表达
     assert "CASE WHEN p.suspended THEN NULL ELSE p.close END" in sql
+
+
+def test_market_segment_not_exposed_to_c_end():
+    # market_segment 是内部 canonical（BSE 精选层语义），不得进 C 端契约/serving 响应。
+    repo_root = Path(__file__).resolve().parents[2]
+    serving_sql = (repo_root / "warehouse/serving/schema.sql").read_text(encoding="utf-8")
+    ports = (repo_root / "warehouse/serving/ports.yaml").read_text(encoding="utf-8")
+    assert "market_segment" not in serving_sql, "serving view 不得透出 market_segment"
+    assert "market_segment" not in ports, "ServingRepo 端口不得透出 market_segment"

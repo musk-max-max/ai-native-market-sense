@@ -22,6 +22,8 @@ CREATE TABLE IF NOT EXISTS dwd_stock_bar_daily (
     volume          bigint      NOT NULL CHECK (volume >= 0),      -- 单位：股（C09）
     amount          numeric(20,2) NOT NULL CHECK (amount >= 0),    -- 单位：元（C09）
     prev_close      numeric(18,2),                                  -- 涨跌幅基准（M08），首日可空
+    market_segment  text        CHECK (market_segment IS NULL OR market_segment = 'neeq_select'),
+                                                                    -- 内部 canonical：BSE 2021-11-15 前=精选层（neeq_select）；其余 NULL；不进 C 端
     source          text        NOT NULL,                           -- canonical 来源标识（C03）
     as_of           timestamptz NOT NULL,                           -- 市场时点 +08:00（C04/C18）
     fetched_at      timestamptz NOT NULL,                           -- 采集时间，仅审计（C04）

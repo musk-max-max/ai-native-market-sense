@@ -1472,6 +1472,7 @@ cases:
     volume: '1000000'
     amount: '15000000.00'
     prev_close: '10.00'
+    market_segment: neeq_select
   expect:
     grade: green
     blocked: false

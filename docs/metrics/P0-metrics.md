@@ -32,6 +32,13 @@
 
 **失效/禁止**：禁止在 DWD 里用前复权价覆盖 close；禁止没有因子时用 1.0 冒充复权（qfq/hfq 计算直接报错）。
 
+**内部 canonical 扩展 `market_segment`（H4 2026-11-05 签死语义，L124①）**：`bar.v1` 可选字段，唯一合法值
+`neeq_select`，**仅 `BSE:` 且 `trade_date < 2021-11-15`（原精选层时期）允许出现**；其余行必须缺省。
+loader **fail-closed**：BSE 早期行缺失或值≠`neeq_select` 拒载；非 BSE 或 ≥2021-11-15 带值也拒载。
+DWD `dwd_stock_bar_daily.market_segment` 原样透传；**不进 `contracts/market/openapi.yaml::Bar`、不进
+serving_c_end/display/任何 C 端响应**（Bar 保持 `additionalProperties:false` 不动）。20 年回补验收时按
+「BSE 2021-11-15 前行 100% 带 `neeq_select`、无一行漏标」核对。
+
 ```sql
 -- M01 个股日线（主口径：不复权）
 -- 依据：H4-D6 已批准「不复权为主口径」；契约 contracts/market AdjType=none 为 K 线默认。
@@ -490,3 +497,6 @@ ORDER BY trade_date;
     当前的 0/6 只代表「P0 冒烟数据无缺失」，**不是**覆盖结论。20 年全量回补完成后，A2 必须用该查询出
     `dim_instrument` 中 `listed_at IS NULL` 的只数与这些标的在全量 bar 的行数占比，并把真实数字报 H4；
     **>1% 属覆盖口径变化，回 H4 重议；≤1% 才落 `known_limitation`**。该条挂回补验收清单，回补验收时逐项核对。
+11. **BSE `market_segment` 回补验收（L124①，H4 2026-11-05）**：`bar.v1` 的 `market_segment` 只在
+    `BSE:` 且 `trade_date < 2021-11-15` 出现、唯一值 `neeq_select`；loader fail-closed。20 年回补完成后
+    按「BSE 2021-11-15 前行 100% 带标、无一行漏标」核对；该字段只在 A2 内部 canonical/DWD，不进 C 端契约。

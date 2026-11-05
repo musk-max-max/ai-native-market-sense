@@ -76,6 +76,7 @@ BAR_COLUMNS = (
     "volume",
     "amount",
     "prev_close",
+    "market_segment",
     "source",
     "as_of",
     "fetched_at",

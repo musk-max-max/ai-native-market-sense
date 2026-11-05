@@ -215,3 +215,35 @@ def test_fundamental_roundtrip_write_batch_layout(tmp_path):
     out = write_batch(tmp_path / "out", batch)
     assert out.parent.name == "dt=2026-06-30"
     assert out.parent.parent.name == "fundamental"
+
+
+def test_bse_select_period_market_segment_accepted(tmp_path):
+    # BSE 2021-11-15 前必须标 neeq_select；合规行通过并保留内部 canonical 字段。
+    _write(tmp_path, _envelope("b1", "bar", "bar.v1", source(), [
+        bar_row(instrument_id="BSE:830799", trade_date="2021-06-01", market_segment="neeq_select"),
+    ]))
+    (batch,) = load_batches(tmp_path)
+    assert batch.rows[0]["market_segment"] == "neeq_select"
+
+
+def test_bse_select_period_missing_market_segment_rejected(tmp_path):
+    _write(tmp_path, _envelope("b1", "bar", "bar.v1", source(), [
+        bar_row(instrument_id="BSE:830799", trade_date="2021-06-01"),
+    ]))
+    with pytest.raises(OdsFormatError, match="neeq_select"):
+        load_batches(tmp_path)
+
+
+def test_non_bse_market_segment_rejected(tmp_path):
+    # 其余行（含 2021-11-15 及之后的 BSE）禁止出现该字段。
+    _write(tmp_path, _envelope("b1", "bar", "bar.v1", source(), [
+        bar_row(instrument_id="SSE:600519", market_segment="neeq_select"),
+    ]))
+    with pytest.raises(OdsFormatError, match="仅 BSE"):
+        load_batches(tmp_path)
+
+    _write(tmp_path / "late", _envelope("b2", "bar", "bar.v1", source(), [
+        bar_row(instrument_id="BSE:830799", trade_date="2021-11-15", market_segment="neeq_select"),
+    ]))
+    with pytest.raises(OdsFormatError, match="仅 BSE"):
+        load_batches(tmp_path / "late")

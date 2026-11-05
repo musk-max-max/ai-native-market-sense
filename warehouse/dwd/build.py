@@ -18,7 +18,7 @@ from typing import Any, Iterable
 
 from warehouse.ods.loader import RESEARCH_ENDPOINTS, Batch
 
-BAR_VALUE_FIELDS = ("open", "high", "low", "close", "volume", "amount", "prev_close")
+BAR_VALUE_FIELDS = ("open", "high", "low", "close", "volume", "amount", "prev_close", "market_segment")
 FACTOR_VALUE_FIELDS = ("factor",)
 #: 研究数据集 DWD 表的业务列（不含 PK 与 source/as_of/fetched_at/batch_id/ingested_at）。
 #: 顺序与 schema.sql 一致；字段名保持 A1 canonical，不在 DWD 重命名（provisional 等 H4 对齐）。
@@ -353,6 +353,7 @@ def _upsert_bar(state: DwdState, row: dict[str, Any], batch: Batch) -> None:
         "volume": row["volume"],
         "amount": row["amount"],
         "prev_close": row.get("prev_close"),
+        "market_segment": row.get("market_segment"),
         "source": batch.source.source,
         "as_of": batch.source.as_of,
         "fetched_at": batch.source.fetched_at,
