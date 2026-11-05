@@ -20,13 +20,15 @@ const steps = [
   ['证据包 manifest（H5-R19）', ['infra/ci/check-evidence-manifest.mjs']],
   ['容器内 POSIX 可执行性（ECS db-migrate）', ['infra/ci/check-posix-scripts.mjs']],
   ['契约词表（厂商标识）', ['infra/ci/check-source-vocabulary.mjs']],
+  // 研究数据集（display_safe）隔离门禁：A2 交付、零依赖 Python；第三列指定 runner，默认 node。
+  ['display_safe 隔离门禁（研究数据集）', ['infra/ci/check_display_safe_failclosed.py'], 'python3'],
   ['契约 lint + 破坏性 diff', ['infra/ci/contract-diff.mjs']],
 ];
 
 const failed = [];
-for (const [label, args] of steps) {
+for (const [label, args, runner = process.execPath] of steps) {
   console.log(`\n=== ${label} ===`);
-  const result = spawnSync(process.execPath, args, { cwd: ROOT, stdio: 'inherit' });
+  const result = spawnSync(runner, args, { cwd: ROOT, stdio: 'inherit' });
   if (result.status !== 0) failed.push(label);
 }
 

@@ -243,6 +243,8 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
       - name: 静态校验（DWD → serving 顺序、只读授权边界、迁移 ledger）
         run: node infra/ci/check-db-bootstrap.mjs
+      - name: display_safe 隔离门禁（研究数据集不得进 display root / 不参与 display_safe / 不进 C 端 ports）
+        run: python3 infra/ci/check_display_safe_failclosed.py
       - name: shell 语法（bootstrap / migrate，POSIX dash）
         run: |
           bash -n infra/db/bootstrap.sh
