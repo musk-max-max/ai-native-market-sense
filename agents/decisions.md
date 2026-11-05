@@ -1436,3 +1436,13 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 - **汇总红线**：**别写「BSE 已闭环」**——退市/转板清单不全是本源事实（幸存者偏差）。
 - **A11 补缺口（H4 抓）**：A11 独立对照收了（`bf2e159`、artifact `35854d21…` 复算一致、33 bar 0 差异、pytest tests/data 150 passed），但 **B 股没有 bar 路径覆盖**（A2 用例 skip）→ 让 A11 直接单测 `quote_unit`/`limit_prices`（沪 B 0.001、深 B 0.01、北交 1.26→1.63/0.89 各验一次），**别改 golden**。
 - **Open**：① A1 落「未知冲突→整批 blocked+样本」进 sync 失败语义 + 单独回 H4 ② A11 补 B 股 quote_unit/limit_prices 单测（不改 golden）③ A2 用 `market_segment` 打标 2021-11-15 前 BSE bar（NEEQ/精选层、不进 C 端、不过滤早于 list_date 的 bar）④ BSE universe 外部退市/转板清单（回补验收）⑤ mirror vs 官方 token 对比（F1 风险）
+
+### L124 — market_segment 契约归属 / blocked 原子性 / provisional 升正条件（H4 三 open 裁定）
+- **触发**：A1 `5a9ee34` 四项落完（退市/转板口径、精选层 segment、B 股+北交所签、未知冲突整批 blocked）后留三个 open，H4 一次定完（m06625）。
+- **① `market_segment` 是内部 canonical 字段，不进对外契约**：`contracts/market/openapi.yaml::Bar` 是 `additionalProperties:false` 的 C 端形状，加字段会把内部研究标记漏到接口。落 **A2 内部 canonical**（loader/DWD 透传），语义 H4 签死：**仅 `BSE:` 且 `trade_date<2021-11-15`、唯一值 `neeq_select`**；**缺失或值不对 fail-closed 拒载**，不进 serving_c_end/display。回补验收核对「BSE 早期行 100% 带标」。**不进 11-12 门禁，挂回补验收前置**。
+- **② 整批 blocked 不回滚整轮**：现行「出错批次零写入 + 前几日 checkpoint 续跑」是对的（20 年回补不接受整轮回滚）；**约束**=checkpoint 只在 manifest 追加成功后推进、同批重跑幂等、blocked 事件与写入同边界。
+- **③ provisional 不升正**：stk_limit/fina/index 三表各自「**官方 host vs 当前 mirror 抽样逐行 diff=0 + 20 日对账**」（fina 单位值一致、index 快照一致）才升正；**官方对不上就一直 provisional**，不拿「样本看着对」升正。
+- **C01 泄漏收口（A1 `5a9ee34`）**：适配层 `research.sanitize_consistency()` 归一 canonical `EXCH:CODE`，`sync.py` 无 `ts_code`，**未申请豁免**；A11 复跑 tests/contract/test_c01=3 passed、tests/contract+data=224 passed，CI_MOUNT `fa75d12` 保留「红→修」因果链未抹门禁抓到问题的事实。我复跑 ingest 214 passed/contract+data 224 passed。
+- **Lead 备查**：A1 报的 mypy「1 error」实为 `config.py:14` `yaml` 库 stubs 缺失（`import-untyped`），非新引入逻辑错误，属 A1 域环境项，不在本轮裁决范围。
+- **BSE 仍按「未闭环」记**：退市/转板清单不全是本源事实（幸存者偏差），market_segment/provisional 都不占 11-12。
+- **Open**：① A2 接 `market_segment` 内部 canonical + fail-closed 校验（BSE<2021-11-15 必须 neeq_select、缺失拒载）② A1 三表 provisional 升正需官方 host 抽样 diff=0+20 日对账 ③ mirror vs 官方 token 对比（F1 独立风险）④ H2 审 ADR-008 D3 ⑤ A4 认证 KD-AUTH-001
