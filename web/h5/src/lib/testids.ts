@@ -38,6 +38,41 @@ export const TID = {
   watchlistToggle: 'watchlist-toggle',
   watchlistState: 'watchlist-state',
 
+  // AI 解读（A12 KD-COPY-REG-01 / ADR-007 B2-07：估值/成长/盈利质量/资金/风险五段）
+  aiInterpretation: 'ai-interpretation',
+  aiGeneratedBadge: 'ai-generated-badge',
+  aiDisclaimer: 'ai-disclaimer',
+  aiSegmentValuation: 'ai-segment-valuation',
+  aiSegmentGrowth: 'ai-segment-growth',
+  aiSegmentEarningsQuality: 'ai-segment-earnings-quality',
+  aiSegmentCapitalFlow: 'ai-segment-capital-flow',
+  aiSegmentRisk: 'ai-segment-risk',
+
+  dataGapCard: 'data-gap-card',
+  dataGapReason: 'data-gap-reason',
+
+  portfolioReviewPage: 'portfolio-review-page',
+  portfolioMetrics: 'portfolio-metrics',
+  portfolioMetric: 'portfolio-metric',
+  portfolioMetricValue: 'portfolio-metric-value',
+  portfolioScopeNote: 'portfolio-scope-note',
+  portfolioReviewLoading: 'portfolio-review-loading',
+  portfolioReviewError: 'portfolio-review-error',
+  portfolioReviewEmpty: 'portfolio-review-empty',
+
+  limitLadderPage: 'limit-ladder-page',
+  limitLadderTable: 'limit-ladder-table',
+  limitProvisionalBanner: 'limit-provisional-banner',
+  limitStExclusion: 'limit-st-exclusion',
+  // B1-02 市场级汇总计数（C 端唯一允许形态，H3 m02407 / lead m02459）。请求 A12 登记。
+  limitUpCount: 'limit-up-count',
+  limitDownCount: 'limit-down-count',
+  limitMaxStreak: 'limit-max-streak',
+  limitStreakDistribution: 'limit-streak-distribution',
+  limitLadderLoading: 'limit-ladder-loading',
+  limitLadderError: 'limit-ladder-error',
+  limitLadderEmpty: 'limit-ladder-empty',
+
   errorBanner: 'error-banner',
   stockPageError: 'stock-page-error',
   stockPageEmpty: 'stock-page-empty',

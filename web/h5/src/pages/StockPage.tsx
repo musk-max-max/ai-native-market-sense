@@ -15,6 +15,7 @@
 import { useEffect, useState } from 'react';
 import { DisclaimerNotice, DisclaimerUnavailable } from '../components/DisclaimerNotice';
 import { EntitlementNotice } from '../components/EntitlementNotice';
+import { AiInterpretation } from '../components/AiInterpretation';
 import { FundamentalSummary } from '../components/FundamentalSummary';
 import { QuoteBlock } from '../components/QuoteBlock';
 import { ErrorState, LoadingState } from '../components/States';
@@ -177,6 +178,15 @@ export function StockPage({ instrumentId }: { instrumentId: string }) {
       )}
 
       <FundamentalSummary fundamental={data.fundamental} state={data.fundamentalState} />
+
+      {granted && data.quote && data.source ? (
+        <AiInterpretation
+          quote={data.quote}
+          source={data.source}
+          fundamental={data.fundamental}
+          fundamentalState={data.fundamentalState}
+        />
+      ) : null}
 
       <p className="page__footnote">{copy.stock.footnote}</p>
     </div>

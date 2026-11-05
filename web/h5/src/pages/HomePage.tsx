@@ -81,6 +81,12 @@ export function HomePage() {
         <Link className="home__link" href="/watchlist">
           {copy.home.watchlistLink}
         </Link>
+        <Link className="home__link" href="/review/portfolio">
+          {copy.home.reviewLink}
+        </Link>
+        <Link className="home__link" href="/review/limits">
+          {copy.home.limitLink}
+        </Link>
       </div>
 
       <section className="card home__notes" aria-labelledby="home-notes-heading">

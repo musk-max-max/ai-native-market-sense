@@ -9,7 +9,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { COPY_TEXT_HASH, COPY_VERSION, ERROR_TITLES, MARKET_COPY, RATE_LIMITED_DETAIL, VALIDATION_FAILED_DETAIL } from '../src/copy.ts';
+import { AI_COPY, COPY_TEXT_HASH, COPY_VERSION, ERROR_TITLES, MARKET_COPY, RATE_LIMITED_DETAIL, VALIDATION_FAILED_DETAIL } from '../src/copy.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../../..');
@@ -22,6 +22,7 @@ function canon() {
     validation_failed_detail: VALIDATION_FAILED_DETAIL,
     rate_limited_detail: RATE_LIMITED_DETAIL,
     market: MARKET_COPY,
+    ai: AI_COPY,
   };
 }
 function hashOf(value) {

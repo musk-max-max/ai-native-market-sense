@@ -6,6 +6,8 @@
  *  - /stocks/:instrument_id    P0 个股页（A12 E2E 主路径，instrument_id 形如 SSE:600519）
  *  - /stock/:instrument_id     别名（docs/p0-acceptance.md 早期写法），渲染同一页面
  *  - /watchlist                自选页
+ *  - /review/portfolio         B1-01 自选组合复盘（固定模板）
+ *  - /review/limits            B1-02 涨跌停梯队
  *
  * 服务端（server.mjs）对所有非静态 GET 做 SPA fallback，因此直接刷新深链可用。
  */
@@ -15,6 +17,8 @@ import type { MouseEvent, ReactNode } from 'react';
 export type Route =
   | { name: 'home' }
   | { name: 'watchlist' }
+  | { name: 'portfolio' }
+  | { name: 'limitLadder' }
   | { name: 'stock'; instrumentId: string }
   | { name: 'notFound'; path: string };
 
@@ -40,6 +44,10 @@ export function normalizeInstrumentId(raw: string): string {
 export function parseRoute(pathname: string): Route {
   if (pathname === '/' || pathname === '') return { name: 'home' };
   if (pathname === '/watchlist' || pathname === '/watchlist/') return { name: 'watchlist' };
+  if (pathname === '/review/portfolio' || pathname === '/review/portfolio/')
+    return { name: 'portfolio' };
+  if (pathname === '/review/limits' || pathname === '/review/limits/')
+    return { name: 'limitLadder' };
 
   const stockMatch = /^\/(?:stocks|stock)\/([^/]+)\/?$/.exec(pathname);
   if (stockMatch && stockMatch[1]) {

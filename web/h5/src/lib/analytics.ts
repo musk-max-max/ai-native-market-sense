@@ -5,7 +5,7 @@
  *
  * 允许字段：
  *  - instrumentId：证券代码（公开信息，可带）；
- *  - route：页面路由名（home/watchlist/stock/notFound）；
+ *  - route：页面路由名（home/watchlist/portfolio/limitLadder/stock/notFound）；
  *  - uiState：界面状态（loading/ready/restricted/error/empty/add/remove）；
  *  - action：交互动作（toggle/retry）。
  *
@@ -29,7 +29,7 @@ export type ActionName = 'toggle' | 'retry';
 
 export interface AnalyticsProps {
   readonly instrumentId?: string;
-  readonly route?: 'home' | 'watchlist' | 'stock' | 'notFound';
+  readonly route?: 'home' | 'watchlist' | 'portfolio' | 'limitLadder' | 'stock' | 'notFound';
   readonly uiState?: UiState;
   readonly action?: ActionName;
 }

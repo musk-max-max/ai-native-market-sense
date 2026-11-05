@@ -14,10 +14,23 @@
  */
 import type { SourceValue } from '@market-sense/api-client';
 
-export const COPY_VERSION = '2026.11.4';
+export const COPY_VERSION = '2026.11.5';
 
 /** 缺失值统一占位：显式缺失，不用 0 冒充。 */
 export const MISSING = '—';
+
+/**
+ * 数据缺口原因（受控枚举）。
+ *
+ * 缺口卡只按原因渲染文案，**禁止调用方传任意字符串**——否则「缺口卡」会变成
+ * 绕过 copy.ts 的自定义文案通道（H3 单一来源）。
+ */
+export type GapReason =
+  | 'pending_batch'
+  | 'permission'
+  | 'upstream_missing'
+  | 'not_integrated'
+  | 'no_coverage';
 
 /** 数据来源标识 → 人可读标签（唯一来源；契约枚举漏映射会在 tsc 阶段失败）。 */
 export const SOURCE_LABELS: Readonly<Record<SourceValue, string>> = {
@@ -158,6 +171,7 @@ export const copy = {
     navAriaLabel: '主导航',
     navHome: '首页',
     navWatchlist: '自选',
+    navReview: '复盘',
     footerNote:
       '本平台为客观数据工具，展示公开数据源与平台自有数据，不构成投资建议、要约或收益承诺。',
     footerMeta: '数据均标注来源与截止时间 · 免责声明由服务端版本化下发且不可关闭',
@@ -174,6 +188,8 @@ export const copy = {
     inputHint: '格式：交易所:代码（上交所 SSE / 深交所 SZSE / 北交所 BSE）。',
     exampleLink: '查看示例标的 · SSE:600519',
     watchlistLink: '我的自选',
+    reviewLink: '自选组合复盘',
+    limitLink: '涨跌停概览',
     notesTitle: '数据说明',
     notes: [
       '行情为收盘快照，不做盘中实时推送；每处行情都显示 as_of 数据截止时间。',
@@ -220,6 +236,7 @@ export const copy = {
     ariaTitle: '最新行情',
     caption: '最新价',
     captionSuffix: '收盘快照',
+    changeLabel: '涨跌幅',
     suspended: '当前停牌，无最新成交价。',
     asOfLabel: '数据截止（北京时间）',
     sourceLabel: '数据来源',
@@ -269,6 +286,104 @@ export const copy = {
     error: '自选列表暂时无法加载，请稍后重试。',
     empty: '还没有自选标的。',
     emptyLink: '去看看示例标的',
+  },
+  ai: {
+    sectionTitle: 'AI 解读',
+    sectionNote:
+      '五段结构（估值/成长/盈利质量/资金/风险）：本批只有成长、盈利质量两段展示已接入的确定性财报字段；估值、资金、风险无数据来源，用缺口卡显式标注；AI 文本尚待接入。',
+    deterministicNote: '以下为确定性数据摘要，不是模型生成内容。',
+    pendingText: 'AI 解读待接入，本段不展示模型生成文案。',
+    segmentsAria: 'AI 解读分段落',
+    segments: {
+      valuation: '估值',
+      growth: '成长',
+      earningsQuality: '盈利质量',
+      capitalFlow: '资金',
+      risk: '风险',
+    },
+    gapTitle: '维度数据缺口',
+    /** AI 文本、AI 标识与免责由服务端 P7 注入（ADR-007 D3）；前端不硬编码、不提供关闭入口。 */
+    notGeneratedNote: '本段当前不含模型生成文本；AI 标识与免责仅在服务端注入后随内容展示。',
+    quoteContext: '行情上下文',
+    asOfLabel: '数据截止（北京时间）',
+    sourceLabel: '数据来源',
+  },
+  gap: {
+    title: '数据缺口',
+    footnote: '缺口按受控类别显式标注，不用 0、样例值或推测值填充。',
+    reasons: {
+      pending_batch: '该维度数据计划在第 2 批接入，当前不展示。',
+      permission: '当前版本不提供该维度数据。',
+      upstream_missing: '上游尚未提供该维度数据。',
+      not_integrated: '该功能尚未接入，本页不展示占位结果。',
+      no_coverage: '该标的暂无已披露数据。',
+    } as Readonly<Record<GapReason, string>>,
+  },
+  review: {
+    portfolio: {
+      title: '自选组合复盘',
+      subtitle:
+        '按自选列表等权汇总，固定模板；仅反映自选标的的组合表现，不代表真实持仓。',
+      scopeNote: '自选组合绝对表现，非真实持仓；不等同于真实账户收益。',
+      templateNote:
+        '固定模板：区间涨跌、年化波动、最大回撤、等权组合表现；不包含选股或收益承诺。',
+      periodLabel: '统计区间',
+      periods: {
+        '1m': '近 1 月',
+        '3m': '近 3 月',
+        '6m': '近 6 月',
+        '1y': '近 1 年',
+      } as Readonly<Record<string, string>>,
+      metricsTitle: '组合表现',
+      metrics: {
+        periodReturn: '区间涨跌',
+        volatility: '年化波动',
+        maxDrawdown: '最大回撤',
+        equalWeight: '等权组合表现',
+        instrumentCount: '标的数量',
+      },
+      asOfLabel: '数据截止（北京时间）',
+      sourceLabel: '数据来源',
+      demoNote: '本地演示数据（mock），仅用于界面开发，不代表真实计算结果。',
+      loading: '正在计算自选组合表现…',
+      empty: '自选列表为空，先添加标的后再查看组合复盘。',
+      emptyLink: '去添加自选',
+      loginRequired: '登录后可查看自选组合复盘。当前为未登录状态，页面不会伪造组合数据。',
+      unavailable: '自选组合复盘尚未接入汇总接口，本页不展示占位数值。',
+      gapsTitle: '待接入维度',
+      gaps: {
+        benchmark: '相对基准对比',
+        sector: '板块对比',
+      },
+      gapFootnote: '这两项依赖第 2 批研究数据，当前用缺口卡显式占位。',
+      error: '组合复盘暂时无法加载。',
+    },
+    limits: {
+      title: '涨跌停概览',
+      subtitle:
+        '按板块规则从日线汇总涨停/跌停家数与连板分布；只展示市场级计数，不含个股名单；ST 标的先排除并显式标注。',
+      provisional:
+        '涨跌停口径为临时近似规则（provisional），后续随数据校准调整；页面会随口径版本更新。',
+      stExclusion: 'ST / *ST 标的已排除，不进入统计。',
+      stExcludedLabel: '已排除数量',
+      countUnit: '家',
+      overviewTitle: '市场级汇总',
+      counts: {
+        up: '涨停家数',
+        down: '跌停家数',
+        maxStreak: '最高连板',
+        distribution: '连板分布',
+      },
+      aggregateNote:
+        '本页只展示市场级汇总计数，不展示个股名称、代码或排序名单；口径与排除规则见上方说明。',
+      emptyList: '当前无符合条件的标的。',
+      demoNote: '本地演示数据（mock），仅用于界面开发，不代表真实计算结果。',
+      loading: '正在加载涨跌停概览…',
+      unavailable: '涨跌停概览尚未接入汇总接口，本页不展示占位数值。',
+      error: '涨跌停概览暂时无法加载。',
+      caliberVersionLabel: '口径版本',
+      streakUnit: '板',
+    },
   },
   states: {
     loadingTitle: '正在加载行情数据…',

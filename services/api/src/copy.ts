@@ -10,10 +10,10 @@
  *  - 发版 manifest（docs/release/copy-version-manifest.md）成对记录 frontend/backend 版本。
  */
 
-export const COPY_VERSION = '2026.11.4';
+export const COPY_VERSION = '2026.11.5';
 
 /** 所有对外可见文本的确定性哈希（copy.ts 文本 + 版本），构建期由 scripts/check-copy-version.mjs 校验。 */
-export const COPY_TEXT_HASH = '34031f022b29c2ef6c55e9af0d0671c0a63f4e51331fedfd78acdddc2480100f';
+export const COPY_TEXT_HASH = 'b90fb608bd1b5d6fa6bea9de3f3c83df7740af59dae075c591adf7337eedfc3b';
 
 /** HTTP 状态码兜底标题：只描述事实，不含内部码/英文原文。 */
 export const ERROR_TITLES = {
@@ -55,3 +55,14 @@ export const RATE_LIMITED_DETAIL = '请稍后再试。';
 
 /** 校验失败时的 detail：不回传 Fastify/Node 英文原文。 */
 export const VALIDATION_FAILED_DETAIL = '请检查请求参数。';
+
+/**
+ * AI 生成内容的固定标识与免责声明（ADR-007 D3 P7 / H3 合规出口）。
+ *
+ * 由 `services/api` 在最终响应层注入；`services/ai` 不持有、前端不拼接、运营不可关闭。
+ * 文案变更必须升 COPY_VERSION 并重新走 H3 签字（ADR-006 D2/D3）。
+ */
+export const AI_COPY = {
+  label: 'AI 生成 · 信息整合非投资建议',
+  disclaimer: '内容由 AI 基于公开数据整理，不构成投资建议；数据截至页面标注的时点。',
+} as const;

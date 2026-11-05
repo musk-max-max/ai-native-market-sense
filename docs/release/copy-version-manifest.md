@@ -10,6 +10,9 @@
 
 | P0-pre-2 | 2026-11-04 | 2026.11.4             | 2026.11.4            | aa617e39c03e52261f561e3288e5a15b92fb3b4e9ed5405a65c65d3005f11cce | 34031f022b29c2ef6c55e9af0d0671c0a63f4e51331fedfd78acdddc2480100f | backend `2026.11.4.34031f022b29.backend.json`；frontend `2026.11.4.aa617e39c03e.frontend.json`；H3 m01536/m01541 条件通过：listStatus 文案修正（已上市/终止上市/未上市）、上市日期 label、异常态不得省略（delisted/prelisted/suspended 断言） |
 
+| B1-P0 | 2026-11-05 | 2026.11.5 | 2026.11.5 | 5ce103f14b5f1ac76123c6549602882bea7ea3e65e53ceb3e9c38a6d649d2138 | b90fb608bd1b5d6fa6bea9de3f3c83df7740af59dae075c591adf7337eedfc3b | backend `2026.11.5.b90fb608bd1b.backend.json`；frontend `2026.11.5.5ce103f14b5f.frontend.json`；KD-AIP0-B1 第 1 批新增 AI 骨架/缺口/自选组合/涨跌停市场级汇总文案（69 条）+ 后端 P7 AI 标识/免责 | **H3 签字状态：pending H3 signoff（H3 m02407 认领签字、清单已提交，正式回签后补消息 ref）**；前端第 2 稿修正「梯队」标题词与「稍后重试」，快照 hash 由 ab4e14 更新为 5ce103 |
+
+- `2026.11.5.ab4e14a6838e.frontend.json`（hash `ab4e14a6838ec1743752100122f3fec3683ddae9b08c282ff6097e80d5aa1513`）**superseded by** `2026.11.5.5ce103f14b5f.frontend.json`（hash `5ce103f14b5f1ac76123c6549602882bea7ea3e65e53ceb3e9c38a6d649d2138`），reason: Lead m02521 签字前修正——标题「涨跌停梯队」统一为「涨跌停概览」、删除「稍后重试」承诺性引导；旧快照文件删除（同版本未发布，不构成覆盖）。
 说明：初版轴与两端快照均已落盘；快照文件名带内容 hash（H3 m01038 条件 3），任何一行都能回指唯一一份原文。前端 hash 为规范化文本清单 sha256，校验脚本 `web/h5/scripts/copy-snapshot.mjs --check`。
 
 ## 快照变更墓碑（append-only）

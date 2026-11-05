@@ -2,6 +2,8 @@ import { useEffect } from 'react';
 import { track } from './lib/analytics';
 import { copy } from './lib/copy';
 import { HomePage } from './pages/HomePage';
+import { LimitLadderPage } from './pages/LimitLadderPage';
+import { PortfolioReviewPage } from './pages/PortfolioReviewPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { StockPage } from './pages/StockPage';
 import { WatchlistPage } from './pages/WatchlistPage';
@@ -47,12 +49,21 @@ export function App() {
           >
             {copy.app.navWatchlist}
           </Link>
+          <Link
+            href="/review/portfolio"
+            className="app-nav__link"
+            aria-current={route.name === 'portfolio' ? 'page' : undefined}
+          >
+            {copy.app.navReview}
+          </Link>
         </nav>
       </header>
 
       <main id="main-content" className="app-main" tabIndex={-1}>
         {route.name === 'home' && <HomePage />}
         {route.name === 'watchlist' && <WatchlistPage />}
+        {route.name === 'portfolio' && <PortfolioReviewPage />}
+        {route.name === 'limitLadder' && <LimitLadderPage />}
         {route.name === 'stock' && <StockPage instrumentId={route.instrumentId} />}
         {route.name === 'notFound' && <NotFoundPage />}
       </main>
