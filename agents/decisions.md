@@ -1446,3 +1446,10 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 - **Lead 备查**：A1 报的 mypy「1 error」实为 `config.py:14` `yaml` 库 stubs 缺失（`import-untyped`），非新引入逻辑错误，属 A1 域环境项，不在本轮裁决范围。
 - **BSE 仍按「未闭环」记**：退市/转板清单不全是本源事实（幸存者偏差），market_segment/provisional 都不占 11-12。
 - **Open**：① A2 接 `market_segment` 内部 canonical + fail-closed 校验（BSE<2021-11-15 必须 neeq_select、缺失拒载）② A1 三表 provisional 升正需官方 host 抽样 diff=0+20 日对账 ③ mirror vs 官方 token 对比（F1 独立风险）④ H2 审 ADR-008 D3 ⑤ A4 认证 KD-AUTH-001
+
+### L124 状态更新 — 三 open 全闭环（H4 确认）
+- **① `market_segment` 闭环**：A2 `ddc875e`（loader 三向 fail-closed：BSE 早期缺标拒 / 非 BSE 带值拒 / 生效日及以后带值拒；DWD 列 `CHECK (NULL OR 'neeq_select')` 透传；`serving/schema.sql`+`ports.yaml` 均不透出；`contracts/market/openapi.yaml::Bar` 未动 `additionalProperties:false` 保持；单测 4 例 + `test_market_segment_not_exposed_to_c_end` 锁死）+ A2 `43ccdce`（存量 ODS 实测 6 行 bar.v1 全 SSE/SZSE 2024 冒烟、**BSE 早期行 0 行 → 20 年回补可直接重放**；若重放到上线前 BSE 老行一律 `OdsFormatError` 拒载、重抓/补标，**无历史豁免**，A12 replay 同 fail-closed）。我复跑 warehouse 200 passed/1 skipped、tests/data golden 59 passed、`Bar` 契约 grep `market_segment`=0、serving grep=0。
+- **② blocked 不回滚整轮 闭环**：A1 `324cef9`（checkpoint 仅批次结束推进、blocked 批不推进可重跑、blocked 事件 id 确定性 `research-blocked-<dataset>-<scope>` 查重、同批重跑不重复、未知冲突写 ODS 前抛出事件与数据不并存、snapshot/per_instrument/daily 三形态同一 `_mark_consistency_blocked()`）。
+- **③ provisional 维持**：升正条件按官方 host 同参 diff（不拿样本看着对），等官方 host 对账+回补 token。
+- **BSE 整体仍「未闭环」**：退市/转板清单不全是本源事实（幸存者偏差）；`BSE-MARKET-SEGMENT`、universe completeness 挂回补验收，**不占 11-12**。
+- **Open**：① A1 三表 provisional 升正需官方 host 同参 diff ② 20 年回补需 official token+budget ③ H2 审 ADR-008 D3 ④ A4 认证 KD-AUTH-001
