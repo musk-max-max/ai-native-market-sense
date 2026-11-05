@@ -1199,3 +1199,14 @@ A13 如实交了失败记录（本机无 iptables、pf 无权限），**没有�
 - **④ 过渡期唯一不需新授权的路径=仅用户本人单人访问**（单人凭据、无他人账号、无共享口令）。想开熟人访问，等书面确认。
 - **⑤ 三项发布卡点均在 H3 go-live 前置清单内，缺证据不放行**（执行归 H5，H3 只认口径与证据）：值班表必须**到人**（姓名+手机/寻呼通道，群通知不算）；寻呼要有响应时限——**15 分钟无人确认自动降 `c_end_display` 档并阻断发布**；staging 演练留证据（过期拒答、白名单外默认拒绝、越权 403、hold 清除后立即恢复、回滚）。现状 H5 记 BLOCKED、H3 记**未闭环**。
 - **一句话**：内网改动的是暴露面，不是权利基础；出口干净、入口收窄，都不等于有资格展示。
+
+### L101 新增门禁 ⑤ 主机管理面 + R2 定 P1（2026-11-05，H5+A9，Lead 亲验）
+- **更正 ④**：H5 11-04 签的「④ PASS（L91）」只覆盖 **HTTP 业务端口**（80/3000/8081/18081），**不覆盖管理面**。新增门禁 **⑤ 主机管理面**，当前 **FAIL**；⑤ 不 PASS 则 11-12 整体暴露面门禁不解。
+- **⑤ 判据**：`PermitRootLogin no` + `PasswordAuthentication no` + fail2ban active + 22 仅白名单 + SG/ufw 无 Internet 放行 80/8888 + docker 无未批准 0.0.0.0 绑定 + 主机态漂移检查；缺一不签。
+- **R2 定 P1（release-blocking）**：Lead 亲验 `permitrootlogin yes`/`passwordauthentication yes`/fail2ban inactive/auth.log **1130** Failed password。A9 定 **Critical**（主机接管→`docker exec psql` 直读行情、API 层门禁全失效），H5 定 **P1**。发布 gate「高危漏洞=0」标红。
+- **R7（A9 独立 finding）**：ECS 主机态（sshd/ufw/SG/ms-nginx）**无任何 IaC 表达**，违反基线 #11「生产只走 IaC」——R1/R3 长期残留的结构性根因，不并入 A19 的 R1/R3。修法归 A13。
+- **R3（P2，A13）**：运行容器 `ENTITLEMENT_AUDIT=0/HOLD_CHECK=0` vs compose 1/1 漂移；`audit.entitlement_events`=0 行、hold 仅 1 行 hold=f → **审计/hold 当前未生效**。事件链未生效前 c_end_display 不得开。
+- **处置三档**：A（零锁定风险，Lead 已执行）=取证的 `docker rm ms-nginx`（清 0.0.0.0:80 绑定）+ htpasswd 归档 0600；B（需用户确认密钥兜底+22 白名单）=`sshd_config.d/99-hardening.conf` 关 root/密码登录；C（必须用户云控制台）=SG 收窄 22、关 80/8888/20/21/888/25730/39000-40000。
+- **时限**：用户确认后 24h 完成 B+C，**11-05 24:00 前闭环**；做不到则 11-12 发布卡点不签，「内网所以降级」不成立。
+- **A19 事故（near-miss）**：红队复核临时绑 `0.0.0.0:8888/80` 验证外网放行（窗口约 2s、无数据读取、post-cleanup 未复测=事实缺口）→ 定 **P2 程序违规 near-miss**，`authority=drill` 不进验收 manifest，记 `drill/a19-exposure-boundary-deviation-20261105.md`。A19 后续转本地隔离栈用例（EXC-HOST-01 命中 BYPASS=API 403 但 DB 直读 2 行，授权只在 API 层成可复现事实；`audit_gap_status=INCOMPLETE` 不算 PASS）。
+- **用户出口 IP**：`223.166.54.234`（fail2ban 白名单用）。**ufw 遗留规则**（8888/20/21/888/25730/39000-40000）经 Lead 查**无进程监听=纯遗留**，待用户点头删。
