@@ -30,8 +30,9 @@
     段位状态放 `data-segment-status="filled|gap|pending"` 属性；**禁止**前端动态拼 `ai-segment-${任意字符串}`，
     新增段必须先在本文件与 `testids.json` 登记。第 1 批只要求骨架 + 缺口显式，估值段缺口位即 `ai-segment-valuation`
     内嵌 `data-gap-card[data-gap-key="valuation"]`。
-14. **AI 标识/免责不可关**：`ai-generated-badge`（「AI 生成」标识）与 `ai-disclaimer`（「信息整合非投资建议」+
-    免责声明）常驻；文案由 API `copy.ts` 注入（ADR-007 P7），前端不得硬编码、不得提供关闭后隐藏的 testid 语义。
+14. **AI 标识/免责不可关**：`ai-generated-badge`（「AI 生成」标识）与 `ai-disclaimer`（文案全文由
+    `services/api/src/copy.ts` 按 ADR-007 P7 注入，现行口径以 ADR-007 P7 为准，不在本文件写死）常驻；
+    前端不得硬编码、不得提供关闭后隐藏的 testid 语义。
     第 1 批若 API 尚未注入文案，节点可不渲染，但 testid 契约先登记；一旦渲染，二者必须在 `ai-interpretation` 内可见。
 15. **新页面状态 id 独立**：`portfolio-review-page` 与 `limit-ladder-page` 的 loading/error/empty 分别用
     `portfolio-review-loading|error|empty`、`limit-ladder-loading|error|empty`；禁止复用页面根 id + 文案判断。
