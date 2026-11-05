@@ -2,7 +2,7 @@
   "schema_version": "0.1",
   "owner": "A13",
   "generated_by": "a13-sre",
-  "generated_at": "2026-11-04T23:55:54Z",
+  "generated_at": "2026-11-05T00:08:00Z",
   "rule": "artifact 不内嵌自身哈希；哈希只进 manifest；内容改动必须换新文件名（UTC 时间戳），旧 artifact 保留；CI 独立复算每条 sha。",
   "authority_values": [
     "authoritative",
@@ -357,6 +357,52 @@
         "H5-R19"
       ],
       "notes": "L91 内网暴露面红队复核（A19）：公网不可达=缺监听而非网络层拒绝（80/8888 外网 0.0.0.0 绑定实测 HTTP 200；ms-nginx 保留 0.0.0.0:80 绑定+Basic Auth）；内网隧道 403+无价 DOM；审计/hold 运行态 0/0 漂移（audit events=0）；限流 600/120 且 web 代理共享桶；root/docker 可 psql 直读绕过 403；多用户再分发风险成立。"
+    },
+    {
+      "path": "infra/evidence/host-baseline-before-20261105T0000Z.txt",
+      "sha256": "a636fa821e1671c74d08454cae7f31526a6673ef9ff1e038a4b5793037bd09a5",
+      "bytes": 1321,
+      "recompute": "sha256sum infra/evidence/host-baseline-before-20261105T0000Z.txt",
+      "role": "host-baseline-pre-fix",
+      "authority": "authoritative",
+      "phase": "pre-fix",
+      "case_ids": [
+        "H5-R10",
+        "H5-R19",
+        "HOST-BASELINE-01"
+      ],
+      "notes": "A19 L91 后、H5 m03440 加固前的只读主机基线：ms-nginx 0.0.0.0:80 绑定、非 compose 容器、ufw 多放行、sshd 弱配置、e2e api AUDIT/HOLD=0 漂移；RESULT DRIFT。"
+    },
+    {
+      "path": "infra/evidence/host-baseline-after-20261105T0004Z.txt",
+      "sha256": "fadadc31deabc95ccb3d0c3d7d31fa4b2195a6f99df535aa780f6c211a1c08bb",
+      "bytes": 1315,
+      "recompute": "sha256sum infra/evidence/host-baseline-after-20261105T0004Z.txt",
+      "role": "host-baseline-post-fix",
+      "authority": "authoritative",
+      "phase": "post-fix",
+      "case_ids": [
+        "H5-R10",
+        "H5-R19",
+        "HOST-BASELINE-01"
+      ],
+      "notes": "fail2ban active、ufw 仅 22、AUDIT/HOLD=1 PASS；仍 FAIL：22 来源 Anywhere（待用户 CIDR）、sshd root/密码登录未改（待用户确认）；RESULT DRIFT（如实）。"
+    },
+    {
+      "path": "infra/evidence/host-hardening-20261105T0008Z.md",
+      "sha256": "c7768ca2bf3cd27a7ac9357e64fb7b5c0166d5494b938cf4d40e5c26dd69162e",
+      "bytes": 5575,
+      "recompute": "sha256sum infra/evidence/host-hardening-20261105T0008Z.md",
+      "role": "host-hardening-report",
+      "authority": "authoritative",
+      "phase": "post-fix",
+      "case_ids": [
+        "H5-R10",
+        "H5-R19",
+        "HOST-BASELINE-01",
+        "KD-ENT-01"
+      ],
+      "notes": "H5 m03440 四项处置记录：fail2ban 启用/ms-nginx 移除复核/ufw 收敛/R3 隔离 hold 测试（403+no-store、事件 2→5→6、chain 0、缓存 TTL≈30s）；含变异自证与 residual。"
     }
   ],
   "related_manifests": [
