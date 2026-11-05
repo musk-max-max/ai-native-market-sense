@@ -1258,3 +1258,10 @@ A13 如实交了失败记录（本机无 iptables、pf 无权限），**没有�
 - **root 禁登（H5 三硬条件第 3 条）**：`PermitRootLogin no`（备份 sshd_config.bak.*，sshd -t OK，restart active）；验证 `root@…: Permission denied (publickey)` ✅。**满足 H5 三条件全部**：①无第二操作者 ②无公网窗口 ③11-12 前完成。
 - **fail2ban 不自锁确认**：ignoreip = `127.0.0.0/8 ::1 223.166.54.234`（用户出口 IP 在白名单，不会被自己 ban）。
 - **后续**：流水线 `HOST_AUDIT_SSH` 改用 `lyuddu@47.120.16.239`（专用审计账号，非 root），11-12 前配；部署钩子 fail-closed 保持。root 登录 residual 从 ACCEPTED-RISK 转 **CLOSED**。
+
+## §11 L109/L110 SG+root 两项解除 11-12 发布签核前提（H5 书面确认）
+- **root 登录 = CLOSED**：证据 `infra/evidence/host/host-hardening-20261105T020017Z.txt`（sha 8a2acd42…、2524B、manifest 第 32 条、commit `7e27df0`）；⑤-3 PASS。H5 不再走「用户接受」路径。**保留 residual**：`lyuddu` 是 NOPASSWD sudo = root 等价凭据，其持有/轮换/吊销进 gaps（持有拟 Lead+A13 自动化、90 天/职责变更轮换、吊销走删 authorized_keys→锁账号→userdel+删 sudoers、HOST-AUDIT-01 留痕）。
+- **SG 80/8888 = ACCEPTED-RISK 进 release note**：依据 m05524/L108 书面接受；补偿控制=HOST-EXPOSURE-01 PASS（部署后+每日巡检+窄口径自动隔离）+ 80/8888 当前无监听 + 部署钩子 fail-closed；复核日 2026-12-15；owner=user（SG 控制面）/H5（签字）/A13（补偿控制与证据）；release note `infra/ops/release-evidence-status.md` §⑤ 经 H5 接受（commit `ec483c2`）。
+- **H5 书面结论（L110）**：SG 与 root 两项**不再作为 11-12 发布签核前提**；公网测试窗口仍按 L104 逐次审批、不因本次接受放开。
+- **11-12 仍卡三项（不因这两项解除而签）**：值班姓名/手机（BLOCKED）、真实寻呼通道（BLOCKED）、staging 15min 演练（NO-ENV）。
+- **待办**：`HOST_AUDIT_SSH` 用 `lyuddu@…` 配好后，A19 验部署钩子「阻塞/放行」两路径再报 H5（不把「配了变量」当「验过钩子」）。
