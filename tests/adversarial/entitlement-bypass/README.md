@@ -84,6 +84,7 @@ A19_HOST_LAYER_APPROVED=1 A19_SSH_TARGET=root@<host> \
 - `EXC-TUNNEL-01`：SSH 隧道二次转发。本地自检只验证 relay 逻辑（INFO），**不构成第三人可达证据**；第三人需同 LAN 第二 vantage（A9 Q2），无法建立时 oracle=INCOMPLETE。
 - 当前真实目标（ECS `47.120.16.239`）按 H5 m01196 为 **blocked**：不得因开关存在就打开；结束须 kill 隧道/relay 并记录 0 监听。
 - 产物：`artifacts/host-layer-<runId>.json`（含 checks/meta/cleanup_listeners）。
+- 口径（H5 m01276）：本地自检结果只代表隔离 fixture（`market_sense_a19`），**不得表述为 ECS/生产结果**；`audit_event_count=null` 只记 `audit_gap_status=INCOMPLETE`，不得算 PASS。
 
 ## 维护提示
 

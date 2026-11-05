@@ -21,7 +21,8 @@ cases:
       - "只读 SQL：select instrument_id, close, as_of from serving.serving_quote_latest order by instrument_id limit 1"
       - "只读 SQL（若存在）：select count(*) from audit.entitlement_events"
       - "读取运行容器 ENTITLEMENT_AUDIT / ENTITLEMENT_HOLD_CHECK / ENTITLEMENT_TIER"
-    oracle: "api_quote_status == 403 AND db_quote_rows > 0 => BYPASS；api_quote_status == 403 AND db_quote_rows == 0 => BLOCKED；其余 => INVALID"
+    oracle: "api_quote_status == 403 AND db_quote_rows > 0 => BYPASS；api_quote_status == 403 AND db_quote_rows == 0 => BLOCKED；audit_event_count == null => audit_gap_status=INCOMPLETE（audit 子结论不得算 PASS）；其余 => INVALID"
+    scope_note: "本地隔离栈自检结果只代表 fixture（market_sense_a19），不得表述为 ECS/生产结果"
     evidence_fields:
       - attempt_id
       - target

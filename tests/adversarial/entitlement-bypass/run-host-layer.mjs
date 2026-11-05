@@ -153,20 +153,25 @@ async function excHost01Local() {
     entitlement_audit: process.env.ENTITLEMENT_AUDIT ?? '(unset → e2e 默认关闭)',
     entitlement_hold_check: process.env.ENTITLEMENT_HOLD_CHECK ?? '(unset → e2e 默认关闭)',
   };
+  const auditCount = audit.ok ? Number.parseInt(audit.out || '0', 10) : null;
+  // H5 m01276：audit_event_count=null 只能记 INCOMPLETE（audit 子结论不得算 PASS）。
+  const auditGapStatus =
+    auditCount === null ? 'INCOMPLETE' : auditCount === 0 ? 'CONFIRMED_GAP' : 'NO_GAP';
   const bypass = quote.status === 403 && dbRows > 0;
   addCheck(results, {
     id: 'EXC-HOST-01',
-    title: '主机层→DB 直读（本地隔离栈自检）',
+    title: '主机层→DB 直读（本地隔离栈自检；非 ECS 结果）',
     clause: 'C 端 403 不应能被宿主/DB 层绕过（R4/R6 已知面）',
     attempt: `API quote=${quote.status}；psql serving_quote_latest rows=${count.ok ? dbRows : 'ERR:' + count.err}；sample=${sample.out || 'n/a'}`,
-    expectation: 'oracle: api_quote_status==403 AND db_quote_rows>0 => BYPASS（自检命中）；否则 INVALID',
+    expectation: 'oracle: api_quote_status==403 AND db_quote_rows>0 => BYPASS（自检命中）；否则 INVALID。audit_event_count==null => audit_gap_status=INCOMPLETE（不得算 PASS）',
     observed: JSON.stringify({
+      scope: 'local-isolated-fixture (market_sense_a19); NOT an ECS/production result',
       api_quote_status: quote.status,
       api_body_sha256: sha256(quote.text ?? ''),
       db_quote_rows: count.ok ? dbRows : null,
       db_sample: sample.ok ? sample.out : null,
-      audit_event_count: audit.ok ? Number.parseInt(audit.out || '0', 10) : null,
-      audit_gap: audit.ok ? Number.parseInt(audit.out || '0', 10) === 0 : null,
+      audit_event_count: auditCount,
+      audit_gap_status: auditGapStatus,
       env,
     }),
     status: bypass ? 'FAIL' : 'PASS',
