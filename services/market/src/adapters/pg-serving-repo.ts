@@ -21,6 +21,8 @@ import type {
   FactorRow,
   FundamentalSummaryRow,
   InstrumentRow,
+  MarketBarRow,
+  MarketBarsQuery,
   QuoteRow,
   ServingRepo,
   SourceInfo,
@@ -72,6 +74,14 @@ interface BarDbRow extends AsOfColumns {
   volume: string | number;
   amount: string;
   factor: string | null;
+}
+
+interface MarketBarDbRow extends BarDbRow {
+  name: string;
+  board: string;
+  security_type: string;
+  list_status: string;
+  display_safe: boolean;
 }
 
 interface FactorDbRow extends AsOfColumns {
@@ -150,6 +160,15 @@ const BAR_COLUMNS = `
   source,
   to_char(as_of AT TIME ZONE 'Asia/Shanghai', 'YYYY-MM-DD"T"HH24:MI:SS') || '+08:00' AS as_of,
   staleness_ms`;
+
+const MARKET_BAR_COLUMNS = `
+  b.instrument_id,
+  to_char(b.trade_date, 'YYYY-MM-DD') AS trade_date,
+  b.adj_type, b.open, b.high, b.low, b.close, b.volume, b.amount, b.factor,
+  i.name, i.board, i.security_type, i.list_status, i.display_safe,
+  b.source,
+  to_char(b.as_of AT TIME ZONE 'Asia/Shanghai', 'YYYY-MM-DD"T"HH24:MI:SS') || '+08:00' AS as_of,
+  b.staleness_ms`;
 
 const FACTOR_COLUMNS = `
   instrument_id,
@@ -299,5 +318,73 @@ export class PgServingRepo implements ServingRepo {
       roe_pct: row.roe_pct,
       gross_margin_pct: row.gross_margin_pct,
     };
+  }
+
+  async listTradeDates(limit: number, to?: string): Promise<string[]> {
+    const result = await this.pool.query<{ trade_date: string }>(
+      `SELECT to_char(trade_date, 'YYYY-MM-DD') AS trade_date
+         FROM serving.serving_bar_daily
+        WHERE adj_type = 'none'
+          AND ($2::date IS NULL OR trade_date <= $2::date)
+        GROUP BY trade_date
+        ORDER BY trade_date DESC
+        LIMIT $1`,
+      [limit, to ?? null],
+    );
+    // 契约/端口约定升序，调用方直接用于区间窗口。
+    return result.rows.map((row) => row.trade_date).reverse();
+  }
+
+  async getMarketBars(query: MarketBarsQuery): Promise<MarketBarRow[]> {
+    if (query.dates.length === 0) return [];
+    const audienceFilter = (query.audience ?? 'c_end') === 'c_end' ? ' AND i.display_safe = true' : '';
+    const result = await this.pool.query<MarketBarDbRow>(
+      `SELECT ${MARKET_BAR_COLUMNS}
+         FROM serving.serving_bar_daily b
+         JOIN serving.serving_instrument i USING (instrument_id)
+        WHERE b.adj_type = $1
+          AND b.trade_date = ANY($2::date[])
+          ${audienceFilter}
+        ORDER BY b.instrument_id, b.trade_date`,
+      [query.adjType, [...query.dates]],
+    );
+    return result.rows.map((row) => ({
+      ...sourceInfo(row),
+      instrument_id: row.instrument_id,
+      trade_date: row.trade_date,
+      adj_type: oneOf(row.adj_type, ADJ_TYPES, 'adj_type'),
+      open: row.open,
+      high: row.high,
+      low: row.low,
+      close: row.close,
+      volume: integer(row.volume, 'volume'),
+      amount: row.amount,
+      factor: row.factor,
+      name: row.name,
+      board: oneOf(row.board, BOARDS, 'board'),
+      security_type: oneOf(row.security_type, SECURITY_TYPES, 'security_type'),
+      list_status: oneOf(row.list_status, LIST_STATUSES, 'list_status'),
+      display_safe: row.display_safe === true,
+    }));
+  }
+
+  async listInstruments(audience: Audience = 'c_end'): Promise<InstrumentRow[]> {
+    const displayFilter = audience === 'c_end' ? ' WHERE display_safe = true' : '';
+    const result = await this.pool.query<InstrumentDbRow>(
+      `SELECT ${INSTRUMENT_COLUMNS} FROM serving.serving_instrument${displayFilter} ORDER BY instrument_id`,
+    );
+    return result.rows.map((row) => ({
+      ...sourceInfo(row),
+      instrument_id: row.instrument_id,
+      exchange: oneOf(row.exchange, EXCHANGES, 'exchange'),
+      code: row.code,
+      name: row.name,
+      board: oneOf(row.board, BOARDS, 'board'),
+      security_type: oneOf(row.security_type, SECURITY_TYPES, 'security_type'),
+      list_status: oneOf(row.list_status, LIST_STATUSES, 'list_status'),
+      lot_size: integer(row.lot_size, 'lot_size'),
+      listed_at: row.listed_at,
+      display_safe: row.display_safe === true,
+    }));
   }
 }

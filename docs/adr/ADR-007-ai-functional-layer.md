@@ -214,9 +214,9 @@ prompt、输出 JSON Schema、确定性 fallback，**禁止各自实现过滤/�
 
 | ID | 功能切片 | 所需数据接口（现有） | owner 候选 | 前置依赖 | 规模 |
 |---|---|---|---|---|---|
-| B1-01 | **P0-06 持仓复盘·自选组合绝对表现版**（区间涨跌/波动/最大回撤/等权组合对比；固定模板，不含 LLM） | `GET /v1/watchlist`、`GET /v1/instruments/{id}/bars`（qfq/hfq）、`GET /v1/instruments/{id}/quote` | A3（计算/API）、A7（页面）、A11/A12（测试） | watchlist + bars 已可用；**相对基准/板块对比待第 2 批**；不称「真实持仓」，P0 无持仓账本 | M（6–8d） |
-| B1-02 | **P0-08 盘后复盘·涨跌停梯队切片**（涨停/跌停/连板梯队；按 board 规则从 bars 推导，ST 先排除并标注） | `GET /v1/instruments/{id}/bars`（market-wide 已有 ingest）、`instrument.board`/`name` | A2（DWS 派生）、A3（API）、A7（页面） | H4 确认涨跌停/ST 口径；精确 `stk_limit` 待第 2 批；不含 LHB/两融/北向/大宗 | M（6–8d） |
-| B1-03 | **P0-02 个股页「AI 解读」五段骨架 + 数据缺口卡**（只做 UI/证据位/缺口显式，不接 AI 文案；行情+财务摘要两段可先填） | `GET /v1/instruments/{id}`、`/quote`、`/bars`、`/fundamental-summary` | A7（页面/组件）、A3（汇总 API） | 只覆盖已接入标的；基本面当前仅 3–5 标的，不能伪装全市场；H4 白名单 | S–M（4–6d） |
+| B1-01 | **P0-06 持仓复盘·自选组合绝对表现版**（区间涨跌/波动/最大回撤/等权组合对比；固定模板，不含 LLM） | 新增 `GET /v1/watchlist/review`（watchlist 0.3.0，内部只读 `GET /v1/watchlist` + bars + quote） | A3（计算/API）、A7（页面）、A11/A12（测试） | watchlist + bars 已可用；**相对基准/板块对比待第 2 批**；不称「真实持仓」，P0 无持仓账本 | M（6–8d） |
+| B1-02 | **P0-08 盘后复盘·涨跌停梯队切片**（涨停/跌停/连板梯队；按 board 规则从 bars 推导，ST 先排除并标注） | 新增 `GET /v1/market/limit-ladder`（market 0.4.0，内部只读 market-wide bars + instrument.board/name） | A2（DWS 派生）、A3（API）、A7（页面） | H4 确认涨跌停/ST 口径；精确 `stk_limit` 待第 2 批；不含 LHB/两融/北向/大宗 | M（6–8d） |
+| B1-03 | **P0-02 个股页「AI 解读」五段骨架 + 数据缺口卡**（只做 UI/证据位/缺口显式，不接 AI 文案；行情+财务摘要两段可先填） | 新增 `GET /v1/instruments/{instrument_id}/page-summary`（market 0.4.0，内部只读 instrument/quote/bars/fundamental-summary） | A7（页面/组件）、A3（汇总 API） | 只覆盖已接入标的；基本面当前仅 3–5 标的，不能伪装全市场；H4 白名单 | S–M（4–6d） |
 
 **对任务书预判的验证结论（必须纠正）**
 

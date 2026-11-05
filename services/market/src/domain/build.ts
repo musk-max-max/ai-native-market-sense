@@ -119,7 +119,7 @@ export function sourceRef(row: SourceInfo, kind: SourceKind = 'eod'): SourceRef 
   return ref;
 }
 
-function disclaimerMeta(input: DisclaimerConfigInput): DisclaimerMeta {
+export function disclaimerMeta(input: DisclaimerConfigInput): DisclaimerMeta {
   return { text: input.text, version: input.version, closable: false };
 }
 

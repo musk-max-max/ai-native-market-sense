@@ -27,6 +27,7 @@ import type {
   FactorRow,
   FundamentalSummaryRow,
   InstrumentRow,
+  MarketBarRow,
   QuoteRow,
   ServingRepo,
 } from '../src/ports/serving-repo.js';
@@ -164,6 +165,18 @@ class FakeServing implements ServingRepo {
   async getFundamentalSummary(instrumentId: string): Promise<FundamentalSummaryRow | null> {
     this.maybeFail();
     return this.fundamental?.instrument_id === instrumentId ? this.fundamental : null;
+  }
+
+  async listTradeDates(): Promise<string[]> {
+    return [...new Set(this.bars.map((bar) => bar.trade_date))].sort();
+  }
+
+  async getMarketBars(): Promise<MarketBarRow[]> {
+    return [];
+  }
+
+  async listInstruments(): Promise<InstrumentRow[]> {
+    return this.instrument === null ? [] : [this.instrument];
   }
 }
 

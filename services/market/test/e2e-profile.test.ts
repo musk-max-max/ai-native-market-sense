@@ -48,6 +48,9 @@ function guardedServing(calls: string[]): ServingRepo {
     async getBars() { calls.push('getBars'); return { rows: [], hasMore: false, adjustment: 'none' }; },
     async getLatestFactor() { calls.push('getLatestFactor'); return null; },
     async getFundamentalSummary() { calls.push('getFundamentalSummary'); return null; },
+    async listTradeDates() { calls.push('listTradeDates'); return []; },
+    async getMarketBars() { calls.push('getMarketBars'); return []; },
+    async listInstruments() { calls.push('listInstruments'); return []; },
   };
 }
 

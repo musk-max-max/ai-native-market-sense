@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: market-sense-h5 · watchlist（自选域 P0）
-  version: 0.2.0
+  version: 0.3.0
   license:
     name: Proprietary
     identifier: LicenseRef-Proprietary
@@ -12,8 +12,10 @@ info:
     服务端只信任 token 主体，不接受请求体/查询参数中的 user_id。
     写操作幂等：重复添加不报错、删除不存在的条目同样成功（204），重试安全。
     上限（如单用户自选数上限）属于运营配置（A14/A15 维护），契约不写死数值；超限按 400 VALIDATION_ERROR 返回。
-    meta 使用 shared ResponseMeta：source=platform.watchlist、as_of=服务端响应时刻、staleness_ms=0；
-    自选数据无复权口径与免责声明，不携带 adjustment/disclaimer。
+    meta 使用 shared ResponseMeta：自选 CRUD 的 source=platform.watchlist、as_of=服务端响应时刻、staleness_ms=0；
+    自选 CRUD 无复权口径与免责声明，不携带 adjustment/disclaimer。
+    B1-01 的 review 是「自选组合」的确定性衍生统计（只读 bars），source=platform_eod，携带 adjustment/disclaimer；
+    它不读持仓账本、不构成真实持仓，也不调用 LLM 或输出投资结论。
 
 servers:
   - url: https://api.market-sense.invalid
@@ -22,6 +24,8 @@ servers:
 tags:
   - name: watchlist
     description: 当前用户自选（私有数据）
+  - name: watchlist-review
+    description: 自选组合的确定性区间统计（B1-01，不含 AI/投资结论）
 
 security:
   - bearerAuth: []
@@ -71,6 +75,67 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WatchlistItemResponse'
+        '400':
+          $ref: '../shared/openapi.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '../shared/openapi.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '../shared/openapi.yaml#/components/responses/Forbidden'
+        '429':
+          $ref: '../shared/openapi.yaml#/components/responses/TooManyRequests'
+        '500':
+          $ref: '../shared/openapi.yaml#/components/responses/InternalError'
+        default:
+          $ref: '../shared/openapi.yaml#/components/responses/ProblemResponse'
+
+  /v1/watchlist/review:
+    get:
+      operationId: getWatchlistReview
+      tags: [watchlist-review]
+      summary: 自选组合区间统计（B1-01）
+      description: |
+        B1-01 切片：对当前用户自选做确定性区间统计（区间收益、波动率、最大回撤、等权组合），
+        供「持仓复盘」数据卡使用。只读已授权 bars、只做统计，不含 AI 文案/投资结论。
+
+        语义：
+        - 自选为空 → 200 + items=[]、portfolio=null、universe.count=0；不返回 404。
+        - 只统计数据足够的标的；历史不足的标的从 items 剔除并给 PARTIAL_HISTORY 缺口，
+          不得用 0 收益/空值补齐。
+        - from/to 为闭区间；跨度上限 250 个交易日（超过 → 400 VALIDATION_ERROR）。
+          缺省 to=最近交易日、from=to 前最多 250 个交易日，由服务端按交易日历截断。
+        - adjustment 仅 none|qfq；默认 qfq。hfq 不在本接口开放（需真实持仓成本口径，P1 再评估）。
+        - 相对基准/板块对比依赖 index_daily，当前未接 → 以 BENCHMARK_PENDING 缺口显式返回。
+        - 文案/命名只允许「自选组合」，不得出现「真实持仓/持仓账本」。
+      parameters:
+        - name: from
+          in: query
+          required: false
+          description: 起始交易日（含）YYYY-MM-DD；缺省由服务端按交易日历回溯。
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: false
+          description: 结束交易日（含）YYYY-MM-DD；缺省为最近交易日。
+          schema:
+            type: string
+            format: date
+        - name: adjustment
+          in: query
+          required: false
+          description: 复权口径；仅 none|qfq，缺省 qfq。
+          schema:
+            type: string
+            enum: [none, qfq]
+            default: qfq
+      responses:
+        '200':
+          description: 自选组合区间统计（可能为空）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WatchlistReviewResponse'
         '400':
           $ref: '../shared/openapi.yaml#/components/responses/BadRequest'
         '401':
@@ -174,3 +239,148 @@ components:
       properties:
         instrument_id:
           $ref: '../shared/openapi.yaml#/components/schemas/InstrumentId'
+
+    Gap:
+      type: object
+      description: |
+        数据/能力缺口（显式缺口，不得用 0 或空串伪装）。已知 P0 值：
+        BENCHMARK_PENDING（index_daily 未接）、PARTIAL_HISTORY（个别标的历史不足被剔除）。
+        新增缺口码是 additive 的字符串取值，客户端应按 code 映射并保留未知码兜底。
+      required: [code, message]
+      additionalProperties: false
+      properties:
+        code:
+          type: string
+          pattern: '^[A-Z][A-Z0-9_]{2,63}$'
+        message:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: 中性说明，不得包含供数方名称、内部 tier 或投资结论。
+
+    WatchlistReviewItem:
+      type: object
+      description: 单只自选在区间内的确定性统计；历史不足的标的不出现在 items 中。
+      required: [instrument_id, name, start_close, end_close, range_return_pct, volatility_pct, max_drawdown_pct, data_points]
+      additionalProperties: false
+      properties:
+        instrument_id:
+          $ref: '../shared/openapi.yaml#/components/schemas/InstrumentId'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 64
+        start_close:
+          type: number
+          description: 区间首个交易日收盘价（按请求 adjustment）。
+        end_close:
+          type: number
+          description: 区间最后一个交易日收盘价（按请求 adjustment）。
+        range_return_pct:
+          type: number
+          description: 区间收益率（百分数数值，1.23 表示 +1.23%），按复权收盘价计算。
+        volatility_pct:
+          type: number
+          minimum: 0
+          description: 区间日收益率标准差（百分数数值）；不足 2 个收益点时不出现该标的。
+        max_drawdown_pct:
+          type: number
+          maximum: 0
+          description: 区间最大回撤（百分数数值，≤0，如 -12.34 表示 -12.34%）。
+        data_points:
+          type: integer
+          minimum: 2
+          description: 参与计算的交易日数。
+
+    WatchlistReviewPortfolio:
+      type: object
+      description: 等权自选组合的区间统计；自选为空或不足 2 个数据点时 portfolio=null。
+      required: [equal_weight_return_pct, volatility_pct, max_drawdown_pct, start_date, end_date, data_points]
+      additionalProperties: false
+      properties:
+        equal_weight_return_pct:
+          type: number
+          description: 等权组合区间收益（百分数数值）；只做统计，不构成组合建议。
+        volatility_pct:
+          type: number
+          minimum: 0
+          description: 等权组合日收益率标准差（百分数数值）。
+        max_drawdown_pct:
+          type: number
+          maximum: 0
+          description: 等权组合最大回撤（百分数数值，≤0）。
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        data_points:
+          type: integer
+          minimum: 2
+
+    WatchlistReviewUniverse:
+      type: object
+      description: 统计覆盖范围。
+      required: [count, indicators_available]
+      additionalProperties: false
+      properties:
+        count:
+          type: integer
+          minimum: 0
+          description: 当前自选条目总数（含被剔除的标的）。
+        indicators_available:
+          type: integer
+          minimum: 0
+          description: 实际进入 items 的标的数；count 与 indicators_available 的差由 gaps 说明。
+
+    WatchlistReviewData:
+      type: object
+      required: [from, to, adjustment, items, portfolio, universe, gaps]
+      additionalProperties: false
+      properties:
+        from:
+          type: string
+          format: date
+          description: 实际生效的起始交易日（服务端按交易日历截断后）。
+        to:
+          type: string
+          format: date
+          description: 实际生效的结束交易日。
+        adjustment:
+          type: string
+          enum: [none, qfq]
+          description: 实际生效的复权口径，必须与 meta.adjustment 一致。
+        items:
+          type: array
+          description: 每只可统计标的的区间结果；顺序按 instrument_id 升序。
+          items:
+            $ref: '#/components/schemas/WatchlistReviewItem'
+        portfolio:
+          description: 等权组合统计；自选为空/不足 2 个数据点时为 null。
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/WatchlistReviewPortfolio'
+        universe:
+          $ref: '#/components/schemas/WatchlistReviewUniverse'
+        gaps:
+          type: array
+          description: 本轮能力/数据缺口；无缺口时为空数组。
+          items:
+            $ref: '#/components/schemas/Gap'
+
+    WatchlistReviewResponse:
+      type: object
+      required: [data, meta]
+      additionalProperties: false
+      properties:
+        data:
+          $ref: '#/components/schemas/WatchlistReviewData'
+        meta:
+          allOf:
+            - $ref: '../shared/openapi.yaml#/components/schemas/ResponseMeta'
+          required: [adjustment, disclaimer]
+          description: |
+            source=platform_eod（数据来自 bars，不是 platform.watchlist）；
+            adjustment 必须与 data.adjustment 一致；
+            disclaimer 为衍生价格统计的免责元数据（closable 恒 false）。

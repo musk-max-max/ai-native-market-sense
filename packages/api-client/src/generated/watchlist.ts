@@ -29,6 +29,37 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/watchlist/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 自选组合区间统计（B1-01）
+         * @description B1-01 切片：对当前用户自选做确定性区间统计（区间收益、波动率、最大回撤、等权组合），
+         *     供「持仓复盘」数据卡使用。只读已授权 bars、只做统计，不含 AI 文案/投资结论。
+         *
+         *     语义：
+         *     - 自选为空 → 200 + items=[]、portfolio=null、universe.count=0；不返回 404。
+         *     - 只统计数据足够的标的；历史不足的标的从 items 剔除并给 PARTIAL_HISTORY 缺口，
+         *       不得用 0 收益/空值补齐。
+         *     - from/to 为闭区间；跨度上限 250 个交易日（超过 → 400 VALIDATION_ERROR）。
+         *       缺省 to=最近交易日、from=to 前最多 250 个交易日，由服务端按交易日历截断。
+         *     - adjustment 仅 none|qfq；默认 qfq。hfq 不在本接口开放（需真实持仓成本口径，P1 再评估）。
+         *     - 相对基准/板块对比依赖 index_daily，当前未接 → 以 BENCHMARK_PENDING 缺口显式返回。
+         *     - 文案/命名只允许「自选组合」，不得出现「真实持仓/持仓账本」。
+         */
+        get: operations["getWatchlistReview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/watchlist/{instrument_id}": {
         parameters: {
             query?: never;
@@ -78,6 +109,87 @@ export interface components {
         };
         AddWatchlistItemRequest: {
             instrument_id: components["schemas"]["InstrumentId"];
+        };
+        /**
+         * @description 数据/能力缺口（显式缺口，不得用 0 或空串伪装）。已知 P0 值：
+         *     BENCHMARK_PENDING（index_daily 未接）、PARTIAL_HISTORY（个别标的历史不足被剔除）。
+         *     新增缺口码是 additive 的字符串取值，客户端应按 code 映射并保留未知码兜底。
+         */
+        Gap: {
+            code: string;
+            /** @description 中性说明，不得包含供数方名称、内部 tier 或投资结论。 */
+            message: string;
+        };
+        /** @description 单只自选在区间内的确定性统计；历史不足的标的不出现在 items 中。 */
+        WatchlistReviewItem: {
+            instrument_id: components["schemas"]["InstrumentId"];
+            name: string;
+            /** @description 区间首个交易日收盘价（按请求 adjustment）。 */
+            start_close: number;
+            /** @description 区间最后一个交易日收盘价（按请求 adjustment）。 */
+            end_close: number;
+            /** @description 区间收益率（百分数数值，1.23 表示 +1.23%），按复权收盘价计算。 */
+            range_return_pct: number;
+            /** @description 区间日收益率标准差（百分数数值）；不足 2 个收益点时不出现该标的。 */
+            volatility_pct: number;
+            /** @description 区间最大回撤（百分数数值，≤0，如 -12.34 表示 -12.34%）。 */
+            max_drawdown_pct: number;
+            /** @description 参与计算的交易日数。 */
+            data_points: number;
+        };
+        /** @description 等权自选组合的区间统计；自选为空或不足 2 个数据点时 portfolio=null。 */
+        WatchlistReviewPortfolio: {
+            /** @description 等权组合区间收益（百分数数值）；只做统计，不构成组合建议。 */
+            equal_weight_return_pct: number;
+            /** @description 等权组合日收益率标准差（百分数数值）。 */
+            volatility_pct: number;
+            /** @description 等权组合最大回撤（百分数数值，≤0）。 */
+            max_drawdown_pct: number;
+            /** Format: date */
+            start_date: string;
+            /** Format: date */
+            end_date: string;
+            data_points: number;
+        };
+        /** @description 统计覆盖范围。 */
+        WatchlistReviewUniverse: {
+            /** @description 当前自选条目总数（含被剔除的标的）。 */
+            count: number;
+            /** @description 实际进入 items 的标的数；count 与 indicators_available 的差由 gaps 说明。 */
+            indicators_available: number;
+        };
+        WatchlistReviewData: {
+            /**
+             * Format: date
+             * @description 实际生效的起始交易日（服务端按交易日历截断后）。
+             */
+            from: string;
+            /**
+             * Format: date
+             * @description 实际生效的结束交易日。
+             */
+            to: string;
+            /**
+             * @description 实际生效的复权口径，必须与 meta.adjustment 一致。
+             * @enum {string}
+             */
+            adjustment: "none" | "qfq";
+            /** @description 每只可统计标的的区间结果；顺序按 instrument_id 升序。 */
+            items: components["schemas"]["WatchlistReviewItem"][];
+            /** @description 等权组合统计；自选为空/不足 2 个数据点时为 null。 */
+            portfolio: null | components["schemas"]["WatchlistReviewPortfolio"];
+            universe: components["schemas"]["WatchlistReviewUniverse"];
+            /** @description 本轮能力/数据缺口；无缺口时为空数组。 */
+            gaps: components["schemas"]["Gap"][];
+        };
+        WatchlistReviewResponse: {
+            data: components["schemas"]["WatchlistReviewData"];
+            /**
+             * @description source=platform_eod（数据来自 bars，不是 platform.watchlist）；
+             *     adjustment 必须与 data.adjustment 一致；
+             *     disclaimer 为衍生价格统计的免责元数据（closable 恒 false）。
+             */
+            meta: WithRequired<components["schemas"]["ResponseMeta"], "adjustment" | "disclaimer">;
         };
         /**
          * @description 错误响应体（RFC 9457 problem details + 机器可读 code）。所有错误响应统一使用。
@@ -336,6 +448,39 @@ export interface operations {
             default: components["responses"]["ProblemResponse"];
         };
     };
+    getWatchlistReview: {
+        parameters: {
+            query?: {
+                /** @description 起始交易日（含）YYYY-MM-DD；缺省由服务端按交易日历回溯。 */
+                from?: string;
+                /** @description 结束交易日（含）YYYY-MM-DD；缺省为最近交易日。 */
+                to?: string;
+                /** @description 复权口径；仅 none|qfq，缺省 qfq。 */
+                adjustment?: "none" | "qfq";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 自选组合区间统计（可能为空） */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WatchlistReviewResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["ProblemResponse"];
+        };
+    };
     removeWatchlistItem: {
         parameters: {
             query?: never;
@@ -364,3 +509,6 @@ export interface operations {
         };
     };
 }
+type WithRequired<T, K extends keyof T> = T & {
+    [P in K]-?: T[P];
+};

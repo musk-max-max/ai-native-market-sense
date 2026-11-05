@@ -121,10 +121,32 @@ export interface BarsPage {
   readonly adjustment: AdjType;
 }
 
+/** market-wide 日线行（B1-02 涨跌停梯队用；带 instrument 维度冗余，避免 N+1 查询）。 */
+export interface MarketBarRow extends BarRow {
+  readonly name: string;
+  readonly board: Board;
+  readonly security_type: SecurityType;
+  readonly list_status: ListStatus;
+  readonly display_safe: boolean;
+}
+
+export interface MarketBarsQuery {
+  readonly adjType: AdjType;
+  /** 闭区间日期列表（YYYY-MM-DD），由调用方从 listTradeDates 取窗口 */
+  readonly dates: readonly string[];
+  readonly audience?: Audience;
+}
+
 export interface ServingRepo {
   getInstrument(instrumentId: string, audience?: Audience): Promise<InstrumentRow | null>;
   getQuote(instrumentId: string): Promise<QuoteRow | null>;
   getBars(query: BarsQuery): Promise<BarsPage>;
   getLatestFactor(instrumentId: string): Promise<FactorRow | null>;
   getFundamentalSummary(instrumentId: string): Promise<FundamentalSummaryRow | null>;
+  /** 不晚于 to（可选）的最近 N 个交易日（升序）。用于 B1-01 缺省区间与 B1-02 连板窗口。 */
+  listTradeDates(limit: number, to?: string): Promise<string[]>;
+  /** market-wide 日线窗口（B1-02），一次查询后按 instrument 分组计算。 */
+  getMarketBars(query: MarketBarsQuery): Promise<MarketBarRow[]>;
+  /** market-wide 标的清单（B1-02 板块/ST 判定；B1-03 已接入标的集合）。 */
+  listInstruments(audience?: Audience): Promise<InstrumentRow[]>;
 }

@@ -70,6 +70,69 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/market/limit-ladder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 收盘涨跌停梯队（B1-02 临时口径）
+         * @description B1-02 切片：按 board 规则从日线推导涨停/跌停梯队，供盘后复盘数据卡使用。
+         *     本接口是确定性派生结果，不调用 LLM、不含投资结论。
+         *
+         *     口径（P0 临时，H4 未签精确跌停价前）：
+         *     - rule.name=provisional_board_pct，rule.version 标明规则版本；st_handling=excluded 表示
+         *       ST/*ST 一律不参与梯队判定，列入 excluded_st，避免用错误的 5% 口径制造假涨停。
+         *     - rule.price_basis=none 表示用不复权收盘价判定；响应 meta.adjustment 恒为 none。
+         *     - board_pct 为主板/创业板/科创板/北交所/ST 的涨跌幅上限（百分数数值）。
+         *     - 连板数（consecutive_boards）在 lookback 窗口内按连续涨停/跌停交易日计算；
+         *       缺数据时不得猜连板，宁可少报。
+         *     - trade_date 缺省为库内最新交易日；该日无数据时返回 200 + 空列表 + gaps，不返回 404。
+         *     - 精确涨跌停价、全市场涨跌家数聚合待第 2 批（stk_limit / DWS），当前用 gaps 显式标注缺口。
+         */
+        get: operations["getLimitLadder"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/instruments/{instrument_id}/page-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 个股页五段骨架与数据缺口（B1-03）
+         * @description B1-03 切片：返回个股页 quote/fundamental/valuation/capital/risk 五段的可用性骨架，
+         *     供 UI 在数据未接入时显式展示缺口，而不是编造数值或空白页。
+         *     本接口只组合已授权模块的确定性摘要，不调用 LLM、不含投资结论。
+         *
+         *     语义：
+         *     - instrument 不存在/未收录 → 404 INSTRUMENT_NOT_FOUND；存在但某段无数据 → 200，
+         *       该段 availability=gap/pending 并给 reason/gaps。
+         *     - availability=restricted 的段不得携带任何数值或 summary（授权降级语义同 quote/bars 的 403）。
+         *     - 只覆盖已接入的标的与数据集；fundamental 当前仅少量标的，不得在全市场范围伪装 available。
+         *     - 五段固定为 quote、fundamental、valuation、capital、risk，各出现一次；valuation 依赖
+         *       daily_basic、capital 依赖 moneyflow、risk 依赖质押/解禁/股东户数，当前均按 gap/pending 返回。
+         *     - 部分受限时仍返回 200，对应段 availability=restricted；整体 403 仅保留给「当前 tier 对
+         *       本页所有数据均无权展示」的页面级阻断，由服务端统一判定，不得用 403 隐藏标的本身。
+         */
+        get: operations["getInstrumentPageSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -192,6 +255,147 @@ export interface components {
             data: components["schemas"]["BarsData"];
             /** @description adjustment 必须与 data.adjustment 一致（契约测试 A11 断言）。 */
             meta: WithRequired<components["schemas"]["ResponseMeta"], "adjustment" | "disclaimer">;
+        };
+        /**
+         * @description 数据/能力缺口（显式缺口，不得用 0 或空串伪装）。已知 P0 值：
+         *     STK_LIMIT_PRECISE_PENDING、MARKET_BREADTH_PENDING（limit-ladder）；
+         *     DAILY_BASIC_MISSING、MONEYFLOW_MISSING、RISK_DATASETS_MISSING、INDEX_BENCHMARK_MISSING（page-summary）。
+         *     新增缺口码是 additive 的字符串取值，不视为枚举破坏；客户端应按 code 做展示映射并保留未知码兜底。
+         */
+        Gap: {
+            /** @description 缺口码（大写下划线）；未知码不得导致页面崩溃。 */
+            code: string;
+            /** @description 面向用户的中性说明，不得包含供数方名称、内部 tier 或模型名。 */
+            message: string;
+        };
+        /**
+         * @description 涨跌停梯队规则（P0 临时口径）。H4 签署精确跌停价/ST 口径后由第 2 批 stk_limit 替换，
+         *     届时新建 rule.version 并保留本字段以支持回放。
+         */
+        LimitLadderRule: {
+            /** @description 规则名；P0 固定为 provisional_board_pct。 */
+            name: string;
+            /** @description 规则版本；规则变化必须升版本，不得静默改口径。 */
+            version: string;
+            /**
+             * @description ST 处理方式；P0 一律 excluded（不参与梯队，列入 excluded_st）。
+             * @enum {string}
+             */
+            st_handling: "excluded";
+            /**
+             * @description 价格口径；涨跌停判定必须用不复权价（none），与 meta.adjustment 一致。
+             * @enum {string}
+             */
+            price_basis: "none";
+            /** @description 各板块涨跌幅上限（百分数数值）。 */
+            board_pct: {
+                /** @description 主板（10）。 */
+                main: number;
+                /** @description 创业板（20）。 */
+                gem: number;
+                /** @description 科创板（20）。 */
+                star: number;
+                /** @description 北交所（30）。 */
+                bse: number;
+                /** @description ST/*ST（5）；P0 仅用于文档完整性，ST 实际不参与梯队。 */
+                st: number;
+            };
+            /** @description 口径说明；不得包含投资结论或供数方名称。 */
+            note?: string;
+        };
+        /** @description 梯队中的一只证券。 */
+        LimitLadderItem: {
+            instrument_id: components["schemas"]["InstrumentId"];
+            name: string;
+            /** @enum {string} */
+            board: "main" | "gem" | "star" | "bse";
+            /** @description 连续涨停/跌停交易日数；由 lookback 窗口内日线判定，缺数据不得猜。 */
+            consecutive_boards: number;
+            /** @description 收盘价（元，不复权，两位小数）。 */
+            close: number;
+            /** @description 前收盘价（元，不复权）。 */
+            prev_close: number;
+            /** @description 涨跌幅（百分数数值，1.23 表示 +1.23%）。 */
+            change_pct: number;
+        };
+        LimitLadderData: {
+            /**
+             * Format: date
+             * @description 梯队所属交易日。
+             */
+            trade_date: string;
+            rule: components["schemas"]["LimitLadderRule"];
+            /** @description 涨停梯队；按 consecutive_boards 降序、instrument_id 升序。 */
+            limit_up: components["schemas"]["LimitLadderItem"][];
+            /** @description 跌停梯队；排序同 limit_up。 */
+            limit_down: components["schemas"]["LimitLadderItem"][];
+            /** @description 因 ST 口径不参与梯队的证券（只给标识与名称，不伪装成涨跌停）。 */
+            excluded_st: {
+                instrument_id: components["schemas"]["InstrumentId"];
+                name: string;
+            }[];
+            /** @description 本轮能力/数据缺口；无缺口时为空数组。 */
+            gaps: components["schemas"]["Gap"][];
+        };
+        LimitLadderResponse: {
+            data: components["schemas"]["LimitLadderData"];
+            /**
+             * @description source=platform_eod；adjustment 必须为 none（与 rule.price_basis 一致）；
+             *     disclaimer 为价格类数据的免责元数据（closable 恒 false）。
+             */
+            meta: WithRequired<components["schemas"]["ResponseMeta"], "adjustment" | "disclaimer">;
+        };
+        /** @description 某一段引用的数据模块与时点，用于前端「来源可下钻」。 */
+        PageSummaryRef: {
+            /** @description 数据模块（market/fundamental/research 等）；不出现内部服务名。 */
+            module: string;
+            /**
+             * Format: date-time
+             * @description 该模块数据的市场时点。
+             */
+            as_of?: string;
+            /** @description 所属期间（如 2025Q3、2025-10）；不适用时省略。 */
+            period?: string;
+        };
+        /**
+         * @description 个股页的一段。availability=restricted 时不得携带数值、summary 或 data_refs；
+         *     gap/pending 时必须给 reason，以便页面显式展示缺口。
+         */
+        PageSummarySection: {
+            /**
+             * @description 五个固定段，各出现一次。
+             * @enum {string}
+             */
+            id: "quote" | "fundamental" | "valuation" | "capital" | "risk";
+            /**
+             * @description available=已接入且有数据；gap=已接入但当前标的无数据；
+             *     pending=数据集尚未接入（第 2 批）；restricted=当前 entitlement 无权展示。
+             * @enum {string}
+             */
+            availability: "available" | "gap" | "pending" | "restricted";
+            /** @description 面向用户的中性原因；restricted 时不得透露存在性/内部 tier。 */
+            reason?: string;
+            /** @description 该段实际引用到的数据模块；restricted 时为空。 */
+            data_refs?: components["schemas"]["PageSummaryRef"][];
+            /**
+             * @description 仅 available 段允许；只放已授权模块的小型确定性摘要，禁止 AI 生成文案或投资结论。
+             *     无数据/受限时不得用空串或 0 占位。
+             */
+            summary?: string;
+            /** @description 该段内部的数据缺口（可选，用于更细粒度说明）。 */
+            gaps?: components["schemas"]["Gap"][];
+        };
+        InstrumentPageSummaryData: {
+            instrument_id: components["schemas"]["InstrumentId"];
+            /** @description 固定五段（quote/fundamental/valuation/capital/risk），每段恰好一次；顺序不承诺。 */
+            sections: components["schemas"]["PageSummarySection"][];
+            /** @description 本轮全局能力缺口；无缺口时为空数组。 */
+            gaps: components["schemas"]["Gap"][];
+        };
+        InstrumentPageSummaryResponse: {
+            data: components["schemas"]["InstrumentPageSummaryData"];
+            /** @description source=platform_eod；页面含财务摘要，必须携带 disclaimer（closable 恒 false）。 */
+            meta: WithRequired<components["schemas"]["ResponseMeta"], "disclaimer">;
         };
         /**
          * @description 证券唯一标识，格式 EXCH:CODE（决策 #4）。交易所前缀：SSE 上交所 / SZSE 深交所 / BSE 北交所。
@@ -496,6 +700,65 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BarsResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["EntitlementRestricted"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["ProblemResponse"];
+        };
+    };
+    getLimitLadder: {
+        parameters: {
+            query?: {
+                /** @description 交易日 YYYY-MM-DD；缺省为库内最新交易日。 */
+                trade_date?: string;
+                /** @description 连板回溯窗口（交易日数，1–10），默认 10。 */
+                lookback?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 涨跌停梯队（可能为空列表） */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LimitLadderResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["EntitlementRestricted"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["ProblemResponse"];
+        };
+    };
+    getInstrumentPageSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 证券标识，格式 EXCH:CODE（如 SSE:600519）。 */
+                instrument_id: components["parameters"]["InstrumentIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 个股页五段骨架 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstrumentPageSummaryResponse"];
                 };
             };
             400: components["responses"]["BadRequest"];

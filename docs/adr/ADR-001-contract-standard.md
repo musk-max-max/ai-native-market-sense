@@ -22,9 +22,9 @@
 ```
 contracts/
   shared/openapi.yaml        # 公共 schema / parameters / responses 唯一真源（A0）
-  market/openapi.yaml        # instrument / quote / bars
+  market/openapi.yaml        # instrument / quote / bars + limit-ladder / page-summary（B1 确定性读模型）
   fundamental/openapi.yaml   # fundamental-summary
-  watchlist/openapi.yaml     # 自选增删查
+  watchlist/openapi.yaml     # 自选增删查 + review（B1 自选组合区间统计）
 ```
 - 规则：**每个域一个 `contracts/<domain>/openapi.yaml`**，与 `services/<domain>/` 对应，便于 oasdiff 按域 diff、按域归属与门禁。
 - 跨域复用只允许引用 `shared/`；`shared/` 不得引用任何域（依赖方向单向）。
@@ -110,11 +110,11 @@ contracts/
 | 文件 | 内容 | 状态 |
 |---|---|---|
 | `contracts/shared/openapi.yaml` | SourceRef、AdjType、Entitlement、InstrumentId、DisclaimerMeta、ResponseMeta、Problem；通用错误响应与 InstrumentIdPath | 已落盘 |
-| `contracts/market/openapi.yaml` | `getInstrument`、`getInstrumentQuote`、`listInstrumentBars` | 已落盘 |
+| `contracts/market/openapi.yaml` | `getInstrument`、`getInstrumentQuote`、`listInstrumentBars`、`getLimitLadder`、`getInstrumentPageSummary` | 已落盘 |
 | `contracts/fundamental/openapi.yaml` | `getFundamentalSummary` | 已落盘 |
-| `contracts/watchlist/openapi.yaml` | `getWatchlist`、`addWatchlistItem`、`removeWatchlistItem` | 已落盘 |
+| `contracts/watchlist/openapi.yaml` | `getWatchlist`、`addWatchlistItem`、`removeWatchlistItem`、`getWatchlistReview` | 已落盘 |
 | `contracts/identity`、`content`、`compliance`、`crm` | P1 预留，未启动 | 未创建 |
 
-当前版本（2026-11-04）：`shared` 0.2.2；`market` **0.3.0**；`fundamental` / `watchlist` 0.2.0。已落地变更：① 三域补 `403`（market quote/bars、fundamental → `EntitlementRestricted`；watchlist → `Forbidden`），并为全部 operation 统一补 `default: ProblemResponse`（消解 KD-001..003）；② shared 0.2.0 将 `SourceRef.source` 收紧为 7 值平台词表并加内部 `source_id`（ADR-004，Lead m00556；生成客户端已同步，A11 契约测试同步）；③ shared 0.2.1 为 description-only 修订：403/404 判定顺序改为「存在性 → 授权 → 取数」（Lead m00443），并把「基础信息白名单口径」引用补进 `getInstrument` 描述；schema 无变化，oasdiff 判定无破坏性变更；④ `market` 0.3.0 删除 `Instrument.lot_size`（H2 书面签字；ADR-004 基础信息白名单），oasdiff 默认不识别「删除 optional response property」，新增 `contracts/oasdiff-severity.txt` 将其升为 `err`；按 H2 L45 裁定不自写 policy-breaking differ，统一用 oasdiff 自带 `--severity-levels`（避免两套判定互相冲突）；⑤ shared 0.2.2 为 description-only 修订：受限/降级档（`resolution.blocked`）403 短路、不读 serving、不泄露存在性，标注 P1 临时语义与 F1 后恢复 404 优先（H4 m02334 签；无 schema/ABI 变更，H2 知会，oasdiff 无破坏性变更）。
+当前版本（2026-11-05）：`shared` 0.2.2；`market` **0.4.0**；`watchlist` **0.3.0**；`fundamental` 0.2.0。已落地变更：① 三域补 `403`（market quote/bars、fundamental → `EntitlementRestricted`；watchlist → `Forbidden`），并为全部 operation 统一补 `default: ProblemResponse`（消解 KD-001..003）；② shared 0.2.0 将 `SourceRef.source` 收紧为 7 值平台词表并加内部 `source_id`（ADR-004，Lead m00556；生成客户端已同步，A11 契约测试同步）；③ shared 0.2.1 为 description-only 修订：403/404 判定顺序改为「存在性 → 授权 → 取数」（Lead m00443），并把「基础信息白名单口径」引用补进 `getInstrument` 描述；schema 无变化，oasdiff 判定无破坏性变更；④ `market` 0.3.0 删除 `Instrument.lot_size`（H2 书面签字；ADR-004 基础信息白名单），oasdiff 默认不识别「删除 optional response property」，新增 `contracts/oasdiff-severity.txt` 将其升为 `err`；按 H2 L45 裁定不自写 policy-breaking differ，统一用 oasdiff 自带 `--severity-levels`（避免两套判定互相冲突）；⑤ shared 0.2.2 为 description-only 修订：受限/降级档（`resolution.blocked`）403 短路、不读 serving、不泄露存在性，标注 P1 临时语义与 F1 后恢复 404 优先（H4 m02334 签；无 schema/ABI 变更，H2 知会，oasdiff 无破坏性变更）；⑥ `market` 0.4.0 / `watchlist` 0.3.0 为 KD-AIP0-B1 后端切片的 additive 新增：`GET /v1/market/limit-ladder`（B1-02 涨跌停梯队，规则 provisional 并显式 gaps）、`GET /v1/instruments/{instrument_id}/page-summary`（B1-03 五段骨架/缺口卡）、`GET /v1/watchlist/review`（B1-01 自选组合区间统计）；均只组合已授权数据、不调用 LLM、不含投资结论，oasdiff breaking 对旧版 exit 0。
 
 工具链现状（2026-11-04）：oasdiff 1.35.0 已本机安装（`brew install oasdiff`，A13 在 CI 固化同版本）；契约 lint 用 `npx @redocly/cli lint contracts/*/openapi.yaml`（valid，0 error；shared 单文件 lint 的 unused-components warning 为跨文件引用误报）；生成客户端已固化为 openapi-typescript 7.13.0 + openapi-fetch 0.17（见 `packages/api-client/README.md`）。剩余待定：A13 把 lint/oasdiff/生成校验接入 `.github/workflows/`。
