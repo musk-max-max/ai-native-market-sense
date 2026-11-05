@@ -15,6 +15,26 @@ import yaml
 
 DEFAULT_CONFIG_PATH = Path(__file__).resolve().parents[2] / "config" / "ingest.yaml"
 
+#: 研究数据集默认清单（KD-AIP0-INF-05；顺序即调度顺序）。
+_DEFAULT_RESEARCH_DATASETS: tuple[str, ...] = (
+    "daily_basic",
+    "index_daily",
+    "top_list",
+    "top_inst",
+    "moneyflow",
+    "margin",
+    "hk_hold",
+)
+
+#: 指数日线默认基准指数（canonical EXCH:CODE）。
+_DEFAULT_INDEX_CODES: tuple[str, ...] = (
+    "SSE:000001",
+    "SZSE:399001",
+    "SZSE:399006",
+    "SSE:000300",
+    "SSE:000905",
+)
+
 
 @dataclass(frozen=True, slots=True)
 class StorageConfig:
@@ -74,6 +94,16 @@ class ImportConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class ResearchConfig:
+    """研究数据集接入（KD-AIP0-INF-05）：数据集清单与指数代码（canonical EXCH:CODE）。"""
+
+    #: 默认接全 7 个（ADR-007 第 2 批 P0 依赖）；顺序即调度顺序。
+    datasets: tuple[str, ...] = _DEFAULT_RESEARCH_DATASETS
+    #: 指数日线只取基准指数（源要求按代码逐个取数，不能只按交易日拉全市场）。
+    index_codes: tuple[str, ...] = _DEFAULT_INDEX_CODES
+
+
+@dataclass(frozen=True, slots=True)
 class IngestConfig:
     root: Path
     storage: StorageConfig
@@ -82,6 +112,7 @@ class IngestConfig:
     ods: OdsConfig
     adapters: AdaptersConfig
     imports: ImportConfig = ImportConfig()
+    research: ResearchConfig = ResearchConfig()
 
     def resolve_path(self, relative: str) -> Path:
         path = Path(relative)
@@ -112,6 +143,7 @@ def load_config(path: str | Path | None = None) -> IngestConfig:
     ods_raw = _section(raw, "ods")
     adapters_raw = _section(raw, "adapters")
     imports_raw = _section(raw, "imports")
+    research_raw = _section(raw, "research")
 
     options = adapters_raw.get("options") or {}
     if not isinstance(options, Mapping):
@@ -141,7 +173,20 @@ def load_config(path: str | Path | None = None) -> IngestConfig:
             base_info_path=_optional_str(imports_raw.get("base_info_path", "data/instruments/base_info.csv")),
             require_durable_manifest=bool(imports_raw.get("require_durable_manifest", False)),
         ),
+        research=ResearchConfig(
+            datasets=_str_tuple(research_raw.get("datasets"), _DEFAULT_RESEARCH_DATASETS),
+            index_codes=_str_tuple(research_raw.get("index_codes"), _DEFAULT_INDEX_CODES),
+        ),
     )
+
+
+def _str_tuple(value: Any, default: tuple[str, ...]) -> tuple[str, ...]:
+    if value is None:
+        return default
+    if not isinstance(value, (list, tuple)):
+        raise ValueError(f"expected a list of strings, got {type(value).__name__}")
+    items = tuple(str(item).strip() for item in value if str(item).strip())
+    return items or default
 
 
 def _optional_int(value: Any) -> int | None:

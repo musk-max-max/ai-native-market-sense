@@ -256,6 +256,49 @@ python -m market_ingest sync-bars --start 2026-10-28 --end 2026-11-03 \
   `dt=` 分区 = 批次内最大 `report_end_date`，`source.as_of` = 最大 `announced_at`。
 - 只采不复权源真值；三口径（qfq/hfq）复权在 DWD/读侧用因子表计算。
 
+## 研究数据集接入（KD-AIP0-INF-05）
+
+按 ADR-007 §D5 第 2 批，把研究域依赖的 7 个数据集落到 **ODS 层**（DWD/DWS 归 A2）。
+接口名/积分档/源字段/单位换算全部集中在
+`src/market_ingest/adapters/tushare/research.py` 的 `DATASET_SPECS`（`ResearchDataset`），
+下游（ODS/sync/CLI）只认 canonical 行；H4 确认字段/积分档后**只改适配层**。
+
+| dataset | 源接口 | 最低积分 | 调用粒度 | ODS endpoint |
+| --- | --- | --- | --- | --- |
+| `daily_basic` | `daily_basic`（doc 32） | 2000 | 按交易日 1 次/全市场 | `daily_basic.v1` |
+| `index_daily` | `index_daily`（doc 95） | 2000 | 按交易日 × 每个指数 1 次（源要求代码必填） | `index_daily.v1` |
+| `top_list` | `top_list`（doc 106） | 2000 | 按交易日 1 次 | `top_list.v1` |
+| `top_inst` | `top_inst`（doc 107） | **5000**（特色数据） | 按交易日 1 次 | `top_inst.v1` |
+| `moneyflow` | `moneyflow`（doc 170） | 2000 | 按交易日 1 次 | `moneyflow.v1` |
+| `margin` | `margin`（doc 58） | 2000 | 按交易日 1 次 | `margin.v1` |
+| `hk_hold` | `hk_hold`（doc 188） | 2000 | 按交易日 1 次 | `hk_hold.v1` |
+
+```bash
+# 预算（不联网）：datasets × 交易日 + index_daily 额外 × 指数数 + 日历 1 次
+PYTHONPATH=src python3 -m market_ingest sync-research --start 2024-01-02 --end 2024-01-03 \
+  --datasets daily_basic,index_daily --index-codes SSE:000300,SSE:000001 --dry-run
+
+# 实际抓取（CI 用 --replay-fixture；生产按日增量，配额 500/分 → 守卫只吃 400/分）
+PYTHONPATH=src python3 -m market_ingest sync-research --start 2024-01-02 --end 2024-01-02 \
+  --datasets daily_basic --ods-root var/ods --budget-calls 100
+```
+
+- **canonical 行**：`instrument_id`(`EXCH:CODE`) / `trade_date`(`YYYY-MM-DD`) / 金额一律
+  **元**、量一律 **股**、比率**百分数**，全部十进制字符串；源侧 `万元 ×10000`、
+  `千元 ×1000`、`手 ×100` 在适配层换算；缺失值 `null`，**禁止补 0**（C10）。
+  财务/涨跌停/ST 等「口径判定」不在本层。
+- **默认数据集与指数**：`config/ingest.yaml` 的 `research.datasets` / `research.index_codes`
+  （默认 5 个基准指数：`SSE:000001`、`SZSE:399001`、`SZSE:399006`、`SSE:000300`、`SSE:000905`）。
+- **checkpoint**：按 dataset 独立记 `ingest_checkpoint(dataset, scope="market") = last_success_trade_date`；
+  中断（信号/配额耗尽）→ 退出码 3，同一命令重跑只补剩余交易日，不产生缺口。
+- **失败语义**：接口无权限/不可用/字段漂移 → 运行 `failed`（退出码 1）并保留已完成 checkpoint；
+  **不造数、不补 0**（验收口径：数据正确落到 ODS + 字段映射清晰，不以功能可用验收）。
+  某交易日合法无记录 → 行数 0、不写空批次，仍推进 checkpoint。
+- **provisional**：`ResearchDataset.provisional=True` 表示字段清单/积分档待 H4 对齐全；
+  改动只动 `research.py`，ODS/sync 下游不变。
+- **ODS 根**：研究批次进 `<root>/internal`（展示态白名单不含研究数据；L34）。
+- F1 授权不阻塞 ingest（ADR-007），但真实回补仍需 H4/运维 token 与预算；禁止为 E2E 跑真实回补。
+
 ## A12 e2e 注入点
 
 - 录播在 **HTTP 边界**（A12 代理容器）：`TUSHARE_API_URL=http://<replay-proxy>`,
@@ -280,8 +323,8 @@ manifest 声明合成、无未登记孤儿文件，并由脚本重算 path+sha25
 
 ```bash
 cd services/ingest
-PYTHONPATH=src /opt/anaconda3/bin/python3 -m pytest -q      # 139 tests
-PYTHONPATH=src /opt/anaconda3/bin/python3 -m mypy           # 22 files clean
+PYTHONPATH=src /opt/anaconda3/bin/python3 -m pytest -q      # 160 tests
+PYTHONPATH=src /opt/anaconda3/bin/python3 -m mypy           # 23 files clean
 ```
 
 CI 一律录播，禁止真实接口调用；CSV 主数据导入用仓库内 `data/instruments/base_info.csv`，

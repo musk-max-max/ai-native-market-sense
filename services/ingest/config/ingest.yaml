@@ -56,3 +56,23 @@ imports:
   require_durable_manifest: false
   # C 端白名单基础信息（交易所公开渠道维护）；不在 data/golden 写域内。
   base_info_path: ../../data/instruments/base_info.csv
+
+research:
+  # 研究数据集接入（KD-AIP0-INF-05，ADR-007 第 2 批数据底座）。
+  # 按交易日 checkpoint、走内部 ODS root（display_safe=false）；字段映射集中在
+  # adapters/ 内，等 H4 确认积分/字段后只改适配层，不动下游。
+  datasets:
+    - daily_basic
+    - index_daily
+    - top_list
+    - top_inst
+    - moneyflow
+    - margin
+    - hk_hold
+  # 指数日线基准（canonical EXCH:CODE；源要求 ts_code 必填，按代码逐个取）。
+  index_codes:
+    - SSE:000001
+    - SZSE:399001
+    - SZSE:399006
+    - SSE:000300
+    - SSE:000905

@@ -34,8 +34,10 @@ from .sync import (
     SyncResult,
     estimate_market_plan,
     estimate_plan,
+    estimate_research_plan,
     sync_fundamentals,
     sync_instrument_master,
+    sync_research,
 )
 
 
@@ -55,6 +57,13 @@ def _parse_instruments(value: str) -> tuple[str, ...]:
             parse_instrument_id(item)
         except ValueError as exc:
             raise argparse.ArgumentTypeError(f"invalid instrument {item!r}: {exc}") from exc
+    return items
+
+
+def _parse_datasets(value: str) -> tuple[str, ...]:
+    items = tuple(part.strip() for part in value.split(",") if part.strip())
+    if not items:
+        raise argparse.ArgumentTypeError("--datasets must not be empty")
     return items
 
 
@@ -122,6 +131,19 @@ def build_parser() -> argparse.ArgumentParser:
     fundamentals.add_argument("--instruments", required=True, type=_parse_instruments,
                               help="切片标的，逗号分隔的 EXCH:CODE（3–5 个）")
     _add_common_arguments(fundamentals)
+    research = sub.add_parser(
+        "sync-research",
+        help="研究数据集接入（KD-AIP0-INF-05）：按交易日抓取 → canonical ODS（DWD 归 A2）",
+    )
+    research.add_argument("--datasets", type=_parse_datasets, default=None,
+                          help="逗号分隔数据集，缺省读配置 research.datasets")
+    research.add_argument("--start", required=True, type=_parse_date, help="起始交易日（含），YYYY-MM-DD")
+    research.add_argument("--end", type=_parse_date, default=None, help="结束交易日（含），缺省=今天（市场时区）")
+    research.add_argument("--index-codes", type=_parse_instruments, default=None,
+                          help="指数日线代码（canonical EXCH:CODE），缺省读配置 research.index_codes")
+    research.add_argument("--budget-calls", type=int, default=None, help="本次运行调用预算，缺省读配置")
+    research.add_argument("--calls-per-minute", type=int, default=None, help="套餐每分钟上限，缺省读配置")
+    _add_common_arguments(research)
     return parser
 
 
@@ -479,6 +501,110 @@ def run_sync_master(args: argparse.Namespace) -> int:
     return 1
 
 
+def run_sync_research(args: argparse.Namespace) -> int:
+    """``sync-research``：研究数据集按交易日抓取 → 内部 ODS（KD-AIP0-INF-05）。
+
+    退出码与 sync-bars 一致：0 成功 / 1 失败 / 3 可续跑中断；
+    已有 checkpoint 的交易日跳过，同一命令重试即可续跑。
+    """
+    config = _build_config(args)
+    adapter_name = args.adapter or config.adapters.active
+    end = args.end or market_now().date()
+    budget = args.budget_calls if args.budget_calls is not None else config.quota.default_run_budget_calls
+    cpm = args.calls_per_minute if args.calls_per_minute is not None else config.quota.calls_per_minute
+    datasets = tuple(args.datasets or config.research.datasets)
+    index_codes = tuple(args.index_codes or config.research.index_codes)
+
+    plan = estimate_research_plan(
+        datasets,
+        args.start,
+        end,
+        index_codes=index_codes,
+        calls_per_minute=cpm,
+        reserve_ratio=config.quota.reserve_ratio,
+    )
+
+    if args.dry_run:
+        budget_table = [
+            ["calls_per_trading_day", plan["calls_per_trading_day"]],
+            ["calls_by_dataset", plan["calls_by_dataset"]],
+            ["x trading_days", plan["trading_days"]],
+            ["+ calendar_calls", plan["calendar_calls"]],
+            ["= total_calls", plan["total_calls"]],
+            ["/ effective_calls_per_minute", plan["effective_calls_per_minute"]],
+            ["= eta_minutes", plan["eta_minutes"]],
+        ]
+        print(json.dumps({
+            "dry_run": True,
+            "mode": "research",
+            "datasets": list(datasets),
+            "index_codes": list(index_codes),
+            "start": args.start.isoformat(),
+            "end": end.isoformat(),
+            "budget": plan,
+            "budget_calls": budget,
+            "within_budget": budget is None or plan["total_calls"] <= budget,
+            "budget_table": budget_table,
+        }, ensure_ascii=False, indent=2))
+        return 0
+
+    if budget is not None and plan["total_calls"] > budget:
+        print("warning: estimated calls exceed --budget-calls; run may stop early", file=sys.stderr)
+
+    db_path = args.db if args.db is not None else config.resolve_path(config.storage.sqlite_path)
+    storage = SqliteStorage(db_path)
+    guard = QuotaGuard(
+        QuotaPolicy(
+            calls_per_minute=cpm,
+            reserve_ratio=config.quota.reserve_ratio,
+            period_cap_calls=config.quota.period_cap_calls,
+            run_budget_calls=budget,
+        ),
+        storage,
+    )
+    source = load_adapter(
+        adapter_name,
+        options=_adapter_options(config, adapter_name, args),
+        guard=guard,
+        ledger=storage,
+    )
+    # 研究数据集来自内部源通道：只写内部 root（L34）。
+    _, internal_root = _resolve_ods_roots(config, args)
+
+    stop = {"requested": False}
+
+    def _request_stop(signum: int, frame: object) -> None:  # pragma: no cover - 信号路径
+        stop["requested"] = True
+        print("interrupt received: finishing current day then stopping", file=sys.stderr)
+
+    previous = signal.getsignal(signal.SIGINT)
+    signal.signal(signal.SIGINT, _request_stop)
+    try:
+        result = sync_research(
+            source,
+            storage,
+            datasets=datasets,
+            start=args.start,
+            end=end,
+            ods_root=internal_root,
+            index_codes=index_codes,
+            guard=guard,
+            interrupt=lambda: stop["requested"],
+        )
+    finally:
+        signal.signal(signal.SIGINT, previous)
+        storage.close()
+
+    print(json.dumps(result.summary(), ensure_ascii=False, indent=2))
+    if result.status == "succeeded":
+        return 0
+    if result.status == "interrupted":
+        print(f"interrupted ({result.halted_reason}); rerun the same command to resume", file=sys.stderr)
+        return 3
+    print(f"failed ({result.halted_reason}); escalate per roster must_escalate", file=sys.stderr)
+    return 1
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -489,6 +615,8 @@ def main(argv: list[str] | None = None) -> int:
             return run_verify_manifest(args)
         if args.command in ("sync-instruments", "sync-fundamentals"):
             return run_sync_master(args)
+        if args.command == "sync-research":
+            return run_sync_research(args)
         if args.command != "sync-bars":  # pragma: no cover - argparse 已限制
             parser.error(f"unknown command {args.command!r}")
         return run_sync(args)

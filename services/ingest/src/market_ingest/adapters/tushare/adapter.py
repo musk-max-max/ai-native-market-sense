@@ -31,7 +31,7 @@ from ...models import (
 )
 from ...ports import InvalidRequestError, MarketDataSource, RawPage, RawSink, RejectedRow, RejectSink, SchemaDriftError, SourceError, SourceHealth, SourceUnavailableError
 from ...quota import CallLedger, InMemoryCallLedger, QuotaGuard, QuotaPolicy
-from . import mapper, transport as ts_transport
+from . import mapper, research, transport as ts_transport
 
 #: canonical source 标识（契约 SourceRef.source 取值之一）。
 SOURCE_NAME = "tushare"
@@ -407,6 +407,74 @@ class TushareAdapter:
                 source=SourceRef(source=self._source, as_of=as_of, fetched_at=fetched_at),
             )
         return [records[key] for key in sorted(records)]
+
+    # ---------- 研究数据集（KD-AIP0-INF-05：adapter 批量抽取，不进 MarketDataSource 端口） ----------
+
+    @property
+    def research_datasets(self) -> tuple[str, ...]:
+        """本适配器支持的研究数据集名（CLI/sync 只按名字调度，不认接口）。"""
+        return research.research_datasets()
+
+    def fetch_research(
+        self,
+        dataset: str,
+        trade_date: date,
+        *,
+        index_codes: Sequence[str] = (),
+    ) -> list[dict[str, Any]]:
+        """按交易日拉一个研究数据集 → canonical ODS 行（字段/单位已归一）。
+
+        - 全市场接口一次调用/日；``index_daily`` 按 ``index_codes``（canonical
+          ``EXCH:CODE``）循环，每个指数一次调用（源要求 ts_code 必填）；
+        - 单行映射失败落 DLQ（``capture()`` 注入），整页字段漂移抛 ``SchemaDriftError``；
+        - 无可取数据（无权限/无记录）→ 空列表；**不造数、不补 0**（探针任务验收）。
+        """
+        spec = research.RESEARCH_DATASETS.get(dataset)
+        if spec is None:
+            raise InvalidRequestError(
+                f"unknown research dataset {dataset!r}; supported={sorted(research.RESEARCH_DATASETS)}"
+            )
+        raw_rows: list[dict[str, Any]] = []
+        if spec.requires_index_codes:
+            codes = tuple(index_codes)
+            if not codes:
+                raise InvalidRequestError(f"{dataset} requires --index-codes (canonical EXCH:CODE list)")
+            for code in codes:
+                try:
+                    source_code = mapper.to_source_code(code)
+                except ValueError as exc:
+                    raise InvalidRequestError(f"invalid index code {code!r}: {exc}") from exc
+                raw_rows.extend(
+                    self._fetch_rows(
+                        spec.api_name,
+                        spec.fields,
+                        {"ts_code": source_code, "trade_date": trade_date.strftime("%Y%m%d")},
+                        dataset=spec.name,
+                    )
+                )
+        else:
+            raw_rows = self._fetch_rows(
+                spec.api_name,
+                spec.fields,
+                {"trade_date": trade_date.strftime("%Y%m%d")},
+                dataset=spec.name,
+            )
+
+        rows: list[dict[str, Any]] = []
+        for row in raw_rows:
+            try:
+                rows.append(research.map_row(dataset, row))
+            except research.ResearchRowError as exc:
+                self._reject(
+                    row,
+                    str(exc),
+                    instrument_id=research.row_instrument(row),
+                    trade_date=research.row_date(row) or trade_date,
+                    dataset=dataset,
+                    endpoint=spec.api_name,
+                )
+        rows.sort(key=lambda canonical: (str(canonical.get("trade_date")), str(canonical.get("instrument_id") or canonical.get("exchange"))))
+        return rows
 
     def fetch_instruments(self) -> list[InstrumentRecord]:
         """一次 ``stock_basic`` 取全量在册（L17；禁止逐标的查询）。

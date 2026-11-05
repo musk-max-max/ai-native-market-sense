@@ -33,12 +33,24 @@ from .models import (
     market_now,
 )
 
+#: 研究数据集 endpoint（KD-AIP0-INF-05，A2 建研 DWD/DWS 的 ODS 输入）。
+RESEARCH_ENDPOINTS: tuple[str, ...] = (
+    "top_list",
+    "top_inst",
+    "moneyflow",
+    "margin",
+    "hk_hold",
+    "daily_basic",
+    "index_daily",
+)
+
 #: endpoint -> schema（与 A2 loader 的 ENDPOINT_SCHEMAS 保持一致）。
 ENDPOINT_SCHEMAS: dict[str, str] = {
     "bar": "bar.v1",
     "adj_factor": "adj_factor.v1",
     "instrument": "instrument.v1",
     "fundamental": "fundamental.v1",
+    **{name: f"{name}.v1" for name in RESEARCH_ENDPOINTS},
 }
 
 
@@ -190,6 +202,28 @@ def fundamental_rows(records: Sequence[FundamentalRecord]) -> list[dict[str, Any
     return rows
 
 
+def research_rows(rows: Sequence[Mapping[str, Any]], *, endpoint: str) -> list[dict[str, Any]]:
+    """研究数据集行 → ODS 行（canonical：金额元/量股/比率百分数，均为字符串）。
+
+    行形状由适配层的 ``research.py`` 保证（字段映射与单位换算集中在适配层）；
+    本函数只做 endpoint 校验、``trade_date`` 存在性校验与确定性排序。
+    """
+    if endpoint not in RESEARCH_ENDPOINTS:
+        raise OdsFormatError(f"unsupported research endpoint: {endpoint!r}")
+    out: list[dict[str, Any]] = []
+    for index, row in enumerate(rows):
+        if "trade_date" not in row:
+            raise OdsFormatError(f"{endpoint} row {index} is missing trade_date")
+        out.append(dict(row))
+    out.sort(
+        key=lambda row: (
+            str(row["trade_date"]),
+            str(row.get("instrument_id") or row.get("exchange") or ""),
+        )
+    )
+    return out
+
+
 @dataclass(frozen=True, slots=True)
 class OdsBatch:
     """一个待写出的 canonical 批次。"""
@@ -254,9 +288,11 @@ __all__ = [
     "ENDPOINT_SCHEMAS",
     "OdsBatch",
     "OdsFormatError",
+    "RESEARCH_ENDPOINTS",
     "adj_factor_rows",
     "bar_rows",
     "fundamental_rows",
     "instrument_rows",
+    "research_rows",
     "write_batch",
 ]

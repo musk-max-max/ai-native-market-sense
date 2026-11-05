@@ -174,6 +174,24 @@ def market_factor_entry(day, rows, *, offset: int = 0, limit: int = 6000):
     return entry("adj_factor", {"trade_date": day.strftime("%Y%m%d"), "offset": offset, "limit": limit}, rows)
 
 
+def research_entry(
+    api_name: str,
+    day: date,
+    rows: list[dict[str, Any]],
+    *,
+    ts_code: str | None = None,
+    offset: int = 0,
+    limit: int = 6000,
+) -> dict[str, Any]:
+    """研究数据集录播条目；``index_daily`` 之类按标的取数的接口额外带 ts_code。"""
+    params: dict[str, Any] = {"trade_date": day.strftime("%Y%m%d")}
+    if ts_code is not None:
+        params["ts_code"] = ts_code
+    params["offset"] = offset
+    params["limit"] = limit
+    return entry(api_name, params, rows)
+
+
 def stock_basic_row(
     ts_code: str,
     name: str,

@@ -949,6 +949,230 @@ def sync_fundamentals(
     )
 
 
+# --------------------------------------------------------------------------
+# 研究数据集（KD-AIP0-INF-05）：按交易日 checkpoint，ODS 只读可查，DWD 归 A2
+# --------------------------------------------------------------------------
+
+
+def estimate_research_plan(
+    datasets: Sequence[str],
+    start: date,
+    end: date,
+    *,
+    index_codes: Sequence[str] = (),
+    calls_per_minute: int = 500,
+    reserve_ratio: float = 0.2,
+    trading_days_per_year: int = 243,
+) -> dict[str, Any]:
+    """研究接入预算：每数据集每交易日 1 次；``index_daily`` 每个指数 1 次/日。"""
+    calendar_days = (end - start).days + 1
+    trading_days = max(1, int(calendar_days / 366 * trading_days_per_year) + 1)
+    calls_by_dataset: dict[str, int] = {}
+    per_day = 0
+    for dataset in datasets:
+        if dataset == "index_daily" and index_codes:
+            calls = trading_days * len(index_codes)
+            per_day += len(index_codes)
+        else:
+            calls = trading_days
+            per_day += 1
+        calls_by_dataset[dataset] = calls
+    calendar_calls = 1 if datasets else 0
+    total = sum(calls_by_dataset.values()) + calendar_calls
+    effective_per_minute = max(1, int(calls_per_minute * (1.0 - reserve_ratio)))
+    eta_minutes = -(-total // effective_per_minute)
+    return {
+        "mode": "research",
+        "datasets": list(datasets),
+        "trading_days": trading_days,
+        "calls_per_trading_day": per_day,
+        "calls_by_dataset": calls_by_dataset,
+        "calendar_calls": calendar_calls,
+        "total_calls": total,
+        "calls_per_minute": calls_per_minute,
+        "effective_calls_per_minute": effective_per_minute,
+        "eta_minutes": eta_minutes,
+        "eta_hours": round(eta_minutes / 60, 2),
+    }
+
+
+@dataclass(frozen=True, slots=True)
+class ResearchSyncResult:
+    """研究数据集同步结果（按 dataset 独立 checkpoint）。"""
+
+    run_id: str
+    datasets: tuple[str, ...]
+    status: str  # succeeded | interrupted | failed
+    halted_reason: str | None
+    days_done: int
+    rows_by_dataset: dict[str, int]
+    ods_batches: int
+    rejected_rows: int
+    calls_used: int
+    started_at: datetime
+    finished_at: datetime
+    checkpoints: dict[str, str] = field(default_factory=dict)
+
+    def summary(self) -> dict[str, Any]:
+        return {
+            "run_id": self.run_id,
+            "datasets": list(self.datasets),
+            "status": self.status,
+            "halted_reason": self.halted_reason,
+            "days_done": self.days_done,
+            "rows_by_dataset": dict(self.rows_by_dataset),
+            "rows_total": sum(self.rows_by_dataset.values()),
+            "ods_batches": self.ods_batches,
+            "rejected_rows": self.rejected_rows,
+            "calls_used": self.calls_used,
+            "started_at": self.started_at.isoformat(),
+            "finished_at": self.finished_at.isoformat(),
+            "checkpoints": dict(self.checkpoints),
+        }
+
+
+def sync_research(
+    source: object,
+    storage: SqliteStorage,
+    *,
+    datasets: Sequence[str],
+    start: date,
+    end: date,
+    ods_root: str | Path | None = None,
+    index_codes: Sequence[str] = (),
+    clock: Callable[[], datetime] = market_now,
+    guard: QuotaGuard | None = None,
+    interrupt: Callable[[], bool] | None = None,
+) -> ResearchSyncResult:
+    """研究数据集同步：按交易日抓取 → canonical ODS 行 → checkpoint 续跑。
+
+    验收口径（KD-AIP0-INF-05）：只保证「数据正确落到 ODS + 字段映射清晰」；
+    DWD/DWS 由 A2 建。接口无权限/不可用 → 显式 ``failed``，**绝不造数**。
+    """
+    requested = tuple(datasets)
+    if not requested:
+        raise ValueError("datasets must not be empty")
+    if start > end:
+        raise ValueError("start must be <= end")
+    _require_method(source, "fetch_research")
+    _require_method(source, "list_trading_days")
+    supported = getattr(source, "research_datasets", None)
+    if supported is not None:
+        unknown = [name for name in requested if name not in supported]
+        if unknown:
+            raise ValueError(f"adapter does not support research datasets {unknown}; supported={tuple(supported)}")
+
+    is_interrupted = interrupt or (lambda: False)
+    started_at = clock()
+    run_id = new_run_id(started_at)
+    # 交易日历是控制查询（非研究数据集、不导出 ODS）：在 capture 外取，避免 raw sink 无批次可落。
+    trading_days = list(source.list_trading_days(start, end))  # type: ignore[attr-defined]
+    rows_by_dataset: dict[str, int] = {name: 0 for name in requested}
+    checkpoints: dict[str, str] = {}
+    ods_batches = 0
+    days_done = 0
+    status = "succeeded"
+    halted: str | None = None
+
+    current: dict[str, str | None] = {"batch": None}
+
+    def _raw(page: RawPage) -> None:
+        batch_id = current["batch"]
+        assert batch_id is not None
+        storage.append_raw_page(batch_id, page, created_at=clock())
+
+    def _reject(row: RejectedRow) -> None:
+        batch_id = current["batch"]
+        assert batch_id is not None
+        storage.append_rejected(batch_id, row, created_at=clock())
+
+    capture_factory = getattr(source, "capture", None)
+    context = capture_factory(_raw, _reject) if callable(capture_factory) else nullcontext()
+
+    try:
+        with context:
+            for dataset in requested:
+                batch_id = f"{run_id}-{dataset}"
+                current["batch"] = batch_id
+                storage.create_batch(batch_id, dataset, adapter_name(source), clock())
+                resume = storage.get_checkpoint(dataset, _MARKET_SCOPE)
+                window = [day for day in trading_days if resume is None or day > resume]
+                dataset_status = "succeeded"
+                dataset_halted: str | None = None
+                for day in window:
+                    if is_interrupted():
+                        dataset_status, dataset_halted = "interrupted", "interrupt_signal"
+                        break
+                    rejected_before = storage.count_rejected(batch_id)
+                    try:
+                        rows = source.fetch_research(  # type: ignore[attr-defined]
+                            dataset, day, index_codes=tuple(index_codes)
+                        )
+                    except (QuotaExhaustedError, SourceAuthError, SchemaDriftError, SourceUnavailableError) as exc:
+                        dataset_status, dataset_halted = BarsSyncService._classify_failure(exc)
+                        break
+                    day_rejected = storage.count_rejected(batch_id) - rejected_before
+                    if ods_root is not None and rows:
+                        ods.write_batch(
+                            ods_root,
+                            ods.OdsBatch(
+                                batch_id=f"{batch_id}-{day:%Y%m%d}",
+                                endpoint=dataset,
+                                source=SourceRef(
+                                    source=adapter_name(source),
+                                    as_of=_close_as_of(day),
+                                    fetched_at=clock(),
+                                ),
+                                rows=tuple(ods.research_rows(rows, endpoint=dataset)),
+                                rows_rejected=day_rejected,
+                            ),
+                        )
+                        ods_batches += 1
+                    rows_by_dataset[dataset] += len(rows)
+                    days_done += 1
+                    storage.set_checkpoint(dataset, _MARKET_SCOPE, day, run_id, clock())
+                    checkpoints[dataset] = day.isoformat()
+
+                storage.finish_batch(
+                    batch_id,
+                    finished_at=clock(),
+                    status=dataset_status,
+                    row_count=rows_by_dataset[dataset],
+                    rejected_count=storage.count_rejected(batch_id),
+                    note=dataset_halted,
+                )
+                if dataset_status != "succeeded":
+                    status, halted = dataset_status, dataset_halted
+                    break
+    except BaseException:
+        failed_batch = current["batch"]
+        if failed_batch is not None:
+            storage.finish_batch(
+                failed_batch,
+                finished_at=clock(),
+                status="failed",
+                row_count=0,
+                rejected_count=storage.count_rejected(failed_batch),
+                note="unexpected_error",
+            )
+        raise
+
+    return ResearchSyncResult(
+        run_id=run_id,
+        datasets=requested,
+        status=status,
+        halted_reason=halted,
+        days_done=days_done,
+        rows_by_dataset=rows_by_dataset,
+        ods_batches=ods_batches,
+        rejected_rows=sum(storage.count_rejected(f"{run_id}-{name}") for name in requested),
+        calls_used=guard.run_calls if guard is not None else 0,
+        started_at=started_at,
+        finished_at=clock(),
+        checkpoints=checkpoints,
+    )
+
+
 def _slug(instrument_id: str) -> str:
     return instrument_id.replace(":", "-")
 
