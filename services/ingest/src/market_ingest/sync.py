@@ -1359,8 +1359,14 @@ def sync_research(
             instrument_names=_load_instrument_names(root),
             source=source,
         )
-        if quality:
-            _write_research_source_quality(root, run_id, quality, channel, auth, clock())
+        consistency = None
+        consistency_source = getattr(source, "research_source_consistency", None)
+        if callable(consistency_source):
+            consistency = consistency_source()
+        if quality or consistency:
+            _write_research_source_quality(
+                root, run_id, quality, channel, auth, clock(), consistency=consistency
+            )
         _append_research_sources(
             root,
             {
@@ -1420,7 +1426,7 @@ def _write_research_coverage(
                 root, name, fallback=enriched.get("snapshot_date")
             )
         datasets[name] = enriched
-    payload = {
+    payload: dict[str, Any] = {
         "run_id": run_id,
         "generated_at": now.isoformat(),
         "source_channel": source_channel,
@@ -1577,18 +1583,28 @@ def _write_research_source_quality(
     source_channel: str | None,
     authorization_status: str | None,
     now: datetime,
+    *,
+    consistency: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> Path:
-    """写 ``<ods_root>/_meta/research_source_quality.json``（源事实标注，A2 可选消费）。"""
+    """写 ``<ods_root>/_meta/research_source_quality.json``（源事实标注，A2 可选消费）。
+
+    ``consistency``（H4 m03540）：mirror 的源代码字段后缀 vs exchange/code 段一致性统计，
+    不一致行 warn 计数（不阻断入库，但影响 instrument_id 的行单独计数）。
+    """
     directory = root / "_meta"
     directory.mkdir(parents=True, exist_ok=True)
     target = directory / "research_source_quality.json"
-    payload = {
+    payload: dict[str, Any] = {
         "run_id": run_id,
         "generated_at": now.isoformat(),
         "source_channel": source_channel,
         "authorization_status": authorization_status,
         "datasets": {name: dict(meta) for name, meta in quality.items()},
     }
+    if consistency:
+        payload["source_consistency"] = {
+            name: dict(meta) for name, meta in consistency.items()
+        }
     tmp = target.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
     tmp.replace(target)

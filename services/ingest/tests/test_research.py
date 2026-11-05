@@ -454,7 +454,11 @@ def test_sync_research_coverage_records_source_channel_and_st_quality(tmp_path: 
     assert stk["st_pct_rule_version"] == "2026-07-06"
     assert stk["limit_pct_rule_version"] == "exchange_quote_unit_2026-11-05"
     assert stk["limit_pct_evidence_window"] == "2026-11-03..2026-11-05"
-    assert stk["limit_pct_b_share_rule_status"] == "pending_h4_sign"
+    assert stk["limit_pct_b_share_rule_status"] == "signed_h4_2026-11-05"
+    consistency = quality["source_consistency"]
+    assert consistency["stk_limit"]["rows"] == 1
+    assert consistency["stk_limit"]["suffix_vs_exchange_mismatch"] == 0
+    assert consistency["stk_limit"]["mapping_affected_rows"] == 0
     assert stk["limit_pct_unresolved"] == 0
     assert stk["limit_pct_unresolved_days"] == {DAY1.isoformat(): 0}
     assert stk["st_named_but_pct10"] == 0  # 无 instrument 基线 → 0 + note
@@ -1123,3 +1127,31 @@ def test_estimate_research_plan_honours_dataset_modes() -> None:
     assert plan["dataset_modes"] == {"fina_indicator": "per_instrument", "index_classify": "snapshot"}
     assert plan["calls_by_dataset"]["fina_indicator"] == 2
     assert plan["calls_by_dataset"]["index_classify"] == 1
+
+
+def test_source_consistency_counts_mirror_suffix_defect() -> None:
+    """H4 m03540：900901.BJ + exchange=SSE 计 warn；非证券行（转债）不误报；港股一致。"""
+    from market_ingest.adapters.tushare import research as rs
+
+    rows = [
+        {"ts_code": "600519.SH", "exchange": "SSE"},
+        {"ts_code": "900901.BJ", "exchange": "SSE"},
+        {"ts_code": "200011.SZ", "exchange": "SZSE"},
+        {"ts_code": "06990.HK", "exchange": "HK"},
+        {"ts_code": "118058.SH"},
+        {"ts_code": "123176.SZ"},
+    ]
+    report = rs.source_consistency("stk_limit", rows)
+    assert report["rows"] == 6
+    assert report["stock_rows"] == 4
+    assert report["non_stock_rows"] == 2
+    assert report["suffix_vs_exchange_mismatch"] == 1
+    assert report["suffix_vs_code_mismatch"] == 1
+    assert report["mapping_affected_rows"] == 1
+    assert report["authoritative_field"] == "exchange"
+    assert report["samples"][0]["ts_code"] == "900901.BJ"
+    assert report["samples"][0]["flags"] == ["suffix_vs_exchange", "suffix_vs_code"]
+
+    clean = rs.source_consistency("daily_basic", [{"ts_code": "600519.SH"}])
+    assert clean["mapping_affected_rows"] == 0
+    assert "authoritative_field" not in clean

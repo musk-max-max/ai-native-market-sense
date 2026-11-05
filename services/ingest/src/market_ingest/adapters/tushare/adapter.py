@@ -115,6 +115,8 @@ class TushareAdapter:
         #: 最近一次 ``fetch_research`` 的批次级元数据（覆盖率等），供 sync 写审计元数据
         #: 而不让业务层解析源字段（H4 m02718：index_member_all 需能标记 current_snapshot_only）。
         self.last_research_meta: dict[str, dict[str, Any]] = {}
+        #: 最近一次 fetch_research 的源保真一致性统计（H4 m03540），供 sync 写审计元数据
+        self.last_source_consistency: dict[str, dict[str, Any]] = {}
 
     # ---------- raw/DLQ 注入点（A12 fixture 机制与 sync 落库都走这里） ----------
 
@@ -441,6 +443,10 @@ class TushareAdapter:
             "limit_pct_b_share_rule_status": research.LIMIT_PCT_B_SHARE_RULE_STATUS,
         }
 
+    def research_source_consistency(self) -> dict[str, dict[str, Any]]:
+        """研究专源最近一次抓取的 ts_code/exchange/code 段一致性统计（审计用）。"""
+        return dict(self.last_source_consistency)
+
     @property
     def research_datasets(self) -> tuple[str, ...]:
         """本适配器支持的研究数据集名（CLI/sync 只按名字调度，不认接口）。"""
@@ -553,6 +559,7 @@ class TushareAdapter:
             for canonical in rows:
                 canonical[research.SNAPSHOT_DATE_FIELD] = snapshot_date
             rows = research.dedupe_rows(dataset, rows)
+        self.last_source_consistency[dataset] = research.source_consistency(dataset, raw_rows)
         self.last_research_meta[dataset] = {
             "mode": spec.mode,
             "snapshot_date": (trade_date or self._clock().date()).isoformat()

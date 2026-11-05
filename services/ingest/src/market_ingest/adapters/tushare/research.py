@@ -392,7 +392,7 @@ LIMIT_PCT_RULE_VERSION = "exchange_quote_unit_2026-11-05"
 #: 证据窗口（H4 m03419 要求写成三日样本，不是普适保证）：
 LIMIT_PCT_EVIDENCE_WINDOW = "2026-11-03..2026-11-05"
 #: B 股取整规则待 H4 签字前只作研究域派生，不宣称已验收。
-LIMIT_PCT_B_SHARE_RULE_STATUS = "pending_h4_sign"
+LIMIT_PCT_B_SHARE_RULE_STATUS = "signed_h4_2026-11-05"
 #: 北交所 A 股代码前缀（H4 m03419：全前缀 43/83/87/88/92；43/83/87/88 在样本内无数据）。
 BSE_LIMIT_PREFIXES: tuple[str, ...] = ("43", "83", "87", "88", "92")
 #: 沪市 B 股代码前缀（900xxx，报价单位 0.001 美元）；深市 B 股 200xxx（0.01 港元）。
@@ -828,6 +828,112 @@ def research_datasets() -> tuple[str, ...]:
     return tuple(RESEARCH_DATASETS)
 
 
+
+# ---------- 源保真一致性（H4 m03540：mirror 的 ts_code 后缀不可作市场判据） ----------
+
+_SUFFIX_MARKET = {"SH": "SSE", "SZ": "SZSE", "BJ": "BSE", "HK": "HKEX"}
+_EXCHANGE_TO_MARKET = {
+    "SSE": "SSE",
+    "SZSE": "SZSE",
+    "BSE": "BSE",
+    "SH": "SSE",
+    "SZ": "SZSE",
+    "HK": "HKEX",
+}
+
+
+def _suffix_market(ts_code: str) -> str | None:
+    return _SUFFIX_MARKET.get(str(ts_code).rsplit(".", 1)[-1].upper())
+
+
+def _code_market(code: str) -> str | None:
+    """按代码段推市场；只对 A/B 股与港股返回，其它（转债/基金/指数）返回 None。
+
+    规则（H4 m03540）：900xxx=沪 B、200xxx=深 B、43/83/87/88/92=BSE A、
+    6 开头（含 60/68）=SSE、0/2/3 开头=SZSE；5 位港股=HKEX。
+    """
+    if not code:
+        return None
+    if len(code) == 5 and code.isdigit():
+        return "HKEX"
+    if len(code) != 6 or not code.isdigit():
+        return None
+    if code.startswith(BSE_LIMIT_PREFIXES):
+        return "BSE"
+    if code[0] in ("6", "9"):
+        return "SSE"
+    if code[0] in ("0", "2", "3"):
+        return "SZSE"
+    return None
+
+
+def source_consistency(dataset: str, rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """统计一批原始行里 ts_code 后缀 / 代码段 / exchange 的市场归属一致性。
+
+    不阻断入库：不一致行记 warn（由 sync 写入 ``_meta/research_source_quality.json``）；
+    仅当映射会因此改变 instrument_id 时计 ``mapping_affected_rows``（当前 ``stk_limit``
+    以 exchange 为准，故 900901.BJ + exchange=SSE 计 41 行）。
+    """
+    report: dict[str, Any] = {
+        "dataset": dataset,
+        "rows": 0,
+        "stock_rows": 0,
+        "non_stock_rows": 0,
+        "suffix_vs_exchange_mismatch": 0,
+        "suffix_vs_code_mismatch": 0,
+        "code_vs_exchange_mismatch": 0,
+        "mapping_affected_rows": 0,
+        "samples": [],
+    }
+    suffix_exchange_mismatch = exchange_authoritative = False
+    for row in rows:
+        report["rows"] += 1
+        raw_ts = str(row.get("ts_code") or "")
+        suffix = _suffix_market(raw_ts)
+        code = raw_ts.rsplit(".", 1)[0] if raw_ts else ""
+        code_market = _code_market(code)
+        if code_market is None:
+            report["non_stock_rows"] += 1
+            continue
+        report["stock_rows"] += 1
+        raw_exchange = row.get("exchange")
+        exchange_market = (
+            _EXCHANGE_TO_MARKET.get(str(raw_exchange).upper()) if raw_exchange else None
+        )
+        bad: list[str] = []
+        if exchange_market is not None:
+            if suffix is not None and suffix != exchange_market:
+                report["suffix_vs_exchange_mismatch"] += 1
+                bad.append("suffix_vs_exchange")
+                suffix_exchange_mismatch = True
+                exchange_authoritative = True
+            if code_market != exchange_market:
+                report["code_vs_exchange_mismatch"] += 1
+                bad.append("code_vs_exchange")
+                exchange_authoritative = True
+        if suffix is not None and suffix != code_market:
+            report["suffix_vs_code_mismatch"] += 1
+            bad.append("suffix_vs_code")
+        if exchange_market is None and suffix is not None and suffix != code_market:
+            # 无 exchange 列时，后缀/代码段冲突无法裁决，按后缀入库并记 warn。
+            pass
+        if bad:
+            report["mapping_affected_rows"] += 1
+            if len(report["samples"]) < 10:
+                report["samples"].append(
+                    {
+                        "ts_code": raw_ts,
+                        "exchange": raw_exchange,
+                        "suffix_market": suffix,
+                        "code_market": code_market,
+                        "flags": bad,
+                    }
+                )
+    if suffix_exchange_mismatch or exchange_authoritative:
+        report["authoritative_field"] = "exchange"
+    return report
+
+
 __all__ = [
     "ColumnSpec",
     "DEFAULT_RESEARCH_DATASETS",
@@ -853,6 +959,7 @@ __all__ = [
     "partition_date",
     "instrument_id_for",
     "map_row",
+    "source_consistency",
     "research_datasets",
     "row_date",
     "row_instrument",

@@ -483,5 +483,140 @@
     },
     "note": "该源 BSE 在册 354 只全部为 92 前缀（代码空间已迁移）；43/83/87/88 在该源无样本，因而无法用本数据源验证旧前缀规则。stk_limit 每日 92 前缀 354 行与之一致。",
     "fetched_at": "2026-11-05T21:56:00+08:00"
+  },
+  "source_consistency_probe_20261104": {
+    "note": "H4 m03540：mirror ts_code 后缀 vs exchange/code 段一致性统计（一日全市场；非证券/转债行不计入股票口径；900xxx 按 exchange 归沪市）。",
+    "endpoints": {
+      "stk_limit": {
+        "rows": 5655,
+        "suffix_vs_exchange_mismatch": 41,
+        "suffix_vs_code_mismatch": 41,
+        "code_vs_exchange_mismatch": 0,
+        "detail": "41 行=900901..900948（沪 B，exchange=SSE、ts_code 后缀误标 .BJ）；另有 201872.SZ/302132.SZ 为新代码段（SZSE）非错标；其余一致。"
+      },
+      "daily_basic": {
+        "rows": 5572,
+        "suffix_vs_exchange_mismatch": 0,
+        "suffix_vs_code_mismatch": 0,
+        "note": "302132.SZ 为新代码段，已按 SZSE 归。"
+      },
+      "moneyflow": {
+        "rows": 5578,
+        "suffix_vs_exchange_mismatch": 0,
+        "suffix_vs_code_mismatch": 0
+      },
+      "top_list": {
+        "rows": 84,
+        "suffix_vs_exchange_mismatch": 0,
+        "suffix_vs_code_mismatch": 0,
+        "note": "含可转债 118xxx.SH/123xxx.SZ，非股票口径，已排除。"
+      },
+      "top_inst": {
+        "rows": 840,
+        "suffix_vs_exchange_mismatch": 0,
+        "suffix_vs_code_mismatch": 0,
+        "note": "同上，可转债不误报。"
+      },
+      "margin": {
+        "rows": 3,
+        "suffix_vs_exchange_mismatch": 0,
+        "suffix_vs_code_mismatch": 0,
+        "note": "接口按 exchange_id 返回，无 ts_code 行。"
+      },
+      "hk_hold": {
+        "rows": 1017,
+        "suffix_vs_exchange_mismatch": 0,
+        "suffix_vs_code_mismatch": 0,
+        "note": "港股 .HK 与 exchange=HK 一致；5 位港股代码按 HKEX 归。"
+      }
+    },
+    "conclusion": "mirror 的 ts_code 后缀在 stk_limit 上存在 41 行市场错标（保真缺陷）；research 适配层已按 exchange+code 段映射并逐批把不一致计数写入 internal/_meta/research_source_quality.json（warn，不阻断；影响 instrument_id 的计 mapping_affected_rows）。"
+  },
+  "bse_legacy_codes": {
+    "question": "H4 m03543：北交所旧代码 43/83/87/88 是否仍返回历史？是否存在新旧码两套 instrument_id？",
+    "market_snapshot_bj_prefixes": {
+      "20211101": {
+        "bj_rows": 125,
+        "prefixes": {
+          "83": 2,
+          "92": 123
+        }
+      },
+      "20211115": {
+        "bj_rows": 153,
+        "prefixes": {
+          "92": 153
+        }
+      },
+      "20220104": {
+        "bj_rows": 144,
+        "prefixes": {
+          "92": 144
+        }
+      },
+      "20220601": {
+        "bj_rows": 139,
+        "prefixes": {
+          "92": 139
+        }
+      },
+      "20230601": {
+        "bj_rows": 199,
+        "prefixes": {
+          "92": 199
+        }
+      },
+      "20240603": {
+        "bj_rows": 249,
+        "prefixes": {
+          "92": 249
+        }
+      },
+      "20250603": {
+        "bj_rows": 265,
+        "prefixes": {
+          "92": 265
+        }
+      },
+      "20260601": {
+        "bj_rows": 316,
+        "prefixes": {
+          "92": 316
+        }
+      }
+    },
+    "old_code_sample_2022": {
+      "codes": [
+        "830799.BJ",
+        "831010.BJ",
+        "833171.BJ",
+        "835185.BJ",
+        "870199.BJ",
+        "873169.BJ",
+        "874021.BJ"
+      ],
+      "rows_returned": 0,
+      "note": "旧 8xxxxx 代码在 2022 区间全部返回 0 行；该源不提供旧代码历史序列。"
+    },
+    "new_code_history": {
+      "code": "920000.BJ",
+      "name": "安徽凤凰",
+      "list_date": "2020-12-23",
+      "rows_20220101_20220603": 98,
+      "note": "920 新代码返回 2022 年历史（list_date 保持 2020-12-23），说明该源已把北交所历史回溯映射到 920 段。"
+    },
+    "residual_old_rows": {
+      "codes": [
+        "833874.BJ",
+        "833994.BJ"
+      ],
+      "dates": [
+        "20211101..20211105"
+      ],
+      "rows": 5,
+      "stock_basic_record": false,
+      "note": "仅 2021-11 初残留 2 个旧代码行（833874/833994），11-08 后消失；stock_basic 无记录，无法从本源于确认其与 920 新码的对应关系。"
+    },
+    "claim": "本数据源下北交所历史统一以 920 代码返回，旧代码无序列 → 同一来源不会产生新旧两套重复序列；但无法从本源取得 old→new 映射。若做跨源/长期 20 年回补，dim_instrument 仍需官方迁移清单建 alias（old_id→new_id+生效日+来源），历史按 alias 连续；不得合并、不得静默挑一个。"
   }
 }

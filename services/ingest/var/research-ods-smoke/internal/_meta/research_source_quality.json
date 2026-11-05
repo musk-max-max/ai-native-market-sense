@@ -2,7 +2,7 @@
   "authorization_status": "synthetic_replay",
   "datasets": {
     "stk_limit": {
-      "limit_pct_b_share_rule_status": "pending_h4_sign",
+      "limit_pct_b_share_rule_status": "signed_h4_2026-11-05",
       "limit_pct_evidence_window": "2026-11-03..2026-11-05",
       "limit_pct_reconcile_note": "每日按交易所+报价单位重算 up/down；与交易所原值不等则 limit_pct=null，不接受多命中挑一个",
       "limit_pct_rule_version": "exchange_quote_unit_2026-11-05",
@@ -18,6 +18,129 @@
     }
   },
   "generated_at": "2026-11-04T15:00:00+08:00",
-  "run_id": "ing-20261104T150000-2f9cbc4e",
-  "source_channel": "replay"
+  "run_id": "ing-20261104T150000-a882bca1",
+  "source_channel": "replay",
+  "source_consistency": {
+    "daily_basic": {
+      "code_vs_exchange_mismatch": 0,
+      "dataset": "daily_basic",
+      "mapping_affected_rows": 0,
+      "non_stock_rows": 0,
+      "rows": 1,
+      "samples": [],
+      "stock_rows": 1,
+      "suffix_vs_code_mismatch": 0,
+      "suffix_vs_exchange_mismatch": 0
+    },
+    "fina_indicator": {
+      "code_vs_exchange_mismatch": 0,
+      "dataset": "fina_indicator",
+      "mapping_affected_rows": 0,
+      "non_stock_rows": 0,
+      "rows": 1,
+      "samples": [],
+      "stock_rows": 1,
+      "suffix_vs_code_mismatch": 0,
+      "suffix_vs_exchange_mismatch": 0
+    },
+    "hk_hold": {
+      "code_vs_exchange_mismatch": 0,
+      "dataset": "hk_hold",
+      "mapping_affected_rows": 0,
+      "non_stock_rows": 0,
+      "rows": 1,
+      "samples": [],
+      "stock_rows": 1,
+      "suffix_vs_code_mismatch": 0,
+      "suffix_vs_exchange_mismatch": 0
+    },
+    "index_classify": {
+      "code_vs_exchange_mismatch": 0,
+      "dataset": "index_classify",
+      "mapping_affected_rows": 0,
+      "non_stock_rows": 3,
+      "rows": 3,
+      "samples": [],
+      "stock_rows": 0,
+      "suffix_vs_code_mismatch": 0,
+      "suffix_vs_exchange_mismatch": 0
+    },
+    "index_daily": {
+      "code_vs_exchange_mismatch": 0,
+      "dataset": "index_daily",
+      "mapping_affected_rows": 0,
+      "non_stock_rows": 0,
+      "rows": 1,
+      "samples": [],
+      "stock_rows": 1,
+      "suffix_vs_code_mismatch": 0,
+      "suffix_vs_exchange_mismatch": 0
+    },
+    "index_member_all": {
+      "code_vs_exchange_mismatch": 0,
+      "dataset": "index_member_all",
+      "mapping_affected_rows": 0,
+      "non_stock_rows": 0,
+      "rows": 2,
+      "samples": [],
+      "stock_rows": 2,
+      "suffix_vs_code_mismatch": 0,
+      "suffix_vs_exchange_mismatch": 0
+    },
+    "margin": {
+      "code_vs_exchange_mismatch": 0,
+      "dataset": "margin",
+      "mapping_affected_rows": 0,
+      "non_stock_rows": 1,
+      "rows": 1,
+      "samples": [],
+      "stock_rows": 0,
+      "suffix_vs_code_mismatch": 0,
+      "suffix_vs_exchange_mismatch": 0
+    },
+    "moneyflow": {
+      "code_vs_exchange_mismatch": 0,
+      "dataset": "moneyflow",
+      "mapping_affected_rows": 0,
+      "non_stock_rows": 0,
+      "rows": 1,
+      "samples": [],
+      "stock_rows": 1,
+      "suffix_vs_code_mismatch": 0,
+      "suffix_vs_exchange_mismatch": 0
+    },
+    "stk_limit": {
+      "code_vs_exchange_mismatch": 0,
+      "dataset": "stk_limit",
+      "mapping_affected_rows": 0,
+      "non_stock_rows": 0,
+      "rows": 1,
+      "samples": [],
+      "stock_rows": 1,
+      "suffix_vs_code_mismatch": 0,
+      "suffix_vs_exchange_mismatch": 0
+    },
+    "top_inst": {
+      "code_vs_exchange_mismatch": 0,
+      "dataset": "top_inst",
+      "mapping_affected_rows": 0,
+      "non_stock_rows": 0,
+      "rows": 1,
+      "samples": [],
+      "stock_rows": 1,
+      "suffix_vs_code_mismatch": 0,
+      "suffix_vs_exchange_mismatch": 0
+    },
+    "top_list": {
+      "code_vs_exchange_mismatch": 0,
+      "dataset": "top_list",
+      "mapping_affected_rows": 0,
+      "non_stock_rows": 0,
+      "rows": 1,
+      "samples": [],
+      "stock_rows": 1,
+      "suffix_vs_code_mismatch": 0,
+      "suffix_vs_exchange_mismatch": 0
+    }
+  }
 }

@@ -332,7 +332,8 @@ PYTHONPATH=src python3 -m market_ingest sync-research --start 2024-01-02 --end 2
     43/83/87/88 **无样本**（不写成"全中"），规则按 H4 签字全前缀启用。
   - 沪市 B 股 `SSE:900xxx`：0.001 美元、四舍五入（样本 41 行/日，41/41）；
     深市 B 股 `SZSE:200xxx`：0.01 港元、四舍五入（35 行/日，35/35）；
-    **B 股规则待 H4 签字**（`limit_pct_b_share_rule_status=pending_h4_sign`）。
+    **B 股规则 H4 已签（m03543，`limit_pct_b_share_rule_status=signed_h4_2026-11-05`）**；
+    市场以 exchange 为准、`ts_code` 后缀不作判据；仅研究域，不进 display/门禁展示态。
   - SSE/SZSE 其余：0.01 元四舍五入。首日无涨跌幅等自然落 `null`。
   **市场判定看 exchange+code，不看 `ts_code` 后缀**：真实样本里 41 行沪市 B 股被源标成
   `900901.BJ` 但 `exchange=SSE`（镜面标注错位），以 exchange 为准映射为 `SSE:900901`。
@@ -385,6 +386,18 @@ PYTHONPATH=src python3 -m market_ingest sync-research --start 2024-01-02 --end 2
   `_meta/research_sources.jsonl`（append-only，含 run_id/datasets/rows）。
   经第三方 mirror 的批次**只做研究域内部使用**，不得进 C 端/display/serving，
   也不再在 mirror 上扩新数据集；F1 书面授权只认官方 tushare 回复。
+- **mirror 保真一致性（H4 m03540）**：每次研究运行把 ts_code 后缀 vs exchange、
+  后缀 vs code 段、code 段 vs exchange 的不一致行数写入
+  `_meta/research_source_quality.json` 的 `source_consistency`（warn，不阻断入库；
+  影响 instrument_id 的行计 `mapping_affected_rows`）。已知缺陷：stk_limit 41 行沪 B
+  被标成 `900xxx.BJ`（exchange=SSE），另有新代码段 201/302 属 SZSE 正常。
+  全端点一日探测结果见 `tests/fixtures/tushare/real-sample-20261105/stk_limit_rounding_rules.json`
+  的 `source_consistency_probe_20261104`。
+- **北交所新旧代码（注意）**：当前 mirror 把北交所历史统一回溯到 920 段（旧 8xxxxx
+  代码请求返回 0 行；920000.BJ 可回 2022 历史，list_date 保持 2020-12-23）。
+  同一来源不会产生新旧两套重复序列，但 **old→new 映射无法从本源取得**；跨源/20 年
+  回补前，`dim_instrument` 仍需官方迁移清单建 alias（old_id→new_id+生效日+来源），
+  历史按 alias 连续，不得合并、不得静默挑一个。证据见同一文件的 `bse_legacy_codes`。
 
 ### 研究 ODS 全链路冒烟（可交付 A2 复验）
 
@@ -468,7 +481,7 @@ manifest 声明合成、无未登记孤儿文件，并由脚本重算 path+sha25
 
 ```bash
 cd services/ingest
-PYTHONPATH=src /opt/anaconda3/bin/python3 -m pytest -q      # 190 tests
+PYTHONPATH=src /opt/anaconda3/bin/python3 -m pytest -q      # 210 tests
 PYTHONPATH=src /opt/anaconda3/bin/python3 -m mypy           # 23 files clean
 ```
 
