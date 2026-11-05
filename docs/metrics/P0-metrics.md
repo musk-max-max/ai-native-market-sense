@@ -134,7 +134,13 @@ WHERE EXISTS (SELECT 1 FROM ranked);
 涨跌停价 = `prev_close × (1 ± limit_pct)` 按**市场/报价单位取整**后再比较（沪深 A 0.01 half-up；
 北交所 A 涨停 floor、跌停 ceil；沪 B 0.001；深 B 0.01，B 股待签）；`limit_status` 取
 `limit_up | limit_down | none`。注册制新股（科创 ≥2019-07-22、创业 ≥2020-08-24、主板 ≥2023-04-10）
-上市后前 5 个交易日的涨跌停价与 `limit_status` 均为 NULL——第 2–5 日涨幅可远超档位，**不得错标涨停**。**时点规则（2026-11-05 H4 口径更正）**：主板 ST/*ST 在
+上市后前 5 个交易日的涨跌停价与 `limit_status` 均为 NULL——第 2–5 日涨幅可远超档位，**不得错标涨停**。
+`trade_seq` 按 `trade_date <= :end_date` 的全历史 bar 排序；若某标的**上市首日 bar 缺失**，`trade_seq` 窗口整体后移 1 日，
+逐行输出 `known_limitation` 提示（窗口可能错位）。`listed_at IS NULL` 的覆盖率用
+`warehouse/metrics/m04_listed_at_coverage.sql` 诊断。**当前实际数字（2026-11-05，P0 冒烟 ODS 去重 7 只标的 / 6 行 bar）**：
+`listed_at IS NULL` 标的 **0 只（0/7=0.0%）**，受影响 bar **0 行（0/6=0.0000%）**；尚非 20 年全量，
+全量回补后必须重跑该查询——若占比 > 1% 属覆盖口径变化，回 H4 决策（H4 2026-11-05 条件 3），
+<=1% 才可只记 known_limitation。**时点规则（2026-11-05 H4 口径更正）**：主板 ST/*ST 在
 `2026-07-06` 前为 5%、之后为 10%（旧「一律 5%」作废）；创业板在 `2020-08-24` 前 10%、之后 20%；
 北交所在 `2021-11-15` 前 `limit_pct=NULL`（不猜精选层规则）；主板 S 股 5%；首日无涨跌幅（NULL）。
 
@@ -197,7 +203,8 @@ WITH hist AS (
            i.board,
            i.name,
            i.listed_at,
-           ROW_NUMBER() OVER (PARTITION BY b.instrument_id ORDER BY b.trade_date) AS trade_seq
+           ROW_NUMBER() OVER (PARTITION BY b.instrument_id ORDER BY b.trade_date) AS trade_seq,
+           MIN(b.trade_date) OVER (PARTITION BY b.instrument_id) AS first_trade_date
     FROM dwd_stock_bar_daily AS b
     JOIN dim_instrument AS i
       ON i.instrument_id = b.instrument_id
@@ -214,6 +221,7 @@ base AS (
            name,
            listed_at,
            trade_seq,
+           first_trade_date,
            CASE
                WHEN board IS NULL THEN NULL
                WHEN listed_at IS NULL THEN NULL
@@ -279,13 +287,16 @@ SELECT instrument_id,
            ELSE 'none'
        END AS limit_status,
        CASE
-           WHEN board = 'main' AND (name LIKE 'ST%' OR name LIKE '*ST%') THEN true
+           WHEN board = 'main' AND (name LIKE 'ST%' OR name LIKE '*ST%'
+                                     OR name LIKE 'S*ST%' OR name LIKE 'SST%') THEN true
            ELSE false
        END AS st_by_current_name,
        'dim_instrument.name@as_of' AS st_status_source,
        CASE
            WHEN board IS NULL THEN 'board 未知：fail-closed，不判涨跌停'
            WHEN listed_at IS NULL THEN '上市日缺失，无法判首日/上市初期：limit_pct=NULL（fail-closed）'
+           WHEN first_trade_date > listed_at AND first_trade_date <= listed_at + 10
+               THEN '上市首日 bar 缺失：trade_seq 窗口整体后移 1 日（该标的上市初期的豁免/判定可能错位）'
            WHEN trade_date = listed_at THEN '首日无涨跌幅限制（listed_at 判定）'
            WHEN trade_seq <= 5 AND (
                     (board = 'star' AND listed_at >= DATE '2019-07-22')
@@ -380,7 +391,7 @@ ORDER BY trade_date;
 | 类别 | 规则 |
 | --- | --- |
 | 结构 struct | STRUCT-01 必填/类型；STRUCT-02 主键唯一；STRUCT-03 OHLC 关系 `high ≥ max(open,close) ≥ min(open,close) ≥ low`；STRUCT-04 价格 > 0、volume/amount ≥ 0；STRUCT-05 价格小数位 ≤ 2；STRUCT-06 因子 > 0 且每根 bar 有因子 |
-| 业务 business | BIZ-01 涨跌幅在板块限内（容差 0.5pp，上市首日豁免；未知板块 fail-closed）；BIZ-02 prev_close 缺失（warn）；BIZ-03 ST 时点性限制（warn，L80） |
+| 业务 business | BIZ-01 涨跌幅在板块限内（容差 0.5pp；上市首日不判；注册制新股上市后前 5 个交易日不判，科创 ≥2019-07-22/创业 ≥2020-08-24/主板 ≥2023-04-10；未知板块 fail-closed）；BIZ-02 prev_close 缺失（warn）；BIZ-03 ST 时点性限制（warn，L80） |
 | 完整性/及时性 completeness | COMP-01 无周末 bar；COMP-02 as_of 属当日 ≥15:00（T 日收盘后取数）；COMP-03 工作日覆盖（bar ∪ 停牌证据） |
 | 一致性 consistency | CONS-01 prev_close = 前一交易日 close（除权日因因子变化豁免 / 首日豁免）；CONS-02 bar/因子引用的 instrument 必须在 dim_instrument；RES-03 研究数据 instrument_id 必须在 dim_instrument（index_daily 指数、margin 无 instrument 豁免）；RES-07 行业分类层级自洽（level∈{1,2,3}、level>1 必须有 parent_code、level=1 不得有、parent_code≠index_code）；RES-08 成分时点自洽（in_date ≤ snapshot_date、out_date ≥ in_date、is_new=Y 时 out_date 必须为空） |
 | 研究数据 research（按类别归入） | **RES-01**（完整性）周末粗筛：`weekday()>=5` 判违规，**不含法定节假日校验**（非交易日历，P1 接 `trade_cal`）；**RES-02**（业务）量纲：**只对 DWD canonical 字段生效**，金额/量/市值非负、百分比 \|x\| ≤ 1000（ODS 源字段如 `total_mv` 不在范围）；**RES-03**（一致性）外键：A 股标识必须在 `dim_instrument`；`hk_hold` 的 `HKEX:#####` 港股命名空间显式豁免并计数（不静默跳过）；**RES-04**（完整性）per-endpoint as_of 阈值：A 股研究数据当日 15:00、`hk_hold` T+1 次日 15:00、`index_daily` 当日 15:00、`stk_limit` 当日 15:00；**RES-05**（业务，KD-DSW-P2）涨跌停原始价自洽 `previous_close>0` 且 `up_limit > previous_close > down_limit`，**不判 5/10/20/30 档位**（H4 口径）；**RES-06**（业务）财报公告时点 `announced_at ≥ report_end_date`、report_period 与季度末一致、不晚于批次 as-of（防未来函数）；**RES-07**（一致性）申万行业树层级自洽；**RES-08**（一致性）成分时点自洽（含 `is_new=N` 必须有 `out_date`）；**RES-09**（一致性，warn）`out_date > snapshot_date` 未来退出日告警。RES-01..08 均 blocker（研究域 provisional）。H4 KD-RES-HARDEN 加固：RES-07 增加同快照 parent 存在、`level(parent)=level(child)-1`、链≤2 跳到 L1 且无环（每链唯一根）；RES-05 增加 `limit_pct` 候选档重算交叉验证（按声明档 `round_half_up(prev×(1±pct/100),2)` 与 up/down 精确比对，防适配层静默错档，低价股舍入不误伤）；RES-06 对 `announced_at=null` 维持 blocker（无公告日无法 as-of join，不进可用数据） |
@@ -422,7 +433,7 @@ ORDER BY trade_date;
     ODS→DWD→serving；fixture 为命名空间样例，另以 A1 `map_row` → A2 loader 交叉验证；读取端对非法标识
     报错，不静默跳过、不降级成 A 股样例。
 
-## 8. H4 会签记录（已签 2026-11-04；变更须重新会签）
+## 8. H4 会签记录（已签 2026-11-04，M04/RES-05 补签 2026-11-05；变更须重新会签）
 
 > 以下 8 条口径 + 规则变更已由 A2 落成可执行物（SQL / 配置 / golden）。请 H4 逐条签"同意/修改"；
 > 签字后把 `docs/metrics/p0_metrics.json::sign_off.status` 改为 `signed`，并记录签字人与日期。
@@ -431,7 +442,7 @@ ORDER BY trade_date;
 | --- | --- | --- | --- | --- |
 | 1 | M01 主口径不复权 | `warehouse/metrics/m01_bars_none.sql`；DWD 只存不复权 OHLC | 同意/修改 | **可签**（不动） |
 | 2 | M02 收益口径后复权 | `warehouse/metrics/m02_return_hfq.sql`；hfq = close × factor；新增 `anchor_date`/`factor_version`/`factor_as_of` | 同意/修改 | **可签**（L3 条件见 #6） |
-| 3 | M04 涨跌停按板块 | `warehouse/metrics/m04_limit_status.sql`；主板 10% / 主板 ST 2026-07-06 前 5%、之后 10% / 创业板 2020-08-24 前 10%、之后 20% / 科创 2019-07-22 开板后 20% / 北交所 2021-11-15 起 30%、之前 NULL / S 股 5% / 首日 NULL；按市场取整（沪深 A half-up、北交所 floor/ceil、沪 B 0.001 美元/深 B 0.01 港元 half-up，H4 2026-11-05 已签）；未知 board 与首日 fail-closed；ST 时点性 known_limitation | 同意/修改 | **待 H4 重签（KD-M04-PRE5D-NULL 2026-11-05：时点生效日 + 按市场取整 + 注册制新股前 5 日无涨跌幅 + listed_at 缺失 fail-closed + S 股优先）**；上一版 H4 重签 2026-11-04 仅覆盖 fail-closed/ST 时点性，不覆盖本次口径变化 |
+| 3 | M04 涨跌停按板块 | `warehouse/metrics/m04_limit_status.sql`；主板 10% / 主板 ST 2026-07-06 前 5%、之后 10% / 创业板 2020-08-24 前 10%、之后 20% / 科创 2019-07-22 开板后 20% / 北交所 2021-11-15 起 30%、之前 NULL / S 股 5%（优先于 ST） / 首日 NULL / **注册制新股上市后前 5 个交易日 NULL（科创 ≥2019-07-22、创业 ≥2020-08-24、主板 ≥2023-04-10，trade_seq 全历史排序）** / listed_at 缺失 NULL；按市场取整（沪深 A half-up、北交所 floor/ceil、沪 B 0.001 美元/深 B 0.01 港元 half-up）；未知 board 与缺失上市日 fail-closed；ST 时点性 known_limitation | 同意/修改 | **H4 2026-11-05 重签通过（带条件）**：KD-M04-EFFECTIVE-DATE + KD-M04-PRE5D-NULL + 按市场取整 + B 股规则；条件见 `p0_metrics.json::sign_off.conditions` |
 | 4 | M08 涨跌幅基准=prev_close | `warehouse/metrics/m08_change_pct.sql`；除权日由适配层写入除权参考价 | 同意/修改 | **可签** |
 | 5 | M03/M05/M06/M07 立法但 P0 无数据 | §5；M06 的 DDL 已备（`dwd_fundamental_report`），数据待 A1 | 同意"P0 只立法" | **可签** |
 | 6 | **L3 因子归一** `adj_factor = raw / anchor` | 锚=该标的最早可得因子日，老股锚 1990-12-19；DWD 不二次归一；M02 收益两锚等价、hfq 绝对价不同 | **复权算法变更，需会签** | **条件签（三件已落）**：①`m02_return_hfq.sql` 注释已改 L3（不再写"首个上市交易日"）；②输出 `anchor_date` + `factor_version`（锚变则版本串变、须重新会签）；③hfq 绝对价不进 C 端（仅收益），展示绝对价需另签 |
@@ -444,6 +455,7 @@ ORDER BY trade_date;
 
 - [x] 以上 10 项全部同意（如有修改，在对应行批注；A2 先改 docs，获签字后再改 SQL）
 - 签字人 / 日期：H4（数据负责人） / 2026-11-04
+- [x] M04（KD-M04-EFFECTIVE-DATE + KD-M04-PRE5D-NULL + 按市场取整 + B 股规则）与 RES-05 取整口径补签：H4（数据负责人） / 2026-11-05，带 4 条条件（见 `p0_metrics.json::sign_off.conditions`）
 - 备注：条件见 `p0_metrics.json::sign_off.conditions`——L3 锚变更须重签；M04 ST 按 L80 当前名称快照（BIZ-03 warn 单列，P1 namechange 到位后转 blocker）；规则集变化须记 before/after 且不得借新增 warn 规则跨阈值；M03/M05/M06/M07 数据未到不得进 C 端。
 
 ### 签署后规则集变更（2026-11-05，已备案；附注已落）
@@ -473,3 +485,4 @@ ORDER BY trade_date;
 
 | 2026-11-05 | **KD-M04-EFFECTIVE-DATE（H4 口径更正，待重签）**：M04 `limit_pct` 由静态 CASE 改按 `trade_date` 生效日规则——主板 ST `<2026-07-06` 5%、`≥` 10%；创业板 `<2020-08-24` 10%、`≥` 20%；科创板 `<2019-07-22`（开板前）NULL；北交所 `<2021-11-15` NULL、`≥` 30%；主板 S 股（S 开头非 ST）5%；首日（`trade_date=listed_at`）NULL。限价取整按市场：沪深 A 0.01 half-up、北交所 43/83/87/88/92 涨停 floor/跌停 ceil、沪 B 900xxx 0.001 half-up、深 B 200xxx 0.01 half-up（B 股待 H4 签）。quality `limit_regimes` v4 同步；golden 增 G25–G32（时点/板块/首日）、G34（北交所截断）+ G33（ST 10% 档 RES-05），正例 24→34、总数 33→43。规则条数 23 不变；对历史回补的行为变化：2026-07-06 前主板 ST 命中 5%、之后 10%；2020-08-24 前创业板 10%；2021-11-15 前北交所不判。**待 H4 重签 §8 M04 行（2026-11-04 签字不覆盖本次口径变化）** | 待重签 |
 | 2026-11-05 | **KD-M04-PRE5D-NULL（H4 复核拒签后整改）**：M04/BIZ-01 增加「注册制新股上市后前 5 个交易日无涨跌幅」——科创板 listed_at ≥2019-07-22、创业板 ≥2020-08-24、主板 ≥2023-04-10，`trade_seq<=5` → `limit_pct=NULL`/`limit_status=NULL`；`trade_seq` 在 `trade_date<=:end_date` 全历史 `row_number` 后按 `start_date` 过滤，不在窗口内重置。`listed_at IS NULL` → limit_pct NULL + known_limitation（fail-closed，不猜）。S 股优先于 ST（S*ST 历史名仍 5%），写进 known_limitation。quality `ipo_no_limit` 配置 + BIZ-01 同步豁免；`_expected_limit_prices` docstring 纠正 900xxx=沪市 B 股（非北交所）；RES-05 规则文本改「按市场+报价单位取整」。golden 增 G35–G37（前 5 日 NULL）与 N10–N12（第 6 日超档 blocker），正例 34→37、负例 9→12、总数 43→49。规则条数 23 不变、阈值/权重/否决不变。B 股取整同日获 H4 签署（沪 B 41/41、深 B 35/35 命中），RES-05 两条 skip 解除、按「交易所+报价单位」启用 | 待 H4 重签 §8 M04 + RES-05 取整口径 |
+| 2026-11-05 | **H4 补签 M04 + RES-05 取整口径（带条件）**：BIZ-01 规则描述补「注册制新股前 5 个交易日不判」；`st_by_current_name` 对 `S*ST…`/`SST…` 置 true（limit_pct 仍按 S 股 5%，定档逻辑不动）；新增 `m04_listed_at_coverage.sql` 诊断（`listed_at IS NULL` 只数与 bar 行占比，>1% 回 H4）；known_limitation 补「上市首日 bar 缺失 → trade_seq 窗口整体后移 1 日」；RES-05 条件：BSE 仅 92 段三日 1062/1062、43/83/87/88 无样本、每日对账 null+warn、B 股仅研究域 | 已签 2026-11-05（H4） |

@@ -84,8 +84,10 @@ def test_legislation_is_signed_by_h4_not_approved_by_agent():
     sign = registry()["sign_off"]
     assert sign["status"] == "signed"
     assert "H4" in sign["approved_by"]
-    assert sign["approved_at"] == "2026-11-04"
+    assert sign["approved_at"] >= "2026-11-04"  # 2026-11-04 首签；M04/RES-05 于 2026-11-05 补签
     assert sign["conditions"], "会签必须带条件"
+    assert any("前 5 个交易日" in c for c in sign["conditions"]), "补签条件缺注册制前 5 日"
+    assert any("listed_at" in c for c in sign["conditions"]), "补签条件缺 listed_at 覆盖率"
     assert sign["note"] and "H4" in sign["note"]
 
 
@@ -117,3 +119,19 @@ def test_doc_has_h4_signoff_record():
     assert "签字栏（H4）" in text
     assert "sign_off.conditions" in text
     assert registry()["sign_off"]["status"] == "signed"
+
+
+def test_m04_pre5d_and_sst_conditions_present():
+    """H4 2026-11-05 补签条件：BIZ-01 文本、S*ST flag、listed_at 覆盖率诊断、首日缺失提示。"""
+    from warehouse.quality.checks import is_st
+
+    assert is_st({"name": "S*ST示例"}) is True
+    sql = (SQL_DIR / "m04_limit_status.sql").read_text(encoding="utf-8")
+    assert "S*ST%" in sql and "SST%" in sql, "st_by_current_name 必须覆盖 S*ST/SST"
+    assert "窗口整体后移 1 日" in sql, "known_limitation 必须写明首日 bar 缺失的后果"
+    assert (SQL_DIR / "m04_listed_at_coverage.sql").is_file(), "缺 listed_at 覆盖率诊断 SQL"
+    coverage = (SQL_DIR / "m04_listed_at_coverage.sql").read_text(encoding="utf-8")
+    assert "pct_bars_missing_listed_at" in coverage and "dwd_stock_bar_daily" in coverage
+    from warehouse.quality.checks import RULE_META
+
+    assert "前 5 个交易日不判" in RULE_META["BIZ-01"][1]

@@ -5,13 +5,27 @@
   "sign_off": {
     "status": "signed",
     "approved_by": "H4（数据负责人）",
-    "approved_at": "2026-11-04",
-    "review_ref": "H4 核签 2026-11-04（见 docs/metrics/P0-metrics.md §8；本文件 sign_off.conditions）+ A2 落改记录",
+    "approved_at": "2026-11-05",
+    "review_ref": "H4 补签 2026-11-05（M04 KD-M04-EFFECTIVE-DATE + KD-M04-PRE5D-NULL + 按市场取整 + B 股规则；RES-05 取整口径）；首签 2026-11-04（八条口径 + 质量分）。见 docs/metrics/P0-metrics.md §8",
+    "signed_scope": [
+      "P0 八条口径（M01/M02/M04/M08 可执行；M03/M05/M06/M07 只立法）",
+      "质量分/阈值/一票否决",
+      "L3 因子锚（条件签）",
+      "L9 blocker-only 计分",
+      "M04 时点生效日 + 注册制新股前 5 日无涨跌幅 + listed_at fail-closed + S 股优先",
+      "按市场+报价单位取整（沪深 A half-up、BSE 43/83/87/88/92 floor/ceil、沪 B 0.001 美元、深 B 0.01 港元）",
+      "RES-05 取整交叉验证口径"
+    ],
     "conditions": [
       "L3 锚变更=口径变更，必须重新会签；anchor_date/factor_version 随输出下发，hfq 绝对价不得直接进 C 端。",
       "M04 ST 为当前名称快照（L80），跨戴帽/摘帽/退市窗口不适用，BIZ-03 warn 单列；P1 接 namechange 后转 blocker。",
       "质量规则集变更导致类别分变化须在变更记录里写明 before/after；新增 warn 规则不得用于跨阈值'改善'，阈值与一票否决不变。",
-      "M03/M05/M06/M07 P0 只立法，数据未到不得出现在 C 端接口。"
+      "M03/M05/M06/M07 P0 只立法，数据未到不得出现在 C 端接口。",
+      "BIZ-01 规则描述必须写「注册制新股前 5 个交易日不判」，规则文本与实现保持一致。",
+      "`st_by_current_name` 对 `S*ST…`/`SST…` 必须为 true；limit_pct 仍按 S 股优先 5%，定档逻辑不动。",
+      "listed_at 覆盖率必须可诊断：`listed_at IS NULL` 标的数 + 其在全量 bar 的行数占比；>1% 属覆盖口径变化须回 H4，<=1% 才可写入 known_limitation。",
+      "known_limitation 必须写明：上市首日 bar 缺失时 trade_seq 窗口整体后移 1 日（后果：上市初期豁免/判定可能错位）。",
+      "RES-05 取整证据绑 A1 `bc118ce`；BSE 仅 92 段三日 1062/1062 有样本，43/83/87/88 无样本；每日对账出现 null 计 warn；B 股仅研究域，不进 C 端。"
     ],
     "note": "H4 以数据口径负责人身份会签；口径否决权见 agents/README.md。"
   },

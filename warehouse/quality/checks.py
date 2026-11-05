@@ -43,7 +43,7 @@ RULE_META: dict[str, tuple[str, str]] = {
     "STRUCT-04": ("struct", "价格 > 0，volume/amount ≥ 0"),
     "STRUCT-05": ("struct", "价格小数位 ≤ 2（人民币分）"),
     "STRUCT-06": ("struct", "复权因子 > 0 且每根 bar 都有因子"),
-    "BIZ-01": ("business", "涨跌幅在当日板块限内（M04 时点规则：主板 10% / 主板 ST *2026-07-06 前 5%、之后 10% / 创业板 *2020-08-24 前 10%、之后 20% / 科创 20% / 北交所 2021-11-15 后 30%、之前不判 / 主板 S 股 5% / 首日不判）"),
+    "BIZ-01": ("business", "涨跌幅在当日板块限内（M04 时点规则：主板 10% / 主板 ST *2026-07-06 前 5%、之后 10% / 创业板 *2020-08-24 前 10%、之后 20% / 科创 20% / 北交所 2021-11-15 后 30%、之前不判 / 主板 S 股 5% / 首日不判 / 注册制新股上市后前 5 个交易日不判（科创 ≥2019-07-22、创业 ≥2020-08-24、主板 ≥2023-04-10））"),
     "BIZ-02": ("business", "涨跌幅基准 prev_close 缺失（告警，上市首日豁免）"),
     "BIZ-03": ("business", "ST 判定时点性限制（warn：当前名称快照 vs 历史交易日，L80）"),
     "COMP-01": ("completeness", "不生成周末 bar"),
@@ -155,11 +155,15 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
 
 
 def is_st(instrument: dict[str, Any] | None) -> bool:
-    """P0 派生规则：名称以 ST/*ST 开头视为风险警示（is_st 不落库，见 schema.sql）。"""
+    """P0 派生规则：名称以 ST/*ST 开头视为风险警示（is_st 不落库，见 schema.sql）。
+
+    历史名称 `S*ST…`/`SST…` 同时是 S 股和 ST（股改前带 S 前缀），也视为风险警示；
+    但涨跌幅定档仍按 S 股优先 5%（board_limit_pct 先判 S 股，不排除 ST）。
+    """
     if not instrument:
         return False
     name = str(instrument.get("name", "")).upper().replace("*", "").strip()
-    return name.startswith("ST")
+    return name.startswith("ST") or name.startswith("SST")
 
 
 def is_s_share(instrument: dict[str, Any] | None) -> bool:

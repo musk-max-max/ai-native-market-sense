@@ -37,7 +37,8 @@ WITH hist AS (
            i.board,
            i.name,
            i.listed_at,
-           ROW_NUMBER() OVER (PARTITION BY b.instrument_id ORDER BY b.trade_date) AS trade_seq
+           ROW_NUMBER() OVER (PARTITION BY b.instrument_id ORDER BY b.trade_date) AS trade_seq,
+           MIN(b.trade_date) OVER (PARTITION BY b.instrument_id) AS first_trade_date
     FROM dwd_stock_bar_daily AS b
     JOIN dim_instrument AS i
       ON i.instrument_id = b.instrument_id
@@ -54,6 +55,7 @@ base AS (
            name,
            listed_at,
            trade_seq,
+           first_trade_date,
            CASE
                WHEN board IS NULL THEN NULL
                WHEN listed_at IS NULL THEN NULL
@@ -119,13 +121,16 @@ SELECT instrument_id,
            ELSE 'none'
        END AS limit_status,
        CASE
-           WHEN board = 'main' AND (name LIKE 'ST%' OR name LIKE '*ST%') THEN true
+           WHEN board = 'main' AND (name LIKE 'ST%' OR name LIKE '*ST%'
+                                     OR name LIKE 'S*ST%' OR name LIKE 'SST%') THEN true
            ELSE false
        END AS st_by_current_name,
        'dim_instrument.name@as_of' AS st_status_source,
        CASE
            WHEN board IS NULL THEN 'board 未知：fail-closed，不判涨跌停'
            WHEN listed_at IS NULL THEN '上市日缺失，无法判首日/上市初期：limit_pct=NULL（fail-closed）'
+           WHEN first_trade_date > listed_at AND first_trade_date <= listed_at + 10
+               THEN '上市首日 bar 缺失：trade_seq 窗口整体后移 1 日（该标的上市初期的豁免/判定可能错位）'
            WHEN trade_date = listed_at THEN '首日无涨跌幅限制（listed_at 判定）'
            WHEN trade_seq <= 5 AND (
                     (board = 'star' AND listed_at >= DATE '2019-07-22')
