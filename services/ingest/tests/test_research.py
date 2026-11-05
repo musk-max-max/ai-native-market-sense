@@ -1155,3 +1155,79 @@ def test_source_consistency_counts_mirror_suffix_defect() -> None:
     clean = rs.source_consistency("daily_basic", [{"ts_code": "600519.SH"}])
     assert clean["mapping_affected_rows"] == 0
     assert "authoritative_field" not in clean
+
+
+def test_source_consistency_unknown_conflict_is_blocking() -> None:
+    """H4 m03664：只有 900xxx/.BJ 已知模式可 warn；其它冲突计 unknown 并阻断。"""
+    from market_ingest.adapters.tushare import research as rs
+
+    known = rs.source_consistency(
+        "stk_limit", [{"ts_code": "900901.BJ", "exchange": "SSE"}]
+    )
+    assert known["known_mismatch_rows"] == 1
+    assert known["unknown_conflict_rows"] == 0
+
+    unknown = rs.source_consistency("daily_basic", [{"ts_code": "200011.SH"}])
+    assert unknown["unknown_conflict_rows"] == 1
+    assert unknown["known_mismatch_rows"] == 0
+    assert unknown["unknown_samples"][0]["ts_code"] == "200011.SH"
+
+
+def test_fetch_research_blocks_unknown_source_conflict() -> None:
+    """未知 ts_code/exchange 冲突 → 适配层抛 SourceConsistencyError（SchemaDrift 子类）。"""
+    from market_ingest.adapters.tushare import research as rs
+    from market_ingest.ports import SchemaDriftError
+
+    row = dict(stk_limit_source_row())
+    row["ts_code"] = "900901.SZ"  # 后缀/代码段/交易所三方冲突，不在已知模式
+    entries = [
+        calendar_entry(DAY1, DAY1, [DAY1]),
+        research_entry("stk_limit", DAY1, [row]),
+    ]
+    adapter, _guard, _clock = _adapter(entries)
+    with pytest.raises(rs.SourceConsistencyError) as excinfo:
+        adapter.fetch_research("stk_limit", DAY1)
+    assert isinstance(excinfo.value, SchemaDriftError)
+    assert excinfo.value.report["unknown_conflict_rows"] == 1
+    assert "unknown source consistency conflict" in str(excinfo.value)
+
+
+def test_sync_research_blocks_unknown_conflict_atomically(tmp_path: Path) -> None:
+    """H4 m03664：未知冲突 → sync 记 failed/source_consistency、不写该日 ODS、
+    manifest 追加 blocked 事件（≤5 条样本），且整批不出现部分写入。"""
+    from market_ingest import manifest as mf
+
+    row = dict(stk_limit_source_row())
+    row["ts_code"] = "900901.SZ"  # 三方冲突，不在已知 900xxx/.BJ 豁免内
+    entries = [
+        calendar_entry(DAY1, DAY1, [DAY1]),
+        research_entry("stk_limit", DAY1, [row]),
+    ]
+    adapter, _guard, _clock = _adapter(entries)
+    storage = SqliteStorage(":memory:")
+    ods_root = tmp_path / "ods"
+    audit_root = tmp_path / "audit"
+    result = sync_research(
+        adapter,
+        storage,
+        datasets=("stk_limit",),
+        start=DAY1,
+        end=DAY1,
+        ods_root=ods_root,
+        guard=_guard,
+        clock=_clock,
+        manifest_root=audit_root,
+        operator="ci-bot",
+    )
+    assert result.status == "failed"
+    assert result.halted_reason == "source_consistency"
+    assert not (ods_root / "stk_limit").exists()
+    events = mf.read_events(audit_root)
+    assert len(events) == 1
+    assert events[0]["event_type"] == mf.EVENT_TYPE_RESEARCH_SYNC_BLOCKED
+    assert events[0]["status"] == "blocked"
+    assert events[0]["reason"] == "source_consistency_conflict"
+    assert events[0]["operator"] == "ci-bot"
+    assert "unknown_conflict_rows=1" in (events[0]["note"] or "")
+    assert 0 < len(events[0]["conflicts"]) <= 5
+    storage.close()

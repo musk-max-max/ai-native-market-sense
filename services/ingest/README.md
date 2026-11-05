@@ -368,8 +368,8 @@ PYTHONPATH=src python3 -m market_ingest sync-research --start 2024-01-02 --end 2
   （`index_code`、`l3_code` 等）保留源命名空间后缀（如 `.SI`）作为**不透明文本**，下游不解析；
   是否归一待 H4 定。
 - 单测：`tests/test_research.py` 覆盖 4 个数据集的字段映射/单位/形态分派/失败不造数/
-  快照幂等/append-only/覆盖率标记/逐标的 checkpoint；仓库根 `pytest services/ingest/tests`
-  = 208 passed。
+  快照幂等/append-only/覆盖率标记/逐标的 checkpoint；仓库根 `pytest -o addopts="" services/ingest/tests`
+  = 214 passed。
 - **provisional 不摘**（H4 m02718/m03258）：摘除需证据齐——① `fina_indicator` 单位样本证据
   + H4 签字；② `stk_limit` 分档有交易所/档位用例；③ index 两表快照/成分时点断言测试。
   齐之前四表只进研究域（internal-only），不进 serving 对外、不进 display root。
@@ -393,19 +393,35 @@ PYTHONPATH=src python3 -m market_ingest sync-research --start 2024-01-02 --end 2
   被标成 `900xxx.BJ`（exchange=SSE），另有新代码段 201/302 属 SZSE 正常。
   全端点一日探测结果见 `tests/fixtures/tushare/real-sample-20261105/stk_limit_rounding_rules.json`
   的 `source_consistency_probe_20261104`。
+  **硬线（H4 m03705 ④）**：除已知 900xxx/.BJ 外，任何未知 ts_code 后缀/exchange 冲突 →
+  整批 `blocked`：该日不写 ODS（原子）、命令 exit 非 0、manifest 追加
+  `research_source_blocked` 事件（`reason=source_consistency_conflict`，最多 5 行 canonical
+  样本，不含源字段），已知 41 行继续 warn+计数。
 - **北交所新旧代码（注意）**：当前 mirror 把北交所历史统一回溯到 920 段（旧 8xxxxx
   代码请求返回 0 行；920000.BJ 可回 2022 历史，list_date 保持 2020-12-23）。
   同一来源不会产生新旧两套重复序列，但 **old→new 映射无法从本源取得**；跨源/20 年
   回补前，`dim_instrument` 仍需官方迁移清单建 alias（old_id→new_id+生效日+来源），
   历史按 alias 连续，不得合并、不得静默挑一个。证据见同一文件的 `bse_legacy_codes`。
-  **已知限制（H4 m03664 归档，不进 11-12 门禁）**：
-  - 北交所退市覆盖仅 5 条（`stock_basic list_status=D`），在册 354；20 年回补的
-    universe completeness 需外部退市/转板清单补齐，作为回补验收项，不能到回测才发现。
-  - 920000.BJ 可回 2019-05-24 起的历史（2021-06 有 21 行），**不存在「2021-11-15
-    前精选层历史缺失」**；但早期逐年稀疏（2019 年仅 4 行），属源覆盖不完整，不用旧码补。
-  - 20211101 快照残留的 833874/833994 经 `namechange` 得名泰祥股份/翰博高新，二者不在
-    920 在册名单、但在 `list_status=D` 中（旧码保留、2022-07 退市），不是 unmapped；
-    与转板后新市场证券的合并需官方清单，记 alias backlog。
+  **已知限制（H4 m03705 更正口径，不进 11-12 门禁）**：
+  - 北交所退市/转板合计 5 条（`stock_basic list_status=D`，在册 354），其中 **3 条是转板、
+    不是退市**：`BSE:832317 → SSE:688287`、`BSE:833874 → SZSE:301192`、
+    `BSE:833994 → SZSE:301321`；真退市 2 条（`920680` 2026-01-05、`920305` 2026-07-30）。
+    universe completeness 需外部退市/转板清单，作为 20 年回补验收项。
+  - 转板证券在 A 股已有独立 `instrument_id`；**BSE 序列到转板日为止，不做 instrument 合并**
+    （alias 只做公司级关联，不合并主键）。
+  - **alias backlog（待官方转板公告/清单落盘，来源必须可审计，不猜）**：
+    `BSE:833874 → SZSE:301192`、`BSE:833994 → SZSE:301321`、`BSE:832317 → SSE:688287`。
+  - 920000.BJ 可回 2019-05-24 起历史（**2019 年 4 行 / 2020 年 22 行 / 2021-01..07-26
+    136 行 / 2021-07-27..11-14 72 行**），不是「历史缺失」而是 NEEQ/精选层稀疏；
+    早期行**保留、不按 list_date 过滤**，但按 `market_segment` 打标（见下），不用旧码补。
+  - 20211101 快照残留的 833874/833994 经 `namechange` 得名泰祥股份/翰博高新，旧码在
+    `list_status=D` 中保留，不是 unmapped。
+- **精选层段标记（H4 m03705 ②）**：`BSE:` 代码在 **2021-11-15**（北交所连续竞价起点）前的
+  `bar.v1` 行追加 `market_segment="neeq_select"`，下游不得把它当北交所连续竞价数据；
+  `limit_pct` 对这些历史行保持 `null`，不进 C 端。沪深 A 股与 2021-11-15（含）后的
+  BSE 行**不写**该字段。早于 `list_date` 的 bar 保留、不打 list_date 过滤。
+  ⚠️ 该字段是对 `bar.v1` 交换格式的可选扩展（A2 loader 目前忽略未知键），正式纳入
+  canonical 契约需 A0/A2 审批并让 DWD/serving 消费段标记。
 
 ### 研究 ODS 全链路冒烟（可交付 A2 复验）
 

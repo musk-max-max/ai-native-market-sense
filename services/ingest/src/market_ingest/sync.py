@@ -29,7 +29,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any, Mapping
 
-from . import ods
+from . import manifest, ods
 from .models import (
     AdjFactorRecord,
     AdjType,
@@ -1075,6 +1075,8 @@ def sync_research(
     clock: Callable[[], datetime] = market_now,
     guard: QuotaGuard | None = None,
     interrupt: Callable[[], bool] | None = None,
+    manifest_root: str | Path | None = None,
+    operator: str | None = None,
 ) -> ResearchSyncResult:
     """研究数据集同步：按数据集形态抓取 → canonical ODS 行 → checkpoint 续跑。
 
@@ -1139,6 +1141,14 @@ def sync_research(
 
     status = "succeeded"
     halted: str | None = None
+    blocked_dataset: str | None = None
+
+    def _consistency_report(dataset: str) -> dict[str, Any] | None:
+        reader = getattr(source, "research_source_consistency", None)
+        if not callable(reader):
+            return None
+        report = reader().get(dataset)
+        return dict(report) if report else None
 
     def _fetch(dataset: str, **kwargs: Any) -> list[dict[str, Any]]:
         return list(
@@ -1288,6 +1298,11 @@ def sync_research(
                         rows = _fetch(dataset, trade_date=day, index_codes=tuple(index_codes))
                     except (QuotaExhaustedError, SourceAuthError, SchemaDriftError, SourceUnavailableError) as exc:
                         status, halted = BarsSyncService._classify_failure(exc)
+                        report = _consistency_report(dataset)
+                        if report and report.get("unknown_conflict_rows"):
+                            # H4 m03664：未知源保真冲突 → 整批 blocked（不写该日 ODS、退出非 0）。
+                            status, halted = "failed", "source_consistency"
+                            blocked_dataset = dataset
                         dataset_failed = True
                         break
                     day_rejected = storage.count_rejected(batch_id) - rejected_before
@@ -1340,15 +1355,49 @@ def sync_research(
     for name in requested:
         rejected_total += storage.count_rejected(f"{run_id}-{name}")
 
+    if blocked_dataset is not None and manifest_root is not None:
+        report = _consistency_report(blocked_dataset) or {}
+        samples = report.get("unknown_samples") or []
+        source_channel, auth, host = _source_channel_meta(source)
+        # H4 m03664：blocked 事件是研究题录侧事件；manifest 的 channel 枚举只描述
+        # 主数据导入渠道，这里固定用主数据导入渠道常量（真实来源通道仍记 source_channel）。
+        event = manifest.ManifestEvent(
+            event_id=f"{run_id}-blocked-{blocked_dataset}",
+            event_type=manifest.EVENT_TYPE_RESEARCH_SYNC_BLOCKED,
+            channel=manifest.CHANNEL_TUSHARE,
+            status="blocked",
+            started_at=started_at,
+            finished_at=clock(),
+            operator=operator
+            or os.environ.get("DATA_IMPORT_OPERATOR")
+            or "ingest-research-sync",
+            rows=0,
+            conflicts=tuple(
+                f"{item.get('instrument_id') or 'UNMAPPED'} exchange={item.get('exchange')}"
+                f" flags={','.join(item.get('flags') or ())}"
+                for item in samples[:5]
+            ),
+            reason="source_consistency_conflict",
+            note=(
+                f"dataset={blocked_dataset} unknown_conflict_rows="
+                f"{report.get('unknown_conflict_rows')}"
+            ),
+            source_url=host,
+            source_channel=source_channel,
+            authorization_status=auth,
+            run_id=run_id,
+        )
+        manifest.append_event(Path(manifest_root), event)
+
     if ods_root is not None:
         root = Path(ods_root)
-        channel, auth, host = _source_channel_meta(source)
+        source_channel, auth, host = _source_channel_meta(source)
         _write_research_coverage(
             root,
             run_id,
             coverage,
             clock(),
-            source_channel=channel,
+            source_channel=source_channel,
             authorization_status=auth,
             endpoint_host=host,
         )
@@ -1365,14 +1414,14 @@ def sync_research(
             consistency = consistency_source()
         if quality or consistency:
             _write_research_source_quality(
-                root, run_id, quality, channel, auth, clock(), consistency=consistency
+                root, run_id, quality, source_channel, auth, clock(), consistency=consistency
             )
         _append_research_sources(
             root,
             {
                 "run_id": run_id,
                 "generated_at": clock().isoformat(),
-                "source_channel": channel,
+                "source_channel": source_channel,
                 "authorization_status": auth,
                 "endpoint_host": host,
                 "datasets": list(requested),

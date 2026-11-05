@@ -539,6 +539,13 @@ class TushareAdapter:
                 dataset=spec.name,
             )
 
+        consistency = research.source_consistency(dataset, raw_rows)
+        # C01：离开适配层的审计摘要必须走 canonical 字段（H4 m03751/A11）。
+        self.last_source_consistency[dataset] = research.sanitize_consistency(consistency)
+        if consistency["unknown_conflict_rows"]:
+            # H4 m03664：已知缺陷（900xxx/.BJ）之外的源保真冲突 → 阻断本批。
+            raise research.SourceConsistencyError(dataset, consistency)
+
         rows: list[dict[str, Any]] = []
         for row in raw_rows:
             try:
@@ -559,7 +566,6 @@ class TushareAdapter:
             for canonical in rows:
                 canonical[research.SNAPSHOT_DATE_FIELD] = snapshot_date
             rows = research.dedupe_rows(dataset, rows)
-        self.last_source_consistency[dataset] = research.source_consistency(dataset, raw_rows)
         self.last_research_meta[dataset] = {
             "mode": spec.mode,
             "snapshot_date": (trade_date or self._clock().date()).isoformat()

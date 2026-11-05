@@ -622,6 +622,8 @@ def run_sync_research(args: argparse.Namespace) -> int:
             instruments=instruments,
             guard=guard,
             interrupt=lambda: stop["requested"],
+            manifest_root=_manifest_root(config, args),
+            operator=args.operator or os.environ.get("DATA_IMPORT_OPERATOR") or "ingest-research-sync",
         )
     finally:
         signal.signal(signal.SIGINT, previous)

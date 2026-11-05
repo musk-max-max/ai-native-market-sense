@@ -64,6 +64,8 @@ STATUS_BLOCKED = "blocked"
 STATUSES: tuple[str, ...] = (STATUS_SUCCEEDED, STATUS_FAILED, STATUS_INTERRUPTED, STATUS_BLOCKED)
 
 EVENT_TYPE_INSTRUMENT_IMPORT = "instrument_import"
+#: 研究数据同步被阻断（H4 m03664：未知源保真冲突 → 整批 blocked）。
+EVENT_TYPE_RESEARCH_SYNC_BLOCKED = "research_source_blocked"
 
 
 class ManifestError(ValueError):
@@ -133,7 +135,7 @@ class ManifestEvent:
     def __post_init__(self) -> None:
         if not self.event_id.strip():
             raise ManifestError("event_id must not be empty")
-        if self.event_type != EVENT_TYPE_INSTRUMENT_IMPORT:
+        if self.event_type not in (EVENT_TYPE_INSTRUMENT_IMPORT, EVENT_TYPE_RESEARCH_SYNC_BLOCKED):
             raise ManifestError(f"unsupported event_type {self.event_type!r}")
         if self.channel not in CHANNELS:
             raise ManifestError(f"unsupported channel {self.channel!r}; expected one of {', '.join(CHANNELS)}")
@@ -585,6 +587,7 @@ __all__ = [
     "SOURCE_CHANNEL_REPLAY",
     "SOURCE_CHANNELS",
     "EVENT_TYPE_INSTRUMENT_IMPORT",
+    "EVENT_TYPE_RESEARCH_SYNC_BLOCKED",
     "FIELD_SOURCES_ALLOWED",
     "ManifestError",
     "ManifestEvent",

@@ -71,6 +71,32 @@ def test_bar_rows_use_decimal_strings_and_integer_volume() -> None:
     assert isinstance(rows[0]["volume"], str)  # 交换格式要求十进制字符串，禁 JSON float
 
 
+def test_bse_pre_continuous_auction_bars_are_tagged_neeq_select() -> None:
+    """H4 m03705 ②：2021-11-15 前的北交所代码成交属精选层，bar 行须打段标记。"""
+    legacy = BarRecord(
+        instrument_id="BSE:920000",
+        trade_date=date(2019, 5, 24),
+        open=Decimal("10.00"),
+        high=Decimal("10.50"),
+        low=Decimal("9.80"),
+        close=Decimal("10.20"),
+        volume=1000,
+        amount=Decimal("10000.00"),
+        adjustment=AdjType.NONE,
+        source=SOURCE,
+        prev_close=Decimal("10.00"),
+    )
+    rows = bar_rows([legacy])
+    assert rows[0]["market_segment"] == "neeq_select"
+
+    # 连续竞价后与沪深 A 股：不写该字段（避免下游误判）。
+    from dataclasses import replace
+
+    rows = bar_rows([replace(legacy, trade_date=date(2021, 11, 15))])
+    assert "market_segment" not in rows[0]
+    assert "market_segment" not in bar_rows([_bar()])[0]
+
+
 def test_bar_rows_omit_prev_close_on_listing_day_and_include_suspended_evidence() -> None:
     suspension = SuspensionRecord(instrument_id="SSE:600519", trade_date=date(2024, 1, 3), source=SOURCE)
     rows = bar_rows([_bar()], [suspension])

@@ -72,6 +72,19 @@ def _decimal_text(value: Decimal) -> str:
     return format(value, "f")
 
 
+#: 北交所连续竞价起点：此前 BSE 代码的成交属 NEEQ/精选层，不得当北交所连续竞价数据
+#: （H4 m03705 ②）。
+BSE_CONTINUOUS_AUCTION_START = date(2021, 11, 15)
+MARKET_SEGMENT_NEEQ_SELECT = "neeq_select"
+
+
+def market_segment_for(instrument_id: str, trade_date: date) -> str | None:
+    """BSE 代码在连续竞价开始前打 ``neeq_select`` 段标记；其余返回 None（不写字段）。"""
+    if instrument_id.startswith("BSE:") and trade_date < BSE_CONTINUOUS_AUCTION_START:
+        return MARKET_SEGMENT_NEEQ_SELECT
+    return None
+
+
 def bar_rows(
     bars: Sequence[BarRecord],
     suspension_rows: Sequence[SuspensionRecord] = (),
@@ -91,6 +104,9 @@ def bar_rows(
         }
         if bar.prev_close is not None:
             row["prev_close"] = _decimal_text(bar.prev_close)
+        segment = market_segment_for(bar.instrument_id, bar.trade_date)
+        if segment is not None:
+            row["market_segment"] = segment
         rows.append(row)
     for suspended in suspension_rows:
         rows.append(

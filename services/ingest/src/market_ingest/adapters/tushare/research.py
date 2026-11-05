@@ -36,6 +36,7 @@ from datetime import date
 from decimal import ROUND_DOWN, ROUND_HALF_UP, ROUND_UP, Decimal, InvalidOperation
 from typing import Any, Mapping, Sequence
 
+from ...ports import SchemaDriftError
 from . import mapper
 
 
@@ -737,6 +738,47 @@ def _derive_limit_pct(result: dict[str, Any]) -> None:
     result["limit_pct_source"] = LIMIT_PCT_SOURCE if unique is not None else None
 
 
+_EXCHANGE_CODE_BY_MARKET = {
+    "SSE": "SSE",
+    "SZSE": "SZSE",
+    "BSE": "BSE",
+    "HKEX": "HKEX",
+}
+
+
+def _sample_instrument_id(sample: Mapping[str, Any]) -> str | None:
+    """把源格式样本归一到 canonical ``EXCH:CODE``（C01：审计摘要也不得带源字段）。"""
+    ts_code = str(sample.get("ts_code") or "")
+    if "." in ts_code:
+        code, suffix = ts_code.split(".", 1)
+        market = _suffix_market(suffix)
+        exchange = _EXCHANGE_TO_MARKET.get(str(sample.get("exchange") or "").upper(), market)
+        if exchange and code:
+            return f"{exchange}:{code.zfill(5) if exchange == 'HKEX' else code}"
+    exchange = _EXCHANGE_TO_MARKET.get(str(sample.get("exchange") or "").upper())
+    return None
+
+
+def sanitize_consistency(report: Mapping[str, Any]) -> dict[str, Any]:
+    """返回可离开适配层的审计报告：样本用 canonical 字段，不带源格式 ts_code。"""
+    clean = dict(report)
+    for key in ("samples", "unknown_samples"):
+        cleaned: list[dict[str, Any]] = []
+        for sample in report.get(key) or ():
+            item = dict(sample)
+            instrument_id = _sample_instrument_id(item)
+            cleaned.append(
+                {
+                    "instrument_id": instrument_id,
+                    "exchange": item.get("exchange"),
+                    "flags": list(item.get("flags") or ()),
+                    "known": bool(item.get("known")),
+                }
+            )
+        clean[key] = cleaned
+    return clean
+
+
 def has_historical_members(rows: Sequence[Mapping[str, Any]]) -> bool:
     """``index_member_all`` 是否拿到历史退出成分（``is_new=N``）。
 
@@ -832,6 +874,8 @@ def research_datasets() -> tuple[str, ...]:
 # ---------- 源保真一致性（H4 m03540：mirror 的 ts_code 后缀不可作市场判据） ----------
 
 _SUFFIX_MARKET = {"SH": "SSE", "SZ": "SZSE", "BJ": "BSE", "HK": "HKEX"}
+#: 唯一已知且可带病运行的源保真缺陷：沪市 B 股 900xxx 被 mirror 标成 ``.BJ`` 后缀。
+KNOWN_SUFFIX_DEFECT_PREFIX = "900"
 _EXCHANGE_TO_MARKET = {
     "SSE": "SSE",
     "SZSE": "SZSE",
@@ -883,7 +927,10 @@ def source_consistency(dataset: str, rows: Sequence[Mapping[str, Any]]) -> dict[
         "suffix_vs_code_mismatch": 0,
         "code_vs_exchange_mismatch": 0,
         "mapping_affected_rows": 0,
+        "known_mismatch_rows": 0,
+        "unknown_conflict_rows": 0,
         "samples": [],
+        "unknown_samples": [],
     }
     suffix_exchange_mismatch = exchange_authoritative = False
     for row in rows:
@@ -891,7 +938,8 @@ def source_consistency(dataset: str, rows: Sequence[Mapping[str, Any]]) -> dict[
         raw_ts = str(row.get("ts_code") or "")
         suffix = _suffix_market(raw_ts)
         code = raw_ts.rsplit(".", 1)[0] if raw_ts else ""
-        code_market = _code_market(code)
+        # 指数代码不是证券主键（000300.SH 的 000 段不代表深市），不参与 code 段判定。
+        code_market = None if dataset == "index_daily" else _code_market(code)
         if code_market is None:
             report["non_stock_rows"] += 1
             continue
@@ -918,7 +966,28 @@ def source_consistency(dataset: str, rows: Sequence[Mapping[str, Any]]) -> dict[
             # 无 exchange 列时，后缀/代码段冲突无法裁决，按后缀入库并记 warn。
             pass
         if bad:
+            # H4 m03664：只有「900xxx + exchange=SSE + 后缀 .BJ」是已知可带病模式；
+            # 其它任何冲突都视为未知缺陷 → 由适配层阻断该批（raise），不再只累计 warn。
+            known = (
+                code.startswith(KNOWN_SUFFIX_DEFECT_PREFIX)
+                and suffix == "BSE"
+                and exchange_market == "SSE"
+            )
             report["mapping_affected_rows"] += 1
+            if known:
+                report["known_mismatch_rows"] += 1
+            else:
+                report["unknown_conflict_rows"] += 1
+                if len(report["unknown_samples"]) < 10:
+                    report["unknown_samples"].append(
+                        {
+                            "ts_code": raw_ts,
+                            "exchange": raw_exchange,
+                            "suffix_market": suffix,
+                            "code_market": code_market,
+                            "flags": bad,
+                        }
+                    )
             if len(report["samples"]) < 10:
                 report["samples"].append(
                     {
@@ -927,11 +996,33 @@ def source_consistency(dataset: str, rows: Sequence[Mapping[str, Any]]) -> dict[
                         "suffix_market": suffix,
                         "code_market": code_market,
                         "flags": bad,
+                        "known": known,
                     }
                 )
     if suffix_exchange_mismatch or exchange_authoritative:
         report["authoritative_field"] = "exchange"
     return report
+
+
+class SourceConsistencyError(SchemaDriftError):
+    """未知的源保真冲突（H4 m03664：按批阻断，不是 warn）。
+
+    继承 ``SchemaDriftError`` 以复用 ADR-002 的「告警 + 拒绝入库」四类语义；
+    ``report`` 携带样本便于 H4 定位（错误消息也带前 3 条）。
+    """
+
+    def __init__(self, dataset: str, report: Mapping[str, Any]) -> None:
+        self.dataset = dataset
+        self.report = dict(report)
+        samples = report.get("unknown_samples") or []
+        detail = "; ".join(
+            f"{item.get('ts_code')} exchange={item.get('exchange')} flags={item.get('flags')}"
+            for item in samples[:3]
+        )
+        super().__init__(
+            f"unknown source consistency conflict in {dataset} "
+            f"({report.get('unknown_conflict_rows')} rows): {detail}"
+        )
 
 
 __all__ = [
@@ -951,6 +1042,7 @@ __all__ = [
     "SNAPSHOT_DATASETS",
     "SNAPSHOT_DATE_FIELD",
     "canonical_fields",
+    "sanitize_consistency",
     "dedupe_rows",
     "LimitRoundingRule",
     "has_historical_members",
