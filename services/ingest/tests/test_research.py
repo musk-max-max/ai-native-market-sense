@@ -1229,5 +1229,28 @@ def test_sync_research_blocks_unknown_conflict_atomically(tmp_path: Path) -> Non
     assert events[0]["reason"] == "source_consistency_conflict"
     assert events[0]["operator"] == "ci-bot"
     assert "unknown_conflict_rows=1" in (events[0]["note"] or "")
+    assert "scope=2024-01-02" in (events[0]["note"] or "")
     assert 0 < len(events[0]["conflicts"]) <= 5
+    # H4 m03861：blocked 批不推进 checkpoint（可重跑）。
+    assert storage.get_checkpoint("stk_limit", "market") is None
+
+    # 同批重跑幂等：不产生重复 ODS、不重复追加 blocked 事件。
+    adapter2, guard2, clock2 = _adapter(entries)
+    result2 = sync_research(
+        adapter2,
+        storage,
+        datasets=("stk_limit",),
+        start=DAY1,
+        end=DAY1,
+        ods_root=ods_root,
+        guard=guard2,
+        clock=clock2,
+        manifest_root=audit_root,
+        operator="ci-bot",
+    )
+    assert result2.status == "failed"
+    assert result2.halted_reason == "source_consistency"
+    assert not (ods_root / "stk_limit").exists()
+    assert len(mf.read_events(audit_root)) == 1
+    assert storage.get_checkpoint("stk_limit", "market") is None
     storage.close()

@@ -1142,6 +1142,7 @@ def sync_research(
     status = "succeeded"
     halted: str | None = None
     blocked_dataset: str | None = None
+    blocked_scope: str | None = None
 
     def _consistency_report(dataset: str) -> dict[str, Any] | None:
         reader = getattr(source, "research_source_consistency", None)
@@ -1149,6 +1150,16 @@ def sync_research(
             return None
         report = reader().get(dataset)
         return dict(report) if report else None
+
+    def _mark_consistency_blocked(dataset: str, scope: str) -> bool:
+        """未知源保真冲突 → 记 blocked（H4 m03664）；返回是否命中。"""
+        nonlocal status, halted, blocked_dataset, blocked_scope
+        report = _consistency_report(dataset)
+        if report and report.get("unknown_conflict_rows"):
+            status, halted = "failed", "source_consistency"
+            blocked_dataset, blocked_scope = dataset, scope
+            return True
+        return False
 
     def _fetch(dataset: str, **kwargs: Any) -> list[dict[str, Any]]:
         return list(
@@ -1203,6 +1214,7 @@ def sync_research(
                         rows = _fetch(dataset)
                     except (QuotaExhaustedError, SourceAuthError, SchemaDriftError, SourceUnavailableError) as exc:
                         status, halted = BarsSyncService._classify_failure(exc)
+                        _mark_consistency_blocked(dataset, "snapshot")
                         storage.finish_batch(
                             batch_id,
                             finished_at=clock(),
@@ -1257,6 +1269,7 @@ def sync_research(
                             )
                         except (QuotaExhaustedError, SourceAuthError, SchemaDriftError, SourceUnavailableError) as exc:
                             status, halted = BarsSyncService._classify_failure(exc)
+                            _mark_consistency_blocked(dataset, instrument)
                             storage.finish_batch(
                                 batch_id,
                                 finished_at=clock(),
@@ -1298,11 +1311,8 @@ def sync_research(
                         rows = _fetch(dataset, trade_date=day, index_codes=tuple(index_codes))
                     except (QuotaExhaustedError, SourceAuthError, SchemaDriftError, SourceUnavailableError) as exc:
                         status, halted = BarsSyncService._classify_failure(exc)
-                        report = _consistency_report(dataset)
-                        if report and report.get("unknown_conflict_rows"):
-                            # H4 m03664：未知源保真冲突 → 整批 blocked（不写该日 ODS、退出非 0）。
-                            status, halted = "failed", "source_consistency"
-                            blocked_dataset = dataset
+                        # H4 m03664/m03861：未知源保真冲突 → 该日零 ODS 写入、退出非 0。
+                        _mark_consistency_blocked(dataset, day.isoformat())
                         dataset_failed = True
                         break
                     day_rejected = storage.count_rejected(batch_id) - rejected_before
@@ -1361,33 +1371,38 @@ def sync_research(
         source_channel, auth, host = _source_channel_meta(source)
         # H4 m03664：blocked 事件是研究题录侧事件；manifest 的 channel 枚举只描述
         # 主数据导入渠道，这里固定用主数据导入渠道常量（真实来源通道仍记 source_channel）。
-        event = manifest.ManifestEvent(
-            event_id=f"{run_id}-blocked-{blocked_dataset}",
+        event_id = f"research-blocked-{blocked_dataset}-{blocked_scope}"
+        if any(item.get("event_id") == event_id for item in manifest.read_events(Path(manifest_root))):
+            # H4 m03861：同批重跑幂等——不重复追加 blocked 事件。
+            pass
+        else:
+            event = manifest.ManifestEvent(
+                event_id=event_id,
             event_type=manifest.EVENT_TYPE_RESEARCH_SYNC_BLOCKED,
             channel=manifest.CHANNEL_TUSHARE,
             status="blocked",
-            started_at=started_at,
-            finished_at=clock(),
-            operator=operator
-            or os.environ.get("DATA_IMPORT_OPERATOR")
-            or "ingest-research-sync",
-            rows=0,
-            conflicts=tuple(
-                f"{item.get('instrument_id') or 'UNMAPPED'} exchange={item.get('exchange')}"
-                f" flags={','.join(item.get('flags') or ())}"
-                for item in samples[:5]
-            ),
-            reason="source_consistency_conflict",
-            note=(
-                f"dataset={blocked_dataset} unknown_conflict_rows="
-                f"{report.get('unknown_conflict_rows')}"
-            ),
-            source_url=host,
-            source_channel=source_channel,
-            authorization_status=auth,
-            run_id=run_id,
-        )
-        manifest.append_event(Path(manifest_root), event)
+                started_at=started_at,
+                finished_at=clock(),
+                operator=operator
+                or os.environ.get("DATA_IMPORT_OPERATOR")
+                or "ingest-research-sync",
+                rows=0,
+                conflicts=tuple(
+                    f"{item.get('instrument_id') or 'UNMAPPED'} exchange={item.get('exchange')}"
+                    f" flags={','.join(item.get('flags') or ())}"
+                    for item in samples[:5]
+                ),
+                reason="source_consistency_conflict",
+                note=(
+                    f"dataset={blocked_dataset} scope={blocked_scope}"
+                    f" unknown_conflict_rows={report.get('unknown_conflict_rows')}"
+                ),
+                source_url=host,
+                source_channel=source_channel,
+                authorization_status=auth,
+                run_id=run_id,
+            )
+            manifest.append_event(Path(manifest_root), event)
 
     if ods_root is not None:
         root = Path(ods_root)
