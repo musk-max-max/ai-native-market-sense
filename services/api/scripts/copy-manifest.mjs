@@ -83,6 +83,26 @@ if (rowIndex < 0) {
 }
 
 const cells = lines[rowIndex].split('|');
+// H3 m01237：当前行的“快照文件”列必须引用实际存在的文件，且包含 frontend/backend 两个快照名。
+const snapshotCell = cells[7] ?? '';
+const referencedSnapshots = [...snapshotCell.matchAll(/`([^`]+\.json)`/g)].map((m) => m[1]);
+if (!referencedSnapshots.includes(frontendFile)) {
+  console.error(`[copy-manifest] manifest 当前行未引用 frontend 快照：${frontendFile}`);
+  process.exit(1);
+}
+if (!referencedSnapshots.includes(backendFile)) {
+  console.error(`[copy-manifest] manifest 当前行未引用 backend 快照：${backendFile}`);
+  process.exit(1);
+}
+for (const snapshotFile of referencedSnapshots) {
+  try {
+    await readFile(path.join(snapshotDir, snapshotFile), 'utf8');
+  } catch {
+    console.error(`[copy-manifest] manifest 当前行引用了不存在的快照：${snapshotFile}`);
+    process.exit(1);
+  }
+}
+
 const expected = [...cells];
 expected[5] = ` ${frontendHash} `;
 expected[6] = ` ${backendHash} `;

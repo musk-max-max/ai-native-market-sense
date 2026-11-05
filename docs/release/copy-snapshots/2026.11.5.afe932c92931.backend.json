@@ -1,0 +1,35 @@
+{
+  "version": "2026.11.5",
+  "titles": {
+    "400": "请求参数校验失败",
+    "401": "未认证",
+    "403": "无权访问",
+    "404": "资源不存在",
+    "405": "请求方法不允许",
+    "406": "不接受的响应格式",
+    "408": "请求超时",
+    "409": "请求状态冲突",
+    "410": "资源已失效",
+    "413": "请求体过大",
+    "415": "不支持的媒体类型",
+    "422": "请求无法处理",
+    "429": "请求过于频繁",
+    "default": "请求无法完成"
+  },
+  "validation_failed_detail": "请检查请求参数。",
+  "rate_limited_detail": "请稍后再试。",
+  "market": {
+    "validationTitle": "请求参数校验失败",
+    "instrumentNotFoundTitle": "证券不存在",
+    "instrumentNotFoundDetailPrefix": "未收录的证券标识",
+    "dataNotFoundTitle": "数据不存在",
+    "entitlementRestrictedTitle": "行情数据暂不可用",
+    "entitlementRestrictedDetail": "当前版本暂不提供该标的行情数据",
+    "unauthenticatedTitle": "未认证",
+    "unauthenticatedDetail": "自选为私有数据，需要有效的 Bearer 凭据。"
+  },
+  "ai": {
+    "label": "AI 生成 · 仅供参考",
+    "disclaimer": "本内容由 AI 生成，基于页面标注时点的市场数据整理，仅供参考，不构成投资建议，也不构成任何买卖依据。"
+  }
+}

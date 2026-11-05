@@ -13,7 +13,7 @@
 export const COPY_VERSION = '2026.11.5';
 
 /** 所有对外可见文本的确定性哈希（copy.ts 文本 + 版本），构建期由 scripts/check-copy-version.mjs 校验。 */
-export const COPY_TEXT_HASH = 'b90fb608bd1b5d6fa6bea9de3f3c83df7740af59dae075c591adf7337eedfc3b';
+export const COPY_TEXT_HASH = 'afe932c929316ead5570db2c20f9dd6287a84e1ba4f990eaf2939b4fc247b037';
 
 /** HTTP 状态码兜底标题：只描述事实，不含内部码/英文原文。 */
 export const ERROR_TITLES = {
@@ -63,6 +63,6 @@ export const VALIDATION_FAILED_DETAIL = '请检查请求参数。';
  * 文案变更必须升 COPY_VERSION 并重新走 H3 签字（ADR-006 D2/D3）。
  */
 export const AI_COPY = {
-  label: 'AI 生成 · 信息整合非投资建议',
-  disclaimer: '内容由 AI 基于公开数据整理，不构成投资建议；数据截至页面标注的时点。',
+  label: 'AI 生成 · 仅供参考',
+  disclaimer: '本内容由 AI 生成，基于页面标注时点的市场数据整理，仅供参考，不构成投资建议，也不构成任何买卖依据。',
 } as const;
