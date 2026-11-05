@@ -39,3 +39,7 @@ Problem title/detail、copy 文本、生产构建 DOM 属性）。扫描日期�
 
 - 任何 AI 可见输出上线前，四项必须全部有证据；不得以「文案已签」推断「AI 功能已放行」。
 - 本门禁不替代 C 端审查流水线；内部员工 q3 荐股能力另见 `docs/adr/ADR-008-user-tiers-and-entitlement.md` D8，仍 BLOCKED-PENDING-H3。
+
+## 观测项（非出口，11-12 前）
+
+- **[88] `copy.watchlist.noticeFailed`**：文案保留不动；H3 要求事件层区分「网络/真实 5xx（可重试）」与「确定性协议缺陷（缺 data/meta，必须单独告警）」。前端 `GatewayError{status,network}` 已保留区分信号；A0 记录，A5/H5 接事件与告警，web 侧不改文案。不构成客户端文案出口问题。
