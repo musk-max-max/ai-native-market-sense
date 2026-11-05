@@ -23,3 +23,19 @@ Problem title/detail、copy 文本、生产构建 DOM 属性）。扫描日期�
   `ProblemCode` 联合类型不是输出。
 - `services/market/src/cache.ts` 的 `source_id` 仅内部缓存/审计，`domain/build.ts` 不写入响应 `meta`。
 - ADR/内部文档中的厂商名不是客户端可达出口（C01b 门禁已排除）。
+
+## AI 生成内容上线门禁（H3 m02666 / m02810）
+
+文案侧签字与机制门禁是两个对象，不合并。文案已由 H3 在 m02810 对 backend
+`2026.11.5.ac875c9d9237.backend.json`（hash `ac875c9d…`）回签；前端同步签 `2dfd627b35c1`。
+**条件 1 未满足期间，AI 路由可开发/可 mock，但不得对任何用户展示模型生成的可见内容。**
+
+| # | 门禁 | 验收证据 | owner | 状态 |
+| --- | --- | --- | --- | --- |
+| AI-1 | AI 响应带 `meta.ai.generated=true` + `content_version`/模型标识；服务端生成/展示留痕（模型、版本、时间、输入口径版本）≥3 年 | 契约/实现 + 留痕样本；路由上线验收硬门禁 | A0/A3/A4 | **OPEN（未满足前禁止展示模型输出）** |
+| AI-2 | 时点真实：无 `as_of` 时数值、badge、disclaimer 均不渲染 | A11/A12 测试证据 | A7/A11/A12 | OPEN |
+| AI-3 | badge/disclaimer 不可关闭/折叠；复制/导出携带 label+disclaimer；前端无硬编码 fallback | A7 验收 + E2E | A7 | OPEN |
+| AI-4 | 「免责即定性」措辞不进入正文；`非投资建议` 不豁免〔2012〕40 号文 | copy/ADR 扫描 | A0/A16/H3 | DONE（已移除旧字面） |
+
+- 任何 AI 可见输出上线前，四项必须全部有证据；不得以「文案已签」推断「AI 功能已放行」。
+- 本门禁不替代 C 端审查流水线；内部员工 q3 荐股能力另见 `docs/adr/ADR-008-user-tiers-and-entitlement.md` D8，仍 BLOCKED-PENDING-H3。
