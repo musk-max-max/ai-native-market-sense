@@ -445,7 +445,7 @@
         "HOST-EXPOSURE-01",
         "H5-R10"
       ],
-      "notes": "A19 指定方式 docker create -p 0.0.0.0:8888:80（未启动，避免真实暴露）；系统检出 FAIL/ALERT/HOST-EXPOSURE-01 并落 restart=no，清理后无残留。22/tcp Anywhere 与 EXPECTED_PUBLIC_HOST 未配为既有 ⑤ residual。"
+      "notes": "A19 指定方式 docker create -p 0.0.0.0:8888:80（未启动，避免真实暴露）；系统检出 FAIL/ALERT/HOST-EXPOSURE-01 并落 restart=no，清理后无残留。22/tcp Anywhere 与 EXPECTED_PUBLIC_HOST 未配为既有 ⑤ residual。 部署绑定：script sha256=119277ab56306208a9f8a00e991e7106d8f33467cb6b0c7a1a3deca558984ccb、expected sha256=5da1bc8c213ff9331630582073ac508c149d04d48f43051a20a41d15a12023ba（仓库与 ECS 实算一致；44608e4c… 为打补丁前旧版，只在过程消息里出现过，非登记 artifact）。"
     },
     {
       "path": "infra/evidence/host-exposure-01-isolation-20261105T014128Z.txt",
@@ -458,7 +458,7 @@
       "case_ids": [
         "HOST-EXPOSURE-01"
       ],
-      "notes": "自动隔离路径验收：非公网端口 9999（SG 未放行）上 running 容器 0.0.0.0 绑定 → 检出 + ISOLATED（docker stop + update --restart=no，status=exited/restart=no），随后清理容器。"
+      "notes": "自动隔离路径验收：非公网端口 9999（SG 未放行）上 running 容器 0.0.0.0 绑定 → 检出 + ISOLATED（docker stop + update --restart=no，status=exited/restart=no），随后清理容器。 部署绑定：script sha256=119277ab56306208a9f8a00e991e7106d8f33467cb6b0c7a1a3deca558984ccb、expected sha256=5da1bc8c213ff9331630582073ac508c149d04d48f43051a20a41d15a12023ba（仓库与 ECS 实算一致；44608e4c… 为打补丁前旧版，只在过程消息里出现过，非登记 artifact）。"
     }
   ],
   "related_manifests": [
@@ -470,6 +470,6 @@
     }
   ],
   "amended_by": "a13-sre",
-  "amended_at": "2026-11-05T01:43:00Z",
-  "amend_note": "HOST-EXPOSURE-01 注入与自动隔离路径验收证据"
+  "amended_at": "2026-11-05T01:46:00Z",
+  "amend_note": "HOST-EXPOSURE-01 证据部署绑定 sha 更正（script 119277ab… / expected 5da1bc8c…）"
 }
