@@ -154,6 +154,27 @@ jobs:
       - name: §7.3 display_safe fail-closed（prod 拒绝 / dev 全 false / synthetic 忽略）
         run: python3 tests/data/acceptance/check_display_safe_failclosed.py
 
+      # ---- 研究数据来源边界（A11 薄封装，H4 m03939；不接日常 CI）----
+      # 被测对象：services/ingest/tools/check_research_source_boundary.py（A1 bc118ce，不复制）。
+      # 输入：A1 smoke 产物 services/ingest/var/research-ods-smoke{,-audit}（已 tracked）。
+      - name: §7.3 研究数据来源边界（正样本 smoke + mirror/凭证负样本）
+        run: |
+          set -o pipefail
+          python3 tests/data/acceptance/check_research_source_boundary.py \
+            --evidence "tests/data/acceptance/artifacts/research-source-boundary-${GITHUB_RUN_ID}.md" \
+            2>&1 | tee research-boundary.out
+
+      - name: 研究边界失败取证（仅失败时上传，不吞退出码）
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: research-boundary-out-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            research-boundary.out
+            tests/data/acceptance/artifacts/research-source-boundary-*.md
+          if-no-files-found: warn
+          retention-days: 30
+
       # ---- §7.2 限流桶 ----
       - name: §7.2 限流（第 61 次 429 / Retry-After / XFF 不换桶 / 文案不露内部码）
         run: python3 tests/data/acceptance/check_rate_limit.py
