@@ -33,7 +33,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+from decimal import ROUND_DOWN, ROUND_HALF_UP, ROUND_UP, Decimal, InvalidOperation
 from typing import Any, Mapping, Sequence
 
 from . import mapper
@@ -384,6 +384,12 @@ LIMIT_PCT_BUCKETS: tuple[Decimal, ...] = (
 )
 LIMIT_PCT_PRICE_STEP = Decimal("0.01")
 LIMIT_PCT_FLOAT_TOLERANCE = Decimal("0.005")
+#: 北交所 A 股真实样本 354/354×3 日验证：涨停向下截断、跌停向上截断（KD-STKLIMIT-VERIFY）。
+#: 900xxx.BJ 为 B 股，报价单位 0.001 元、四舍五入，与 A 股规则不同。
+LIMIT_PCT_B_SHARE_STEP = Decimal("0.001")
+LIMIT_PCT_B_SHARE_TOLERANCE = Decimal("0.0005")
+_LIMIT_PCT_BSE_PREFIX = "BSE:"
+_LIMIT_PCT_B_SHARE_CODE_PREFIX = "900"
 LIMIT_PCT_SOURCE = "exchange_price_candidate"
 LIMIT_PCT_FIELDS: tuple[str, ...] = ("limit_pct", "limit_pct_source")
 
@@ -581,10 +587,22 @@ def _apply_derived(dataset: str, result: dict[str, Any]) -> None:
         result.setdefault(SNAPSHOT_DATE_FIELD, None)
 
 
-def _round_limit_price(price: Decimal, pct: Decimal, sign: Decimal) -> Decimal:
-    """按交易所 0.01 元最小变动单位四舍五入（H4 m03085 候选档重算）。"""
+def _round_limit_price(
+    price: Decimal,
+    pct: Decimal,
+    sign: Decimal,
+    *,
+    step: Decimal = LIMIT_PCT_PRICE_STEP,
+    rounding: str = ROUND_HALF_UP,
+) -> Decimal:
+    """候选涨/跌停价按交易所最小变动单位取整（H4 m03085）。
+
+    SSE/SZSE 与北交所 B 股：0.01 / 0.001 元四舍五入；
+    北交所 A 股：涨停向下截断、跌停向上截断（真实样本 354/354×3 日全中）。
+    """
     raw = price * (Decimal(1) + sign * pct / Decimal(100))
-    return raw.quantize(LIMIT_PCT_PRICE_STEP, rounding=ROUND_HALF_UP)
+    mode = {"half": ROUND_HALF_UP, "down": ROUND_DOWN, "up": ROUND_UP}[rounding]
+    return raw.quantize(step, rounding=mode)
 
 
 def _derive_limit_pct(result: dict[str, Any]) -> None:
@@ -610,12 +628,33 @@ def _derive_limit_pct(result: dict[str, Any]) -> None:
         result["limit_pct_source"] = None
         return
     matched: list[Decimal] = []
+    instrument_id = str(result.get("instrument_id") or "")
+    if instrument_id.startswith(_LIMIT_PCT_BSE_PREFIX):
+        code = instrument_id.split(":", 1)[1]
+        if code.startswith(_LIMIT_PCT_B_SHARE_CODE_PREFIX):
+            # B 股：0.001 元最小变动单位，四舍五入
+            step = LIMIT_PCT_B_SHARE_STEP
+            tolerance = LIMIT_PCT_B_SHARE_TOLERANCE
+            up_rounding, down_rounding = "half", "half"
+        else:
+            # 北交所 A 股：涨停向下截断、跌停向上截断（真实样本全中）
+            step = LIMIT_PCT_PRICE_STEP
+            tolerance = LIMIT_PCT_FLOAT_TOLERANCE
+            up_rounding, down_rounding = "down", "up"
+    else:
+        step = LIMIT_PCT_PRICE_STEP
+        tolerance = LIMIT_PCT_FLOAT_TOLERANCE
+        up_rounding, down_rounding = "half", "half"
     for pct in LIMIT_PCT_BUCKETS:
-        candidate_up = _round_limit_price(previous_close, pct, Decimal(1))
-        candidate_down = _round_limit_price(previous_close, pct, Decimal(-1))
+        candidate_up = _round_limit_price(
+            previous_close, pct, Decimal(1), step=step, rounding=up_rounding
+        )
+        candidate_down = _round_limit_price(
+            previous_close, pct, Decimal(-1), step=step, rounding=down_rounding
+        )
         if (
-            abs(up_limit - candidate_up) <= LIMIT_PCT_FLOAT_TOLERANCE
-            and abs(down_limit - candidate_down) <= LIMIT_PCT_FLOAT_TOLERANCE
+            abs(up_limit - candidate_up) <= tolerance
+            and abs(down_limit - candidate_down) <= tolerance
         ):
             matched.append(pct)
     unique = matched[0] if len(matched) == 1 else None

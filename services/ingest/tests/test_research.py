@@ -421,6 +421,47 @@ def test_sync_research_writes_ods_and_checkpoints(tmp_path: Path) -> None:
     storage.close()
 
 
+def test_sync_research_coverage_records_source_channel_and_st_quality(tmp_path: Path) -> None:
+    """H4 m03258：批次 metadata 记来源通道/授权状态 + stk_limit 源质量 issue（warn 级）。"""
+    entries = [
+        calendar_entry(DAY1, DAY1, [DAY1]),
+        research_entry("stk_limit", DAY1, [stk_limit_source_row()]),
+    ]
+    adapter, guard, clock = _adapter(entries)
+    assert adapter.source_channel == ("replay", "synthetic_replay")
+    storage = SqliteStorage(":memory:")
+    ods_root = tmp_path / "internal"
+    result = sync_research(
+        adapter,
+        storage,
+        datasets=("stk_limit",),
+        start=DAY1,
+        end=DAY1,
+        ods_root=ods_root,
+        guard=guard,
+        clock=clock,
+    )
+    assert result.status == "succeeded"
+    coverage = json.loads(
+        (ods_root / "_meta" / "research_coverage.json").read_text(encoding="utf-8")
+    )
+    assert coverage["source_channel"] == "replay"
+    assert coverage["authorization_status"] == "synthetic_replay"
+    quality = json.loads(
+        (ods_root / "_meta" / "research_source_quality.json").read_text(encoding="utf-8")
+    )
+    stk = quality["datasets"]["stk_limit"]
+    assert stk["st_pct_rule_version"] == "2026-07-06"
+    assert stk["st_named_but_pct10"] == 0  # 无 instrument 基线 → 0 + note
+    assert "instrument baseline unavailable" in stk["st_named_but_pct10_note"]
+    sources = (ods_root / "_meta" / "research_sources.jsonl").read_text(encoding="utf-8").strip().splitlines()
+    assert len(sources) == 1
+    record = json.loads(sources[0])
+    assert record["source_channel"] == "replay"
+    assert record["datasets"] == ["stk_limit"]
+    storage.close()
+
+
 def test_sync_research_hk_hold_as_of_is_t_plus_one(tmp_path: Path) -> None:
     """hk_hold 北向持股为 T+1 披露：ODS 信封 as_of 必须是下一自然日 15:00（RES-04）。"""
     entries = [
@@ -666,6 +707,30 @@ def test_stk_limit_limit_pct_buckets(
     assert canonical["limit_pct_source"] == (
         "exchange_price_candidate" if expected else None
     )
+
+
+@pytest.mark.parametrize(
+    ("ts_code", "previous_close", "up_limit", "down_limit", "expected"),
+    [
+        # 北交所 A 股：涨停向下截断、跌停向上截断（真实样本 354/354×3 日全中）。
+        ("920023.BJ", "1.26", "1.63", "0.89", "30"),
+        ("920003.BJ", "13.56", "17.62", "9.50", "30"),
+        # 900xxx.BJ 是 B 股：0.001 元报价单位、四舍五入（41/41×3 日全中）。
+        ("900901.BJ", "0.549", "0.604", "0.494", "10"),
+        ("900902.BJ", "0.154", "0.169", "0.139", "10"),
+    ],
+)
+def test_stk_limit_limit_pct_is_exchange_aware(
+    ts_code: str, previous_close: str, up_limit: str, down_limit: str, expected: str
+) -> None:
+    canonical = research.map_row(
+        "stk_limit",
+        stk_limit_source_row(
+            ts_code=ts_code, pre_close=previous_close, up_limit=up_limit, down_limit=down_limit
+        ),
+    )
+    assert canonical["limit_pct"] == expected
+    assert canonical["limit_pct_source"] == "exchange_price_candidate"
 
 
 def test_stk_limit_limit_pct_missing_previous_close_is_null() -> None:

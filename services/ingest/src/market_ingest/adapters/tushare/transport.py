@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import json
+import os
 import time
 import urllib.error
 import urllib.request
@@ -82,15 +83,24 @@ class HttpTransport:
         self._endpoint = endpoint
         self._timeout_s = timeout_s
 
+    @property
+    def endpoint(self) -> str:
+        """实际端点 URL（审计用：区分官方 tushare 与第三方 mirror，H4 m03258）。"""
+        return self._endpoint
+
     def call(self, api_name: str, params: Mapping[str, Any], fields: Sequence[str]) -> list[dict[str, Any]]:
         body = json.dumps(
             {"api_name": api_name, "token": self._token, "params": dict(params), "fields": list(fields)},
             ensure_ascii=False,
         ).encode("utf-8")
+        headers = {"Content-Type": "application/json"}
+        user_agent = os.environ.get("TUSHARE_USER_AGENT")
+        if user_agent:
+            headers["User-Agent"] = user_agent
         request = urllib.request.Request(
             self._endpoint,
             data=body,
-            headers={"Content-Type": "application/json"},
+            headers=headers,
             method="POST",
         )
         try:

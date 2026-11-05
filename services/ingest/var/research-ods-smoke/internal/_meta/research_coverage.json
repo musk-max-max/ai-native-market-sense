@@ -1,4 +1,5 @@
 {
+  "authorization_status": "synthetic_replay",
   "datasets": {
     "index_classify": {
       "coverage": "full_history",
@@ -15,6 +16,8 @@
       "snapshot_date": "2026-11-04"
     }
   },
+  "endpoint_host": null,
   "generated_at": "2026-11-04T15:00:00+08:00",
-  "run_id": "ing-20261104T150000-16a0eb80"
+  "run_id": "ing-20261104T150000-84f5c87e",
+  "source_channel": "replay"
 }

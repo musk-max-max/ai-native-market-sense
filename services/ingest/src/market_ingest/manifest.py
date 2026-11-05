@@ -32,6 +32,26 @@ CHANNELS: tuple[str, ...] = (
     CHANNEL_OFFICIAL_API,
 )
 
+#: 数据来源通道（H4 m03258）：tushare 官方端点 vs 第三方 reseller/mirror。
+SOURCE_CHANNEL_OFFICIAL = "official_tushare"
+SOURCE_CHANNEL_MIRROR = "third_party_mirror"
+SOURCE_CHANNEL_REPLAY = "replay"
+SOURCE_CHANNELS: tuple[str, ...] = (
+    SOURCE_CHANNEL_OFFICIAL,
+    SOURCE_CHANNEL_MIRROR,
+    SOURCE_CHANNEL_REPLAY,
+)
+
+#: 授权状态：mirror 一律 unverified；官方 token 到手前为 pending。
+AUTHORIZATION_UNVERIFIED = "unverified_third_party"
+AUTHORIZATION_PENDING = "pending_official_authorization"
+AUTHORIZATION_REPLAY = "synthetic_replay"
+AUTHORIZATION_STATUSES: tuple[str, ...] = (
+    AUTHORIZATION_UNVERIFIED,
+    AUTHORIZATION_PENDING,
+    AUTHORIZATION_REPLAY,
+)
+
 #: 允许进入 C 端展示的渠道（tushare 一律不得作为展示依据）。
 DISPLAY_CHANNELS: frozenset[str] = frozenset(
     {CHANNEL_AUTHORIZED_DOWNLOAD, CHANNEL_MANUAL_IMPORT, CHANNEL_OFFICIAL_API}
@@ -106,6 +126,9 @@ class ManifestEvent:
     #: 本批运行标识与原始来源载荷哈希：内容身份（checksum_sha256）≠ 取数凭证（H4 m01346）。
     run_id: str | None = None
     source_sha256: str | None = None
+    #: 来源通道与授权状态（H4 m03258）：经第三方 mirror 的批次必须可审计，不得进展示态。
+    source_channel: str | None = None
+    authorization_status: str | None = None
 
     def __post_init__(self) -> None:
         if not self.event_id.strip():
@@ -126,6 +149,20 @@ class ManifestEvent:
             raise ManifestError("finished_at must not be earlier than started_at")
         if self.rows < 0:
             raise ManifestError("rows must be >= 0")
+        if self.source_channel is not None and self.source_channel not in SOURCE_CHANNELS:
+            raise ManifestError(
+                f"unsupported source_channel {self.source_channel!r}; expected one of {', '.join(SOURCE_CHANNELS)}"
+            )
+        if (
+            self.authorization_status is not None
+            and self.authorization_status not in AUTHORIZATION_STATUSES
+        ):
+            raise ManifestError(
+                f"unsupported authorization_status {self.authorization_status!r}; "
+                f"expected one of {', '.join(AUTHORIZATION_STATUSES)}"
+            )
+        if self.source_channel == SOURCE_CHANNEL_MIRROR and self.channel != CHANNEL_TUSHARE:
+            raise ManifestError("third_party_mirror source_channel requires channel='tushare'")
         unknown = sorted(set(self.field_sources) - set(FIELD_SOURCES_ALLOWED))
         if unknown:
             raise ManifestError(f"unknown field_sources keys: {', '.join(unknown)}")
@@ -205,6 +242,10 @@ class ManifestEvent:
             "source_sha256": self.source_sha256,
             "display_safe": self.display_safe,
         }
+        if self.source_channel is not None:
+            payload["source_channel"] = self.source_channel
+        if self.authorization_status is not None:
+            payload["authorization_status"] = self.authorization_status
         if self.synthetic:
             payload["synthetic"] = True
         return payload
@@ -534,8 +575,15 @@ __all__ = [
     "CHANNEL_AUTHORIZED_DOWNLOAD",
     "CHANNEL_MANUAL_IMPORT",
     "CHANNEL_OFFICIAL_API",
+    "AUTHORIZATION_PENDING",
+    "AUTHORIZATION_REPLAY",
+    "AUTHORIZATION_UNVERIFIED",
     "CHANNEL_TUSHARE",
     "DISPLAY_CHANNELS",
+    "SOURCE_CHANNEL_MIRROR",
+    "SOURCE_CHANNEL_OFFICIAL",
+    "SOURCE_CHANNEL_REPLAY",
+    "SOURCE_CHANNELS",
     "EVENT_TYPE_INSTRUMENT_IMPORT",
     "FIELD_SOURCES_ALLOWED",
     "ManifestError",

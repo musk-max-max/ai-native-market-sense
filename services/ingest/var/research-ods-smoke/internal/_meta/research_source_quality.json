@@ -1,0 +1,15 @@
+{
+  "authorization_status": "synthetic_replay",
+  "datasets": {
+    "stk_limit": {
+      "st_named_but_pct10": 0,
+      "st_named_but_pct10_days": {
+        "2024-01-02": 0
+      },
+      "st_pct_rule_version": "2026-07-06"
+    }
+  },
+  "generated_at": "2026-11-04T15:00:00+08:00",
+  "run_id": "ing-20261104T150000-84f5c87e",
+  "source_channel": "replay"
+}

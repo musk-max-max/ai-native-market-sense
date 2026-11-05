@@ -18,11 +18,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import uuid
 from collections.abc import Callable, Iterator, Sequence
 from contextlib import nullcontext
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
+from urllib.parse import urlsplit
 from decimal import Decimal
 from pathlib import Path
 from typing import Any, Mapping
@@ -1116,6 +1118,9 @@ def sync_research(
     days_done = 0
     rejected_total = 0
     coverage: dict[str, dict[str, Any]] = {}
+    #: stk_limit 当期「名称含 ST 但 limit_pct=10」的计数（H4 m03258 第 1 条；仅用 ODS 内
+    #: instrument 基线做名称交集，不反推 ST、不据此改档）。
+    st_rows_by_day: list[tuple[date, list[dict[str, Any]]]] = []
 
     current: dict[str, str | None] = {"batch": None}
 
@@ -1286,6 +1291,8 @@ def sync_research(
                         dataset_failed = True
                         break
                     day_rejected = storage.count_rejected(batch_id) - rejected_before
+                    if dataset == "stk_limit":
+                        st_rows_by_day.append((day, rows))
                     if ods_root is not None and rows:
                         fetched = clock()
                         ods.write_batch(
@@ -1333,8 +1340,38 @@ def sync_research(
     for name in requested:
         rejected_total += storage.count_rejected(f"{run_id}-{name}")
 
-    if ods_root is not None and coverage:
-        _write_research_coverage(Path(ods_root), run_id, coverage, clock())
+    if ods_root is not None:
+        root = Path(ods_root)
+        channel, auth, host = _source_channel_meta(source)
+        _write_research_coverage(
+            root,
+            run_id,
+            coverage,
+            clock(),
+            source_channel=channel,
+            authorization_status=auth,
+            endpoint_host=host,
+        )
+        quality = _research_source_quality(
+            root,
+            requested=requested,
+            st_rows_by_day=st_rows_by_day,
+            instrument_names=_load_instrument_names(root),
+        )
+        if quality:
+            _write_research_source_quality(root, run_id, quality, channel, auth, clock())
+        _append_research_sources(
+            root,
+            {
+                "run_id": run_id,
+                "generated_at": clock().isoformat(),
+                "source_channel": channel,
+                "authorization_status": auth,
+                "endpoint_host": host,
+                "datasets": list(requested),
+                "rows_by_dataset": dict(rows_by_dataset),
+            },
+        )
 
     return ResearchSyncResult(
         run_id=run_id,
@@ -1356,7 +1393,14 @@ def sync_research(
 
 
 def _write_research_coverage(
-    root: Path, run_id: str, coverage: Mapping[str, Mapping[str, Any]], now: datetime
+    root: Path,
+    run_id: str,
+    coverage: Mapping[str, Mapping[str, Any]],
+    now: datetime,
+    *,
+    source_channel: str | None = None,
+    authorization_status: str | None = None,
+    endpoint_host: str | None = None,
 ) -> Path:
     """写 ``<ods_root>/_meta/research_coverage.json``（快照覆盖率审计，H4 m02718）。
 
@@ -1378,9 +1422,144 @@ def _write_research_coverage(
     payload = {
         "run_id": run_id,
         "generated_at": now.isoformat(),
+        "source_channel": source_channel,
+        "authorization_status": authorization_status,
+        "endpoint_host": endpoint_host,
         "datasets": datasets,
     }
     target = directory / "research_coverage.json"
+    tmp = target.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
+    tmp.replace(target)
+    return target
+
+
+def _source_channel_meta(source: object) -> tuple[str | None, str | None, str | None]:
+    """判定数据来源通道/授权状态（H4 m03258）。
+
+    适配器声明 ``source_channel``；业务层只读声明，不解析端点、不出现源域名。
+    """
+    declared = getattr(source, "source_channel", None)
+    endpoint = getattr(source, "source_endpoint", None)
+    host = None
+    if endpoint and endpoint != "replay":
+        host = urlsplit(str(endpoint)).hostname or None
+    if isinstance(declared, tuple) and len(declared) == 2:
+        return str(declared[0]), str(declared[1]), host
+    return None, None, host
+
+
+def _load_instrument_names(root: Path) -> dict[str, str] | None:
+    """从已落 ODS 的 instrument 批次取 ``instrument_id→name``（ST 计数基线）。
+
+    只读取批次，不产生配额；找不到基准则返回 None（计数标注为不可用，不猜）。
+    """
+    candidates = [
+        root / "internal" / "instrument",
+        root / "display" / "instrument",
+        root / "instrument",
+        root.parent / "display" / "instrument",
+        root.parent / "internal" / "instrument",
+        root.parent / "instrument",
+    ]
+    for directory in candidates:
+        if not directory.is_dir():
+            continue
+        partitions = sorted(p for p in directory.iterdir() if p.is_dir() and p.name.startswith("dt="))
+        if not partitions:
+            continue
+        files = sorted(partitions[-1].glob("*.json"))
+        if not files:
+            continue
+        try:
+            payload = json.loads(files[-1].read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None
+        names: dict[str, str] = {}
+        for row in payload.get("rows", ()):
+            instrument_id = row.get("instrument_id")
+            name = row.get("name")
+            if isinstance(instrument_id, str) and isinstance(name, str):
+                names[instrument_id] = name
+        return names or None
+    return None
+
+
+def _count_st_named_pct10(rows: Sequence[Mapping[str, Any]], names: Mapping[str, str] | None) -> int:
+    """统计「名称含 ST 且 limit_pct==10」的行数；基线缺失时返回 0 并在 coverage 标 note。"""
+    if names is None:
+        return 0
+    st_ids = {instrument_id for instrument_id, name in names.items() if "ST" in name.upper()}
+    return sum(
+        1
+        for row in rows
+        if row.get("instrument_id") in st_ids and str(row.get("limit_pct")) == "10"
+    )
+
+
+def _append_research_sources(root: Path, record: Mapping[str, Any]) -> Path:
+    """append-only 研究取数审计流 ``<root>/_meta/research_sources.jsonl``（一行一次运行）。"""
+    directory = root / "_meta"
+    directory.mkdir(parents=True, exist_ok=True)
+    target = directory / "research_sources.jsonl"
+    line = json.dumps(record, ensure_ascii=False, sort_keys=True)
+    with target.open("a", encoding="utf-8") as handle:
+        handle.write(line + "\n")
+        handle.flush()
+        os.fsync(handle.fileno())
+    return target
+
+
+def _research_source_quality(
+    root: Path,
+    *,
+    requested: Sequence[str],
+    st_rows_by_day: Sequence[tuple[date, list[dict[str, Any]]]],
+    instrument_names: Mapping[str, str] | None,
+) -> dict[str, dict[str, Any]]:
+    """研究数据源事实标注（H4 m03258/m03352；与 coverage 分开存放，避免改 A2 契约）。
+
+    - ``stk_limit``：主板 ST 自 2026-07-06 起为 10%，5% 档适用 S 股与历史 ST；
+      记 ``st_pct_rule_version`` 与「名称含 ST 且 limit_pct=10」的当日计数（warn 级事实，
+      不是 blocker，不改源值、不反推 ST）。
+    """
+    quality: dict[str, dict[str, Any]] = {}
+    if "stk_limit" in requested:
+        per_day: dict[str, int] = {}
+        for day, day_rows in st_rows_by_day:
+            per_day[day.isoformat()] = _count_st_named_pct10(day_rows, instrument_names)
+        entry: dict[str, Any] = {
+            "st_pct_rule_version": "2026-07-06",
+            "st_named_but_pct10_days": per_day,
+            "st_named_but_pct10": sum(per_day.values()),
+        }
+        if instrument_names is None:
+            entry["st_named_but_pct10_note"] = (
+                "instrument baseline unavailable; run sync-instruments first for name intersection"
+            )
+        quality["stk_limit"] = entry
+    return quality
+
+
+def _write_research_source_quality(
+    root: Path,
+    run_id: str,
+    quality: Mapping[str, Mapping[str, Any]],
+    source_channel: str | None,
+    authorization_status: str | None,
+    now: datetime,
+) -> Path:
+    """写 ``<ods_root>/_meta/research_source_quality.json``（源事实标注，A2 可选消费）。"""
+    directory = root / "_meta"
+    directory.mkdir(parents=True, exist_ok=True)
+    target = directory / "research_source_quality.json"
+    payload = {
+        "run_id": run_id,
+        "generated_at": now.isoformat(),
+        "source_channel": source_channel,
+        "authorization_status": authorization_status,
+        "datasets": {name: dict(meta) for name, meta in quality.items()},
+    }
     tmp = target.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
     tmp.replace(target)

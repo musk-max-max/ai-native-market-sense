@@ -14,6 +14,7 @@ import json
 import os
 import signal
 import sys
+from urllib.parse import urlsplit
 from datetime import date
 from pathlib import Path
 
@@ -39,6 +40,14 @@ from .sync import (
     sync_instrument_master,
     sync_research,
 )
+
+
+def _source_channel_meta(source: object) -> tuple[str | None, str | None]:
+    """数据来源通道判定（H4 m03258）：只读适配器声明，用于审计标注。"""
+    declared = getattr(source, "source_channel", None)
+    if isinstance(declared, tuple) and len(declared) == 2:
+        return str(declared[0]), str(declared[1])
+    return None, None
 
 
 def _parse_date(value: str) -> date:
@@ -482,6 +491,7 @@ def run_sync_master(args: argparse.Namespace) -> int:
             mf.assert_durable_audit_root(manifest_root, require=_require_durable_manifest(config))
             result = sync_instrument_master(source, storage, ods_root=ods_root, guard=guard)
             if result.status == "succeeded":
+                source_channel, authorization_status = _source_channel_meta(source)
                 record_internal_instrument_import(
                     manifest_root=manifest_root,
                     result=result,
@@ -491,6 +501,8 @@ def run_sync_master(args: argparse.Namespace) -> int:
                     credential_ref=args.credential_ref,
                     clock=market_now,
                     synthetic=args.synthetic,
+                    source_channel=source_channel,
+                    authorization_status=authorization_status,
                 )
         else:
             result = sync_fundamentals(source, storage, instrument_ids=instruments, ods_root=ods_root, guard=guard)

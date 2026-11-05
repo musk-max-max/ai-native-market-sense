@@ -141,6 +141,8 @@ def _append_manifest(
     source_sha256: str | None = None,
     snapshot: tuple[str, str] | None = None,
     synthetic: bool = False,
+    source_channel: str | None = None,
+    authorization_status: str | None = None,
 ) -> Path:
     event = mf.ManifestEvent(
         event_id=event_id,
@@ -164,6 +166,8 @@ def _append_manifest(
         note=note,
         run_id=run_id,
         source_sha256=source_sha256,
+        source_channel=source_channel,
+        authorization_status=authorization_status,
         snapshot_path=snapshot[0] if snapshot else None,
         snapshot_sha256=snapshot[1] if snapshot else None,
         synthetic=synthetic,
@@ -393,6 +397,8 @@ def record_internal_instrument_import(
     credential_ref: str | None = None,
     clock: Any = market_now,
     synthetic: bool = False,
+    source_channel: str | None = None,
+    authorization_status: str | None = None,
 ) -> Path | None:
     """把 tushare ``stock_basic`` 批次也写进 manifest（channel=tushare，仅内部交叉校验）。
 
@@ -421,6 +427,8 @@ def record_internal_instrument_import(
         note="tushare stock_basic: internal cross-check only, never display",
         run_id=result.batch_id.rsplit("-instrument", 1)[0],
         synthetic=synthetic,
+        source_channel=source_channel,
+        authorization_status=authorization_status,
     )
 
 

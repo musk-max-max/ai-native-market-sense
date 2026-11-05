@@ -325,10 +325,12 @@ PYTHONPATH=src python3 -m market_ingest sync-research --start 2024-01-02 --end 2
   低价股舍入边界（prev=1.35→up=1.49 归 10 档、0.45→0.50 归 10 档）由此正确落档。
   ⚠️ **除权日**交易所 `pre_close` 是除权调整后的值，**不能与日线前收盘直接对账**；
   需要比较时用 `ex_rights` 标记（当前 ODS 不含，后续补）。
-  ⚠️ 北交所（920xxx.BJ）真实样本出现候选价与交易所值系统性不符（如 prev=1.26 时
-  30% 档候选 up=1.64/down=0.88，交易所 up=1.63/down=0.89），疑似「涨停向下截断、
-  跌停向上截断」的交易所取整规则；当前按 H4 口径记 `limit_pct=null`，待 H4 确认是否
-  需要按交易所分取整规则，不得为凑命中放宽容差。
+  **按交易所分取整**（H4 m03258 要求先给数据；诊断见
+  `tests/fixtures/tushare/real-sample-20261105/stk_limit_bj_rounding.json`）：
+  北交所 A 股（非 900xxx）涨停向下截断、跌停向上截断，真实样本 **354/354 行 × 3 日全中**；
+  900xxx.BJ 为 B 股（0.001 元报价单位、四舍五入），**41/41 × 3 日全中**；
+  SSE/SZSE 维持 0.01 元四舍五入。三类规则不同、不能统一 half-up，也不得放宽容差凑命中。
+  首日无涨跌幅（`up_limit=999999.999`）等仍自然落 `null`。
 - **`fina_indicator`**（财务指标，per-instrument 模式）：
   ```bash
   PYTHONPATH=src python3 -m market_ingest sync-research --start 2024-01-01 --end 2024-12-31 \
@@ -358,10 +360,23 @@ PYTHONPATH=src python3 -m market_ingest sync-research --start 2024-01-02 --end 2
   是否归一待 H4 定。
 - 单测：`tests/test_research.py` 覆盖 4 个数据集的字段映射/单位/形态分派/失败不造数/
   快照幂等/append-only/覆盖率标记/逐标的 checkpoint；仓库根 `pytest services/ingest/tests`
-  = 194 passed。
-- **provisional 不摘**（H4 m02718）：摘除需三条证据齐——① `fina_indicator` 单位样本证据
-  + H4 签字；② `stk_limit` 比值分档有已知 ST/创业板/北交所用例；③ index 两表快照/成分
-  时点断言测试。齐之前四表只进研究域（internal-only），不进 serving 对外、不进 display root。
+  = 200 passed。
+- **provisional 不摘**（H4 m02718/m03258）：摘除需证据齐——① `fina_indicator` 单位样本证据
+  + H4 签字；② `stk_limit` 分档有交易所/档位用例；③ index 两表快照/成分时点断言测试。
+  齐之前四表只进研究域（internal-only），不进 serving 对外、不进 display root。
+- **ST 档位口径（H4 m03352 更正）**：主板 ST/*ST 涨跌幅自 **2026-07-06** 起为 10%；
+  5% 档适用于 **S 股**（如 `600182.SH`）与 **2026-07-06 前的历史 ST**。受控样本的
+  142 只主板 ST=10%、53 只 20%、2 只 30% 符合现行规则，**ST 语义通过**。
+  `stk_limit` 批次 metadata 记事实字段 `st_pct_rule_version="2026-07-06"` 与
+  `_meta/research_coverage.json` 的 `st_named_but_pct10` 计数（按 ODS 内 instrument
+  名称基线统计；基线缺失记 note）；不改源值、不反推 ST、不写 mismatch 标记。
+- **来源通道审计（H4 m03258）**：`<ods_root>/_meta/research_coverage.json` 顶层记录
+  `source_channel`（`official_tushare` / `third_party_mirror` / `replay`）、
+  `authorization_status`（mirror=`unverified_third_party`，官方 token 未书面授权前=
+  `pending_official_authorization`）、`endpoint_host`；每次运行另追加一行到
+  `_meta/research_sources.jsonl`（append-only，含 run_id/datasets/rows）。
+  经第三方 mirror 的批次**只做研究域内部使用**，不得进 C 端/display/serving，
+  也不再在 mirror 上扩新数据集；F1 书面授权只认官方 tushare 回复。
 
 ### 研究 ODS 全链路冒烟（可交付 A2 复验）
 

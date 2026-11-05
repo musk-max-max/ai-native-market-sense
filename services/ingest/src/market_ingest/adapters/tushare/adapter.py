@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import time
+from urllib.parse import urlsplit
 from contextlib import contextmanager
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
@@ -130,6 +131,25 @@ class TushareAdapter:
     @property
     def _capture(self) -> _Capture | None:
         return self._capture_stack[-1] if self._capture_stack else None
+
+    @property
+    def source_endpoint(self) -> str:
+        """传输层端点（审计/来源渠道判定；replay 无端点时返回 ``replay``）。"""
+        return str(getattr(self._transport, "endpoint", "replay"))
+
+    @property
+    def source_channel(self) -> tuple[str, str]:
+        """来源通道 + 授权状态（H4 m03258；仅供审计标注，不改变取数行为）。
+
+        官方端点 ≠ 官方授权：token 未取得书面授权前仍标 pending。
+        """
+        endpoint = self.source_endpoint
+        if endpoint == "replay":
+            return "replay", "synthetic_replay"
+        host = (urlsplit(endpoint).hostname or "").lower()
+        if host in {"api.tushare.pro", "api.tushare.com"}:
+            return "official_tushare", "pending_official_authorization"
+        return "third_party_mirror", "unverified_third_party"
 
     @property
     def source_name(self) -> str:
