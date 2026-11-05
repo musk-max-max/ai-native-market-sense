@@ -1238,3 +1238,9 @@ A13 如实交了失败记录（本机无 iptables、pf 无权限），**没有�
 - **3 root 登录记 ACCEPTED-RISK**（key-only+密码已关+fail2ban+maxauthtries 3），**但三个硬条件必须先完成「具名 sudo + `PermitRootLogin no`」**：①第二操作者获得访问前 ②任何公网窗口前 ③**11-12 前提案**——否则这几条不放行。
 - **含义**：用户选 B（保留 root 密钥直登）只到 11-12 前；11-12 发布前必须切「具名 sudo 账号 + root 禁登」。需用户届时给账号名。A13 待办：systemd timer、HostExposureDrift 告警规则、部署钩子接线、与 A19 的 ECS 注入验收。
 - ⑤ 仍 PARTIAL（ACCEPTED-RISK 不计 PASS）。
+
+## §11 L106 HOST-EXPOSURE-01 核签 + HOST_AUDIT_SSH 处置（Lead）
+- **核签**：HOST-EXPOSURE-01 = PASS-conditional（H5 核）。绑定 sha：`host-baseline-audit.sh`=119277ab…、`host-baseline.expected.env`=5da1bc8c…、检测证据 f8060272…、隔离证据 266eb67f…。A13 报的 44608e4c… 是打补丁前旧版、不在登记 artifact（已更正 commit `66978d7`）。
+- **实现**：ECS 已装 `market-sense-host-baseline.timer`（每日 09:13 CST）+ 巡检脚本 `/usr/local/sbin/market-sense-host-baseline-audit.sh`（Lead 亲验在位）；自动隔离 A=b 窄口径、部署钩子 B=b（`infra/scripts/deploy.sh:46` 无 HOST_AUDIT_SSH+暴露面变更→exit 8 阻塞）。
+- **HOST_AUDIT_SSH 不现在配（Lead 裁定）**：deploy.sh 用 BatchMode ssh 进 ECS 跑巡检，需 登录目标 + SSH 私钥 secret 两件。①流水线尚未真实部署 ECS、fail-closed 触发不到，配了闲置；②**不该用 root 私钥**（=又开一条 root 通道，与 L102 SSH 加固矛盾），须用专用审计账号；③具名 sudo 账号尚未建。故与「具名 sudo 审计账号」绑定一起做，都在 11-12 前批次，现在不单独配。
+- **⑤ 六项 residual**：22 白名单(ACCEPTED-RISK)/SG 80-8888(ACCEPTED-RISK)/root 登录(ACCEPTED-RISK+三硬条件)/HOST-BASELINE-01(IaC 待提案)/HOST-AUDIT-01(P2 挂账)/HOST-EXPOSURE-01(conditional，待 A19 独立复核后转 PASS)。11-12 前 SG+root 两项须至少转「用户书面接受+release note」，否则 H5 不签。
