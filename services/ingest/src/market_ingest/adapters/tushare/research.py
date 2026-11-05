@@ -33,7 +33,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from decimal import Decimal, InvalidOperation
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Any, Mapping, Sequence
 
 from . import mapper
@@ -382,8 +382,9 @@ LIMIT_PCT_BUCKETS: tuple[Decimal, ...] = (
     Decimal("20"),
     Decimal("30"),
 )
-LIMIT_PCT_TOLERANCE = Decimal("0.3")
-LIMIT_PCT_SOURCE = "exchange_price_ratio"
+LIMIT_PCT_PRICE_STEP = Decimal("0.01")
+LIMIT_PCT_FLOAT_TOLERANCE = Decimal("0.005")
+LIMIT_PCT_SOURCE = "exchange_price_candidate"
 LIMIT_PCT_FIELDS: tuple[str, ...] = ("limit_pct", "limit_pct_source")
 
 #: snapshot 数据集的主键/审计字段：主键含 ``snapshot_date``（拉取日），
@@ -580,28 +581,46 @@ def _apply_derived(dataset: str, result: dict[str, Any]) -> None:
         result.setdefault(SNAPSHOT_DATE_FIELD, None)
 
 
-def _derive_limit_pct(result: dict[str, Any]) -> None:
-    """``up_limit / previous_close`` 比值分档（H4 m02718）。
+def _round_limit_price(price: Decimal, pct: Decimal, sign: Decimal) -> Decimal:
+    """按交易所 0.01 元最小变动单位四舍五入（H4 m03085 候选档重算）。"""
+    raw = price * (Decimal(1) + sign * pct / Decimal(100))
+    return raw.quantize(LIMIT_PCT_PRICE_STEP, rounding=ROUND_HALF_UP)
 
-    - 只用于分档，**不改** ``up_limit``/``down_limit`` 原值与精度；
-    - ST 由分档识别（5%），不读证券简称/``asset_type``；
-    - 除权日 ``pre_close`` 是除权调整值，与日线前收不可直接对账（仅本行比值自洽）；
-    - 比值不落在任何档位（±容差）→ ``limit_pct=None``，不猜。
+
+def _derive_limit_pct(result: dict[str, Any]) -> None:
+    """限价档位判定：候选档重算比对（H4 m03085，取代 m02718 的比值容差法）。
+
+    比值法对低价股必然踩 0.01 元最小变动单位的舍入边界（1.35→1.49 是 10% 档，
+    但比值 10.37%），放宽容差只会把错档放进来。改为：
+    对 {5,10,20,30} 每档分别重算涨停价与跌停价（四舍五入到 2 位），与交易所给的
+    ``up_limit``/``down_limit`` 分别精确比对（仅 ±0.005 吸收浮点误差）；
+    **唯一命中**才落 ``limit_pct``；零命中/多命中 → null（首日无涨跌幅、退市整理等
+    自然落 null，是正确语义，不猜）。
     """
     up_limit = _optional_decimal(result.get("up_limit"), field="up_limit")
+    down_limit = _optional_decimal(result.get("down_limit"), field="down_limit")
     previous_close = _optional_decimal(result.get("previous_close"), field="previous_close")
-    if up_limit is None or previous_close is None or previous_close <= 0:
+    if (
+        up_limit is None
+        or down_limit is None
+        or previous_close is None
+        or previous_close <= 0
+    ):
         result["limit_pct"] = None
         result["limit_pct_source"] = None
         return
-    ratio_pct = (up_limit / previous_close - Decimal(1)) * Decimal(100)
-    matched: Decimal | None = None
-    for bucket in LIMIT_PCT_BUCKETS:
-        if abs(ratio_pct - bucket) <= LIMIT_PCT_TOLERANCE:
-            matched = bucket
-            break
-    result["limit_pct"] = None if matched is None else format(matched, "f")
-    result["limit_pct_source"] = LIMIT_PCT_SOURCE if matched is not None else None
+    matched: list[Decimal] = []
+    for pct in LIMIT_PCT_BUCKETS:
+        candidate_up = _round_limit_price(previous_close, pct, Decimal(1))
+        candidate_down = _round_limit_price(previous_close, pct, Decimal(-1))
+        if (
+            abs(up_limit - candidate_up) <= LIMIT_PCT_FLOAT_TOLERANCE
+            and abs(down_limit - candidate_down) <= LIMIT_PCT_FLOAT_TOLERANCE
+        ):
+            matched.append(pct)
+    unique = matched[0] if len(matched) == 1 else None
+    result["limit_pct"] = None if unique is None else format(unique, "f")
+    result["limit_pct_source"] = LIMIT_PCT_SOURCE if unique is not None else None
 
 
 def has_historical_members(rows: Sequence[Mapping[str, Any]]) -> bool:

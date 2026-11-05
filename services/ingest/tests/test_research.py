@@ -604,29 +604,40 @@ def test_map_stk_limit_uses_previous_close_and_exchange() -> None:
     assert canonical["down_limit"] == "9.0"
     assert canonical["exchange"] == "SSE"
     assert canonical["asset_type"] == "STK"
-    # H4 m02718：只用交易所限价/前收比值分档（10% 档），不重算限价、不看简称/asset_type。
+    # H4 m03085：候选档重算比对（10% 档），不改交易所限价原值、不看简称/asset_type。
     assert canonical["limit_pct"] == "10"
-    assert canonical["limit_pct_source"] == "exchange_price_ratio"
+    assert canonical["limit_pct_source"] == "exchange_price_candidate"
     assert set(canonical) == set(research.canonical_fields("stk_limit"))
 
 
 @pytest.mark.parametrize(
-    ("previous_close", "up_limit", "expected"),
+    ("previous_close", "up_limit", "down_limit", "expected"),
     [
-        ("10.0", "10.5", "5"),  # ST 档由比值识别，不靠名字/asset_type
-        ("10.0", "10.52", "5"),  # ±0.3pp 容差吸收交易所四舍五入
-        ("10.0", "11.0", "10"),
-        ("10.0", "12.0", "20"),
-        ("10.0", "13.0", "30"),
-        ("10.0", "11.2", None),  # 不落任何档位 → 不猜
+        ("10.0", "10.50", "9.50", "5"),  # ST 档由候选价识别，不靠名字/asset_type
+        ("10.0", "11.00", "9.00", "10"),
+        ("10.0", "12.00", "8.00", "20"),
+        ("10.0", "13.00", "7.00", "30"),
+        # H4 m03085 明确要求保留的低价股回归用例：1.35→1.49、0.45→0.50 都是 10% 档。
+        ("1.35", "1.49", "1.22", "10"),  # 比值法会算成 10.37%，候选重算法命中 10
+        ("0.45", "0.50", "0.41", "10"),  # 0.495/0.405 四舍五入后即为交易所价
+        ("10.0", "11.20", "9.00", None),  # 零命中 → 不猜
+        ("10.0", "11.00", "8.00", None),  # 上下限分属不同档 → 不猜
+        ("0.01", "0.01", "0.01", None),  # 多档候选价坍缩为同一价 → 多命中，不猜
     ],
 )
-def test_stk_limit_limit_pct_buckets(previous_close: str, up_limit: str, expected: str | None) -> None:
+def test_stk_limit_limit_pct_buckets(
+    previous_close: str, up_limit: str, down_limit: str, expected: str | None
+) -> None:
     canonical = research.map_row(
         "stk_limit",
-        stk_limit_source_row(pre_close=previous_close, up_limit=up_limit),
+        stk_limit_source_row(
+            pre_close=previous_close, up_limit=up_limit, down_limit=down_limit
+        ),
     )
     assert canonical["limit_pct"] == expected
+    assert canonical["limit_pct_source"] == (
+        "exchange_price_candidate" if expected else None
+    )
 
 
 def test_stk_limit_limit_pct_missing_previous_close_is_null() -> None:

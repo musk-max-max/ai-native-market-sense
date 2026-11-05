@@ -1,164 +1,191 @@
 {
- "schema_version": 1,
- "sample_type": "real-controlled",
- "purpose": "H4 m02923 授权的一次性受控真实样本：验证 fina_indicator 单位、stk_limit 比值分档、index_member_all Y/N 语义",
- "channel": "tushare",
- "display_safe": false,
- "authorization": "H4 m02923",
- "captured_by": "A1",
- "captured_at": "2026-11-05T21:35:45+08:00",
- "token_recorded": false,
- "production_evidence": false,
- "notes": [
-  "本目录全部请求在本地执行一次，未进 CI；token 只在 .env，不落盘",
-  "stk_limit 文件为按档位抽样的 subset，不用于回放/全量统计；全市场行数记录在 row_count_full",
-  "index_member_all_stats 为聚合统计，不是全量数据副本",
-  "本目录不具备生产验收证据效力（H4 m01620/m02923）"
- ],
- "files": [
-  {
-   "file": "fina_indicator_600519_20231231.json",
-   "api_name": "fina_indicator",
-   "params": {
-    "ts_code": "600519.SH",
-    "period": "20231231"
-   },
-   "fields": [
-    "ts_code",
-    "end_date",
-    "ann_date",
-    "eps",
-    "roe",
-    "roe_waa",
-    "roe_dt",
-    "bps",
-    "total_revenue_ps",
-    "revenue_ps",
-    "netprofit_margin",
-    "grossprofit_margin",
-    "or_yoy",
-    "netprofit_yoy"
-   ],
-   "row_count_full": 1,
-   "rows_in_file": 1,
-   "subset": false,
-   "fetched_at": "2026-11-05T21:35:45+08:00",
-   "sha256": "ba85aba6bf41a0151b6da8cffb57d728e54d7c4c1fafa776e004f71199e503e4"
-  },
-  {
-   "file": "income_600519_20231231.json",
-   "api_name": "income",
-   "params": {
-    "ts_code": "600519.SH",
-    "period": "20231231"
-   },
-   "fields": [
-    "ts_code",
-    "end_date",
-    "ann_date",
-    "total_revenue",
-    "revenue",
-    "n_income_attr_p",
-    "operate_profit"
-   ],
-   "row_count_full": 1,
-   "rows_in_file": 1,
-   "subset": false,
-   "fetched_at": "2026-11-05T21:35:45+08:00",
-   "sha256": "e907ce6e38b02264ba97ea9700a5eae74ce5f1666b8e66fb09a5ca50d2908da6"
-  },
-  {
-   "file": "stk_limit_20261103.json",
-   "api_name": "stk_limit",
-   "params": {
-    "trade_date": "20261103",
-    "offset": 0,
-    "limit": 6000
-   },
-   "fields": [
-    "trade_date",
-    "ts_code",
-    "pre_close",
-    "up_limit",
-    "down_limit",
-    "asset_type",
-    "exchange"
-   ],
-   "row_count_full": 5655,
-   "rows_in_file": 9,
-   "subset": true,
-   "fetched_at": "2026-11-05T21:35:45+08:00",
-   "sha256": "480d6537c223e9f376f4cf6d44679ef4cef71ef6a0d41efc69321566c7671d4b"
-  },
-  {
-   "file": "stk_limit_20261104.json",
-   "api_name": "stk_limit",
-   "params": {
-    "trade_date": "20261104",
-    "offset": 0,
-    "limit": 6000
-   },
-   "fields": [
-    "trade_date",
-    "ts_code",
-    "pre_close",
-    "up_limit",
-    "down_limit",
-    "asset_type",
-    "exchange"
-   ],
-   "row_count_full": 5655,
-   "rows_in_file": 9,
-   "subset": true,
-   "fetched_at": "2026-11-05T21:35:45+08:00",
-   "sha256": "7b88e3b6ff30824ac0414e7b2a4f9660542fd8d7b36aadc6a955793b06088475"
-  },
-  {
-   "file": "stk_limit_20261105.json",
-   "api_name": "stk_limit",
-   "params": {
-    "trade_date": "20261105",
-    "offset": 0,
-    "limit": 6000
-   },
-   "fields": [
-    "trade_date",
-    "ts_code",
-    "pre_close",
-    "up_limit",
-    "down_limit",
-    "asset_type",
-    "exchange"
-   ],
-   "row_count_full": 5655,
-   "rows_in_file": 9,
-   "subset": true,
-   "fetched_at": "2026-11-05T21:35:45+08:00",
-   "sha256": "53ef0d4429e2bdd6bda84508571e3607290ebab07a6b3e3fec780547b36f616d"
-  },
-  {
-   "file": "index_member_all_stats.json",
-   "api_name": "index_member_all",
-   "params": {
-    "is_new": "Y|N"
-   },
-   "row_count_full": 7928,
-   "rows_in_file": 0,
-   "subset": true,
-   "fetched_at": "2026-11-05T21:35:45+08:00",
-   "sha256": "18ba330ecc1784ac77528fd21c24ae9486e0d7089e6ace03f98fd6790ea9e98d"
-  },
-  {
-   "file": "index_member_all_samples.json",
-   "api_name": "index_member_all",
-   "params": {
-    "is_new": "Y|N"
-   },
-   "row_count_full": 7928,
-   "rows_in_file": 11,
-   "subset": true,
-   "fetched_at": "2026-11-05T21:35:45+08:00",
-   "sha256": "06548c18f5f339ecb43c0dfb03183459e70cb88169ab1d173b079efa9281e566"
-  }
- ]
+  "schema_version": 1,
+  "sample_type": "real-controlled",
+  "purpose": "H4 m02923 授权的一次性受控真实样本：验证 fina_indicator 单位、stk_limit 比值分档、index_member_all Y/N 语义",
+  "channel": "tushare",
+  "display_safe": false,
+  "authorization": "H4 m02923",
+  "captured_by": "A1",
+  "captured_at": "2026-11-05T21:35:45+08:00",
+  "token_recorded": false,
+  "production_evidence": false,
+  "notes": [
+    "本目录全部请求在本地执行一次，未进 CI；token 只在 .env，不落盘",
+    "stk_limit 文件为按档位抽样的 subset，不用于回放/全量统计；全市场行数记录在 row_count_full",
+    "index_member_all_stats 为聚合统计，不是全量数据副本",
+    "本目录不具备生产验收证据效力（H4 m01620/m02923）"
+  ],
+  "files": [
+    {
+      "file": "fina_indicator_600519_20231231.json",
+      "api_name": "fina_indicator",
+      "params": {
+        "ts_code": "600519.SH",
+        "period": "20231231"
+      },
+      "fields": [
+        "ts_code",
+        "end_date",
+        "ann_date",
+        "eps",
+        "roe",
+        "roe_waa",
+        "roe_dt",
+        "bps",
+        "total_revenue_ps",
+        "revenue_ps",
+        "netprofit_margin",
+        "grossprofit_margin",
+        "or_yoy",
+        "netprofit_yoy"
+      ],
+      "row_count_full": 1,
+      "rows_in_file": 1,
+      "subset": false,
+      "fetched_at": "2026-11-05T21:35:45+08:00",
+      "sha256": "ba85aba6bf41a0151b6da8cffb57d728e54d7c4c1fafa776e004f71199e503e4"
+    },
+    {
+      "file": "income_600519_20231231.json",
+      "api_name": "income",
+      "params": {
+        "ts_code": "600519.SH",
+        "period": "20231231"
+      },
+      "fields": [
+        "ts_code",
+        "end_date",
+        "ann_date",
+        "total_revenue",
+        "revenue",
+        "n_income_attr_p",
+        "operate_profit"
+      ],
+      "row_count_full": 1,
+      "rows_in_file": 1,
+      "subset": false,
+      "fetched_at": "2026-11-05T21:35:45+08:00",
+      "sha256": "e907ce6e38b02264ba97ea9700a5eae74ce5f1666b8e66fb09a5ca50d2908da6"
+    },
+    {
+      "file": "stk_limit_20261103.json",
+      "api_name": "stk_limit",
+      "params": {
+        "trade_date": "20261103",
+        "offset": 0,
+        "limit": 6000
+      },
+      "fields": [
+        "trade_date",
+        "ts_code",
+        "pre_close",
+        "up_limit",
+        "down_limit",
+        "asset_type",
+        "exchange"
+      ],
+      "row_count_full": 5655,
+      "rows_in_file": 9,
+      "subset": true,
+      "fetched_at": "2026-11-05T21:35:45+08:00",
+      "sha256": "480d6537c223e9f376f4cf6d44679ef4cef71ef6a0d41efc69321566c7671d4b"
+    },
+    {
+      "file": "stk_limit_20261104.json",
+      "api_name": "stk_limit",
+      "params": {
+        "trade_date": "20261104",
+        "offset": 0,
+        "limit": 6000
+      },
+      "fields": [
+        "trade_date",
+        "ts_code",
+        "pre_close",
+        "up_limit",
+        "down_limit",
+        "asset_type",
+        "exchange"
+      ],
+      "row_count_full": 5655,
+      "rows_in_file": 9,
+      "subset": true,
+      "fetched_at": "2026-11-05T21:35:45+08:00",
+      "sha256": "7b88e3b6ff30824ac0414e7b2a4f9660542fd8d7b36aadc6a955793b06088475"
+    },
+    {
+      "file": "stk_limit_20261105.json",
+      "api_name": "stk_limit",
+      "params": {
+        "trade_date": "20261105",
+        "offset": 0,
+        "limit": 6000
+      },
+      "fields": [
+        "trade_date",
+        "ts_code",
+        "pre_close",
+        "up_limit",
+        "down_limit",
+        "asset_type",
+        "exchange"
+      ],
+      "row_count_full": 5655,
+      "rows_in_file": 9,
+      "subset": true,
+      "fetched_at": "2026-11-05T21:35:45+08:00",
+      "sha256": "53ef0d4429e2bdd6bda84508571e3607290ebab07a6b3e3fec780547b36f616d"
+    },
+    {
+      "file": "index_member_all_stats.json",
+      "api_name": "index_member_all",
+      "params": {
+        "is_new": "Y|N"
+      },
+      "row_count_full": 7928,
+      "rows_in_file": 0,
+      "subset": true,
+      "fetched_at": "2026-11-05T21:35:45+08:00",
+      "sha256": "18ba330ecc1784ac77528fd21c24ae9486e0d7089e6ace03f98fd6790ea9e98d"
+    },
+    {
+      "file": "index_member_all_samples.json",
+      "api_name": "index_member_all",
+      "params": {
+        "is_new": "Y|N"
+      },
+      "row_count_full": 7928,
+      "rows_in_file": 11,
+      "subset": true,
+      "fetched_at": "2026-11-05T21:35:45+08:00",
+      "sha256": "06548c18f5f339ecb43c0dfb03183459e70cb88169ab1d173b079efa9281e566"
+    },
+    {
+      "file": "stk_limit_st_diagnosis.json",
+      "api_name": "stock_basic+stk_limit",
+      "params": {
+        "list_status": "L",
+        "trade_dates": [
+          "20261103",
+          "20261104",
+          "20261105"
+        ]
+      },
+      "fields": [
+        "ts_code",
+        "name",
+        "pre_close",
+        "up_limit",
+        "down_limit",
+        "exchange"
+      ],
+      "row_count_full": 0,
+      "rows_in_file": 0,
+      "subset": true,
+      "aggregate_only": true,
+      "purpose": "KD-STKLIMIT-VERIFY：ST 名称集合与候选档 limit_pct 的交集/差集统计（不含全量数据副本）",
+      "fetched_at": "2026-11-05T21:47:00+08:00",
+      "sha256": "b565a2833eca852be5e07c2cb714a3b35c999e9f4b8a1ac0be69c538f5d82281"
+    }
+  ]
 }

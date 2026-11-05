@@ -317,11 +317,18 @@ PYTHONPATH=src python3 -m market_ingest sync-research --start 2024-01-02 --end 2
 - **`stk_limit`**（B1-02 精确涨跌停依赖）：按交易日全市场拉原始字段，canonical 为
   `instrument_id/trade_date/previous_close/up_limit/down_limit/asset_type/exchange`。
   **不重算限价、不改精度**：`up_limit/down_limit` 按交易所原值入库（各家四舍五入规则不同，
-  重算必错）。**ST 不从证券简称推、也不靠 `asset_type` 猜**（M04：名字会变/会漏）：
-  用 `up_limit/previous_close` 比值分档（5/10/20/30，±0.3pp 容差）派生
-  `limit_pct`（档位）与 `limit_pct_source="exchange_price_ratio"`；比值不落任何档位 → `limit_pct=null`。
+  重算必错）。**ST 不从证券简称推、也不靠 `asset_type` 猜**（M04：名字会变/会漏）。
+  `limit_pct` 用**候选档位重算比对**（H4 m03085）派生：对 `{5,10,20,30}` 每档计算
+  `round_half_up(previous_close × (1 ± pct/100), 2)`，与交易所 up/down 分别精确相等
+  （仅 ±0.005 吸收浮点误差）才算命中；**唯一命中**才落 `limit_pct`（字符串档位）与
+  `limit_pct_source="exchange_price_candidate"`；零命中/多命中 → `limit_pct=null`（不猜）。
+  低价股舍入边界（prev=1.35→up=1.49 归 10 档、0.45→0.50 归 10 档）由此正确落档。
   ⚠️ **除权日**交易所 `pre_close` 是除权调整后的值，**不能与日线前收盘直接对账**；
   需要比较时用 `ex_rights` 标记（当前 ODS 不含，后续补）。
+  ⚠️ 北交所（920xxx.BJ）真实样本出现候选价与交易所值系统性不符（如 prev=1.26 时
+  30% 档候选 up=1.64/down=0.88，交易所 up=1.63/down=0.89），疑似「涨停向下截断、
+  跌停向上截断」的交易所取整规则；当前按 H4 口径记 `limit_pct=null`，待 H4 确认是否
+  需要按交易所分取整规则，不得为凑命中放宽容差。
 - **`fina_indicator`**（财务指标，per-instrument 模式）：
   ```bash
   PYTHONPATH=src python3 -m market_ingest sync-research --start 2024-01-01 --end 2024-12-31 \
@@ -351,7 +358,7 @@ PYTHONPATH=src python3 -m market_ingest sync-research --start 2024-01-02 --end 2
   是否归一待 H4 定。
 - 单测：`tests/test_research.py` 覆盖 4 个数据集的字段映射/单位/形态分派/失败不造数/
   快照幂等/append-only/覆盖率标记/逐标的 checkpoint；仓库根 `pytest services/ingest/tests`
-  = 191 passed。
+  = 194 passed。
 - **provisional 不摘**（H4 m02718）：摘除需三条证据齐——① `fina_indicator` 单位样本证据
   + H4 签字；② `stk_limit` 比值分档有已知 ST/创业板/北交所用例；③ index 两表快照/成分
   时点断言测试。齐之前四表只进研究域（internal-only），不进 serving 对外、不进 display root。
@@ -367,10 +374,17 @@ PYTHONPATH=src python3 -m market_ingest sync-research --start 2024-01-02 --end 2
   `n_income_attr_p=74734071550.75` 元。与 2023 年报（营收 1505.6 亿、归母净利 747.3 亿、
   EPS 59.49、加权 ROE 34.19%）一致 → **金额=元、比率=百分数**假设成立；
   年报口径 ROE 对应 `roe_waa`（`roe=36.18` 是另一口径）。
-- `stk_limit` 三个交易日（20261103/04/05，各 5655 行）：比值分档覆盖 5/10/20/30 全部档位
-  （5% 每日仅 1 只 ST、10% ~3255 只、20% 2028 只、30% 353 只北交所）；±0.3pp 外分别
-  19/17/12 行（低价股按 0.01 元最小变动单位舍入导致，如 prev=1.35、10% 档位 up=1.49
-  即 10.37%），这些行 `limit_pct=null`，符合「不猜」口径。
+- `stk_limit` 三个交易日（20261103/04/05，各 5655 行、5655 个代码，未触 5800 单次上限）：
+  候选档重算后 `limit_pct` 分布为 10%≈3270 / 20%≈2029 / 30%≈191 / 5% 仅 1 / null≈164。
+  **5% 唯一行是 `600182.SH`（S 股「S佳通」，非 ST）**；用 `stock_basic` 名称含「ST」
+  的 198 只做交集：**ST∩5% = 0**，198 只全部不在 5% 档（主板 ST 142 只落 10%、
+  创业板/科创板 ST 53 只落 20%、北交所 ST 2 只落 30%、1 只 null）；198 只 ST 全部出现在
+  `stk_limit`，无 missing → **排除分页截断**。即：该数据源当期给主板 ST 的限价是 10%、不是 5%，
+  比值同样≈9.8–10.4%，不是比值法漏判。**5% 档 ST 语义未通过验证**，摘 `stk_limit`
+  provisional 前需 H4 确认这是官方当期口径还是 mirror 源差异（H4 m03085 的第 1 条验收）。
+  诊断明细落 `real-sample-20261105/stk_limit_st_diagnosis.json`（只存聚合统计，不含全量数据）。
+- null 行（约 164–177/日）主要是北交所（920xxx.BJ）+ 001381.SZ（首日无涨跌停，
+  `up_limit=999999.999`/`down_limit=0.01`，自然 null），按「不猜」记 null。
 - `index_member_all`：`is_new=Y` 5922 行、`out_date` 全空；`is_new=N` 2006 行、
   `out_date` 全非空、302 只股票有多段 `in_date`（如 000004.SZ 三段），证明 N 是历史退出
   成分、可按 in/out 区间复原 → **默认 Y+N 全量成立**，非 `current_snapshot_only`。
