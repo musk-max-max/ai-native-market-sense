@@ -85,6 +85,7 @@ A19_HOST_LAYER_APPROVED=1 A19_SSH_TARGET=root@<host> \
 - 当前真实目标（ECS `47.120.16.239`）按 H5 m01196 为 **blocked**：不得因开关存在就打开；结束须 kill 隧道/relay 并记录 0 监听。
 - 产物：`artifacts/host-layer-<runId>.json`（含 checks/meta/cleanup_listeners）。
 - 口径（H5 m01276）：本地自检结果只代表隔离 fixture（`market_sense_a19`），**不得表述为 ECS/生产结果**；`audit_event_count=null` 只记 `audit_gap_status=INCOMPLETE`，不得算 PASS。
+- 口径（A9 m01310）：本地自检的 BYPASS 仅「机制冒烟」，不进发布证据链；EXC-TUNNEL-01 第二 vantage 优先用用户手机/平板（需用户+H5 同意，短窗口，结束记 0 监听），同主机 relay 自连只算绑定存在性、绝不升级为 AMPLIFICATION；结论措辞固定为「入口可达 + 无主体区分 = 再分发放大」，不得写成「第三人拿到 403 所以安全」。
 
 ## 维护提示
 

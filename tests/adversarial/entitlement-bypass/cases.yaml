@@ -35,6 +35,7 @@ cases:
       - entitlement_hold_env
       - audit_event_count
       - audit_gap
+    execution_note: "本地自检的 BYPASS 只作机制冒烟，不得进发布证据链；真实目标跑时必须带 audit_gap（0 行记 CONFIRMED_GAP，取不到记 INCOMPLETE）。"
     safety: "SQL 只读（count + 单行样本）；不写库、不启停容器、不 dump 全表"
     authorization: "真实目标：H5 书面授权 + A19_HOST_LAYER_APPROVED=1；当前 ECS 目标 status=blocked"
     owner: A19 (执行) / A9 (口径)
@@ -54,6 +55,9 @@ cases:
       - "从第二 vantage 取同一页面/接口；记录源 IP、X-Forwarded-For、trustProxy 与服务端审计/身份字段"
       - "结束：kill relay 与 ssh，记录 0 监听"
     oracle: "second_vantage_status in {200,403} AND server_identity_distinguishable == false => AMPLIFICATION；second_vantage_status unreachable => BLOCKED；无法建立第二 vantage => INCOMPLETE"
+    judgment_note: "不得写成「第三人拿到 403 所以安全」：403 只反映当前 tier；tier 合法切 c_end_display 后第三人即无身份读数值。结论措辞固定为「入口可达 + 无主体区分 = 再分发放大」，与 oracle 的 server_identity_distinguishable==false 对齐。同主机 relay 自连只算绑定存在性，绝不升级为 AMPLIFICATION。"
+    vantage_note: "第二 vantage 优先用用户手机/平板（同 LAN、不持凭据、不经操作者主机，需用户/H5 同意，窗口短、结束记 0 监听）；无第二设备则 INCOMPLETE。macOS 本机无 docker，同主机 one-shot 容器 fallback 不可用。"
+    relay_note: "真实目标上 relay 若绑 0.0.0.0，按「暴露面变更」对待：短窗口 + H5 知情 + 结束 kill + 记录 listeners，不留后台进程。"
     evidence_fields:
       - attempt_id
       - target
