@@ -1,5 +1,7 @@
 # 金融研究子 agent 席位评估与配置建议
 
+> 现行 AI 标识与免责口径以 ADR-007 P7 为准；本文历史表述（如"信息整合非投资建议"）仅作历史记录。
+
 > **文档目的**：评估 market-sense 进入「投资服务场景」阶段时，是否需要在现有 20 个 agent 编制外新增金融研究类专业 agent 席位；若新增，给出角色拆分、接入方式、权限分层、排期与成本风险，产出可直接写入 `agents/roster.yaml` 的字段雏形。
 > **评估范围**：编制与架构（roster.yaml / ownership.yaml）、合规红线（H3 红线清单 + P0 验收）、数据面（tushare + 数仓 ADS 层）。
 > **确定性标注**：文中对现有编制的引用基于 `agents/roster.yaml`（v0.1.0, updated 2026-11-03）与 `docs/p0-acceptance.md` 实读；tushare 具体接口名标注「⚠️ 待 H4 按商用授权套餐核定」。
