@@ -96,6 +96,11 @@
     "RES-08": {
       "severity": "blocker",
       "category": "consistency"
+    },
+    "RES-09": {
+      "category": "consistency",
+      "severity": "warn",
+      "label": "成分退出日合理性：out_date>snapshot_date 未来退出日告警"
     }
   },
   "board_limit_pct": {

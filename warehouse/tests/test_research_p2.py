@@ -419,5 +419,99 @@ def test_coverage_meta_file_reader(tmp_path):
 
 def test_config_documents_new_rules():
     config = load_config()
-    for rule_id in ("RES-05", "RES-06", "RES-07", "RES-08"):
+    for rule_id in ("RES-05", "RES-06", "RES-07", "RES-08", "RES-09"):
         assert rule_id in config["rules"]
+    assert config["rules"]["RES-09"]["severity"] == "warn"
+
+
+# --------------------------------------------------------------------------
+# H4 KD-RES-HARDEN：三条规则加固
+def _quality(*, stk=None, classify=None, member=None):
+    batches = [
+        _batch("instrument", INSTRUMENTS),
+        _batch("stk_limit", stk if stk is not None else STK_LIMIT),
+        _batch("fina_indicator", FINA, as_of=datetime(2024, 4, 30, 20, 5, tzinfo=CST)),
+        _batch("index_classify", classify if classify is not None else INDEX_CLASSIFY, as_of=SNAPSHOT_AS_OF),
+        _batch("index_member_all", member if member is not None else INDEX_MEMBER, as_of=SNAPSHOT_AS_OF),
+    ]
+    return run_quality_checks(build_dwd(batches))
+
+
+def _rules(report) -> list[str]:
+    return [v.rule_id for v in report.blocker_violations]
+
+
+def test_res_05_cross_checks_limit_pct_against_prices():
+    """H4：质量层不能信 A1 透传的 limit_pct，必须用原始价独立交叉验证。"""
+    stk = [dict(STK_LIMIT[0], limit_pct=D("20")), STK_LIMIT[1]]  # prev=10 up=11 → 10%，声明 20%
+    report = _quality(stk=stk)
+    assert "RES-05" in _rules(report)
+    assert report.blocked and report.grade == "black"
+
+
+def test_res_05_accepts_limit_pct_within_rounding_tolerance():
+    # 10.05×1.05=10.5525 → up_limit 10.55 舍入，比值 4.975% 与 5% 差 0.025pp，应放行。
+    stk = [
+        {
+            "instrument_id": "SSE:600519",
+            "trade_date": date(2024, 1, 2),
+            "previous_close": D("10.05"),
+            "up_limit": D("10.55"),
+            "down_limit": D("9.55"),
+            "limit_pct": D("5"),
+            "limit_pct_source": "exchange_price_ratio",
+            "asset_type": "stock",
+            "exchange": "SSE",
+        }
+    ] + [STK_LIMIT[1]]
+    report = _quality(stk=stk)
+    assert "RES-05" not in _rules(report)
+
+
+def test_res_07_flags_parent_missing_in_same_snapshot():
+    classify = [dict(r) for r in INDEX_CLASSIFY]
+    classify[1] = dict(classify[1], parent_code="899999")
+    report = _quality(classify=classify)
+    assert "RES-07" in _rules(report)
+    assert report.blocked
+
+
+def test_res_07_flags_cross_level_parent():
+    classify = [dict(r) for r in INDEX_CLASSIFY]
+    classify[2] = dict(classify[2], parent_code="801010")  # L3 挂到 L1，跨层
+    report = _quality(classify=classify)
+    assert "RES-07" in _rules(report)
+
+
+def test_res_07_flags_cycle():
+    classify = [
+        dict(INDEX_CLASSIFY[0]),
+        dict(INDEX_CLASSIFY[1], index_code="A001", parent_code="B001"),
+        dict(INDEX_CLASSIFY[1], index_code="B001", parent_code="A001"),
+    ]
+    report = _quality(classify=classify)
+    assert "RES-07" in _rules(report)
+
+
+def test_res_08_flags_new_n_without_out_date():
+    member = [dict(INDEX_MEMBER[0]), dict(INDEX_MEMBER[1], out_date=None)]
+    report = _quality(member=member)
+    assert "RES-08" in _rules(report)
+
+
+def test_res_09_warns_future_out_date_without_blocking():
+    member = [dict(INDEX_MEMBER[0]), dict(INDEX_MEMBER[1], out_date=date(2025, 1, 1))]
+    report = _quality(member=member)
+    assert "RES-09" not in _rules(report)              # warn 不进 blocker
+    assert report.violation_counts["warn"] >= 1
+    assert not report.blocked and report.grade == "green"
+
+
+def test_res_06_null_announced_at_is_blocker():
+    fina = [dict(FINA[0], announced_at=None), FINA[1]]
+    batches = [
+        _batch("instrument", INSTRUMENTS),
+        _batch("fina_indicator", fina, as_of=datetime(2024, 4, 30, 20, 5, tzinfo=CST)),
+    ]
+    report = run_quality_checks(build_dwd(batches))
+    assert "RES-06" in _rules(report)

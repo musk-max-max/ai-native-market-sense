@@ -613,8 +613,14 @@ def normalize_research_row(schema: str, row: dict[str, Any], *, where: str) -> d
         out["trade_date"] = parse_date(
             _require(row, "trade_date", where=where), where=f"{where}.trade_date"
         )
+    required_keys = set(spec.get("required", ()))
     for key in spec.get("dates", ()):
-        out[key] = parse_date(_require(row, key, where=where), where=f"{where}.{key}")
+        if key in required_keys:
+            out[key] = parse_date(_require(row, key, where=where), where=f"{where}.{key}")
+        else:
+            # 可选日期（如 index_member_all.out_date）：缺失/None 保留 None，不补值。
+            raw = row.get(key)
+            out[key] = None if raw is None else parse_date(raw, where=f"{where}.{key}")
     for key in spec.get("required", ()):
         if row.get(key) is None:
             raise OdsFormatError(f"{where}: 缺必填字段 {key}")

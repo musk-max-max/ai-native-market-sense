@@ -326,8 +326,8 @@ def test_research_rules_declared_in_config():
     config = load_config()
     for rid in ("RES-01", "RES-02", "RES-03", "RES-04", "RES-05", "RES-06", "RES-07", "RES-08"):
         assert config["rules"][rid]["severity"] == "blocker"
-    # P2 规则 RES-05..08 见 test_research_p2.py；总规则 22（6 结构 / 6 业务 / 5 完整性 / 5 一致性）
-    assert len(config["rules"]) == 22
+    # P2 规则 RES-05..08 见 test_research_p2.py；RES-09 为 warn；总规则 23（6 结构 / 6 业务 / 5 完整性 / 6 一致性）
+    assert len(config["rules"]) == 23
     policies = config["research_as_of"]
     assert policies["hk_hold"] == {"offset_days": 1, "time": "15:00"}
     for endpoint in ("daily_basic", "index_daily", "top_list", "top_inst", "moneyflow", "margin"):

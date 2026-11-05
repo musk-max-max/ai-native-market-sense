@@ -55,10 +55,11 @@ RULE_META: dict[str, tuple[str, str]] = {
     "RES-02": ("business", "研究指标量纲：仅 DWD canonical 字段；金额/量/市值非负，百分比 |x| ≤ 1000"),
     "RES-03": ("consistency", "研究数据 instrument_id 必须存在于 dim_instrument（指数/两融豁免；非 A 股命名空间显式豁免并计数）"),
     "RES-04": ("completeness", "研究批次 as_of 满足各 endpoint 的及时性阈值（默认交易日 15:00；hk_hold T+1 15:00）且 fetched_at ≥ as_of"),
-    "RES-05": ("business", "涨跌停原始价自洽：previous_close>0 且 up_limit > previous_close > down_limit（不判 5/10/20/30 档位，H4 口径待定）"),
-    "RES-06": ("business", "财务指标公告时点：announced_at ≥ report_end_date，且不晚于批次 as_of（防未来函数）"),
-    "RES-07": ("consistency", "行业分类层级自洽：level∈{1,2,3}；level>1 必须有 parent_code，level=1 不得有 parent_code，parent_code≠index_code"),
-    "RES-08": ("consistency", "成分时点自洽：in_date ≤ snapshot_date；out_date ≥ in_date；is_new=Y 时 out_date 必须为空"),
+    "RES-05": ("business", "涨跌停原始价自洽且 limit_pct 交叉校验：previous_close>0、up_limit > previous_close > down_limit；limit_pct 非空时 |up/prev-1-limit_pct/100| ≤ 0.3pp（H4 口径已定：A2 不派生，只校验派生值是否与原始价一致）"),
+    "RES-06": ("business", "财务指标公告时点：announced_at ≥ report_end_date，且不晚于批次 as_of（防未来函数）；announced_at 为 null 按 blocker（无公告日无法 as-of join，不进可用数据）"),
+    "RES-07": ("consistency", "行业分类树自洽：level∈{1,2,3}；level>1 必须有 parent_code、level=1 不得有；parent 必须在同一 snapshot 存在且 level(parent)=level(child)-1；链≤2 跳到 L1 且无环（每链唯一根）"),
+    "RES-08": ("consistency", "成分时点自洽：in_date ≤ snapshot_date；out_date ≥ in_date；is_new=Y 时 out_date 必须为空；is_new=N 时 out_date 必须非空"),
+    "RES-09": ("consistency", "成分退出日合理性（warn）：out_date > snapshot_date 属未来退出日，当前数据不应出现；只告警不阻断"),
 }
 CST = timezone(timedelta(hours=8))
 CLOSE_TIME = time(15, 0, tzinfo=CST)
@@ -513,6 +514,7 @@ def _check_research(c: _Collector, state: DwdState) -> None:
         rows = getattr(state, endpoint).values()
         for row in rows:
             _check_research_row(c, state, endpoint, row)
+    _check_index_classify_tree(c, state)
 
 
 def _research_row_date(row: dict[str, Any]) -> date | None:
@@ -572,7 +574,7 @@ def _check_research_row(
     elif endpoint == "fina_indicator":
         _check_fina_indicator(c, row, td, as_of)
     elif endpoint == "index_classify":
-        _check_index_classify(c, row, td)
+        pass  # RES-07 树级校验在 _check_index_classify_tree（需要同快照全量节点）
     elif endpoint == "index_member_all":
         _check_index_member_all(c, row, td)
 
@@ -607,6 +609,19 @@ def _check_stk_limit(c: _Collector, row: dict[str, Any], td: date | None) -> Non
     elif not (up > prev > down):
         c.flag("RES-05", iid, td, f"涨跌停价格不自洽，应 up_limit > previous_close > down_limit：prev={prev} up={up} down={down}")
 
+    # H4 加固：不能只信适配层透传的 limit_pct，必须用原始价独立交叉验证（防静默错档）。
+    limit_pct = row.get("limit_pct")
+    if isinstance(limit_pct, Decimal):
+        if not (Decimal("5") <= limit_pct <= Decimal("30")):
+            c.flag("RES-05", iid, td, f"limit_pct={limit_pct} 超出 5–30 合理区间")
+        elif prev > 0:
+            derived = (up / prev - 1) * 100
+            if abs(derived - limit_pct) > Decimal("0.3"):
+                c.flag(
+                    "RES-05", iid, td,
+                    f"limit_pct={limit_pct} 与原始价比值推出 {derived.quantize(Decimal('0.0001'))}% 不一致（容差 0.3pp）",
+                )
+
 
 def _expected_quarter_end(report_period: str) -> date | None:
     m = re.fullmatch(r"([0-9]{4})Q([1-4])", str(report_period or ""))
@@ -636,22 +651,65 @@ def _check_fina_indicator(c: _Collector, row: dict[str, Any], td: date | None, a
         c.flag("RES-06", iid, announced, f"announced_at={announced} 晚于批次 as_of 日期={as_of.date()}（未来函数）")
 
 
-def _check_index_classify(c: _Collector, row: dict[str, Any], td: date | None) -> None:
-    """RES-07：行业树层级自洽（字段 provisional，不校验行业编码格式）。"""
-    c.bump("RES-07")
-    index_code = str(row.get("index_code") or "")
-    level = str(row.get("level") or "")
-    parent = row.get("parent_code")
-    if level not in {"1", "2", "3"}:
-        c.flag("RES-07", index_code, td, f"level={level!r} 不是 1/2/3")
-        return
-    if level == "1" and parent:
-        c.flag("RES-07", index_code, td, f"level=1 不应有 parent_code={parent!r}")
-    if level in {"2", "3"}:
-        if not parent:
-            c.flag("RES-07", index_code, td, f"level={level} 缺少 parent_code")
-        elif str(parent) == index_code:
-            c.flag("RES-07", index_code, td, f"parent_code 不能等于自身 index_code={index_code}")
+def _check_index_classify_tree(c: _Collector, state: DwdState) -> None:
+    """RES-07 树级校验：parent 同快照存在、层级差 1、链≤2 跳到 L1、无环。
+
+    申万行业树有多个 L1 根（每个一级行业各有子树），因此"唯一根"按**每条链唯一根**
+    实现（任一节点沿 parent 上溯恰好终止于一个 parent 为空的 L1），不要求全树只有一个 L1。
+    """
+    by_snapshot: dict[date, dict[str, dict[str, Any]]] = {}
+    for row in state.index_classify.values():
+        snap = row.get("snapshot_date")
+        if isinstance(snap, date):
+            by_snapshot.setdefault(snap, {})[str(row.get("index_code") or "")] = row
+
+    for snapshot_date, nodes in by_snapshot.items():
+        for index_code, row in nodes.items():
+            c.bump("RES-07")
+            level = str(row.get("level") or "")
+            parent = str(row.get("parent_code") or "")
+            if level not in {"1", "2", "3"}:
+                continue  # 形状问题已在单行校验报过
+            if level == "1":
+                if parent:
+                    c.flag("RES-07", index_code, snapshot_date, f"level=1 不应有 parent_code={parent!r}")
+                continue
+            if not parent:
+                c.flag("RES-07", index_code, snapshot_date, f"level={level} 缺少 parent_code")
+                continue
+            if parent == index_code:
+                c.flag("RES-07", index_code, snapshot_date, "parent_code 不能等于自身")
+                continue
+            parent_row = nodes.get(parent)
+            if parent_row is None:
+                c.flag("RES-07", index_code, snapshot_date, f"parent_code={parent} 不在同一 snapshot")
+                continue
+            parent_level = str(parent_row.get("level") or "")
+            if parent_level not in {"1", "2", "3"} or int(parent_level) != int(level) - 1:
+                c.flag(
+                    "RES-07", index_code, snapshot_date,
+                    f"parent={parent} 的 level={parent_level!r}，应等于 {int(level) - 1}",
+                )
+            # 上溯：≤2 跳到 L1、无环、链上 parent 层级逐级 -1。
+            seen = {index_code}
+            current, hops = index_code, 0
+            while True:
+                node = nodes.get(current)
+                if node is None:
+                    c.flag("RES-07", index_code, snapshot_date, f"链在 {current} 断链")
+                    break
+                if str(node.get("level") or "") == "1":
+                    break
+                nxt = str(node.get("parent_code") or "")
+                if not nxt or nxt in seen:
+                    c.flag("RES-07", index_code, snapshot_date, f"链无根或有环（当前 {current} → {nxt or '<空>'}）")
+                    break
+                seen.add(nxt)
+                current = nxt
+                hops += 1
+                if hops > 2:
+                    c.flag("RES-07", index_code, snapshot_date, "超过 2 跳仍未到 L1（跨层/环）")
+                    break
 
 
 def _check_index_member_all(c: _Collector, row: dict[str, Any], td: date | None) -> None:
@@ -670,6 +728,11 @@ def _check_index_member_all(c: _Collector, row: dict[str, Any], td: date | None)
         c.flag("RES-08", iid, snapshot_date, f"out_date={out_date} 早于 in_date={in_date}")
     if str(row.get("is_new") or "") == "Y" and out_date is not None:
         c.flag("RES-08", iid, snapshot_date, "is_new=Y 的记录不得有 out_date")
+    if str(row.get("is_new") or "") == "N" and out_date is None:
+        c.flag("RES-08", iid, snapshot_date, "is_new=N 的记录必须有 out_date（退出但无退出日不能当历史成分）")
+    c.bump("RES-09")
+    if isinstance(out_date, date) and out_date > snapshot_date:
+        c.flag("RES-09", iid, snapshot_date, f"out_date={out_date} 晚于 snapshot_date={snapshot_date}（未来退出日）")
 
 
 def _as_of_policy(config: dict[str, Any], endpoint: str) -> dict[str, Any]:
