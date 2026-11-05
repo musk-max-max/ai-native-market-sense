@@ -617,6 +617,80 @@
       "stock_basic_record": false,
       "note": "仅 2021-11 初残留 2 个旧代码行（833874/833994），11-08 后消失；stock_basic 无记录，无法从本源于确认其与 920 新码的对应关系。"
     },
-    "claim": "本数据源下北交所历史统一以 920 代码返回，旧代码无序列 → 同一来源不会产生新旧两套重复序列；但无法从本源取得 old→new 映射。若做跨源/长期 20 年回补，dim_instrument 仍需官方迁移清单建 alias（old_id→new_id+生效日+来源），历史按 alias 连续；不得合并、不得静默挑一个。"
+    "claim": "本数据源下北交所历史统一以 920 代码返回，旧代码无序列 → 同一来源不会产生新旧两套重复序列；但无法从本源取得 old→new 映射。若做跨源/长期 20 年回补，dim_instrument 仍需官方迁移清单建 alias（old_id→new_id+生效日+来源），历史按 alias 连续；不得合并、不得静默挑一个。",
+    "delisted_universe": {
+      "stock_basic_BSE_list_status_D_rows": 5,
+      "rows": [
+        {
+          "ts_code": "833994.BJ",
+          "name": "翰博高新(退)",
+          "list_date": "2020-07-27",
+          "delist_date": "2022-07-25"
+        },
+        {
+          "ts_code": "833874.BJ",
+          "name": "泰祥股份(退)",
+          "list_date": "2020-07-27",
+          "delist_date": "2022-07-18"
+        },
+        {
+          "ts_code": "832317.BJ",
+          "name": "观典防务(退)",
+          "list_date": "2020-07-27",
+          "delist_date": "2022-04-26"
+        },
+        {
+          "ts_code": "920680.BJ",
+          "name": "广道退(退)",
+          "list_date": "2021-11-15",
+          "delist_date": "2026-01-05"
+        },
+        {
+          "ts_code": "920305.BJ",
+          "name": "云创退",
+          "list_date": "2021-08-26",
+          "delist_date": "2026-07-30"
+        }
+      ],
+      "stock_basic_BSE_list_status_P_rows": 0,
+      "known_limitation": "本源北交所退市股仅 5 条（对比在册 354）；20 年回补的 universe completeness 不能只靠本源，需外部退市/转板清单补齐（验收项，不进 11-12 门禁）。"
+    },
+    "pre_bse_history_920000": {
+      "code": "920000.BJ",
+      "name": "安徽凤凰",
+      "list_date": "2020-12-23",
+      "rows_by_window": {
+        "20190101-20191231": 4,
+        "20200101-20201231": 22,
+        "20210101-20210726": 136,
+        "20210727-20211114": 72,
+        "20210601-20210630": 21
+      },
+      "earliest_observed": "2019-05-24",
+      "conclusion": "H4 m03664 第 2 项：2021-06 有行（21 行），**不存在『2021-11-15 前精选层历史缺失』**；本源把更早 NEEQ/精选层历史也回溯到 920 代码，但早期逐年行数稀疏（2019 年仅 4 行），属源覆盖不完整而非为空。不得用旧码补（旧码 0 行）。"
+    },
+    "residual_old_codes_resolution": {
+      "833874.BJ": {
+        "name_from_namechange": "泰祥股份",
+        "in_920_listed": false,
+        "in_D_master": {
+          "ts_code": "833874.BJ",
+          "name": "泰祥股份(退)",
+          "delist_date": "2022-07-18"
+        },
+        "status": "mapped_in_delisted_master_not_920"
+      },
+      "833994.BJ": {
+        "name_from_namechange": "翰博高新",
+        "in_920_listed": false,
+        "in_D_master": {
+          "ts_code": "833994.BJ",
+          "name": "翰博高新(退)",
+          "delist_date": "2022-07-25"
+        },
+        "status": "mapped_in_delisted_master_not_920"
+      },
+      "note": "H4 m03664 第 3 项：两个残留在 20211101 快照的旧码，用 namechange 取到名称（泰祥股份/翰博高新），在 920 在册名单中找不到；但它们就在 stock_basic list_status=D 中（旧码保留、已退市）。因此**不是 unmapped**，而是『退市股保留旧码、未迁移到 920』；alias backlog 记一条：若需与转板后新市场证券合并，需官方转板/迁移清单，不猜。"
+    }
   }
 }

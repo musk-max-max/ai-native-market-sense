@@ -398,6 +398,14 @@ PYTHONPATH=src python3 -m market_ingest sync-research --start 2024-01-02 --end 2
   同一来源不会产生新旧两套重复序列，但 **old→new 映射无法从本源取得**；跨源/20 年
   回补前，`dim_instrument` 仍需官方迁移清单建 alias（old_id→new_id+生效日+来源），
   历史按 alias 连续，不得合并、不得静默挑一个。证据见同一文件的 `bse_legacy_codes`。
+  **已知限制（H4 m03664 归档，不进 11-12 门禁）**：
+  - 北交所退市覆盖仅 5 条（`stock_basic list_status=D`），在册 354；20 年回补的
+    universe completeness 需外部退市/转板清单补齐，作为回补验收项，不能到回测才发现。
+  - 920000.BJ 可回 2019-05-24 起的历史（2021-06 有 21 行），**不存在「2021-11-15
+    前精选层历史缺失」**；但早期逐年稀疏（2019 年仅 4 行），属源覆盖不完整，不用旧码补。
+  - 20211101 快照残留的 833874/833994 经 `namechange` 得名泰祥股份/翰博高新，二者不在
+    920 在册名单、但在 `list_status=D` 中（旧码保留、2022-07 退市），不是 unmapped；
+    与转板后新市场证券的合并需官方清单，记 alias backlog。
 
 ### 研究 ODS 全链路冒烟（可交付 A2 复验）
 
