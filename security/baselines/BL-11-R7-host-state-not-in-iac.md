@@ -80,7 +80,38 @@
      `RESULT PASS`（A9 实测），这是 SEC-003 漂移的最危险形态 → AC-5 fail 语义不达标。
   d) 脚本无 fail2ban 检查（⑤-3 只能人工取证）；`sshd -T` 非 root 时三行全 FAIL 但无 exit-code 区分。
   A9 已于 2026-11-05 将 a–d 报 A13；**修复并给出变异自证（含「缺 env」「ufw 来源 Anywhere」注入）前，本项按未闭环计**。
-- 因此 R7 状态：**OPEN（部分进展）**。SEC-001/002 的修复若只改运行态、不落清单/审计，不构成 R7 闭环。
+- 因此 R7 状态：**B 档就绪、A 档未做**。SEC-001/002 的修复若只改运行态、不落清单/审计，不构成 R7 闭环。
+
+### 6.1 更新（2026-11-05T00:08Z，A13 `5ea7e97` + `9bc29fb` 后，A9 只读复核）
+
+上述 a–d **已全部修复**并给出变异自证，A9 用 `/tmp` 假态 harness 复核通过：
+
+| 缺陷 | 修复 | A9 复核结果 |
+|---|---|---|
+| a) bash 3.2 `$VAR` + 全角字符崩 | 6 处改 `${VAR}`；另加 `export LC_ALL=C`（line 91） | 干净态 sh/dash **exit 0**；无 `unbound variable` |
+| b) ufw 只比 `To` 列 | 解析 `ufw status numbered` 的 `From`；新增 `EXPECTED_SSH_ALLOWED_FROM`（当前空=fail-closed） | 注入 `22/tcp ALLOW Anywhere` → **FAIL**；注入 8888 多放行 → **FAIL** |
+| c) 缺 env 静默 PASS | 带 `APP_PROFILE|E2E_MODE|ENTITLEMENT_TIER` 的容器强制 AUDIT/HOLD=1，缺记 `unset` FAIL | 注入 `AUDIT=0`/`HOLD=0`/`unset` → 全部 **FAIL** |
+| d) 无 fail2ban / IPv6 | 新增 fail2ban `active`+sshd jail；IPv6 `::`/`[::]` 检出 | 注入 inactive/无 jail/**`"HostIp":"::"`** → 均 **FAIL** |
+
+证据：`infra/evidence/host-mutation-selftest-20261105T0010Z.txt`（`a0859bfa…`，`SELFTEST PASS` 9 类注入全被检出、exit 0）、
+合成干净态 exit 0、真实变异 `docker create -p 0.0.0.0:8899:80`（不运行）被检出后删除；before `a636fa82…`、after `fadadc31…`。
+→ **AC-3 达成**（0.0.0.0/:: 绑定、非 compose、ufw 多放行、ufw 来源、缺 env、fail2ban、弱 sshd 均有失败证据）；**AC-5 基本达成**
+（未知/不清与漂移分开；仍残留 R-⑤7-1：三个 marker env 全缺的应用容器被跳过，建议 compose service/镜像白名单强制）。
+
+| AC | 状态 |
+|---|---|
+| AC-1（清单入库） | ✅ 方向达成（`host-baseline.expected.env` 在 git；`EXPECTED_SSHD_MAXAUTHtRIES` 命名仍待 A13 统一） |
+| AC-2（只读全覆盖） | ✅ 达成（sshd/ufw/通配监听/PortBindings/restart/env/fail2ban） |
+| AC-3（变异自证） | ✅ 达成（见上，含真实变异） |
+| AC-4（接发布前检查） | ❌ 未达成（尚未接 release-gate 脚本/值班流程） |
+| AC-5（fail 语义） | ✅ 基本达成（残留 R-⑤7-1） |
+| AC-6（容器残留清理） | ✅ 主机侧达成（ms-nginx 删除、无 `0.0.0.0` 残留）；审计已能持续检出 |
+| AC-7（SG 证据） | ❌ 未达成（用户未出 JSON/截图/书面；⑤-5 记 PARTIAL） |
+| AC-8（B 档触发条件 / A 档演练） | ❌ 未达成（**R7 文档须补「转 A 档触发条件」**：开公网入口 / 多用户 / 首个人类运维接手 / S1 上线前） |
+
+**结论**：R7 由「OPEN（部分进展）」转为「**B 档就绪**」——主机态漂移从「不可检测」变为「可检测且自证有效」；
+但基线 #11「生产只走 IaC」在 A 档完成前**仍是违反**，gate「只走 IaC」保持 BLOCKED，不得因 B 档就绪写「R7 闭环」。
+SEC-001/002 的修复仍须落清单/审计才构成 R7 闭环（A13 已把 HOST-BASELINE-01 单列为 `infra/ops/host-baseline-gaps.md`）。
 
 ## 7. 边界
 

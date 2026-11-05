@@ -9,13 +9,13 @@
 
 | ID | 标题 | 级别 | 对应 A19 residual | 闭环 owner | 状态 |
 |---|---|---|---|---|---|
-| SEC-001 | 公网 22 开放 + root 密码认证 + fail2ban 停用（1130 次爆破） | **P1 release-blocking** | R2 | H5 裁定 / A13 执行 / 云控制台归用户 | **OPEN** |
-| SEC-002 | SG+ufw 对 Internet 放行 80/8888；`ms-nginx` 保留 `0.0.0.0:80` 绑定 + htpasswd，可被 `docker start` 复活 | P2 High | R1 | A13 / 用户 SG | **OPEN** |
-| SEC-003 | 运行时审计/hold 未生效：容器 `ENTITLEMENT_AUDIT=0`/`HOLD_CHECK=0` 与 compose `1`/`1` 漂移，`audit.entitlement_events` 0 行 | P2 High | R3 | A13（重建）/ A3、A12（task-8） | **OPEN**（task-8 在追） |
+| SEC-001 | 公网 22 开放 + root 密码认证 + fail2ban 停用（1130 次爆破） | **P1 release-blocking** | R2 | H5 裁定 / A13 执行 / 云控制台归用户 | **OPEN（部分处置，见 §9）** |
+| SEC-002 | SG+ufw 对 Internet 放行 80/8888；`ms-nginx` 保留 `0.0.0.0:80` 绑定 + htpasswd，可被 `docker start` 复活 | P2 High | R1 | A13 / 用户 SG | **OPEN（主机侧已清，SG 未验；§9）** |
+| SEC-003 | 运行时审计/hold 未生效：容器 `ENTITLEMENT_AUDIT=0`/`HOLD_CHECK=0` 与 compose `1`/`1` 漂移，`audit.entitlement_events` 0 行 | P2 High | R3 | A13（重建）/ A3、A12（task-8） | **OPEN（主机侧已验；待门禁 4/6；§9）** |
 | SEC-004 | 数据面授权只在 API 层：root/docker 可直接 `psql` 读行情，绕过 403/tier | P2 High | R4 | H5（边界裁定）/ H3（权利基础） | **OPEN（已知边界）** |
 | SEC-005 | 限流桶按「源 IP=web 容器」共享且放宽到 600/120（默认 60/10），单用户可 DoS 同侪 | P3 Medium | R5 | A13 / A0（容量口径） | **OPEN** |
-| SEC-006 | 无用户身份、无访问审计、隧道可二次转发 → 技术上无法证明 tushare「仅个人查看」 | 合规事实（不定级） | R6 | H3 定性 / H5 技术边界 | **OPEN** |
-| R7 | ECS 主机态（sshd/ufw/SG/非 compose 容器）零 IaC 表达 → 基线 #11 违反 | 基线违反（单列） | A9 新发现 | A13 修法 / H5 认措辞 | **OPEN**，见 `../baselines/BL-11-R7-host-state-not-in-iac.md` |
+| SEC-006 | 无用户身份、无访问审计、隧道可二次转发 → 技术上无法证明 tushare「仅个人查看」 | 合规事实（不定级） | R6 | H3 定性 / H5 技术边界 | **OPEN（H5 已选 A 档，待实现；§9）** |
+| R7 | ECS 主机态（sshd/ufw/SG/非 compose 容器）零 IaC 表达 → 基线 #11 违反 | 基线违反（单列） | A9 新发现 | A13 修法 / H5 认措辞 | **B 档就绪、A 档未做；§9**，见 `../baselines/BL-11-R7-host-state-not-in-iac.md` |
 
 > 不在本登记内、且**不因本次复核重开**的两项：L98「④ PASS（L91 内网口径）」（口径本身成立，但须补注：PASS 是
 > 「当时无业务监听」，**网络层未拒绝**，见 SEC-002）；L99 已关闭的 P2 nginx 事件（不写「全清」，口径按 L99 台账）。
@@ -100,3 +100,22 @@ C 端门禁对数据面整体失效；且可直读 40.9h 陈旧快照。
 | manifest | `infra/evidence/evidence-manifest.json` | sha256/bytes 外置登记 |
 | compose 期望 | `tests/e2e/docker-compose.yml:110-111` | `ENTITLEMENT_HOLD_CHECK: "1"` / `ENTITLEMENT_AUDIT: "1"` |
 | 口径 | `agents/decisions.md` L91 / L98 / L99 / L100；§5 14 条基线 | 内网裁定 / ④ PASS / P2 关闭 / 合规定性 |
+
+## 9. 处置进展（2026-11-05T00:08Z，A9 只读复核 A13 证据；追加，不改上文原判定）
+
+**证据**：`infra/evidence/host-hardening-20261105T0008Z.md`（A13，H5 授权在 ECS 47.120.16.239 `heyuan` 执行）、
+`infra/evidence/host-baseline-after-20261105T0004Z.txt`、`infra/evidence/host-mutation-selftest-20261105T0010Z.txt`、
+commit `5ea7e97`（脚本修复）/`9bc29fb`（自证）。
+
+| ID | 主机侧新事实 | 结论 |
+|---|---|---|
+| SEC-001 | fail2ban 0.11.2-6 active + sshd jail（maxretry=5/findtime=10m/bantime=1h）→ ⑤-3 达成；但 `PermitRootLogin=yes`、`PasswordAuthentication=yes`、`MaxAuthTries=6`、`22/tcp ALLOW Anywhere` **均未变** | **仍 OPEN（P1 不降级）**；须按 H5 P0：具名非 root 账号 + sudo + 仅密钥 + 22 白名单后，才可复核闭环 |
+| SEC-002 | `ms-nginx` 已 `docker rm`（htpasswd 归档 `/opt/ms-nginx/htpasswd.archived-20261104T235817Z` 0600；A13 另归档 `/root/a13-archive/ms-nginx-20261105T0002Z/`）；ufw 删至仅 `22/tcp`（v4+v6）；after 审计 `PASS 通配监听仅限 22`、无 `0.0.0.0` 残留绑定 | **主机侧事实消除**；**云 SG 仍未验证**（A19 E1–E4 证 SG 仍放行 80/8888）→ 按 H5 三档证据：无 JSON/截图则 ⑤-5 PARTIAL，不写 PASS |
+| SEC-003 | e2e api 已重建：`ENTITLEMENT_AUDIT=1`/`HOLD_CHECK=1`/`TIER=internal_eval`/`APP_PROFILE=e2e`，/healthz 200；一次性容器 `a13-r3-audit`（`c_end_display`，127.0.0.1:8092）复现 hold 生命周期：quote 200 → raise_hold → 2s 内仍 200、35s 后 403+`no-store`、`/healthz entitlement_degraded=true reason=hold_active` → clear_hold 后 35s 回 200；`audit.entitlement_events` 2→5→6 行、hash 链相接、`verify_entitlement_chain()` 0 行 | **主机侧单次隔离验证 PASS**；**不自行改门禁 4/6**：须 A11/task-8 按门禁口径签（隔离栈 vs 生产栈边界须注明） |
+| SEC-004 | 路径未变（root/docker 仍是数据面控制者）；H5 已要求主机管理面 P0 具名账号 + sudo，并在威胁模型写明「该账号=数据面控制者」 | **已知边界不变**；不得写「API 门禁=数据面已保护」 |
+| SEC-005 | 未变（限流阈值/桶行为无改动） | **仍 OPEN** |
+| SEC-006 | H5 2026-11-05 已拍板：内网用户面**必须认证**，选 A 档（单用户凭据 + 反代唯一判定点 + 每请求主体 + 401 默认拒绝 + 会话≤12h 可吊销）；多人须 F1 书面授权 + H3 口径 + OIDC，之前只允许单用户 | 技术缺口**待实现**（A4/A3 实现、A11 测、A13 部署，H5 估 1–1.5 人日，11-12 前） |
+| R7 | 脚本 5 类缺陷全修（6 处 `${VAR}`、`export LC_ALL=C`、ufw From 列、env 缺失 FAIL、fail2ban、IPv6）；自证 9 类注入全 FAIL + `SELFTEST PASS` exit 0、合成干净态 exit 0、真实变异 `docker create -p 0.0.0.0:8899:80` 被检出；`infra/ops/host-baseline-gaps.md` 登记 HOST-BASELINE-01 | **B 档就绪**（AC-3/AC-5 达成，AC-5 残留 R-⑤7-1：无 marker env 的容器 env 检查静默跳过）；**A 档 IaC 未做 → 基线 #11 违反仍在**，gate「只走 IaC」保持 BLOCKED |
+
+**未变**：SEC-001 仍为 P1 release-blocking，release gate 仍 BLOCKED（⑤-1/2/4 + ⑤-5 SG + A 档 IaC）。
+**A9 未做**：未在真实主机执行任何变更/探测；以上均为对 A13 证据的完整性核对，非 A9 复测。

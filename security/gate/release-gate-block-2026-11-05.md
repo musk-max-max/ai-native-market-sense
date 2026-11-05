@@ -24,9 +24,10 @@
 2. **SEC-002 闭环**：SG/ufw 无 Internet 放行 80/8888；无未批准的 `0.0.0.0` 绑定（含 stopped 容器残留）；
    `ms-nginx` 按 L99 永久不恢复。
 3. **SEC-003 闭环**：容器重建后 `ENTITLEMENT_AUDIT=1`/`HOLD_CHECK=1`，hold 拦截与四类事件有真实证据，hash 链连续、`event_key` 幂等；
-   A11 把门禁 4/6 从 BLOCKED 改 PASS（task-8 交付）。
+   容器侧已由 A13 隔离验证达成（见 §3.1），**剩余**：A11 把门禁 4/6 从 BLOCKED 改 PASS（task-8 交付，须按门禁口径签，隔离栈证据需注明边界）。
 4. **越权用例**：EXC-HOST-01、EXC-TUNNEL-01 与既有 API 越权用例全部有可复现证据，且**通过 ⑤ 之后**才可写「越权测试全绿」。
 5. **R7 基线**：漂移检测具备变异自证（注入漂移必须 exit 1），且纳入发布前检查；SG 由用户出 JSON/截图或书面「用户负责」（explicit residual）。
+   B 档组件已具备（§3.1），**剩余** AC-4（接发布前检查）、AC-7（SG 证据）与 A 档触发条件登记。
 
 ## 3. 门禁 ⑤「主机管理面」可验证项（H5 已钉，A9 将其落成命令与判据）
 
@@ -49,6 +50,36 @@
 - ❌ **AC-5 未达标**：env 检查以「容器是否含 `ENTITLEMENT_TIER`」为开关，容器**完全缺**该 env 时静默跳过 → 输出 `RESULT PASS`（实测），正是 SEC-003 漂移的极端形态。
 - ❌ 脚本**不含 fail2ban 检查**（⑤-3 只能人工取证）。
 **在 AC-3/AC-5 修复并完成变异自证（含「缺 env」「ufw 来源 Anywhere」两类注入）前，⑤-7 按 FAIL 计**，不得用该脚本输出作为 ⑤-6 的通过证据。
+
+### 3.1 复核更新（2026-11-05T00:08Z，A13 `5ea7e97` 修复 + `9bc29fb` 自证后）
+
+上述 4 项缺陷 **A13 已全部修复，A9 只读复核确认**：① 6 处 `$VAR` 全改 `${VAR}`，并在 line 91 `export LC_ALL=C`
+消除 bash 3.2 全角字符解析崩溃（A9 最小复现：C locale 下不触发）；② `ufw status numbered` 解析 `From` 列，22
+`Anywhere` 判 FAIL，新增 `EXPECTED_SSH_ALLOWED_FROM`（当前空 → fail-closed）；③ env 检查改为「带
+`APP_PROFILE|E2E_MODE|ENTITLEMENT_TIER` 的容器强制 AUDIT=1/HOLD=1，缺失记 `unset` FAIL」；④ 新增 fail2ban
+`active` + sshd jail 检查；⑤ 新增 IPv6 `::` 绑定/监听检出。证据 `infra/evidence/host-mutation-selftest-20261105T0010Z.txt`
+（sha `a0859bfa…`）：注入 0.0.0.0/:: 通配、非 compose、ufw 多放行、22 Anywhere、缺 env、fail2ban inactive、弱 sshd
+→ 全部 FAIL 且 `SELFTEST PASS` exit 0；合成干净态 sh/dash 均 exit 0；真实变异 `docker create -p 0.0.0.0:8899:80`（不运行）
+被检出后删除。**⑤-7 判 PASS**（残留 R-⑤7-1，见下）。
+
+| ⑤ 项 | 现状（after `infra/evidence/host-baseline-after-20261105T0004Z.txt`，主机 heyuan） | 判定 |
+|---|---|---|
+| ⑤-1 root 禁登 | `PermitRootLogin=yes` | **FAIL** |
+| ⑤-2 密码认证 | `PasswordAuthentication=yes`、`MaxAuthTries=6` | **FAIL** |
+| ⑤-3 fail2ban | active，sshd jail 存在（maxretry=5/findtime=10m/bantime=1h；`ignoreip` 仅 A13 出口 IP） | **PASS**（R-⑤3-1：H5/Lead/用户 CIDR 待补） |
+| ⑤-4 22 白名单 | `22/tcp ALLOW Anywhere`(v4+v6) | **FAIL**（待用户 CIDR） |
+| ⑤-5 无 Internet 放行 80/8888 | ufw 仅剩 22 → PASS；**云 SG 无法从 ECS 验证**（A19 E1–E4 证 SG 仍放行 80/8888） | **PARTIAL**（H5 三档：取得 SG JSON/截图才 PASS） |
+| ⑤-6 无未批准 0.0.0.0 绑定 | 通配监听仅 22；`ms-nginx` 已 `docker rm` + htpasswd 归档；stopped 容器无 `0.0.0.0` 残留（before `a636fa82…` → after `fadadc31…`） | **PASS** |
+| ⑤-7 漂移检查可失败 | 自证 + 真实变异 + 合成干净态 exit 0 | **PASS**（残留 R-⑤7-1） |
+
+**R-⑤7-1（AC-5 残留，不改变 ⑤-7 判定但须跟踪）**：env 强制以容器存在 `APP_PROFILE`/`E2E_MODE`/`ENTITLEMENT_TIER`
+任一为开关；三个 env 全缺的「应用容器」会被静默跳过（A9 `/tmp` 假态实测输出 `RESULT PASS`）。极端情况（compose 把三个
+env 全删）仍不可见。建议 A13 按 compose service 名/镜像白名单强制，或加 `EXPECTED_ENTITLEMENT_CONTAINERS` 清单。
+补齐前，任何「env 漂移已全覆盖」的表述不成立。
+
+**结论不变**：⑤ 整体仍 **FAIL**（⑤-1/2/4 与 ⑤-5 的 SG 部分未闭），release gate 仍 BLOCKED；但 ⑤-3/⑤-6/⑤-7 已从
+「无证据」变为「有可复现证据」，SEC-002/SEC-003 的主机侧事实已消除（见 `../findings/register.md` §9）。
+不得因 ⑤-6/⑤-7 PASS 写「主机已安全」。
 
 ## 4. 为何不写「越权测试全绿」
 
