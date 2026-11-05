@@ -1,4 +1,4 @@
-"""golden dataset 门禁：24 条正例全绿、9 条负例必须红灯阻断（task-6 验收）。"""
+"""golden dataset 门禁：37 条正例全绿、12 条负例必须红灯阻断（task-6 验收）。"""
 
 from __future__ import annotations
 
@@ -28,6 +28,9 @@ BOUNDARY_CASES = {
     "G32": "新股首日无涨跌幅（NULL）",
     "G33": "RES-05 2026-07 后 ST 10% 档候选重算",
     "G34": "RES-05 北交所 920xxx 分档取整（截断）",
+    "G35": "科创新股上市第 2 日 +30%：前 5 日无涨跌幅 → NULL",
+    "G36": "创业板 2021 新股第 3 日 +30%：前 5 日无涨跌幅 → NULL",
+    "G37": "主板 2023-04-10 新股第 2 日 +15%：前 5 日无涨跌幅 → NULL",
 }
 
 
@@ -35,12 +38,12 @@ def _results():
     return {r.case_id: r for r in run_fixture(FIXTURE)}
 
 
-def test_fixture_has_34_positive_and_9_negative():
+def test_fixture_has_37_positive_and_12_negative():
     cases = load_fixture(FIXTURE)["cases"]
     positive = [c for c in cases if c["id"].startswith("G")]
     negative = [c for c in cases if c["id"].startswith("N")]
-    assert len(positive) == 34, f"golden 正例应为 34 条，实际 {len(positive)}"
-    assert len(negative) == 9, f"golden 负例应为 9 条，实际 {len(negative)}"
+    assert len(positive) == 37, f"golden 正例应为 37 条，实际 {len(positive)}"
+    assert len(negative) == 12, f"golden 负例应为 12 条，实际 {len(negative)}"
 
 
 def test_all_positive_cases_green_and_not_blocked():
@@ -56,7 +59,7 @@ def test_all_positive_cases_green_and_not_blocked():
 def test_all_negative_cases_block_downstream():
     results = _results()
     negative = {cid: r for cid, r in results.items() if cid.startswith("N")}
-    assert len(negative) == 9
+    assert len(negative) == 12
     # N07 是唯一"告警不阻断"的负例：缺 prev_close 只 warn，其余必须 black+blocked
     for case_id, result in negative.items():
         assert result.passed, (case_id, result.failures)

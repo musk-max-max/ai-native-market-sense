@@ -55,7 +55,7 @@ RULE_META: dict[str, tuple[str, str]] = {
     "RES-02": ("business", "研究指标量纲：仅 DWD canonical 字段；金额/量/市值非负，百分比 |x| ≤ 1000"),
     "RES-03": ("consistency", "研究数据 instrument_id 必须存在于 dim_instrument（指数/两融豁免；非 A 股命名空间显式豁免并计数）"),
     "RES-04": ("completeness", "研究批次 as_of 满足各 endpoint 的及时性阈值（默认交易日 15:00；hk_hold T+1 15:00）且 fetched_at ≥ as_of"),
-    "RES-05": ("business", "涨跌停原始价自洽且 limit_pct 交叉校验：previous_close>0、up_limit > previous_close > down_limit；limit_pct 非空时必须属于 {5,10,20,30}，按声明档重算 round_half_up(prev×(1±pct/100),2) 后与 up_limit/down_limit 精确比对（±0.005 仅吸收浮点；H4 口径，A2 不派生，只独立验证派生档位）"),
+    "RES-05": ("business", "涨跌停原始价自洽且 limit_pct 交叉校验：previous_close>0、up_limit > previous_close > down_limit；limit_pct 非空时必须属于 {5,10,20,30}，按声明档重算后与 up_limit/down_limit 精确比对（按市场+报价单位取整：沪深 A half-up、北交所 A 涨停 floor/跌停 ceil、沪 B 0.001、深 B 0.01，均按交易所+报价单位；容差仅吸收浮点；H4 口径，A2 不派生，只独立验证派生档位）"),
     "RES-06": ("business", "财务指标公告时点：announced_at ≥ report_end_date，且不晚于批次 as_of（防未来函数）；announced_at 为 null 按 blocker（无公告日无法 as-of join，不进可用数据）"),
     "RES-07": ("consistency", "行业分类树自洽：level∈{1,2,3}；level>1 必须有 parent_code、level=1 不得有；parent 必须在同一 snapshot 存在且 level(parent)=level(child)-1；链≤2 跳到 L1 且无环（每链唯一根）"),
     "RES-08": ("consistency", "成分时点自洽：in_date ≤ snapshot_date；out_date ≥ in_date；is_new=Y 时 out_date 必须为空；is_new=N 时 out_date 必须非空"),
@@ -187,11 +187,12 @@ def board_limit_pct(instrument: dict[str, Any], trade_date: date, config: dict[s
     if listed_at is not None and listed_at == trade_date:
         return None  # 首日无涨跌幅；新股上市初期特殊档 P1 处理
     if board == "main":
+        # S 股规则优先于 ST：历史上 S*ST 名称同时命中，S 股未被 2026-07-06 改革覆盖，仍 5%。
+        if is_s_share(instrument):
+            return Decimal(str(config.get("s_limit_pct", 5.0)))
         if is_st(instrument):
             start = _regime_date(config, "main_st_10pct_from", "2026-07-06")
             return Decimal("10.0") if trade_date >= start else Decimal(str(config["st_limit_pct"]))
-        if is_s_share(instrument):
-            return Decimal(str(config.get("s_limit_pct", 5.0)))
         return Decimal(str(config["board_limit_pct"]["main"]))
     if board == "gem":
         start = _regime_date(config, "gem_20pct_from", "2020-08-24")
@@ -267,9 +268,17 @@ def run_quality_checks(state: DwdState, config: dict[str, Any] | None = None) ->
         c.bump(issue.rule_id)
         c.flag(issue.rule_id, issue.instrument_id, issue.trade_date, issue.detail, severity=issue.severity)
 
+    trade_seq: dict[tuple[str, date], int] = {}
+    seq_rows: dict[str, list[date]] = {}
+    for (iid, td) in state.bars:
+        seq_rows.setdefault(iid, []).append(td)
+    for iid, dates in seq_rows.items():
+        for seq, td in enumerate(sorted(dates), start=1):
+            trade_seq[(iid, td)] = seq
+
     for bar in state.bars.values():
         _check_bar_structure(c, bar)
-        _check_bar_business(c, state, bar, config)
+        _check_bar_business(c, state, bar, config, trade_seq[(bar["instrument_id"], bar["trade_date"])])
         _check_bar_completeness(c, bar)
         c.bump("STRUCT-06")
         if state.factor_for(bar["instrument_id"], bar["trade_date"]) is None:
@@ -370,7 +379,26 @@ def _check_factor(c: _Collector, state: DwdState, factor: dict[str, Any]) -> Non
         c.flag("STRUCT-06", iid, td, f"复权因子必须 > 0: {factor['factor']}")
 
 
-def _check_bar_business(c: _Collector, state: DwdState, bar: dict[str, Any], config: dict[str, Any]) -> None:
+def _is_ipo_no_limit(instrument: dict[str, Any], trade_date: date, trade_seq: int, config: dict[str, Any]) -> bool:
+    """注册制新股上市后前 5 个交易日无涨跌幅（科创板/创业板 2020-08-24 起/主板 2023-04-10 起）。"""
+    listed_at = instrument.get("listed_at")
+    if listed_at is None:
+        return False
+    policy = config.get("ipo_no_limit", {})
+    days = int(policy.get("trading_days", 5))
+    if trade_seq > days:
+        return False
+    board = instrument.get("board")
+    if board == "star":
+        return listed_at >= date.fromisoformat(policy.get("star_from", "2019-07-22"))
+    if board == "gem":
+        return listed_at >= date.fromisoformat(policy.get("gem_from", "2020-08-24"))
+    if board == "main":
+        return listed_at >= date.fromisoformat(policy.get("main_from", "2023-04-10"))
+    return False
+
+
+def _check_bar_business(c: _Collector, state: DwdState, bar: dict[str, Any], config: dict[str, Any], trade_seq: int) -> None:
     iid, td = bar["instrument_id"], bar["trade_date"]
     instrument = state.instruments.get(iid)
     if instrument is None:
@@ -388,6 +416,13 @@ def _check_bar_business(c: _Collector, state: DwdState, bar: dict[str, Any], con
             td,
             f"未知板块 {board!r}（允许 {sorted(config['board_limit_pct'])}）：fail-closed，不做涨跌停判定",
         )
+        return
+
+    # 上市日缺失：无法判首日/上市初期（M04 同样 fail-closed 输出 NULL），不做涨跌停判定。
+    if instrument.get("listed_at") is None:
+        return
+    # 注册制新股上市后前 5 个交易日无涨跌幅（与 M04 同口径）：不判，避免把无涨跌幅日误标成违规。
+    if _is_ipo_no_limit(instrument, td, trade_seq, config):
         return
 
     # L80：ST 判定只有"当前名称快照"，历史交易日未还原；不许静默，warn 标出（不拖绿、不阻断）。
@@ -637,9 +672,10 @@ def _check_research_row(
 def _expected_limit_prices(iid: str, prev: Decimal, limit_pct: Decimal) -> tuple[Decimal, Decimal, Decimal]:
     """按交易所取整口径重算涨跌停价，返回 (up, down, tolerance)。
 
-    A1 受控样本证据（2026-11-05）：SSE/SZSE 0.01 元 half-up；北交所 920xxx 涨停向下截断、
-    跌停向上截断（0.01 元）；北交所 900xxx 为 0.001 元报价单位、half-up。
-    容差只吸收十进制/浮点边界，不放宽分档（±0.005 / ±0.0005）。
+    按「市场 + 报价单位」取整：沪深 A 股 0.01 元 half-up；北交所 A 股（43/83/87/88/92）
+    涨停向下截断、跌停向上截断（0.01 元）；沪市 B 股 900xxx 为 0.001 美元 half-up、
+    深市 B 股 200xxx 为 0.01 港元 half-up（H4 2026-11-05 已签，35/35 命中）。容差只吸收十进制/浮点边界
+    （±0.005 / ±0.0005），不放宽分档。
     """
     code = iid.split(":", 1)[1] if ":" in iid else ""
     bse_prefixes = ("43", "83", "87", "88", "92")
@@ -649,7 +685,7 @@ def _expected_limit_prices(iid: str, prev: Decimal, limit_pct: Decimal) -> tuple
         down = (prev * (1 - limit_pct / 100)).quantize(Decimal("0.01"), rounding=ROUND_UP)
         return up, down, Decimal("0.005")
     if iid.startswith("SSE:") and code.startswith("900"):
-        # 沪市 B 股：0.001 美元报价单位，half-up（H4 规则未签，实现先行；测试标 pending-clarification）。
+        # 沪市 B 股：0.001 美元报价单位，half-up（H4 2026-11-05 已签，41/41 命中）。
         up = (prev * (1 + limit_pct / 100)).quantize(Decimal("0.001"), rounding=ROUND_HALF_UP)
         down = (prev * (1 - limit_pct / 100)).quantize(Decimal("0.001"), rounding=ROUND_HALF_UP)
         return up, down, Decimal("0.0005")

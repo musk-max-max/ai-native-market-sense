@@ -1,7 +1,7 @@
 meta:
   version: 1
   owner: A2
-  description: P0 竖切片 golden dataset：24 条正例（含 ST/停牌/除权除息/涨跌停/新股首日/ST 恰好 5%/ST 限价取整边界/低价股 limit_pct 候选档重算）+ 9 条负例；由 warehouse.golden_runner 走 ODS→DWD→质量 全链路回归。
+  description: P0 竖切片 golden dataset：37 条正例（含 ST/停牌/除权除息/涨跌停/新股首日/注册制新股前 5 日无涨跌幅/ST 恰好 5%/ST 限价取整边界/低价股 limit_pct 候选档重算）+ 12 条负例；由 warehouse.golden_runner 走 ODS→DWD→质量 全链路回归。
   ods_format: warehouse/README.md §ODS 交换格式 v1
   decision_refs:
   - H4-D6
@@ -1596,3 +1596,322 @@ cases:
     grade: green
     blocked: false
     violations: []
+
+- id: G35
+  title: 科创新股上市第 2 日 +30%：无涨跌幅（trade_seq=2）→ limit_status=NULL，不得错标 limit_up
+  instrument:
+    instrument_id: SSE:688001
+    exchange: SSE
+    code: '688001'
+    name: 科创示例
+    board: star
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '2026-03-02'
+  as_of: '2026-03-03T20:05:00+08:00'
+  fetched_at: '2026-03-03T20:06:00+08:00'
+  bars:
+  - trade_date: '2026-03-02'
+    open: '9.50'
+    high: '10.00'
+    low: '9.50'
+    close: '10.00'
+    volume: '1000000'
+    amount: '10000000.00'
+  - trade_date: '2026-03-03'
+    open: '11.00'
+    high: '13.00'
+    low: '11.00'
+    close: '13.00'
+    volume: '1000000'
+    amount: '13000000.00'
+    prev_close: '10.00'
+  expect:
+    grade: green
+    blocked: false
+    violations: []
+
+
+- id: G36
+  title: 创业板 2021 新股上市第 3 日 +30%：注册制前 5 日无涨跌幅 → NULL
+  instrument:
+    instrument_id: SZSE:300901
+    exchange: SZSE
+    code: '300901'
+    name: 创业示例
+    board: gem
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '2021-06-01'
+  as_of: '2021-06-03T20:05:00+08:00'
+  fetched_at: '2021-06-03T20:06:00+08:00'
+  bars:
+  - trade_date: '2021-06-01'
+    open: '9.50'
+    high: '10.00'
+    low: '9.50'
+    close: '10.00'
+    volume: '1000000'
+    amount: '10000000.00'
+  - trade_date: '2021-06-02'
+    open: '10.20'
+    high: '10.60'
+    low: '10.20'
+    close: '10.50'
+    volume: '1000000'
+    amount: '10500000.00'
+    prev_close: '10.00'
+  - trade_date: '2021-06-03'
+    open: '11.00'
+    high: '13.65'
+    low: '11.00'
+    close: '13.65'
+    volume: '1000000'
+    amount: '13650000.00'
+    prev_close: '10.50'
+  expect:
+    grade: green
+    blocked: false
+    violations: []
+
+
+- id: G37
+  title: 主板全面注册制首批 2023-04-10 上市，第 2 日 +15%：前 5 日无涨跌幅 → NULL
+  instrument:
+    instrument_id: SSE:603001
+    exchange: SSE
+    code: '603001'
+    name: 主板新股示例
+    board: main
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '2023-04-10'
+  as_of: '2023-04-11T20:05:00+08:00'
+  fetched_at: '2023-04-11T20:06:00+08:00'
+  bars:
+  - trade_date: '2023-04-10'
+    open: '9.50'
+    high: '10.00'
+    low: '9.50'
+    close: '10.00'
+    volume: '1000000'
+    amount: '10000000.00'
+  - trade_date: '2023-04-11'
+    open: '10.50'
+    high: '11.50'
+    low: '10.50'
+    close: '11.50'
+    volume: '1000000'
+    amount: '11500000.00'
+    prev_close: '10.00'
+  expect:
+    grade: green
+    blocked: false
+    violations: []
+
+
+- id: N10
+  title: 科创新股上市第 6 日 +25% 超 20% 档：前 5 日豁免结束，第 6 日恢复正常判定 → BIZ-01 blocker
+  instrument:
+    instrument_id: SSE:688002
+    exchange: SSE
+    code: '688002'
+    name: 科创示例
+    board: star
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '2026-05-04'
+  as_of: '2026-05-11T20:05:00+08:00'
+  fetched_at: '2026-05-11T20:06:00+08:00'
+  bars:
+  - trade_date: '2026-05-04'
+    open: '9.50'
+    high: '10.00'
+    low: '9.50'
+    close: '10.00'
+    volume: '1000000'
+    amount: '10000000.00'
+  - trade_date: '2026-05-05'
+    open: '10.00'
+    high: '10.20'
+    low: '9.90'
+    close: '10.10'
+    volume: '1000000'
+    amount: '10100000.00'
+    prev_close: '10.00'
+  - trade_date: '2026-05-06'
+    open: '10.10'
+    high: '10.30'
+    low: '10.10'
+    close: '10.20'
+    volume: '1000000'
+    amount: '10200000.00'
+    prev_close: '10.10'
+  - trade_date: '2026-05-07'
+    open: '10.20'
+    high: '10.30'
+    low: '10.10'
+    close: '10.10'
+    volume: '1000000'
+    amount: '10100000.00'
+    prev_close: '10.20'
+  - trade_date: '2026-05-08'
+    open: '10.10'
+    high: '10.10'
+    low: '10.00'
+    close: '10.00'
+    volume: '1000000'
+    amount: '10000000.00'
+    prev_close: '10.10'
+  - trade_date: '2026-05-11'
+    open: '11.50'
+    high: '12.60'
+    low: '11.50'
+    close: '12.50'
+    volume: '1000000'
+    amount: '12500000.00'
+    prev_close: '10.00'
+  expect:
+    grade: black
+    blocked: true
+    violations: ["BIZ-01"]
+
+
+- id: N11
+  title: 创业板 2021 新股上市第 6 日 +25% 超 20% 档：豁免结束 → BIZ-01 blocker
+  instrument:
+    instrument_id: SZSE:300902
+    exchange: SZSE
+    code: '300902'
+    name: 创业示例
+    board: gem
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '2021-06-01'
+  as_of: '2021-06-08T20:05:00+08:00'
+  fetched_at: '2021-06-08T20:06:00+08:00'
+  bars:
+  - trade_date: '2021-06-01'
+    open: '9.50'
+    high: '10.00'
+    low: '9.50'
+    close: '10.00'
+    volume: '1000000'
+    amount: '10000000.00'
+  - trade_date: '2021-06-02'
+    open: '10.00'
+    high: '10.20'
+    low: '10.00'
+    close: '10.10'
+    volume: '1000000'
+    amount: '10100000.00'
+    prev_close: '10.00'
+  - trade_date: '2021-06-03'
+    open: '10.10'
+    high: '10.30'
+    low: '10.10'
+    close: '10.20'
+    volume: '1000000'
+    amount: '10200000.00'
+    prev_close: '10.10'
+  - trade_date: '2021-06-04'
+    open: '10.20'
+    high: '10.30'
+    low: '10.10'
+    close: '10.10'
+    volume: '1000000'
+    amount: '10100000.00'
+    prev_close: '10.20'
+  - trade_date: '2021-06-07'
+    open: '10.10'
+    high: '10.10'
+    low: '10.00'
+    close: '10.00'
+    volume: '1000000'
+    amount: '10000000.00'
+    prev_close: '10.10'
+  - trade_date: '2021-06-08'
+    open: '11.50'
+    high: '12.60'
+    low: '11.50'
+    close: '12.50'
+    volume: '1000000'
+    amount: '12500000.00'
+    prev_close: '10.00'
+  expect:
+    grade: black
+    blocked: true
+    violations: ["BIZ-01"]
+
+
+- id: N12
+  title: 主板 2023-04-10 新股上市第 6 日 +12% 超 10% 档：豁免结束 → BIZ-01 blocker
+  instrument:
+    instrument_id: SSE:603002
+    exchange: SSE
+    code: '603002'
+    name: 主板新股示例
+    board: main
+    security_type: stock
+    list_status: listed
+    lot_size: 100
+    listed_at: '2023-04-10'
+  as_of: '2023-04-17T20:05:00+08:00'
+  fetched_at: '2023-04-17T20:06:00+08:00'
+  bars:
+  - trade_date: '2023-04-10'
+    open: '9.50'
+    high: '10.00'
+    low: '9.50'
+    close: '10.00'
+    volume: '1000000'
+    amount: '10000000.00'
+  - trade_date: '2023-04-11'
+    open: '10.00'
+    high: '10.10'
+    low: '10.00'
+    close: '10.05'
+    volume: '1000000'
+    amount: '10050000.00'
+    prev_close: '10.00'
+  - trade_date: '2023-04-12'
+    open: '10.05'
+    high: '10.10'
+    low: '10.00'
+    close: '10.02'
+    volume: '1000000'
+    amount: '10020000.00'
+    prev_close: '10.05'
+  - trade_date: '2023-04-13'
+    open: '10.02'
+    high: '10.05'
+    low: '9.98'
+    close: '10.00'
+    volume: '1000000'
+    amount: '10000000.00'
+    prev_close: '10.02'
+  - trade_date: '2023-04-14'
+    open: '10.00'
+    high: '10.02'
+    low: '9.98'
+    close: '10.00'
+    volume: '1000000'
+    amount: '10000000.00'
+    prev_close: '10.00'
+  - trade_date: '2023-04-17'
+    open: '10.80'
+    high: '11.20'
+    low: '10.80'
+    close: '11.20'
+    volume: '1000000'
+    amount: '11200000.00'
+    prev_close: '10.00'
+  expect:
+    grade: black
+    blocked: true
+    violations: ["BIZ-01"]

@@ -12,7 +12,7 @@
 
 | 约定 | 说明 |
 | --- | --- |
-| 单一文件 | `p0_bars20.yaml`（文件名保留历史，现含 34 正例 + 9 负例；**不改名**，外部引用已固定） |
+| 单一文件 | `p0_bars20.yaml`（文件名保留历史，现含 37 正例 + 12 负例；**不改名**，外部引用已固定） |
 | 用例 id | `G01`…`G24` = 正例（必须 green、score=100、不被阻断）；`N01`…`N09` = 负例（必须按 `expect` 精确命中） |
 | 边界标记 | 正例中 ST / 停牌 / 除权除息 / 涨跌停 / 新股首日 / ST 恰好 5% / ST 限价取整 等边界在 `title` 写明，`warehouse/tests/test_golden.py::BOUNDARY_CASES` 登记 |
 | 编号只增 | 不回收编号；删条目不删语义，用新编号覆盖场景 |
@@ -66,7 +66,7 @@
 ## 门禁命令
 
 ```bash
-python3 -m warehouse.pipeline --golden data/golden/p0_bars20.yaml  # 期望 43/43 通过
+python3 -m warehouse.pipeline --golden data/golden/p0_bars20.yaml  # 期望 49/49 通过
 python3 -m pytest warehouse/tests -q                              # 含 golden 门禁测试
 ```
 

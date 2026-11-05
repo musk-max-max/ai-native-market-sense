@@ -1,5 +1,5 @@
 {
-  "version": 4,
+  "version": 5,
   "weights": {
     "struct": 0.2,
     "business": 0.3,
@@ -114,7 +114,7 @@
     "main"
   ],
   "limit_tolerance_pp": 0.5,
-  "ruleset_note": "v4（2026-11-05）：M04 改为时点规则（主板 ST 2026-07-06 起 10%、创业板 2020-08-24 起 20%、北交所 2021-11-15 前 NULL、S 股 5%、首日 NULL）；规则条数不变（23），before/after 见 docs/metrics/P0-metrics.md §9，待 H4 重签 M04 行。",
+  "ruleset_note": "v5（2026-11-05）：M04 加注册制新股上市前 5 交易日无涨跌幅（创/科/主板注册制起点）+ S 股优先；BIZ-01 与 M04 同步；规则条数不变。",
   "research_as_of": {
     "note": "RES-04 per-endpoint as_of 阈值（只对含 trade_date 的日频 endpoint 生效）：A 股研究数据当日 15:00；hk_hold 北向持股 T+1 披露，次日 15:00；index_daily 指数收盘当日 15:00；stk_limit 当日 15:00。财报/行业快照无 trade_date，时点校验由 RES-06/RES-08 承担。offset_days 相对 trade_date。",
     "default": {
@@ -161,5 +161,12 @@
     "note": "M04 时点规则：主板 ST/*ST 2026-07-06 起 10%（之前 5%）；创业板 2020-08-24 起 20%（之前 10%）；科创板 20%；北交所 2021-11-15 起 30%，更早一律 NULL（不猜精选层规则）；首日（trade_date==listed_at）无涨跌幅→NULL；主板 S 股（非 ST）5%；科创板 2019-07-22 开板前不存在（NULL）",
     "star_open_from": "2019-07-22"
   },
-  "s_limit_pct": 5.0
+  "s_limit_pct": 5.0,
+  "ipo_no_limit": {
+    "trading_days": 5,
+    "star_from": "2019-07-22",
+    "gem_from": "2020-08-24",
+    "main_from": "2023-04-10",
+    "note": "注册制新股上市后前 5 个交易日无涨跌幅：科创板 listed_at>=2019-07-22、创业板 listed_at>=2020-08-24、主板 listed_at>=2023-04-10；首日由 trade_date=listed_at 覆盖；trade_seq 按已加载全历史 bar 排行号（缺 bar 近似）"
+  }
 }

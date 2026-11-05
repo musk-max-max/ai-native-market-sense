@@ -501,13 +501,13 @@ def test_res_05_bse_920_half_up_would_be_wrong():
     assert "RES-05" in _rules(report)
 
 
-@pytest.mark.skip(reason="沪市 B 股 900xxx 0.001 报价单位规则待 H4/A1 澄清（未签）")
+# H4 2026-11-05 已签：沪市 B 股 900xxx 0.001 美元 half-up（41/41 命中），按「交易所+报价单位」启用。
 def test_res_05_sse_b_share_3dp_rounding():  # pragma: no cover
-    row = _stk_row("1.234", "1.358", "1.111", "10", iid="SSE:900901", exchange="SSE")
+    row = _stk_row("1.234", "1.357", "1.111", "10", iid="SSE:900901", exchange="SSE")
     assert "RES-05" not in _rules(_quality(stk=[row]))
 
 
-@pytest.mark.skip(reason="深市 B 股 200xxx 0.01 港元报价单位规则待 H4/A1 澄清（未签）")
+# H4 2026-11-05 已签：深市 B 股 200xxx 0.01 港元 half-up（35/35 命中），按「交易所+报价单位」启用。
 def test_res_05_szse_b_share_rounding():  # pragma: no cover
     row = _stk_row("1.23", "1.35", "1.11", "10", iid="SZSE:200002", exchange="SZSE")
     assert "RES-05" not in _rules(_quality(stk=[row]))

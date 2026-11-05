@@ -166,3 +166,33 @@ def test_st_same_day_bar_has_no_biz03(tmp_path):
     bars = [bar_row(trade_date=DAYS[-1], prev_close="10.30")]
     report = run_quality_checks(_state(tmp_path, instrument=instrument_row(name="ST测试"), bars=bars))
     assert not [v for r in report.results for v in r.violations if v.rule_id == "BIZ-03"]
+
+
+def test_ipo_first_5_days_no_limit_skipped(tmp_path):
+    # 科创新股上市第 2 日 +30%：无涨跌幅，BIZ-01 不得误判涨停；第 6 日恢复正常判定。
+    instrument = instrument_row("SSE:688001", board="star", listed_at="2026-05-04")
+    bars = [
+        bar_row(trade_date="2026-05-04", instrument_id="SSE:688001", prev_close=None, close="10.00", high="10.00", low="9.50", open="9.50"),
+        bar_row(trade_date="2026-05-05", instrument_id="SSE:688001", prev_close="10.00", close="13.00", high="13.00", low="11.00", open="11.00"),
+    ]
+    report = run_quality_checks(_state(tmp_path, instrument=instrument, bars=bars))
+    assert "BIZ-01" not in {r.rule_id for r in report.results if r.violations}
+
+    day6 = [
+        bar_row(trade_date="2026-05-04", instrument_id="SSE:688001", prev_close=None, close="10.00", high="10.00", low="9.50", open="9.50"),
+        bar_row(trade_date="2026-05-05", instrument_id="SSE:688001", prev_close="10.00", close="10.10", high="10.20", low="10.00", open="10.00"),
+        bar_row(trade_date="2026-05-06", instrument_id="SSE:688001", prev_close="10.10", close="10.20", high="10.30", low="10.10", open="10.10"),
+        bar_row(trade_date="2026-05-07", instrument_id="SSE:688001", prev_close="10.20", close="10.10", high="10.30", low="10.10", open="10.20"),
+        bar_row(trade_date="2026-05-08", instrument_id="SSE:688001", prev_close="10.10", close="10.00", high="10.10", low="10.00", open="10.10"),
+        bar_row(trade_date="2026-05-11", instrument_id="SSE:688001", prev_close="10.00", close="12.50", high="12.50", low="11.50", open="11.50"),
+    ]
+    report6 = run_quality_checks(_state(tmp_path / "d6", instrument=instrument, bars=day6))
+    assert "BIZ-01" in {v.rule_id for v in report6.blocker_violations}
+
+
+def test_listed_at_missing_skips_limit_check_fail_closed(tmp_path):
+    # listed_at 缺失：无法判首日/上市初期 → BIZ-01 不做涨跌停判定（M04 同口径 NULL）。
+    instrument = instrument_row("SSE:600900", listed_at=None)
+    bars = [bar_row(trade_date=DAYS[-1], instrument_id="SSE:600900", prev_close="10.00", close="11.10", high="11.10", low="10.00", open="10.10")]
+    report = run_quality_checks(_state(tmp_path, instrument=instrument, bars=bars))
+    assert "BIZ-01" not in {r.rule_id for r in report.results if r.violations}
