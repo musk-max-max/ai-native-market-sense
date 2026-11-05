@@ -500,3 +500,6 @@ ORDER BY trade_date;
 11. **BSE `market_segment` 回补验收（L124①，H4 2026-11-05）**：`bar.v1` 的 `market_segment` 只在
     `BSE:` 且 `trade_date < 2021-11-15` 出现、唯一值 `neeq_select`；loader fail-closed。20 年回补完成后
     按「BSE 2021-11-15 前行 100% 带标、无一行漏标」核对；该字段只在 A2 内部 canonical/DWD，不进 C 端契约。
+    **存量 ODS 核查（2026-11-05）**：扫描 `services/ingest/var/**` 全部 `bar.v1` 批次共 6 行，BSE 2021-11-15 前
+    老行 **0 行**，故回补可直接重放。若未来重放含上线前采集的旧行（无 `market_segment`），loader 一律拒载、
+    **不给历史行开豁免**——必须重新抓取/补标后重放（A12 replay 同样 fail-closed）。
