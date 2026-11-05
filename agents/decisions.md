@@ -1382,3 +1382,18 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 - **Lead 裁定 ③ 北交所取整异常挂起待 A1 三组假设验证**：A1 报北交所 920xxx 涨停向下截断/跌停向上截断（如 prev 1.26 对不上交易所 17.62/9.50）。可能真实北交所有独立取整规则（非 half-up），也可能是 mirror 归一差异。**不写死、不为凑命中率放宽容差**；A1 拿全部 920xxx 样本跑三组取整假设的命中率，命中率数据出来再定。取整规则未定前北交所行 `limit_pct` 记 null（不猜）。
 - **A1/A2 协同约定**：字段或分档变更先发 schema + 样本；A2 先跑读入（11 研究 schema）与质量回归再确认。分档调整只动 A1 `research.py` 派生层，ODS 行形状与 `limit_pct_source` 语义不变，A2 质量规则/契约无需改。
 - **Open**：① H4 结合"mirror vs 官方对比"裁决 stk_limit/fina/index 三表是否摘 provisional（不因 ST 10% 单点通过全表摘）② A1 北交所取整三组假设命中率 ③ 官方 tushare token（mirror vs 官方同参数对比，Lead 已多次请用户，用户未给）④ F1 台账"取数路径 mirror"独立事实已记本条，11-12 授权回复须与取数路径分开表述
+
+### L119 — M04 已签指标静态 limit_pct 规则回补错判（与 L118 mirror 分开记：数据源是否官方 vs 涨跌幅规则随时点变）
+- **触发**：Lead 记 L118 更正「主板 ST 10% 是现行官方规则」后，H4（m06473）独立搜到同样结论（[中国证券网](https://www.cnstock.com/commonDetail/460509)、[证券时报](https://stcn.com/article/detail/3998201.html)、[证监会图解](https://www.csrc.gov.cn/shenzhen/c105614/c7668864/content.shtml)）并采信、撤回"主板 ST 现行 5%"。H4 随即指出这条更正**炸出已签指标 M04 的 bug**。
+- **bug 本质**：`warehouse/metrics/m04_limit_status.sql` 的 `limit_pct` CASE 是**静态规则、无生效日**——`main AND name LIKE 'ST%'→5.0`（对所有 trade_date 生效）/ `main→10.0` / `gem,star→20.0` / `bse→30.0`。20 年回补会大面积错判：①主板 ST 在 **2026-07-06 之后**应 10% 却算 5%；②创业板在 **2020-08-24 之前**应 10% 却算 20%；③北交所 30% 没生效日（**2021-11-15 开市**起）；④S 股（如 600182）没单列，会被当主板 10%（实为 5%）；⑤**首日/前 5 交易日无涨跌幅**没出 null。**M04 是已签 §8 的指标，11-04 签字覆盖不了这次口径变化，改完须 H4 重签。**
+- **Lead 核实 H4 给的生效日 + 补一处**（Web 核实）：
+  - 主板 ST/*ST：**<2026-07-06 = 5%，≥2026-07-06 = 10%**（[新浪财经](https://finance.sina.com.cn/jjxw/2026-07-06/doc-inifvqsf1879157.shtml)）
+  - 主板普通：10%（长期）
+  - 创业板：**<2020-08-24 = 10%，≥2020-08-24 = 20%**（注册制首批挂牌日，[政策解读](https://mp.weixin.qq.com/s?__biz=MzAxODMzMTU5Mg==&mid=2651828210&idx=2&sn=9cb1ffba591d472fa1be93502fc7b19b167f6a491344)）
+  - 科创板：**≥2019-07-22（开板）= 20%**；开板前无科创板
+  - 北交所：**≥2021-11-15（开市）= 30%**（[证券时报](https://www.stcn.com/article/detail/465314.html)）
+  - S 股（未股改，如 600182）：**5%**（独立于 ST，H4 要求单列）
+  - **Lead 补 H4 漏项**：科创板新股**上市后前 5 个交易日**不设涨跌幅（[中国新闻网](http://finance.china.com.cn/kc/20190719/5033603.shtml)）；创业板注册制新股**前 5 个交易日**不设涨跌幅（[政策解读](https://mp.weixin.qq.com/s?__biz=MjM5MDIwNDEyMg==&mid=2650728031&idx=1&sn=1e39ea35b2fb582281a796f6b119bd94&chksm=be422fea8935a6fc3a9bbbeadf09a75ca32b5dbfcc795e63f33ac931fcb6b919167f6a491344)）；北交所**新股上市首日**不设涨跌幅（[网易](https://www.163.com/dy/article/GOLGTD4G0514R9KC.html)）。**判定"前 5 交易日/首日"需 dim_instrument.list_date（上市日），当前 M04 只有 name/board 快照、无 list_date → 无法判**。此为缺口挂 A2 派单：若 list_date 可得则按新股无涨跌幅出 null，不可得则在 known_limitation 标"新股上市初期无涨跌幅未判"并挂 P1 接 list_date。
+- **Lead 裁定**：①采纳 H4 口径，M04 改**按 trade_date 的生效日规则**，limit_pct 按上表分板块+分时点；②golden 至少加 H4 要的六组：2026-06 主板 ST=5% / 2026-07 后主板 ST=10% / 2019 创业板=10% / 2021 创业板=20% / S 股=5% / 北交所 30% 生效日；③**改完 M04 须 H4 重签 §8**（时点口径变了，11-04 签字不覆盖）；④新股上市初期无涨跌幅判定的 list_date 缺口挂 A2 评估（可得则判 null，不可得标 known_limitation+P1）。
+- **与 L118 的关系（H4 要求分开记）**：L118 = 数据源是否官方（mirror 取数路径）；L119 = 涨跌幅规则随时点变（M04 静态规则 bug）。两件独立的事。
+- **Open**：① A2 改 M04 按 trade_date 生效日规则 + golden 六组 + list_date 缺口评估 ② H4 改完重签 M04 §8 ③（承接 L118）三表 provisional 等 mirror vs 官方对比、北交所取整待三假设命中率
