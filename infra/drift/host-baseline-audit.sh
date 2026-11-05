@@ -69,12 +69,16 @@ selftest_state() {
   case "$1" in
     hostname) echo "selftest-host" ;;
     *"command -v docker"*) echo "/usr/bin/docker" ;;
-    *"ss -ltnp"*) printf '0.0.0.0:22\n0.0.0.0:8888\n127.0.0.1:8081\n' ;;
-    *"docker ps -a --format"*) printf 'a13-drift-selftest-a\na13-drift-selftest-b\n' ;;
+    *"ss -ltnp"*) printf '0.0.0.0:22\n0.0.0.0:8888\n[::]:9999\n127.0.0.1:8081\n' ;;
+    *"docker ps -a --format"*) printf 'a13-drift-selftest-a\na13-drift-selftest-b\na13-drift-selftest-c\na13-drift-selftest-d\n' ;;
     *"docker inspect"*"State.Status"*"a13-drift-selftest-a"*) echo 'exited;no;{"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"80"}]};' ;;
     *"docker inspect"*"State.Status"*"a13-drift-selftest-b"*) echo 'running;no;{};market-sense-e2e' ;;
+    *"docker inspect"*"State.Status"*"a13-drift-selftest-c"*) echo 'running;no;{};market-sense-e2e' ;;
+    *"docker inspect"*"State.Status"*"a13-drift-selftest-d"*) echo 'running;no;{"80/tcp":[{"HostIp":"::","HostPort":"80"}]};market-sense-e2e' ;;
     *"docker inspect"*".Config.Env"*"a13-drift-selftest-a"*) printf 'ENTITLEMENT_TIER=c_end_display\nENTITLEMENT_AUDIT=0\nENTITLEMENT_HOLD_CHECK=0\n' ;;
     *"docker inspect"*".Config.Env"*"a13-drift-selftest-b"*) printf 'ENTITLEMENT_TIER=internal_eval\nENTITLEMENT_AUDIT=1\nENTITLEMENT_HOLD_CHECK=1\n' ;;
+    *"docker inspect"*".Config.Env"*"a13-drift-selftest-c"*) printf 'APP_PROFILE=e2e\n' ;;
+    *"docker inspect"*".Config.Env"*"a13-drift-selftest-d"*) printf 'APP_PROFILE=e2e\nENTITLEMENT_TIER=internal_eval\nENTITLEMENT_AUDIT=1\nENTITLEMENT_HOLD_CHECK=1\n' ;;
     *"ufw status numbered"*) printf '[ 1] 22/tcp ALLOW IN Anywhere\n[ 2] 8888/tcp ALLOW IN Anywhere\n' ;;
     *"ufw status"*) printf 'Status: active\n88/tcp ALLOW Anywhere\n' ;;
     *"sshd -T"*) printf 'permitrootlogin yes\npasswordauthentication yes\nmaxauthtries 6\n' ;;
@@ -122,7 +126,7 @@ for n in $NAMES; do
     *'"HostIp":"0.0.0.0"'*|*'"HostIp":"::"'*|*'"HostIp":""'*)
       allowed=0
       for c in $EXPECTED_PUBLIC_CONTAINERS; do [ "$n" = "$c" ] && allowed=1; done
-      [ "$allowed" -eq 0 ] && fail "容器 $n 存在 0.0.0.0 端口绑定 (status=$st restart=$rest): $binds"
+      [ "$allowed" -eq 0 ] && fail "容器 $n 存在通配(0.0.0.0/::)端口绑定 (status=$st restart=$rest): $binds"
       ;;
   esac
   [ -z "$proj" ] && fail "非 compose/k8s 管理容器：${n}（主机手工残留，无法从仓库重建）"

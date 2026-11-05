@@ -1,0 +1,102 @@
+# ⑤ 漂移检测变异自证（A9 R7 五类注入 + 干净态）
+# generated_at=2026-11-05T00:04:02Z
+
+## 1) 注入自证（sh）
+# host-baseline audit (read-only)
+# time_utc=2026-11-05T00:04:02Z host=selftest-host
+# expected=infra/drift/host-baseline.expected.env
+
+FAIL  出现非基线通配监听: 0.0.0.0:8888 [::]:9999
+FAIL  容器 a13-drift-selftest-a 存在通配(0.0.0.0/::)端口绑定 (status=exited restart=no): {"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"80"}]}
+FAIL  非 compose/k8s 管理容器：a13-drift-selftest-a（主机手工残留，无法从仓库重建）
+WARN  e2e 栈容器 a13-drift-selftest-b restart=no（允许，仅限 e2e/临时）
+WARN  e2e 栈容器 a13-drift-selftest-c restart=no（允许，仅限 e2e/临时）
+FAIL  容器 a13-drift-selftest-d 存在通配(0.0.0.0/::)端口绑定 (status=running restart=no): {"80/tcp":[{"HostIp":"::","HostPort":"80"}]}
+WARN  e2e 栈容器 a13-drift-selftest-d restart=no（允许，仅限 e2e/临时）
+FAIL  ufw 多放行端口: 88/tcp（期望: 22/tcp）
+FAIL  22/tcp 来源为 Anywhere（未白名单；待用户 CIDR，期望: <未配置>）
+FAIL  fail2ban 未 active（当前: inactive）
+FAIL  fail2ban 未启用 sshd jail
+FAIL  sshd permitrootlogin=yes（期望 no）
+FAIL  sshd passwordauthentication=yes（期望 no）
+FAIL  sshd maxauthtries=6（期望 3）
+FAIL  a13-drift-selftest-a ENTITLEMENT_AUDIT=0（期望 1）
+FAIL  a13-drift-selftest-a ENTITLEMENT_HOLD_CHECK=0（期望 1）
+PASS  a13-drift-selftest-b ENTITLEMENT_AUDIT=1
+PASS  a13-drift-selftest-b ENTITLEMENT_HOLD_CHECK=1
+FAIL  a13-drift-selftest-c ENTITLEMENT_AUDIT=unset（期望 1）
+FAIL  a13-drift-selftest-c ENTITLEMENT_HOLD_CHECK=unset（期望 1）
+PASS  a13-drift-selftest-d ENTITLEMENT_AUDIT=1
+PASS  a13-drift-selftest-d ENTITLEMENT_HOLD_CHECK=1
+
+SELFTEST PASS 注入漂移全部被检出
+exit=0
+
+## 2) 注入自证（dash）
+# host-baseline audit (read-only)
+# time_utc=2026-11-05T00:04:02Z host=selftest-host
+# expected=infra/drift/host-baseline.expected.env
+
+FAIL  出现非基线通配监听: 0.0.0.0:8888 [::]:9999
+FAIL  容器 a13-drift-selftest-a 存在通配(0.0.0.0/::)端口绑定 (status=exited restart=no): {"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"80"}]}
+FAIL  非 compose/k8s 管理容器：a13-drift-selftest-a（主机手工残留，无法从仓库重建）
+WARN  e2e 栈容器 a13-drift-selftest-b restart=no（允许，仅限 e2e/临时）
+WARN  e2e 栈容器 a13-drift-selftest-c restart=no（允许，仅限 e2e/临时）
+FAIL  容器 a13-drift-selftest-d 存在通配(0.0.0.0/::)端口绑定 (status=running restart=no): {"80/tcp":[{"HostIp":"::","HostPort":"80"}]}
+WARN  e2e 栈容器 a13-drift-selftest-d restart=no（允许，仅限 e2e/临时）
+FAIL  ufw 多放行端口: 88/tcp（期望: 22/tcp）
+FAIL  22/tcp 来源为 Anywhere（未白名单；待用户 CIDR，期望: <未配置>）
+FAIL  fail2ban 未 active（当前: inactive）
+FAIL  fail2ban 未启用 sshd jail
+FAIL  sshd permitrootlogin=yes（期望 no）
+FAIL  sshd passwordauthentication=yes（期望 no）
+FAIL  sshd maxauthtries=6（期望 3）
+FAIL  a13-drift-selftest-a ENTITLEMENT_AUDIT=0（期望 1）
+FAIL  a13-drift-selftest-a ENTITLEMENT_HOLD_CHECK=0（期望 1）
+PASS  a13-drift-selftest-b ENTITLEMENT_AUDIT=1
+PASS  a13-drift-selftest-b ENTITLEMENT_HOLD_CHECK=1
+FAIL  a13-drift-selftest-c ENTITLEMENT_AUDIT=unset（期望 1）
+FAIL  a13-drift-selftest-c ENTITLEMENT_HOLD_CHECK=unset（期望 1）
+PASS  a13-drift-selftest-d ENTITLEMENT_AUDIT=1
+PASS  a13-drift-selftest-d ENTITLEMENT_HOLD_CHECK=1
+
+SELFTEST PASS 注入漂移全部被检出
+exit=0
+
+## 3) 干净态自证（sh，必须 exit 0）
+# host-baseline audit (read-only)
+# time_utc=2026-11-05T00:04:02Z host=selftest-clean
+# expected=infra/drift/host-baseline.expected.env
+
+PASS  通配监听仅限 22
+PASS  ufw 允许列表与基线一致
+PASS  22/tcp 来源受限: 203.0.113.0/24
+PASS  fail2ban active
+PASS  fail2ban sshd jail 存在
+PASS  sshd permitrootlogin=no
+PASS  sshd passwordauthentication=no
+PASS  sshd maxauthtries=3
+PASS  market-sense-e2e-api-1 ENTITLEMENT_AUDIT=1
+PASS  market-sense-e2e-api-1 ENTITLEMENT_HOLD_CHECK=1
+
+SELFTEST-CLEAN PASS 干净态 exit 0
+exit=0
+
+## 4) 干净态自证（dash，必须 exit 0）
+# host-baseline audit (read-only)
+# time_utc=2026-11-05T00:04:02Z host=selftest-clean
+# expected=infra/drift/host-baseline.expected.env
+
+PASS  通配监听仅限 22
+PASS  ufw 允许列表与基线一致
+PASS  22/tcp 来源受限: 203.0.113.0/24
+PASS  fail2ban active
+PASS  fail2ban sshd jail 存在
+PASS  sshd permitrootlogin=no
+PASS  sshd passwordauthentication=no
+PASS  sshd maxauthtries=3
+PASS  market-sense-e2e-api-1 ENTITLEMENT_AUDIT=1
+PASS  market-sense-e2e-api-1 ENTITLEMENT_HOLD_CHECK=1
+
+SELFTEST-CLEAN PASS 干净态 exit 0
+exit=0

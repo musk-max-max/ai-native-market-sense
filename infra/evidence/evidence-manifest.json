@@ -403,6 +403,20 @@
         "KD-ENT-01"
       ],
       "notes": "H5 m03440 四项处置记录：fail2ban 启用/ms-nginx 移除复核/ufw 收敛/R3 隔离 hold 测试（403+no-store、事件 2→5→6、chain 0、缓存 TTL≈30s）；含变异自证与 residual。"
+    },
+    {
+      "path": "infra/evidence/host-mutation-selftest-20261105T0010Z.txt",
+      "sha256": "4fdd40402b8e336b6fef49c84661e26fe464ab5e1c0fa301243fd6df92653318",
+      "bytes": 4779,
+      "recompute": "sha256sum infra/evidence/host-mutation-selftest-20261105T0010Z.txt",
+      "role": "host-drift-mutation-selftest",
+      "authority": "authoritative",
+      "phase": "post-fix",
+      "case_ids": [
+        "H5-R10",
+        "HOST-BASELINE-01"
+      ],
+      "notes": "A9 R7 五类注入自证（0.0.0.0/:: 通配、非 compose、ufw 多放行、22 Anywhere、缺 env、fail2ban inactive、弱 sshd）+ 干净态 exit 0；macOS sh 与 Linux dash 各跑。"
     }
   ],
   "related_manifests": [
