@@ -1408,3 +1408,13 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 - **B 股维持**：实现先行 + `pytest.skip` 不进门禁，等 A1 回实际 `instrument_id` 再签（H4 认可）。
 - **M04 重签条件（H4）**：生效日规则（L119）+ 前 5 日无涨跌幅（本条）+ 取整规则 + 三处小错，**一次签 §8 M04 + RES-05 取整，不签半套**。
 - **Open**：① A2 改前 5 日 row_number NULL + S*ST 优先 + 两处 docstring/描述 + golden 补 day2–5 边界 ② A1 报北交所按前缀分布/各自命中率（43/83/87/88/92，无样本写"无样本"）+ B 股实际 instrument_id ③ H4 一次签 §8 M04 + RES-05 取整
+
+### L121 — BSE 代码空间迁移 920 段（20 年回补 instrument_id 断裂风险，回补前置口径）
+- **触发**：H4（m06533）签北交所全前缀 + B 股取整后，抓出一个**比取整更重要的回补风险**。
+- **已签（H4，m06533）**：①**北交所全前缀取整**：43/83/87/88/92 统一 floor/ceil、0.01 元；**证据只到 92 段**（三日 1062/1062），43/83/87/88 当日无样本、仅历史存在；按"同一规则 + 逐行对账 fail-closed"生效，每日 unresolved 计数，某前缀出现且失败率>0 就告警重开；**签字记录写"92 段三日"，不许写成全前缀已验证**。②**B 股取整**：沪 B 900xxx 0.001 美元 half-up（41/41）、深 B 200xxx 0.01 港元 half-up（35/35）；**市场以 exchange 为准**——mirror 把沪 B ts_code 标成 `.BJ` 是**源保真缺陷**，A1 已对全部 mirror 端点做"后缀 vs exchange / code 段 vs exchange"一致性统计，**不一致行不静默入库**。
+- **新风险（H4 抓，Lead 裁定记 L121）**：**BSE 代码空间已整体迁移到 920 段**（stock_basic 354 只全 92 前缀）。若**旧 8xxxxx 码在新源下仍返回历史、920 只到切换日**，20 年回补会出现**同一公司两套 instrument_id** → **历史序列断裂**。这是回补前置口径，**别等回补时才发现**。
+- **Lead 裁定**：①A1 抓一只票用新旧码各请求 2022 日线，**确证旧码是否仍返历史、920 从何日起**；②若确证**必须建 alias**（`old_id → new_id` + 生效日 + 来源），回补前把口径定了，否则 dwd/serving 层同一公司断成两条序列；③此风险与 L119/L120 的时点规则同属"回补正确性"前置项，**都闭环才准回补**。
+- **关联待签**：M04 剩余唯一 blocker = 注册制新股前 5 交易日无涨跌幅必须 NULL（L120），A2 改完 H4 一次签 §8 M04 + RES-05 取整。
+- **Open**：① A2 改 M04 前 5 日 + S*ST 优先 + docstring（进行中）② A1 BSE 新旧码 2022 日线确证 + alias 口径 ③ A1 mirror 端点"后缀 vs exchange"一致性统计（H4 m06533 派）④ H4 一次签 §8 M04 + RES-05 取整（等 A2）
+- **H4 正式补签（m06539，以此封为准）**：①**北交所全前缀取整**：BSE A 股 43/83/87/88/92 涨停 `floor(prev×(1+pct),2)`/跌停 `ceil(prev×(1−pct),2)`；证据边界写死「92 前缀三日 1062/1062；43/83/87/88 该源无样本，仅按同规则启用」，**不得写全前缀已验证**；生效条件=每日按规则重算与交易所原值逐行对账，任一不等→`limit_pct=null`+warn+累计 `limit_pct_unresolved_days`，某前缀出现且失败率>0→告警重开口径。②**B 股**：沪 B `SSE:900xxx` 0.001 美元 half-up（41/41）、深 B `SZSE:200xxx` 0.01 港元 half-up（35/35）；**市场判定只用 exchange+code 段、ts_code 后缀不作判据**；**B 股涨跌幅按主板 10%、ST B 按 2026-07-06 前 5%/后 10%**；`limit_pct_b_share_rule_status=signed_h4_2026-11-05`，**可解除 skip 进门禁**，仅研究域不进 display。
+- **A2 前 5 日改造完成（KD-M04-PRE5D-NULL，`e57eecb` 代码 + `f36e63e` 文档，已推 origin，我复跑 warehouse 195 passed/1 skipped）**：科创 listed_at≥2019-07-22/创业≥2020-08-24/主板≥2023-04-10，`trade_seq<=5`→NULL（row_number 全历史窗口后按 start 过滤，不在窗口重置）；listed_at 缺失 fail-closed NULL；S 股优先于 ST（S*ST 仍 5%）；docstring 纠 900xxx=沪市 B 股；RES-05 文本改「市场+报价单位取整」；B 股 skip 已解除。golden G35–G37（前 5 日超档→NULL）+ N10–N12（第 6 日超档→BIZ-01 blocker），49/49。**等 H4 一次签 §8 M04 + RES-05 取整。**
