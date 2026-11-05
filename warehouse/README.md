@@ -109,13 +109,13 @@ python3 -m warehouse.load --ods-root services/ingest/var/ods-smoke --dry-run
 
 ## 5. P0 限制（已登记的待确认项）
 
-交易日历用自然工作日近似、ST 仅主板 5%、停牌证据行（L8 由 A1 提供，COMP-03 不降级）、修订保留窗口未定、
+交易日历用自然工作日近似（无节假日校验，P1 接 trade_cal）、ST 判定只用当前名称快照（L80，历史时点未还原）、停牌证据行（L8 由 A1 提供，COMP-03 不降级）、修订保留窗口未定、
 不做盘中实时（T 日 20:00 收盘数据）。**ODS 交换格式支持 market-wide 批次**（A1 P0 默认每交易日一个 `bar` 批次
 + 一个 `adj_factor` 批次，行形状与 per-instrument 模式一致），`load_batches` 按 batch_id 去重不变。
 **instrument.v1 是必需项**（L34 标准布局里应在 `display` root 或旧平铺 root）：缺主数据时 pipeline / load fail-closed（退出码 2），因为 dim_instrument /
 BIZ-01 板块幅度 / 首日豁免 / `serving_instrument` 都依赖它；decisions L17 已改判为 A1 **当前**任务（一次 `stock_basic` 调用），A2 不等排期。停牌标的的 Quote 只能用"停牌证据日"表达（无交易日历无法补成
 "市场最新交易日"行，P1 接 trade_cal 后补齐）；财务数据未接入（M06 pending-data），
-`serving_fundamental_summary` 当前恒返回 0 行。完整清单见 `docs/metrics/P0-metrics.md §7`。
+`serving_fundamental_summary` 当前恒返回 0 行。补充：M04 的注册制新股前 5 日无涨跌幅按 DB 全历史 bar 序号判定；BIZ-01 在质量运行时用「本次加载的 bar 序号」，若加载窗口不含上市首日则序号偏小（可能多豁免、不会误标），完整历史回补时按 DB 为准；B 股取整规则已由 H4 2026-11-05 签署（沪 B 0.001 美元/深 B 0.01 港元 half-up），B 股仍只研究域。完整清单见 `docs/metrics/P0-metrics.md §7`。
 
 ## 6. Serving 接口（A3 的读取端口；签名见 `warehouse/serving/ports.yaml`）
 
