@@ -1,0 +1,20 @@
+# HOST-EXPOSURE-01 自动隔离路径验收（非公网端口 9999，SG 未放行，无真实暴露）
+# captured_utc=2026-11-05T01:41:41Z operator=A13
+
+## utc 2026-11-05T01:41:29Z
+image=e2e-ent-positive-warehouse-load:latest
+run_rc=0
+before: status=running restart=no binds={"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"9999"}]}
+## audit with EXPECTED_PUBLIC_PORTS=9999 (auto isolate ON)
+FAIL  HOST-EXPOSURE-01 容器 a13-hx-iso 在公网端口 9999 上发布 0.0.0.0/:: 绑定（status=running）
+ALERT HOST-EXPOSURE-01 container=a13-hx-iso port=9999 severity=critical
+SUGGEST docker stop a13-hx-iso && docker update --restart=no a13-hx-iso
+ISOLATED container=a13-hx-iso action='docker stop && update --restart=no' status_before=running
+FAIL  HOST-EXPOSURE-01 公网端口 9999 存在通配监听 0.0.0.0:9999（非 loopback）
+ALERT HOST-EXPOSURE-01 listen=0.0.0.0:9999 port=9999 severity=critical
+ISOLATE-SKIP listen=0.0.0.0:9999 reason=not_attributable_to_container(manual)
+WARN  HOST-EXPOSURE-01 未配置 EXPECTED_PUBLIC_HOST，公网未认证可达性=UNVERIFIED（不计 PASS）
+RESULT DRIFT 存在基线漂移
+## after:
+after: status=exited restart=no
+cleanup_rc=0

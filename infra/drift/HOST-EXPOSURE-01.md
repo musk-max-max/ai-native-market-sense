@@ -40,4 +40,5 @@
 - `host-baseline-audit.sh` 新增 §2b：公网端口通配监听、容器通配绑定（含 created）、公网未认证 healthz/metrics（未配置=UNVERIFIED）、`ALERT`/`SUGGEST`/`ISOLATED` 行、webhook/textfile 接入点、`--self-test` 夹具扩展。
 - `host-baseline.expected.env`：`EXPECTED_PUBLIC_PORTS="80 8888"`、`EXPECTED_PUBLIC_HOST=""`、webhook/textfile 说明。
 - 已做：systemd service/timer（`infra/drift/systemd/`，每日 09:13 Asia/Shanghai + 部署后）、`HostExposureDrift` 告警规则、`deploy.sh` 部署钩子（B=b：EXPOSURE_AFFECTING + HOST_AUDIT_SSH，失败回滚 exit 7）、runbook §9。
-- 未做：ECS 安装 timer、A19 注入验收、证据入 manifest。
+- 已做：ECS 安装 timer（首次 2026-11-06 09:13 CST）、A19 指定注入验收（`host-exposure-01-detection-20261105T014106Z`）、自动隔离路径验收（`host-exposure-01-isolation-20261105T014128Z`），均入 manifest。
+- 待 A19 复核/H5 核签；`HOST_AUDIT_SSH` 仓库变量待 Lead 配置（未配时暴露面变更发布会按 B=b 阻塞）。

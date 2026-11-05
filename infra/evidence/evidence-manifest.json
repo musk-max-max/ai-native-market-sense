@@ -446,6 +446,19 @@
         "H5-R10"
       ],
       "notes": "A19 指定方式 docker create -p 0.0.0.0:8888:80（未启动，避免真实暴露）；系统检出 FAIL/ALERT/HOST-EXPOSURE-01 并落 restart=no，清理后无残留。22/tcp Anywhere 与 EXPECTED_PUBLIC_HOST 未配为既有 ⑤ residual。"
+    },
+    {
+      "path": "infra/evidence/host-exposure-01-isolation-20261105T014128Z.txt",
+      "sha256": "266eb67f2a19cc089213db077085ec17a2db3162073624ff21279d8f58f2b2d2",
+      "bytes": 1172,
+      "recompute": "sha256sum infra/evidence/host-exposure-01-isolation-20261105T014128Z.txt",
+      "role": "host-exposure-01-isolation",
+      "authority": "authoritative",
+      "phase": "post-fix",
+      "case_ids": [
+        "HOST-EXPOSURE-01"
+      ],
+      "notes": "自动隔离路径验收：非公网端口 9999（SG 未放行）上 running 容器 0.0.0.0 绑定 → 检出 + ISOLATED（docker stop + update --restart=no，status=exited/restart=no），随后清理容器。"
     }
   ],
   "related_manifests": [
@@ -457,6 +470,6 @@
     }
   ],
   "amended_by": "a13-sre",
-  "amended_at": "2026-11-05T01:42:00Z",
-  "amend_note": "HOST-EXPOSURE-01 注入验收证据（A13 检测；待 A19 复核/H5 核签）"
+  "amended_at": "2026-11-05T01:43:00Z",
+  "amend_note": "HOST-EXPOSURE-01 注入与自动隔离路径验收证据"
 }
