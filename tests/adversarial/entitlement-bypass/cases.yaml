@@ -1,0 +1,75 @@
+# A19 越权用例集：主机层 / 隧道类（与 A9 对齐 schema，EXC-<SURFACE>-<NN>）
+#
+# 本文件是可读定义；机器执行入口为 ./run-host-layer.mjs（oracle 已编码为可判定式）。
+# 设计原则：真实目标默认 BLOCKED，必须有 H5 书面授权 + A19_HOST_LAYER_APPROVED=1；
+#           本地隔离栈自检不触碰 ECS，不绑定公网监听。
+schema_version: "0.1"
+owner: A19 (a19-red-team)
+reviewer: A9 (security) / H5 (release sign-off)
+cases:
+  - case_id: EXC-HOST-01
+    title: 主机层 → DB 直读，绕过 C 端授权门禁
+    surface: HOST
+    severity_expected: bypass
+    preconditions:
+      - 已授权目标（H5 书面批准 + A19_HOST_LAYER_APPROVED=1），或本地隔离栈自检
+      - SSH 可达且可执行只读 SELECT（或本机 psql 连隔离库）
+      - API 在 internal_eval 下 quote 预期 403
+    steps:
+      - "POST /v1/instruments/SSE:600519/quote（经 API loopback）记录 status/headers/body"
+      - "只读 SQL：select count(*) from serving.serving_quote_latest"
+      - "只读 SQL：select instrument_id, close, as_of from serving.serving_quote_latest order by instrument_id limit 1"
+      - "只读 SQL（若存在）：select count(*) from audit.entitlement_events"
+      - "读取运行容器 ENTITLEMENT_AUDIT / ENTITLEMENT_HOLD_CHECK / ENTITLEMENT_TIER"
+    oracle: "api_quote_status == 403 AND db_quote_rows > 0 => BYPASS；api_quote_status == 403 AND db_quote_rows == 0 => BLOCKED；其余 => INVALID"
+    evidence_fields:
+      - attempt_id
+      - target
+      - vantage
+      - api_quote_status
+      - api_body_sha256
+      - db_quote_rows
+      - db_sample
+      - entitlement_audit_env
+      - entitlement_hold_env
+      - audit_event_count
+      - audit_gap
+    safety: "SQL 只读（count + 单行样本）；不写库、不启停容器、不 dump 全表"
+    authorization: "真实目标：H5 书面授权 + A19_HOST_LAYER_APPROVED=1；当前 ECS 目标 status=blocked"
+    owner: A19 (执行) / A9 (口径)
+    status: design
+  - case_id: EXC-TUNNEL-01
+    title: SSH 隧道二次转发，第三人匿名到达内网入口
+    surface: TUNNEL
+    severity_expected: amplification
+    preconditions:
+      - 已授权目标 + 操作者 SSH 可达（H5 书面批准 + A19_HOST_LAYER_APPROVED=1）
+      - 第二 vantage（同 LAN 另一台机器优先；否则同主机不同网络命名空间的 one-shot 容器，并显式标注非跨主机证据）
+      - 本地隔离栈自检只验证 relay 逻辑，不得当作第三人可达证据
+    steps:
+      - "ssh -N -L <localPort>:127.0.0.1:3000 <user@target>"
+      - "经 <localPort> 取 GET / 与 /v1/instruments/SSE:600519/quote，记录 status/headers/body"
+      - "把 <localPort> 二次转发到 operator 的 0.0.0.0:<relayPort>（短窗口）"
+      - "从第二 vantage 取同一页面/接口；记录源 IP、X-Forwarded-For、trustProxy 与服务端审计/身份字段"
+      - "结束：kill relay 与 ssh，记录 0 监听"
+    oracle: "second_vantage_status in {200,403} AND server_identity_distinguishable == false => AMPLIFICATION；second_vantage_status unreachable => BLOCKED；无法建立第二 vantage => INCOMPLETE"
+    evidence_fields:
+      - attempt_id
+      - target
+      - vantage_operator
+      - vantage_second
+      - tunnel_status
+      - web_status
+      - quote_status
+      - quote_cache_control
+      - relay_status
+      - source_ip_seen
+      - x_forwarded_for
+      - trust_proxy
+      - audit_event_count
+      - server_identity_distinguishable
+      - cleanup_listeners
+    safety: "隧道仅在授权窗口内建立；结束 kill 并记录 0 监听；relay 不写入数据、不转发写请求"
+    authorization: "真实目标：H5 书面授权 + A19_HOST_LAYER_APPROVED=1 + 第二 vantage；当前 status=blocked"
+    owner: A19 (执行) / A9 (口径)
+    status: design

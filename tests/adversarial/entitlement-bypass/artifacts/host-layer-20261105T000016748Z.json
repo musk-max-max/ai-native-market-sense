@@ -1,0 +1,41 @@
+{
+  "schema_version": "0.1",
+  "suite": "host-layer",
+  "owner": "A19",
+  "run_id": "20261105T000016748Z",
+  "mode": "local-self-check",
+  "authorized": false,
+  "ssh_target": null,
+  "started_at": "2026-11-05T00:00:16.751Z",
+  "finished_at": "2026-11-05T00:00:25.725Z",
+  "cleanup_listeners": [],
+  "checks": [
+    {
+      "id": "EXC-HOST-01",
+      "title": "主机层→DB 直读（本地隔离栈自检）",
+      "clause": "C 端 403 不应能被宿主/DB 层绕过（R4/R6 已知面）",
+      "attempt": "API quote=403；psql serving_quote_latest rows=2；sample=SSE:600519|10.30|2024-01-04 15:00:00+08",
+      "expectation": "oracle: api_quote_status==403 AND db_quote_rows>0 => BYPASS（自检命中）；否则 INVALID",
+      "observed": "{\"api_quote_status\":403,\"api_body_sha256\":\"e07c5934f8b26294be84f2acae640fba5a6b44a0a5309a8d09dd60174f7b7d7f\",\"db_quote_rows\":2,\"db_sample\":\"SSE:600519|10.30|2024-01-04 15:00:00+08\",\"audit_event_count\":null,\"audit_gap\":null,\"env\":{\"entitlement_tier\":\"internal_eval\",\"entitlement_audit\":\"(unset → e2e 默认关闭)\",\"entitlement_hold_check\":\"(unset → e2e 默认关闭)\"}}",
+      "status": "FAIL",
+      "severity": "P2-known",
+      "evidence": "本地自检命中：API 403 但 psql 可读非空行情（与 R4 主机层→DB 直读一致；真实目标需授权）"
+    },
+    {
+      "id": "EXC-TUNNEL-01",
+      "title": "隧道二次转发（本地 relay 逻辑自检）",
+      "clause": "二次转发不得让第三人匿名读到未授权数据（A9 口径：第二 vantage 才构成跨主机证据）",
+      "attempt": "127.0.0.1:19088 -> 127.0.0.1:3220；GET /=200，quote=403，relay 未注入任何凭据",
+      "expectation": "自检仅证明 relay 逻辑可转发；跨主机第三人可达需第二 vantage，本轮不成立 → 记为 INFO/INCOMPLETE",
+      "observed": "{\"relay_bind\":\"127.0.0.1:19088\",\"web_via_relay_status\":200,\"quote_via_relay_status\":403,\"quote_cache_control\":\"no-store, no-cache, must-revalidate\",\"client_identity_forwarded\":false,\"second_vantage\":\"not-established(local-loopback-only)\"}",
+      "status": "INFO",
+      "severity": "informational",
+      "evidence": "本地 relay 自检通过；不构成第三人可达证据（A9 Q2 第 2 层以下）"
+    }
+  ],
+  "meta": {
+    "db_url": "postgresql://ms@localhost:55432/market_sense_a19",
+    "web_dist": "web/h5/dist/index.html",
+    "note": "本地隔离栈自检：不碰 ECS、不绑公网监听；EXC-TUNNEL-01 仅 relay 逻辑，不构成第三人可达证据"
+  }
+}

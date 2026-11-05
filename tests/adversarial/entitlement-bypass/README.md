@@ -67,6 +67,24 @@ G3 需要**真实部署形态**：`APP_PROFILE` 缺省（=prod）+ 流水线注�
 - `artifacts/http-attempts.jsonl`：旧 truncate bug 的 0 字节墓碑，**不要使用**。
 - `artifacts/*.png`：受限/注毒/拦截/有效态/到期刷新截图。
 
+## 主机层 / 隧道类用例（与 A9 对齐，EXC-<SURFACE>-<NN>）
+
+定义见 `cases.yaml`，执行器 `run-host-layer.mjs`：
+
+```bash
+# 本地隔离栈自检（默认；只起 127.0.0.1:18188/3220/19088，不碰 ECS、不绑公网监听）
+node tests/adversarial/entitlement-bypass/run-host-layer.mjs
+
+# 真实目标：默认拒绝，必须同时给 H5 书面授权 + 开关 + 目标
+A19_HOST_LAYER_APPROVED=1 A19_SSH_TARGET=root@<host> \
+  node tests/adversarial/entitlement-bypass/run-host-layer.mjs --target
+```
+
+- `EXC-HOST-01`：主机层→DB 直读（只读 `SELECT count(*)` + 单行样本，不 dump 全表）。oracle：`api_quote_status==403 AND db_quote_rows>0 => BYPASS`；若审计事件数=0 记 `audit_gap=1`。
+- `EXC-TUNNEL-01`：SSH 隧道二次转发。本地自检只验证 relay 逻辑（INFO），**不构成第三人可达证据**；第三人需同 LAN 第二 vantage（A9 Q2），无法建立时 oracle=INCOMPLETE。
+- 当前真实目标（ECS `47.120.16.239`）按 H5 m01196 为 **blocked**：不得因开关存在就打开；结束须 kill 隧道/relay 并记录 0 监听。
+- 产物：`artifacts/host-layer-<runId>.json`（含 checks/meta/cleanup_listeners）。
+
 ## 维护提示
 
 - post-fix 全量 `results.json` 为 `verdict=NO_BYPASS`（45 PASS / 0 FAIL / 1 INFO）；修复前首轮存档 `results-prefix-g3-20261104T012350680Z.json` 的 `verdict=BYPASS_FOUND` 仅因 R4，R4 修复后见 `REPORT.md` §11。
