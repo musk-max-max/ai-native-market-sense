@@ -13,7 +13,7 @@
 export const COPY_VERSION = '2026.11.5';
 
 /** 所有对外可见文本的确定性哈希（copy.ts 文本 + 版本），构建期由 scripts/check-copy-version.mjs 校验。 */
-export const COPY_TEXT_HASH = 'afe932c929316ead5570db2c20f9dd6287a84e1ba4f990eaf2939b4fc247b037';
+export const COPY_TEXT_HASH = 'ac875c9d9237009cbe366f9879cb94739d1a8194c90173dbb29b4768ebb46a4b';
 
 /** HTTP 状态码兜底标题：只描述事实，不含内部码/英文原文。 */
 export const ERROR_TITLES = {
@@ -47,7 +47,7 @@ export const MARKET_COPY = {
   entitlementRestrictedTitle: '行情数据暂不可用',
   entitlementRestrictedDetail: '当前版本暂不提供该标的行情数据',
   unauthenticatedTitle: '未认证',
-  unauthenticatedDetail: '自选为私有数据，需要有效的 Bearer 凭据。',
+  unauthenticatedDetail: '请先登录后再使用自选功能。',
 } as const;
 
 /** 429 的 detail：只让用户稍后再试，不露阈值/桶 key/内部码。 */
