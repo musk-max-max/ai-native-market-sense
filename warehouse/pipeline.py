@@ -26,6 +26,7 @@ from warehouse.ods.loader import (
     load_ods_roots,
     require_display_evidence,
 )
+from warehouse.ods.loader import ensure_research_origin
 from warehouse.quality.checks import RESEARCH_STATE_TABLES, run_quality_checks
 
 
@@ -66,6 +67,13 @@ def _run_ods(
 ) -> int:
     try:
         batches = load_ods_roots(root, internal_root)
+        research_in_display = ensure_research_origin(batches, profile=profile)
+        if research_in_display:
+            print(
+                "[WARN] 研究数据集批次出现在 display root：display_safe 保持 false"
+                "（dev profile 放行；prod profile 会拒绝）",
+                file=sys.stderr,
+            )
         has_display_instruments = bool(display_instrument_ids(batches))
         strict = profile == "prod" and has_display_instruments
         if strict and manifest_root is None:
@@ -118,7 +126,9 @@ def _run_ods(
             f"research={sum(len(getattr(state, name)) for name in RESEARCH_STATE_TABLES)} "
             f"revisions={len(state.revisions)}"
         )
-        print(f"quality score={report.score} grade={report.grade} blocked={report.blocked}")
+        exemptions = report.as_dict().get("exemptions") or {}
+        suffix = f" exemptions={exemptions}" if exemptions else ""
+        print(f"quality score={report.score} grade={report.grade} blocked={report.blocked}{suffix}")
         for violation in report.blocker_violations[:20]:
             print(f"  [blocker] {violation.rule_id} {violation.instrument_id} {violation.trade_date}: {violation.detail}")
     return 1 if report.blocked else 0

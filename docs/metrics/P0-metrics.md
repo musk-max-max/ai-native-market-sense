@@ -296,7 +296,7 @@ ORDER BY trade_date;
 | 业务 business | BIZ-01 涨跌幅在板块限内（容差 0.5pp，上市首日豁免；未知板块 fail-closed）；BIZ-02 prev_close 缺失（warn）；BIZ-03 ST 时点性限制（warn，L80） |
 | 完整性/及时性 completeness | COMP-01 无周末 bar；COMP-02 as_of 属当日 ≥15:00（T 日收盘后取数）；COMP-03 工作日覆盖（bar ∪ 停牌证据） |
 | 一致性 consistency | CONS-01 prev_close = 前一交易日 close（除权日因因子变化豁免 / 首日豁免）；CONS-02 bar/因子引用的 instrument 必须在 dim_instrument；RES-03 研究数据 instrument_id 必须在 dim_instrument（index_daily 指数、margin 无 instrument 豁免） |
-| 研究数据 research（按类别归入） | **RES-01**（完整性）研究数据集交易日为工作日；**RES-02**（业务）研究指标量纲：金额/量/市值非负、百分比 \|x\| ≤ 1000；**RES-03**（一致性）外键一致；**RES-04**（完整性）研究批次 `as_of ≥ trade_date 15:00`。四条均 blocker（研究域 provisional，待 H4 对齐） |
+| 研究数据 research（按类别归入） | **RES-01**（完整性）周末粗筛：`weekday()>=5` 判违规，**不含法定节假日校验**（非交易日历，P1 接 `trade_cal`）；**RES-02**（业务）量纲：**只对 DWD canonical 字段生效**，金额/量/市值非负、百分比 \|x\| ≤ 1000（ODS 源字段如 `total_mv` 不在范围）；**RES-03**（一致性）外键：A 股标识必须在 `dim_instrument`；`hk_hold` 的 `HKEX:#####` 港股命名空间显式豁免并计数（不静默跳过）；**RES-04**（完整性）per-endpoint as_of 阈值：A 股研究数据当日 15:00、`hk_hold` T+1 次日 15:00、`index_daily` 当日 15:00。四条均 blocker（研究域 provisional） |
 
 ## 7. 待确认事项（未签字前按本文实现，签字后另起变更）
 
@@ -324,6 +324,13 @@ ORDER BY trade_date;
    输出 `known_limitation`，质量规则 BIZ-03（warn）对「当前 ST 名称且早于 `dim.as_of`」的 bar 告警。
    **P1 依赖 tushare namechange 进 ODS**（`instrument_name_history`），到位后按交易日状态重算并把
    BIZ-03 收紧为 blocker；在此之前禁止把退市/摘帽标的历史涨跌停结论用于回测或对外解释。
+10. **研究数据集边界（RES-01..04，已备案）**：RES-01 是周末粗筛、非法定节假日/交易日历校验（P1 接 `trade_cal`）；
+    RES-02 只对 DWD canonical 字段生效；RES-03 对 `hk_hold` 的港股命名空间 `HKEX:#####` 显式豁免并计数
+    （`exemptions` 同时出现在 pipeline/load 运行摘要与 `quality.json`）；RES-04 按 endpoint 配 as_of 阈值。
+    研究数据只能进 `internal/` root，**不得进 display root、不参与 `display_safe` 派生、不进 C 端 ports**
+    （隔离门禁 `infra/ci/check_display_safe_failclosed.py`）。**hk_hold 状态 blocked**：A1 港股后缀映射
+    （`00700.HK → HKEX:00700`）落地前，研究 fixture 仅为命名空间健壮性样例，不作为数据验收依据；
+    读取端对非法标识报错，不静默跳过、不降级成 A 股样例。
 
 ## 8. H4 会签记录（已签 2026-11-04；变更须重新会签）
 
@@ -349,7 +356,7 @@ ORDER BY trade_date;
 - 签字人 / 日期：H4（数据负责人） / 2026-11-04
 - 备注：条件见 `p0_metrics.json::sign_off.conditions`——L3 锚变更须重签；M04 ST 按 L80 当前名称快照（BIZ-03 warn 单列，P1 namechange 到位后转 blocker）；规则集变化须记 before/after 且不得借新增 warn 规则跨阈值；M03/M05/M06/M07 数据未到不得进 C 端。
 
-### 签署后规则集变更（2026-11-05，待 H4 备案）
+### 签署后规则集变更（2026-11-05，已备案；附注已落）
 
 - 新增 RES-01..04（研究数据集，均 blocker）：业务规则数 3→4、完整性及时性 3→5、一致性 2→3；结构 6 不变。
 - 同一 blocker（BIZ-01）命中时 business 类别分 **66.67→75.00**、总分 **90.00→92.50**，仍因一票否决 `black`；
@@ -365,5 +372,7 @@ ORDER BY trade_date;
 | 2026-11-04 | 记录 L9（质量分只计 blocker，warn 独立计数）与 §8 H4 会签清单；新增 G21（ST 恰好 +5.00%）边界样本 | 待 H4 |
 | 2026-11-04 | H4 核签 2026-11-04 后修复：M04 未知板块 fail-closed（`limit_status=NULL`，BIZ-01 blocker）+ ST 时点性 L80（`known_limitation`/`st_status_source`、BIZ-03 warn）；M02 注释改 L3 锚并输出 `anchor_date`/`factor_version`/`factor_as_of`；新增 G22 取整边界 | H4 重签通过 |
 | 2026-11-04 | **规则集变更 before/after（H4 条件 3）**：新增 BIZ-03（warn）后业务规则数 2→3；同一 blocker（BIZ-01）命中时 business 类别分 **50.00→66.67**、总分 **85.00→90.00**，仍因一票否决 `black`；结构 6 / 完整性 3 / 一致性 2 不变。阈值、权重、否决规则均不变；该变化不改变任何门禁结论。**signed / H4 / 2026-11-04 / 条件见 `sign_off.conditions`** | 已签 |
+| 2026-11-05 | **H4 收口补充**：质量运行摘要（pipeline/load stdout）必带 `exemptions={...}`；`hk_hold` 在 A1 `.HK → HKEX` 映射落地前记 blocked，fixture 不冒充验收数据、非法标识不静默跳过 | H4 2026-11-05 收口 |
+| 2026-11-05 | **H4 备案附注已落（KD-RES-FIX）**：RES-01 明确为周末粗筛（非法定节假日/交易日历，P1 接 `trade_cal`）；RES-02 限定只对 DWD canonical 字段生效；`hk_hold` 换真实港股命名空间 `HKEX:#####` 并由 RES-03 显式豁免+计数（fixture 已改 `HKEX:00700`/`HKEX:09988`）；RES-04 改 per-endpoint 阈值（`hk_hold` T+1 次日 15:00，其余当日 15:00）；新增研究数据集不得进 display root 的隔离门禁（prod 拒绝、不参与 `display_safe` 派生） | H4 备案通过（2026-11-05） |
 | 2026-11-05 | 研究数据集（KD-INGEST-CONSUME）：DWD 新增 7 表、serving 新增 7 个 `serving_research_*` 内部 view（不接 C 端）；质量规则新增 RES-01..04（blocker），规则数 14→18，before/after：业务 3→4（同一 blocker 66.67→75.00、总分 90.00→92.50，仍 black）、完整性 3→5、一致性 2→3；阈值/权重/否决不变 | 待 H4 备案 |
 | 2026-11-04 | H4 会签 §8 十项：#1/#2/#4/#5/#7/#8/#9/#10 同意；#3 按 L80 条件收（时点 ST 限制+BIZ-03 warn，未知板 fail-closed）；#6 L3 条件已落（anchor_date/factor_version、锚变重签）。条件见 `p0_metrics.json::sign_off.conditions` | H4（signed） |

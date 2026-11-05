@@ -93,5 +93,40 @@
     "main"
   ],
   "limit_tolerance_pp": 0.5,
-  "ruleset_note": "v2（2026-11-05）：新增研究数据集 4 条规则 RES-01..04（KD-INGEST-CONSUME）；before/after 见 docs/metrics/P0-metrics.md §9"
+  "ruleset_note": "v2（2026-11-05）：新增研究数据集 4 条规则 RES-01..04（KD-INGEST-CONSUME）；before/after 见 docs/metrics/P0-metrics.md §9",
+  "research_as_of": {
+    "note": "RES-04 per-endpoint as_of 阈值：A 股研究数据当日 15:00；hk_hold 北向持股 T+1 披露，次日 15:00；index_daily 指数收盘当日 15:00。offset_days 相对 trade_date。",
+    "default": {
+      "offset_days": 0,
+      "time": "15:00"
+    },
+    "daily_basic": {
+      "offset_days": 0,
+      "time": "15:00"
+    },
+    "index_daily": {
+      "offset_days": 0,
+      "time": "15:00"
+    },
+    "top_list": {
+      "offset_days": 0,
+      "time": "15:00"
+    },
+    "top_inst": {
+      "offset_days": 0,
+      "time": "15:00"
+    },
+    "moneyflow": {
+      "offset_days": 0,
+      "time": "15:00"
+    },
+    "margin": {
+      "offset_days": 0,
+      "time": "15:00"
+    },
+    "hk_hold": {
+      "offset_days": 1,
+      "time": "15:00"
+    }
+  }
 }

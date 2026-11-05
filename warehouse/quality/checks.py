@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
@@ -50,12 +51,13 @@ RULE_META: dict[str, tuple[str, str]] = {
     "COMP-03": ("completeness", "工作日覆盖：bar 或停牌证据必须覆盖每个工作日"),
     "CONS-01": ("consistency", "prev_close 与前一日 close 一致（除权日/首日豁免）"),
     "CONS-02": ("consistency", "bar/因子引用的 instrument 必须存在于 dim_instrument"),
-    "RES-01": ("completeness", "研究数据集交易日为工作日"),
-    "RES-02": ("business", "研究指标量纲：金额/量/市值非负，百分比 |x| ≤ 1000"),
-    "RES-03": ("consistency", "研究数据 instrument_id 必须存在于 dim_instrument（指数/两融豁免）"),
-    "RES-04": ("completeness", "研究批次 as_of ≥ 交易日 15:00 且 fetched_at ≥ as_of"),
+    "RES-01": ("completeness", "研究数据集交易日为工作日（weekday 体检，不含节假日；P1 接 trade_cal）"),
+    "RES-02": ("business", "研究指标量纲：仅 DWD canonical 字段；金额/量/市值非负，百分比 |x| ≤ 1000"),
+    "RES-03": ("consistency", "研究数据 instrument_id 必须存在于 dim_instrument（指数/两融豁免；非 A 股命名空间显式豁免并计数）"),
+    "RES-04": ("completeness", "研究批次 as_of 满足各 endpoint 的及时性阈值（默认交易日 15:00；hk_hold T+1 15:00）且 fetched_at ≥ as_of"),
 }
-CLOSE_TIME = time(15, 0, tzinfo=timezone(timedelta(hours=8)))
+CST = timezone(timedelta(hours=8))
+CLOSE_TIME = time(15, 0, tzinfo=CST)
 PRICE_STEP = Decimal("0.01")
 PCT = Decimal(100)
 HALF = Decimal("0.5")
@@ -86,6 +88,8 @@ class RuleResult:
     label: str
     evaluated: int
     violations: list[Violation] = field(default_factory=list)
+    # 显式豁免计数（如 hk_hold 的非 A 股命名空间）：不参与违规、不静默跳过。
+    exemptions: int = 0
 
     @property
     def severity(self) -> str:
@@ -97,6 +101,7 @@ class RuleResult:
             "category": self.category,
             "label": self.label,
             "evaluated": self.evaluated,
+            "exemptions": self.exemptions,
             "violations": [v.as_dict() for v in self.violations],
         }
 
@@ -132,6 +137,7 @@ class QualityReport:
             "grade": self.grade,
             "blocked": self.blocked,
             "violation_counts": self.violation_counts,
+            "exemptions": {r.rule_id: r.exemptions for r in self.results if r.exemptions},
             "category_scores": {k: round(v, 2) for k, v in self.category_scores.items()},
             "rules": [r.as_dict() for r in self.results],
             "blocker_violations": [v.as_dict() for v in self.blocker_violations],
@@ -172,6 +178,12 @@ RESEARCH_SIGNED_FIELDS = frozenset(
     {"change", "lhb_net_amount", "lhb_net_rate_pct", "net_buy_amount", "net_inflow_amount", "net_inflow_volume"}
 )
 RESEARCH_PCT_ABS_LIMIT = Decimal(1000)
+# 契约 InstrumentId 的命名空间；不匹配者（如港股 HKEX:00700）在 RES-03 里显式豁免并计数。
+RESEARCH_ID_PATTERN = re.compile(r"^(SSE|SZSE|BSE):[0-9]{6}$")
+# 可能承载非 A 股标识的研究 endpoint；豁免必须计数，不许静默跳过。
+RESEARCH_FK_EXEMPT_ENDPOINTS = frozenset({"hk_hold"})
+# RES-04 各 endpoint 的 as_of 及时性阈值：offset_days=相对 trade_date 的偏移，time=当地时刻。
+RESEARCH_AS_OF_DEFAULT = {"offset_days": 0, "time": "15:00"}
 
 
 class _Collector:
@@ -522,20 +534,35 @@ def _check_research_row(
                 c.flag("RES-02", iid, td, f"{endpoint}.{key}={value} 为负")
 
     # RES-03：股票级数据集的 instrument_id 必须在 dim_instrument。
+    # 非 A 股命名空间（如 hk_hold 的港股代码）显式豁免并计数——不静默跳过、不冒充通过。
     if endpoint in RESEARCH_INSTRUMENT_ENDPOINTS:
         c.bump("RES-03")
         if iid not in state.instruments:
-            c.flag("RES-03", iid, td, f"{endpoint} 引用的 {iid} 不在 dim_instrument")
+            exempt = endpoint in RESEARCH_FK_EXEMPT_ENDPOINTS and not RESEARCH_ID_PATTERN.match(iid)
+            if exempt:
+                c.results["RES-03"].exemptions += 1
+            else:
+                c.flag("RES-03", iid, td, f"{endpoint} 引用的 {iid} 不在 dim_instrument")
 
     # RES-04：研究批次及时性（as_of 不早于交易日 15:00；fetched_at ≥ as_of 由 loader 保证）。
     c.bump("RES-04")
     as_of = row.get("as_of")
     if as_of is not None:
-        threshold = datetime.combine(td, CLOSE_TIME)
+        policy = _as_of_policy(c.config, endpoint)
+        offset_days = int(policy.get("offset_days", 0))
+        hh, mm = (int(part) for part in str(policy.get("time", "15:00")).split(":"))
+        threshold = datetime.combine(td + timedelta(days=offset_days), time(hh, mm, tzinfo=CST))
         if as_of < threshold:
             c.flag(
                 "RES-04",
                 iid,
                 td,
-                f"{endpoint} 的 as_of={as_of.isoformat()} 早于 trade_date={td} 15:00",
+                f"{endpoint} 的 as_of={as_of.isoformat()} 早于阈值 "
+                f"{threshold.isoformat()}（offset_days={offset_days}，time={policy.get('time')}）",
             )
+
+
+def _as_of_policy(config: dict[str, Any], endpoint: str) -> dict[str, Any]:
+    """RES-04 的 endpoint 级 as_of 阈值配置（quality_config.json::research_as_of）。"""
+    policies = config.get("research_as_of") or {}
+    return policies.get(endpoint) or policies.get("default") or RESEARCH_AS_OF_DEFAULT

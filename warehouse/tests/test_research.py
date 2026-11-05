@@ -22,6 +22,7 @@ from warehouse.ods.loader import (
     Batch,
     OdsFormatError,
     SourceRef,
+    ensure_research_origin,
     load_batches,
     load_ods_roots,
     write_batch,
@@ -95,7 +96,7 @@ def test_fixture_batches_and_rows():
     assert len(state.top_inst) == 2
     assert len(state.moneyflow) == 1
     assert len(state.margin) == 1
-    assert len(state.hk_hold) == 1
+    assert len(state.hk_hold) == 2
     assert state.issues == []
 
 
@@ -240,12 +241,93 @@ def test_res04_early_as_of_blocks():
     assert "RES-04" in {v.rule_id for v in report.blocker_violations}
 
 
+def test_res03_hk_namespace_is_explicitly_exempted_and_counted():
+    # H4 备案附注 3：港股不在 A 股 dim_instrument，不得靠 A 股样例混绿、也不许静默跳过
+    state = build_fixture_state()
+    assert {iid for iid, _ in state.hk_hold} == {"HKEX:00700", "HKEX:09988"}
+    report = run_quality_checks(state)
+    result = next(r for r in report.results if r.rule_id == "RES-03")
+    assert result.exemptions == 2
+    assert report.as_dict()["exemptions"] == {"RES-03": 2}
+    assert "RES-03" not in {v.rule_id for v in report.blocker_violations}
+
+
+def test_res03_ashare_hk_hold_id_is_still_fk_checked():
+    # hk_hold 里若出现 A 股标识但不在 dim，仍按外键 blocker 处理（豁免只针对非 A 股命名空间）
+    state = build_fixture_state()
+    row = dict(next(iter(state.hk_hold.values())))
+    row.update({"instrument_id": "SSE:600999", "trade_date": date(2024, 1, 2)})
+    state.hk_hold[("SSE:600999", date(2024, 1, 2))] = row
+    report = run_quality_checks(state)
+    assert "RES-03" in {v.rule_id for v in report.blocker_violations}
+
+
+def test_res04_hk_hold_requires_t_plus_1():
+    # H4 备案附注 4：hk_hold 是 T+1 披露，as_of 必须 ≥ 次日 15:00；其它 A 股研究数据仍当日 15:00
+    state = build_fixture_state()
+    # 取 HKEX:09988（trade_date=2024-01-03）：T+1 阈值是 2024-01-04 15:00，当日 20:05 仍不够
+    row = state.hk_hold[("HKEX:09988", date(2024, 1, 3))]
+    row["as_of"] = datetime(2024, 1, 3, 20, 5, tzinfo=CST)
+    report = run_quality_checks(state)
+    assert "RES-04" in {v.rule_id for v in report.blocker_violations}
+
+    state2 = build_fixture_state()
+    row2 = next(iter(state2.daily_basic.values()))
+    row2["as_of"] = datetime(2024, 1, 3, 20, 5, tzinfo=CST)  # A 股研究数据当日收盘后即合格
+    report2 = run_quality_checks(state2)
+    assert "RES-04" not in {v.rule_id for v in report2.blocker_violations}
+
+
+def test_hk_hold_loader_accepts_hkex_namespace(tmp_path):
+    rows = [
+        {"instrument_id": "HKEX:00700", "trade_date": "2024-01-02", "name": "腾讯控股",
+         "holding_volume": "100", "holding_ratio_pct": "1.0", "northbound_channel": "HK"}
+    ]
+    batches = _load_single(tmp_path, "hk_hold", rows)
+    assert batches[0].rows[0]["instrument_id"] == "HKEX:00700"
+
+
+def test_hk_hold_loader_rejects_bad_hkex_code(tmp_path):
+    rows = [
+        {"instrument_id": "HKEX:700", "trade_date": "2024-01-02", "name": "腾讯控股",
+         "holding_volume": "100", "holding_ratio_pct": "1.0", "northbound_channel": "HK"}
+    ]
+    with pytest.raises(OdsFormatError, match="EXCH:CODE"):
+        _load_single(tmp_path, "hk_hold", rows)
+
+
+def test_research_in_display_root_rejected_in_prod(tmp_path):
+    # H4 自签门禁：研究数据集不得进 display root，也不得参与 display_safe 派生
+    write_batch(tmp_path / "display", _batch("daily_basic", [
+        {"instrument_id": "SSE:600519", "trade_date": "2024-01-02", "close": "1688.00", "as_of": "2024-01-03T20:05:00+08:00"}
+    ]))
+    batches = load_ods_roots(tmp_path)
+    assert all(batch.origin == "display" for batch in batches)
+    with pytest.raises(OdsFormatError, match="display root"):
+        ensure_research_origin(batches, profile="prod")
+    assert ensure_research_origin(batches, profile="dev")  # dev 返回违规批次供告警
+
+
+def test_research_display_root_pipeline_exit_nonzero(tmp_path):
+    from warehouse import pipeline
+
+    write_batch(tmp_path / "display", _batch("daily_basic", [
+        {"instrument_id": "SSE:600519", "trade_date": "2024-01-02", "close": "1688.00", "as_of": "2024-01-03T20:05:00+08:00"}
+    ]))
+    rc = pipeline.main(["--ods-root", str(tmp_path), "--profile", "prod"])
+    assert rc == 1
+
+
 def test_research_rules_declared_in_config():
     config = load_config()
     for rid in ("RES-01", "RES-02", "RES-03", "RES-04"):
         assert config["rules"][rid]["severity"] == "blocker"
     # 每个研究表至少两条规则覆盖：RES-01/RES-02 全表、RES-03 股票级、RES-04 全表
     assert len(config["rules"]) == 18
+    policies = config["research_as_of"]
+    assert policies["hk_hold"] == {"offset_days": 1, "time": "15:00"}
+    for endpoint in ("daily_basic", "index_daily", "top_list", "top_inst", "moneyflow", "margin"):
+        assert policies[endpoint] == {"offset_days": 0, "time": "15:00"}
 
 
 # --------------------------------------------------------------------------
@@ -280,3 +362,22 @@ def test_readme_documents_research_views_and_boundary():
         assert f"serving.serving_research_{endpoint}" in text, endpoint
     assert "不接 C 端" in text
     assert "provisional" in text
+
+
+def test_quality_summary_exposes_exemptions(capsys):
+    # H4 收口 ①：豁免必须出现在质量运行摘要，不能只留在内部计数器
+    from warehouse import pipeline
+
+    rc = pipeline.main(["--ods-root", "warehouse/tests/fixtures/research_ods", "--profile", "dev"])
+    out = capsys.readouterr()
+    assert rc == 0
+    assert "exemptions={'RES-03': 2}" in out.out
+
+
+def test_load_summary_exposes_exemptions(capsys):
+    from warehouse import load
+
+    rc = load.main(["--ods-root", "warehouse/tests/fixtures/research_ods", "--profile", "dev", "--dry-run"])
+    out = capsys.readouterr()
+    assert rc == 0
+    assert "exemptions={'RES-03': 2}" in out.out

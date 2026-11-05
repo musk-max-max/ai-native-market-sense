@@ -196,7 +196,22 @@ A1 把 7 个研究数据集写入 `<ODS_ROOT>/internal/<endpoint>/dt=<trade_date
   `internal_eval` 恒 403，`serving/ports.yaml` 不新增方法。B2 功能点走 `/v1/internal/*`，需 H2 签字后另立任务。
 - **字段映射 provisional**：保持 A1 canonical 字段名，不重命名；待 H4 对齐后才可作为正式指标口径。
 - **top_inst 依赖 5000 分档**：数据缺失时 DWD 无行、view 返回空，不报错（load/pipeline 不因缺该 endpoint 失败）。
-- 研究 DWD 为 **last-write-wins**（无 revision 列）；质量规则 RES-01..04（工作日 / 量纲 / 外键 / as_of 及时性）覆盖。
+- 研究 DWD 为 **last-write-wins**（无 revision 列）；质量规则 RES-01..04 覆盖，边界写清：
+  - **RES-01 只是周末粗筛**（`weekday()>=5`），**不校验交易日历**，法定节假日不覆盖；P1 接 `trade_cal` 后升级。
+  - **RES-02 只对 DWD canonical 字段生效**（如 `total_market_value`/`circulating_market_value`）；ODS 源字段
+    （如 `total_mv`）不在检查范围，量纲正确性由 A1 适配层负责。
+  - **RES-03 外键**：A 股研究数据 `instrument_id` 必须在 `dim_instrument`；`hk_hold` 的港股标识用
+    独立命名空间 `HKEX:#####`（如 `HKEX:00700`），不在 A 股 dim 中，规则**显式豁免并计数**
+    （报告 `exemptions`），不静默跳过；若 `hk_hold` 出现 A 股标识但不在 dim，仍是 blocker。
+  - **RES-04 per-endpoint as_of 阈值**（`quality_config.json::research_as_of`）：A 股研究数据当日 15:00；
+    `hk_hold` 为 T+1 披露，次日 15:00；`index_daily` 指数收盘当日 15:00。
+- **运行摘要**：`pipeline` / `load` 的 stdout 质量行在存在豁免时输出 `exemptions={...}`
+  （如 `RES-03: 2`），与 `quality.json` 内的 `exemptions` 同源，豁免不能只留在内部计数器。
+- **hk_hold 状态**：A1 港股后缀映射（`00700.HK → HKEX:00700`）落地前，`hk_hold` 记为 **blocked**——
+  fixture 只是命名空间健壮性样例（`source=a2.fixture.hkex_namespace`），不是数据验收依据；读取端对非法标识
+  报错、不静默跳过、不降级成 A 股样例。A1 映射落地后重跑全量套件再报。
+- **隔离门禁**：研究数据集只能进 `internal/` root；写进 `display/` root 时 prod 直接拒绝（dev 告警且
+  `display_safe` 恒 false）；研究数据不参与 `display_safe` 派生、`serving_research_*` 不进入 C 端 `ports.yaml`。
 - 本地链路验证（fixture 由 A1 `research.map_row` 生成）：
 
 ```bash

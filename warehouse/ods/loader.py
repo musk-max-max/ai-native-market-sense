@@ -32,6 +32,8 @@ from pathlib import Path
 from typing import Any, Iterator
 
 INSTRUMENT_ID_RE = re.compile(r"^(SSE|SZSE|BSE):[0-9]{6}$")
+# hk_hold 的港股标识命名空间（如 HKEX:00700）；港股不在 A 股 dim_instrument，质量层显式豁免并计数。
+HKEX_ID_RE = re.compile(r"^HKEX:[0-9]{5}$")
 SOURCE_RE = re.compile(r"^[a-z0-9_.:-]+$")
 TZ_SHANGHAI = timedelta(hours=8)
 
@@ -391,6 +393,17 @@ def _check_instrument_id(value: Any, *, where: str) -> str:
     return value
 
 
+def _check_research_instrument_id(schema: str, value: Any, *, where: str) -> str:
+    """研究数据集标识：A 股用契约 EXCH:CODE；hk_hold 额外允许港股 HKEX:#####。
+
+    港股不在 A 股 dim_instrument（ADR-002 exchange 枚举只有 SSE/SZSE/BSE），因此
+    hk_hold 的港股行由质量规则 RES-03 显式豁免并计数，不静默跳过、也不冒充 A 股。
+    """
+    if schema == "hk_hold.v1" and isinstance(value, str) and HKEX_ID_RE.match(value):
+        return value
+    return _check_instrument_id(value, where=where)
+
+
 def normalize_bar_row(row: dict[str, Any], *, where: str) -> dict[str, Any]:
     _check_no_source_leak(row, where=where)
     instrument_id = _check_instrument_id(_require(row, "instrument_id", where=where), where=where)
@@ -541,7 +554,9 @@ def normalize_research_row(schema: str, row: dict[str, Any], *, where: str) -> d
     )
     id_field = spec.get("id_field", "instrument_id")
     if id_field == "instrument_id":
-        raw_id = _check_instrument_id(_require(row, id_field, where=where), where=where)
+        raw_id = _check_research_instrument_id(
+            schema, _require(row, id_field, where=where), where=where
+        )
     else:
         raw_id = _require(row, id_field, where=where)
         if not isinstance(raw_id, str) or not raw_id.strip():
@@ -727,6 +742,27 @@ def load_ods_roots(
         batches = load_batches(display, origin="flat")
     _ensure_unique_batches(batches)
     return batches
+
+
+def ensure_research_origin(batches: list[Batch], *, profile: str = "prod") -> list[Batch]:
+    """研究数据集批次只允许出现在 internal root（或旧平铺 root），不得进 display root。
+
+    L34 的 display root 是「展示可用」通道；研究数据集（daily_basic/index_daily/
+    top_list/top_inst/moneyflow/margin/hk_hold）是内部评测数据，不参与 display_safe
+    派生、也不得影响展示态。prod 直接拒绝（fail-closed），dev 返回违规批次供调用方告警，
+    但 display_safe 仍恒为 false。
+    """
+    offenders = [
+        batch
+        for batch in batches
+        if batch.origin == "display" and batch.endpoint in RESEARCH_ENDPOINTS
+    ]
+    if offenders and profile == "prod":
+        detail = ", ".join(f"{batch.endpoint}/{batch.batch_id}" for batch in offenders[:5])
+        raise OdsFormatError(
+            f"研究数据集批次不得写入 display root（内部评测数据不得参与展示/display_safe 派生）：{detail}"
+        )
+    return offenders
 
 
 MANIFEST_FILE = "manifest.jsonl"

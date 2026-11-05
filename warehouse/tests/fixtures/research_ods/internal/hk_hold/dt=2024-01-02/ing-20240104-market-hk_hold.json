@@ -1,0 +1,30 @@
+{
+  "batch_id": "ing-20240104-market-hk_hold",
+  "endpoint": "hk_hold",
+  "schema": "hk_hold.v1",
+  "source": {
+    "source": "a2.fixture.hkex_namespace",
+    "as_of": "2024-01-04T20:05:00+08:00",
+    "fetched_at": "2024-01-04T20:06:00+08:00"
+  },
+  "rows_total": 2,
+  "rows_rejected": 0,
+  "rows": [
+    {
+      "instrument_id": "HKEX:00700",
+      "trade_date": "2024-01-02",
+      "name": "腾讯控股",
+      "holding_volume": "95000000",
+      "holding_ratio_pct": "7.5623",
+      "northbound_channel": "HK"
+    },
+    {
+      "instrument_id": "HKEX:09988",
+      "trade_date": "2024-01-03",
+      "name": "阿里巴巴-W",
+      "holding_volume": "120000000",
+      "holding_ratio_pct": "5.1200",
+      "northbound_channel": "HK"
+    }
+  ]
+}

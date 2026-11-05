@@ -135,7 +135,7 @@ _COLUMNS: dict[str, tuple[ColumnSpec, ...]] = {
         _c("securities_volume", "rqyl", "int"),
     ),
     "hk_hold": (
-        _c("instrument_id", "ts_code", "instrument"),
+        _c("instrument_id", "ts_code", "instrument_hk"),
         _c("trade_date", "trade_date", "date"),
         _c("name", "name", "text"),
         _c("holding_volume", "vol", "int"),
@@ -229,6 +229,44 @@ _FACTORS: dict[str, Decimal] = {
 _EXCHANGE_MARGIN = {"SSE": "SSE", "SZSE": "SZSE", "BSE": "BSE"}
 _EXCHANGE_HK = {"SH": "SH", "SZ": "SZ", "HK": "HK"}
 
+#: 港股通（南向）标的命名空间：仅 ``hk_hold`` 研究域使用。
+#: 源返回 ``00700.HK``；P0 canonical pattern（SSE/SZSE/BSE:6 位）不变，
+#: 港股不进入 A 股端口/展示态，只在研究数据集行里用 ``HKEX:00700``。
+_HKEX_NAMESPACE = "HKEX"
+_HKEX_CODE_LEN = 5
+_HKEX_SUFFIX = ".HK"
+
+
+def instrument_id_for(value: Any, *, dataset: str) -> str:
+    """研究域 instrument_id：A 股 ``EXCH:CODE``；``hk_hold`` 的港股通行 → ``HKEX:#####``。"""
+    text = str(value).strip()
+    if text.upper().endswith(".HK"):
+        if dataset != "hk_hold":
+            raise ResearchRowError(
+                f"HK namespace is only valid for hk_hold rows (got {value!r} in {dataset})"
+            )
+        code = text[:-3].strip()
+        if not code.isdigit() or not 1 <= len(code) <= _HKEX_CODE_LEN:
+            raise ResearchRowError(f"invalid HK source code {value!r} for {dataset}")
+        return f"{_HKEX_NAMESPACE}:{code.zfill(_HKEX_CODE_LEN)}"
+    try:
+        return mapper.to_instrument_id(text)
+    except ValueError as exc:
+        raise ResearchRowError(f"invalid source code {value!r} for {dataset}") from exc
+
+
+def hk_source_code(instrument_id: str) -> str:
+    """``HKEX:#####`` → 源代码 ``#####.HK``（``instrument_id_for`` 的逆映射，审计/回放用）。
+
+    只接受研究域港股命名空间（5 位数字，左补 0，大写）；A 股 ``EXCH:CODE`` 不走这里。
+    """
+    namespace, _, code = str(instrument_id).partition(":")
+    if namespace != _HKEX_NAMESPACE:
+        raise ResearchRowError(f"not an HKEX instrument_id: {instrument_id!r}")
+    if not code.isdigit() or len(code) != _HKEX_CODE_LEN:
+        raise ResearchRowError(f"invalid HKEX code: {instrument_id!r}")
+    return f"{code}{_HKEX_SUFFIX}"
+
 
 def row_date(row: Mapping[str, Any]) -> date | None:
     """尽力取源行交易日（用于 DLQ 元数据）；非法返回 None。"""
@@ -238,11 +276,16 @@ def row_date(row: Mapping[str, Any]) -> date | None:
         return None
 
 
-def row_instrument(row: Mapping[str, Any]) -> str | None:
+def row_instrument(row: Mapping[str, Any], *, dataset: str | None = None) -> str | None:
     """尽力取 canonical instrument_id（用于 DLQ 元数据）；非法返回 None。"""
     value = row.get("ts_code")
     if not value:
         return None
+    if dataset == "hk_hold" and str(value).upper().endswith(".HK"):
+        try:
+            return instrument_id_for(value, dataset="hk_hold")
+        except ResearchRowError:
+            return None
     try:
         exchange, code = mapper.parse_source_code(str(value))
     except mapper.RowMapError:
@@ -306,11 +349,8 @@ def map_row(dataset: str, row: Mapping[str, Any]) -> dict[str, Any]:
                 )
             result[column.canonical] = None
             continue
-        if column.kind == "instrument":
-            instrument_id = row_instrument(row)
-            if instrument_id is None:
-                raise ResearchRowError(f"invalid source code {raw!r} for {dataset}")
-            result[column.canonical] = instrument_id
+        if column.kind in ("instrument", "instrument_hk"):
+            result[column.canonical] = instrument_id_for(raw, dataset=dataset)
         elif column.kind == "date":
             try:
                 result[column.canonical] = mapper.parse_trade_date(raw).isoformat()
@@ -337,6 +377,8 @@ __all__ = [
     "ResearchDataset",
     "ResearchRowError",
     "canonical_fields",
+    "hk_source_code",
+    "instrument_id_for",
     "map_row",
     "research_datasets",
     "row_date",

@@ -212,6 +212,49 @@ def test_map_hk_hold_northbound_channel() -> None:
     assert canonical["northbound_channel"] == "SH"
 
 
+def test_map_hk_hold_hk_branch_uses_hkex_namespace() -> None:
+    row = hk_hold_row()
+    row["ts_code"] = "00700.HK"
+    row["code"] = "00700"
+    row["exchange"] = "HK"
+    canonical = research.map_row("hk_hold", row)
+    assert canonical["instrument_id"] == "HKEX:00700"
+    assert canonical["northbound_channel"] == "HK"
+    # 逆向：审计/回放能把 canonical 还原成源代码
+    assert research.hk_source_code(canonical["instrument_id"]) == "00700.HK"
+
+
+def test_map_hk_hold_hk_branch_pads_short_code() -> None:
+    row = hk_hold_row()
+    row["ts_code"] = "7.HK"
+    row["code"] = "7"
+    row["exchange"] = "HK"
+    canonical = research.map_row("hk_hold", row)
+    assert canonical["instrument_id"] == "HKEX:00007"
+    assert research.hk_source_code(canonical["instrument_id"]) == "00007.HK"
+
+
+def test_map_hk_hold_rejects_non_hk_suffix() -> None:
+    row = hk_hold_row()
+    row["ts_code"] = "00700.US"
+    with pytest.raises(research.ResearchRowError, match="invalid source code"):
+        research.map_row("hk_hold", row)
+
+
+def test_hk_namespace_rejected_outside_hk_hold() -> None:
+    row = top_list_row()
+    row["ts_code"] = "00700.HK"
+    with pytest.raises(research.ResearchRowError, match="only valid for hk_hold"):
+        research.map_row("top_list", row)
+
+
+def test_hk_source_code_rejects_non_hkex_ids() -> None:
+    with pytest.raises(research.ResearchRowError, match="not an HKEX"):
+        research.hk_source_code("SSE:600519")
+    with pytest.raises(research.ResearchRowError, match="invalid HKEX code"):
+        research.hk_source_code("HKEX:700")
+
+
 def test_map_daily_basic_share_and_value_units() -> None:
     canonical = research.map_row("daily_basic", daily_basic_row())
     assert canonical["total_shares"] == "1000000"  # 100 万股 × 10000

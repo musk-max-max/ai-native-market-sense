@@ -37,6 +37,7 @@ from warehouse.ods.loader import (
     OdsFormatError,
     display_instrument_ids,
     load_display_safety,
+    ensure_research_origin,
     load_ods_roots,
     require_display_evidence,
 )
@@ -600,6 +601,13 @@ def run(
 ) -> int:
     try:
         batches = load_ods_roots(ods_root, internal_ods_root)
+        research_in_display = ensure_research_origin(batches, profile=profile)
+        if research_in_display:
+            print(
+                "[WARN] 研究数据集批次出现在 display root：display_safe 保持 false"
+                "（dev profile 放行；prod profile 会拒绝）",
+                file=sys.stderr,
+            )
         if not batches:
             print(
                 f"[FAIL] ODS 输入为空：{ods_root} 下没有任何批次（契约 exit 3 = INPUT_MISSING）",
@@ -637,7 +645,9 @@ def run(
         return EXIT_INPUT_MISSING
 
     report = run_quality_checks(state)
-    print(f"quality score={report.score} grade={report.grade} blocked={report.blocked}")
+    exemptions = report.as_dict().get("exemptions") or {}
+    suffix = f" exemptions={exemptions}" if exemptions else ""
+    print(f"quality score={report.score} grade={report.grade} blocked={report.blocked}{suffix}")
     reason = gate_reason(report)
 
     if not dry_run:
