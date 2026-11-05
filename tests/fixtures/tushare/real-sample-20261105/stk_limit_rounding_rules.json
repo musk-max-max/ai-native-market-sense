@@ -466,5 +466,22 @@
     "day": "20261103",
     "count": 35,
     "note": "probe days: 35 行/日，half-up 0.01 35/35 命中；不在 BJ 集合内。"
+  },
+  "bse_master": {
+    "api": "stock_basic",
+    "params": {
+      "exchange": "BSE",
+      "list_status": "L"
+    },
+    "listed_rows": 354,
+    "prefix_counts": {
+      "43": 0,
+      "83": 0,
+      "87": 0,
+      "88": 0,
+      "92": 354
+    },
+    "note": "该源 BSE 在册 354 只全部为 92 前缀（代码空间已迁移）；43/83/87/88 在该源无样本，因而无法用本数据源验证旧前缀规则。stk_limit 每日 92 前缀 354 行与之一致。",
+    "fetched_at": "2026-11-05T21:56:00+08:00"
   }
 }
