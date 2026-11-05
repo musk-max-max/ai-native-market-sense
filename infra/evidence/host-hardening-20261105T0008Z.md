@@ -16,7 +16,8 @@
 ## 2. ms-nginx（H5 m03440 第 2 项）— PASS（并发处置）
 
 - 审计时（23:58:16Z）容器 `ms-nginx` 为 `exited/restart=no`，但 `PortBindings={"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"80"}]}`（A19 R1）。
-- 23:58:17Z 另一执行者已 `docker rm ms-nginx` 并将 `/opt/ms-nginx/htpasswd` 归档为 `htpasswd.archived-20261104T235817Z`（0600）；A13 复核时容器已不存在，`/opt/ms-nginx` 权限 700/文件 600。
+- 23:58:17Z（北京时间 07:58:17）容器被移除；同一分钟内 `/opt/ms-nginx/htpasswd` 被归档为 `htpasswd.archived-20261104T235817Z`（0600，51B）。A13 在 23:58:56Z 复核时容器已不存在，`/opt/ms-nginx` 权限 700/文件 600。
+- **归因状态：UNATTRIBUTED（待 Lead 认领）**。A13 可查范围：`/opt/ms-nginx` 归档 mtime=`2026-11-05 07:58:17 +0800`；ECS `last`/`journalctl _COMM=sshd`/`/root/.bash_history`（mtime 2026-06-10）均无该时段命令记录；`docker events` 无历史（daemon 未持久化）。A13 自身首个只读审计为 23:57:4xZ、移除前容器仍在；A13 未执行该移除。按 H5 m03558 要求**不得写「另一执行者」**，此项在 Lead 认领前保持 UNATTRIBUTED，不影响「当前无 ms-nginx/无 0.0.0.0:80 绑定」的事实。
 - A13 归档补充：`/root/a13-archive/ms-nginx-20261105T0002Z/`（inspect.json、nginx.conf、docker.log；`SHA256SUMS`：inspect `d213eadc…`、nginx.conf `caa0ac56…`、docker.log `0115fa2c…`）。未重启、未 `docker start`。
 - 复核：`docker ps -a` 无 `ms-nginx`；`ss -ltnp` 无 80 监听。
 
@@ -27,16 +28,17 @@
 - 无业务监听受影响（ss 仅有 22、loopback 的 8081/3000/18081/53/45231）。
 - **22 仍未限制来源**（Anywhere）：需用户提供白名单 CIDR 后改为 `ufw allow from <CIDR> to any port 22`；当前状态在漂移审计中如实 FAIL，不伪装 PASS。
 
-## 4. R3 运行时审计/hold 漂移（H5 m03440 第 4 项）— PASS（单次隔离验证）
+## 4. R3 运行时审计/hold 漂移（H5 m03440 第 4 项）— PASS（隔离验证，非生产；合成数据不作 DA 证据）
 
 - 重建默认 e2e api（`docker compose -f docker-compose.yml -f docker-compose.override.lead.yml up -d --force-recreate api`）：
   `ENTITLEMENT_AUDIT=1`、`ENTITLEMENT_HOLD_CHECK=1`、`ENTITLEMENT_TIER=internal_eval`、`APP_PROFILE=e2e`、`E2E_MODE=1`、`DEPLOYMENT_UID=e2e-default`；`/healthz` 200。
-- 正向档隔离验证（同镜像 `market-sense-e2e-api:latest` 一次性容器 `a13-r3-audit`，`c_end_display` + expires `2030-12-31T00:00:00Z` + expected sha `b0d185b9…` + AUDIT/HOLD=1，仅 127.0.0.1:8092）：
+- 正向档**隔离**验证（同镜像 `market-sense-e2e-api:latest` 一次性容器 `a13-r3-audit`，`c_end_display` + expires `2030-12-31T00:00:00Z` + expected sha `b0d185b9…` + AUDIT/HOLD=1，仅 127.0.0.1:8092）：
   * 控制行 fresh 后 quote `200`（合成数据 9999.99，非 DA 证据）；
   * `audit.raise_hold('a13-r3-hold-check-2','H5 m03440 R3 audit slow-refresh')` → hold_id `7a55405d…`；
   * **控制读缓存 TTL 约 30s**：2s 内仍 200；35s 后 quote `403` + `cache-control: no-store`，`/healthz entitlement_degraded=true / reason=hold_active`；
   * `audit.clear_hold('A13-TICKET-2','H5','1111…1111')` 后 35s quote `200`；hold=f；
   * `audit.entitlement_events` 行数 2→5→6，`hold_set` 事件 `event_key=hold|7a55405d-…`、hash 链前后相接；`verify_entitlement_chain()` 返回 0 行（无问题）。
+- **范围限定（H5 m03558）**：本项为隔离栈一次性容器验证，**非生产验证**；`last_price=9999.99` 为合成 fixture，**不作 DA 证据**；生产未部署本组合。
 - 清理：`a13-r3-audit` 已 `docker rm -f`；hold 已 clear、`last_reconciled_at` fresh；默认 api 保持 running/healthy。
 
 ## 5. 漂移检测自证（A9 R7：变异注入）
