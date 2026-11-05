@@ -1244,3 +1244,9 @@ A13 如实交了失败记录（本机无 iptables、pf 无权限），**没有�
 - **实现**：ECS 已装 `market-sense-host-baseline.timer`（每日 09:13 CST）+ 巡检脚本 `/usr/local/sbin/market-sense-host-baseline-audit.sh`（Lead 亲验在位）；自动隔离 A=b 窄口径、部署钩子 B=b（`infra/scripts/deploy.sh:46` 无 HOST_AUDIT_SSH+暴露面变更→exit 8 阻塞）。
 - **HOST_AUDIT_SSH 不现在配（Lead 裁定）**：deploy.sh 用 BatchMode ssh 进 ECS 跑巡检，需 登录目标 + SSH 私钥 secret 两件。①流水线尚未真实部署 ECS、fail-closed 触发不到，配了闲置；②**不该用 root 私钥**（=又开一条 root 通道，与 L102 SSH 加固矛盾），须用专用审计账号；③具名 sudo 账号尚未建。故与「具名 sudo 审计账号」绑定一起做，都在 11-12 前批次，现在不单独配。
 - **⑤ 六项 residual**：22 白名单(ACCEPTED-RISK)/SG 80-8888(ACCEPTED-RISK)/root 登录(ACCEPTED-RISK+三硬条件)/HOST-BASELINE-01(IaC 待提案)/HOST-AUDIT-01(P2 挂账)/HOST-EXPOSURE-01(conditional，待 A19 独立复核后转 PASS)。11-12 前 SG+root 两项须至少转「用户书面接受+release note」，否则 H5 不签。
+
+## §11 L107 HOST-EXPOSURE-01 A19 独立复核 PASS（转正材料齐）
+- **A19 独立注入复核 PASS**（供 H5 终签）：证据 `infra/evidence/host-exposure-01-a19-verify-20261105T014333Z.txt`（91 行，sha 9ece8b1b…，A13 登记 manifest authoritative/HOST-EXPOSURE-01）。
+- **两路径验证**：①`docker create -p 0.0.0.0:8888`（未启动）→ 巡检 FAIL+ALERT+ISOLATED-POLICY restart=no；②`docker run -d -p 0.0.0.0:9999`（running）→ FAIL+ALERT+`docker stop && update --restart=no`，审计后 status=exited、监听消失。清理 `docker rm -f` 无残留、复跑无 a19 行、ss 无 8888/9999。未动 SG/ufw/sshd。
+- **口径**：隔离按 L105 窄口径仅对 `EXPECTED_PUBLIC_PORTS` 生效；9999 不在安装态 expected，running 隔离用临时 expected 覆盖（6be492f2…，用后即删，安装态未改）。A19 提交为「检测复核供 H5 终签」，不签门禁。
+- **待办**：A13 补 manifest amend，H5 把 HOST-EXPOSURE-01 由 conditional 转 PASS。⑤ 仍 PARTIAL（其余五项 residual 不变）。
