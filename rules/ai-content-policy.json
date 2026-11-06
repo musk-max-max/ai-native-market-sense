@@ -25,9 +25,9 @@
     },
     "owner_policy_version_signature": {
       "required": true,
-      "status": "pending",
+      "status": "signed",
       "ref": "m06899",
-      "signed_at": null,
+      "signed_at": "2026-11-06T03:59:17Z",
       "note": "等待 owner 签 internal 分区（owner decision m06899 / L127）；由 owner 本人填写，A5 不代签。"
     }
   },
