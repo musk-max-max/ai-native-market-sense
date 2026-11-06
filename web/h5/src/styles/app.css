@@ -519,7 +519,7 @@ input {
   border-radius: 9px;
   background: var(--warning-bg);
   color: var(--warning-text);
-  font-size: 12px;
+  font-size: var(--fs-caption); /* 「未更新」承载数据口径语义，按 N4 语义解释归 13px 下限 */
   font-weight: 700;
   line-height: 1.45;
 }
@@ -1386,8 +1386,8 @@ input {
 
 .ai-slot--pending {
   margin: 8px 0 0;
-  color: var(--text-subtle);
-  font-size: 11.5px;
+  color: var(--text);
+  font-size: var(--fs-caption);
   line-height: 1.55;
 }
 
@@ -1416,7 +1416,7 @@ input {
   border-radius: 5px;
   background: var(--brand-emphasis);
   color: var(--accent-contrast);
-  font-size: 10px;
+  font-size: 10px; /* ≥10px 规格 §1 明文禁止 9px */
   font-weight: 800;
 }
 
@@ -1436,14 +1436,14 @@ input {
 .ai-section__footnote {
   margin: 12px 0 0;
   color: var(--text-muted);
-  font-size: 11.5px;
+  font-size: var(--fs-caption);
   line-height: 1.6;
 }
 
 .ai-section__meta {
   margin: 4px 0 0;
-  color: var(--text-subtle);
-  font-size: 11px;
+  color: var(--text-muted);
+  font-size: var(--fs-caption);
   line-height: 1.55;
 }
 
