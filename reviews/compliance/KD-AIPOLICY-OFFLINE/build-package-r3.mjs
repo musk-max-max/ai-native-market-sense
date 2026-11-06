@@ -2,6 +2,7 @@
 // 用法（仓库根）：node reviews/compliance/KD-AIPOLICY-OFFLINE/build-package-r3.mjs
 // 约束：所有 sha 由本脚本计算，禁止手抄；生成后自检表内 sha == 磁盘 sha。
 // 治理：evidence-register.md 登记「r3 冻结 sha」后本脚本进入 check-only（拒绝写入，仅校验）；
+// 登记「r3 签署版 sha」（E-0006）后按签署版 sha 校验，签署版不可被生成器覆盖。
 // 签署栏必须是空模板（H3 要求新 rN 不得预填结论/签字）。
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
@@ -32,15 +33,17 @@ const r3Path = path.join(here, r3Name);
 if (existsSync(registerPath)) {
   const reg = readFileSync(registerPath, "utf8");
   const frozenMatch = reg.match(/r3 冻结 sha[^`\n]*`([0-9a-f]{64})`/);
-  if (frozenMatch) {
-    const frozen = frozenMatch[1];
+  const signedMatch = reg.match(/签署版 sha[^`\n]*`([0-9a-f]{64})`/);
+  const target = signedMatch ? signedMatch[1] : frozenMatch ? frozenMatch[1] : null;
+  if (target) {
+    const mode = signedMatch ? "已签署" : "已冻结";
     if (!existsSync(r3Path)) {
-      console.error("check-only：r3 冻结于 register，但文件缺失");
+      console.error(`check-only：r3 ${mode}于 register，但文件缺失`);
       process.exit(1);
     }
     const problems = [];
     const actual = sha256(r3Path);
-    if (actual !== frozen) problems.push(`r3 磁盘 sha ${actual} != 冻结 sha ${frozen}`);
+    if (actual !== target) problems.push(`r3 磁盘 sha ${actual} != register ${mode} sha ${target}`);
     const written = readFileSync(r3Path, "utf8");
     const rows = [...written.matchAll(/\| \d+ \| `([^`]+)` \| (?:`([0-9a-f]{64})`|（本文件）) \|/g)];
     for (const [, name, listed] of rows) {
@@ -48,12 +51,12 @@ if (existsSync(registerPath)) {
       const disk = digest(name);
       if (disk !== listed) problems.push(`${name}: 表内 ${listed} != 磁盘 ${disk}`);
     }
-    console.log(`check-only 模式：r3 已冻结（${frozen.slice(0, 16)}…），拒绝写入，仅校验`);
+    console.log(`check-only 模式：r3 ${mode}（${target.slice(0, 16)}…），拒绝写入，仅校验`);
     if (problems.length) {
       console.error("校验失败：\n" + problems.join("\n"));
       process.exit(1);
     }
-    console.log(`OK：r3 文件 sha == 冻结 sha；§1 表 ${rows.filter((r) => r[2]).length} 行 sha == 磁盘`);
+    console.log(`OK：r3 文件 sha == register ${mode} sha；§1 表 ${rows.filter((r) => r[2]).length} 行 sha == 磁盘`);
     process.exit(0);
   }
 }
