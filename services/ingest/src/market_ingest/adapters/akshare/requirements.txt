@@ -1,0 +1,3 @@
+# AKshare 东方财富实时行情适配器依赖
+# 合规：AKshare 为爬虫封装，仅限内部研究/展示，C 端商用需另行授权（F1 residual）
+akshare>=1.20
