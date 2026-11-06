@@ -635,7 +635,7 @@ if (roleSql && grants && verifySql) {
   );
   check(
     'ai_app: 未授任何 table-level 权限（只有列级 INSERT）',
-    !/GRANT\s+(?:SELECT|UPDATE|DELETE|TRUNCATE|REFERENCES|TRIGGER)\b[^;]*ON\s+TABLE\s+audit\.ai_generation_events/i.test(
+    !/GRANT\s+(?:SELECT|UPDATE|DELETE|TRUNCATE|REFERENCES|TRIGGER)\b[^;]*ON\s+TABLE\s+audit\.ai_generation_events\s+TO\s+ai_app/i.test(
       grants,
     ) && !/GRANT\s+INSERT\s+ON\s+TABLE\s+audit\.ai_generation_events/i.test(grants),
   );

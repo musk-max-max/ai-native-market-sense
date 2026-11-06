@@ -240,6 +240,8 @@ DECLARE
   has_raise  boolean := to_regprocedure('audit.raise_hold(text,text)') IS NOT NULL;
   has_clear  boolean := to_regprocedure('audit.clear_hold(text,text,text)') IS NOT NULL;
   has_marks  boolean := to_regprocedure('audit.mark_reconciled(timestamptz)') IS NOT NULL;
+  has_ai_table  boolean := to_regclass('audit.ai_generation_events') IS NOT NULL;
+  has_ai_verify boolean := to_regprocedure('audit.verify_ai_generation_chain()') IS NOT NULL;
   col        record;
   c          record;
 BEGIN
@@ -341,7 +343,7 @@ BEGIN
     violations := array_append(violations, 'human_hold_clear 必须 NOLOGIN（人工角色只能 SET ROLE）');
   END IF;
 
-  -- audit_reader：只 SELECT 审计对象；无任何函数 EXECUTE；NOLOGIN。
+  -- audit_reader：只 SELECT 审计对象 + 只 EXECUTE 只读链校验函数；NOLOGIN。
   IF has_table_privilege('audit_reader', 'audit.entitlement_events', 'SELECT') IS NOT TRUE THEN
     violations := array_append(violations, 'audit_reader 缺少 events SELECT');
   END IF;
@@ -372,6 +374,26 @@ BEGIN
      OR has_table_privilege('audit_reader', 'audit.entitlement_events', 'UPDATE')
      OR has_table_privilege('audit_reader', 'audit.entitlement_events', 'DELETE') THEN
     violations := array_append(violations, 'audit_reader 对事件表有写权限（必须只读）');
+  END IF;
+
+  -- AI 审计只读（A16/H3）：audit_reader 可 SELECT ai_generation_events、只 EXECUTE 全链校验；
+  -- 无 INSERT/UPDATE/DELETE/TRUNCATE，也不能 EXECUTE 触发器/哈希内部函数。ai_app 的断言在其独立 DO 块。
+  IF has_ai_table THEN
+    IF NOT has_table_privilege('audit_reader', 'audit.ai_generation_events', 'SELECT') THEN
+      violations := array_append(violations, 'audit_reader 缺少 ai_generation_events SELECT');
+    END IF;
+    IF has_table_privilege('audit_reader', 'audit.ai_generation_events', 'INSERT')
+       OR has_table_privilege('audit_reader', 'audit.ai_generation_events', 'UPDATE')
+       OR has_table_privilege('audit_reader', 'audit.ai_generation_events', 'DELETE')
+       OR has_table_privilege('audit_reader', 'audit.ai_generation_events', 'TRUNCATE') THEN
+      violations := array_append(violations, 'audit_reader 对 ai_generation_events 有写权限（必须只读）');
+    END IF;
+  END IF;
+  IF has_ai_verify AND NOT has_function_privilege('audit_reader', 'audit.verify_ai_generation_chain()', 'EXECUTE') THEN
+    violations := array_append(violations, 'audit_reader 缺少 verify_ai_generation_chain EXECUTE');
+  END IF;
+  IF has_ai_verify AND has_function_privilege('audit_reader', 'audit.ai_generation_event_hash(audit.ai_generation_events)', 'EXECUTE') THEN
+    violations := array_append(violations, 'audit_reader 不应能 EXECUTE ai_generation_event_hash（只读链校验函数足够）');
   END IF;
 
   -- H3/H4：清 hold 只能人工。market_app/warehouse_loader 不能执行任何 hold 写函数；

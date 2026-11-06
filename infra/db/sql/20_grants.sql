@@ -123,7 +123,7 @@ BEGIN
   EXECUTE 'REVOKE EXECUTE ON FUNCTION audit.raise_hold(text, text) FROM human_hold_clear';
   EXECUTE 'REVOKE EXECUTE ON FUNCTION audit.mark_reconciled(timestamptz) FROM human_hold_clear';
 
-  -- audit_reader：只 SELECT 事件表与 hold（审计/合规只读），无任何函数 EXECUTE。
+  -- audit_reader：只 SELECT 审计对象（含 AI 生成事件）+ 只读链校验函数，无任何写。
   EXECUTE 'REVOKE ALL ON SCHEMA audit FROM audit_reader';
   EXECUTE 'GRANT USAGE ON SCHEMA audit TO audit_reader';
   EXECUTE 'REVOKE ALL ON ALL TABLES IN SCHEMA audit FROM audit_reader';
@@ -137,8 +137,16 @@ BEGIN
   IF to_regprocedure('audit.verify_entitlement_chain()') IS NOT NULL THEN
     EXECUTE 'GRANT EXECUTE ON FUNCTION audit.verify_entitlement_chain() TO audit_reader';
   END IF;
+  -- AI 审计只读通道（A16/H3 复核）：事件表 SELECT + 全链校验 EXECUTE；不给任何写。
+  -- 表/函数可能尚未迁移（003 之后才有），用 to_regclass/to_regprocedure 守卫，migrate 后复跑本文件。
+  IF to_regclass('audit.ai_generation_events') IS NOT NULL THEN
+    EXECUTE 'GRANT SELECT ON TABLE audit.ai_generation_events TO audit_reader';
+  END IF;
+  IF to_regprocedure('audit.verify_ai_generation_chain()') IS NOT NULL THEN
+    EXECUTE 'GRANT EXECUTE ON FUNCTION audit.verify_ai_generation_chain() TO audit_reader';
+  END IF;
 
-  RAISE NOTICE 'granted: ci_deploy_writer(event INSERT), reconciler(raise_hold/mark_reconciled+hold view), human_hold_clear(clear_hold only), audit_reader(SELECT only)';
+  RAISE NOTICE 'granted: ci_deploy_writer(event INSERT), reconciler(raise_hold/mark_reconciled+hold view), human_hold_clear(clear_hold only), audit_reader(SELECT only + verify chain EXECUTE)';
 END
 $$;
 
