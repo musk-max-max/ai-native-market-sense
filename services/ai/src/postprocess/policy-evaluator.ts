@@ -84,18 +84,39 @@ export function rewriteDraft(draft: AiDraft, claims: readonly { text: string }[]
  */
 function outputClaimsFromResult(result: PolicyResult, draft: AiDraft): AuditOutputClaim[] {
   const sourceClaims = collectClaims(draft);
-  return result.claims.map((claim) => {
-    const source = sourceClaims[claim.index];
+  const toAuditClaim = (index: number, text: string): AuditOutputClaim => {
+    const source = sourceClaims[index];
     if (source === undefined) {
-      throw new Error(`runAiPolicy 返回未知 claim_index=${claim.index}，拒绝生成审计 hash`);
+      throw new Error(`runAiPolicy 返回未知 claim_index=${index}，拒绝生成审计 hash`);
     }
-    // P2 class_missing 时原 claim 没有 class；审计 hash 用 data_gaps 占位（判定仍 blocked），
-    // 保证 P8 不因缺 class 抛错。A5 若要求其他占位口径再对齐。
+    // P2 class_missing 时原 claim 没有 class：审计如实记 null（A5 1.1.1 起
+    // AuditOutputClaim.class 允许 null），不得用任何真实白名单类占位。
     return {
-      text: claim.text,
-      class: source.class ?? 'data_gaps',
+      text,
+      class: source.class ?? null,
       evidence_ids: [...source.evidence_ids],
     };
+  };
+
+  if (result.claims.length > 0) {
+    return result.claims.map((claim) => toAuditClaim(claim.index, claim.text));
+  }
+
+  // P2 class_missing 会在 claim 结果生成前 short-circuit（result.claims=[]），
+  // 但被阻断的候选 claim 仍须进入 output_hash；按 violation 的 claim_index 回填原文。
+  const blockedClaimIndices = [
+    ...new Set(
+      result.violations
+        .filter((violation) => violation.action === 'block' && violation.claim_index >= 0)
+        .map((violation) => violation.claim_index),
+    ),
+  ].sort((left, right) => left - right);
+  return blockedClaimIndices.map((index) => {
+    const source = sourceClaims[index];
+    if (source === undefined) {
+      throw new Error(`runAiPolicy violation 指向未知 claim_index=${index}，拒绝生成审计 hash`);
+    }
+    return toAuditClaim(index, source.text);
   });
 }
 

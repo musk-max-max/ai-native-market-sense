@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { computeOutputHash } from '@market-sense/ai-policy';
 import { loadAiContentPolicy } from '@market-sense/compliance';
 
 import {
@@ -69,6 +70,17 @@ test('ai-policy 装配：C 端 claim 缺省/不允许 class → P2 blocked', asy
   );
   assert.equal(missingClass.blocked, true);
   assert.ok(missingClass.reasonCodes.includes('class_missing'));
+  const verdict = await evaluator.evaluate(
+    {
+      draft: { claims: [{ text: '数据显示，区间收益 3%', evidence_ids: ['e1'] }] },
+      evidence: [{ id: 'e1', text: '区间收益 3%', numbers: [3] }],
+    },
+    context,
+  );
+  assert.deepEqual(verdict.outputClaims, [
+    { text: '数据显示，区间收益 3%', class: null, evidence_ids: ['e1'] },
+  ]);
+  assert.match(computeOutputHash([...(verdict.outputClaims ?? [])]), /^[0-9a-f]{64}$/u);
 
   const dataGapsOnCend = await runPostprocessHost(
     {
