@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "version": "1.0.0",
+  "doc_type": "h3-redline-basis",
+  "owner": "H3",
+  "implemented_by": "A5",
+  "signed": true,
+  "signed_by": "H3",
+  "signed_at": "2026-11-06",
+  "policy_version": "ai-content-policy/1.1.1",
+  "policy_signed_content_sha256": "eee14c6228151197dd751ecb2c47cc279c39afd80a0eb952860dc2989af63293",
+  "policy_deployed_file_sha256": "3e03535efd02cb99fbeaddc476a408688b4b71e29e01e2a0bedbf37ccb990da9",
+  "basis_tiers": {
+    "CSRC_40_DEF": "40号文定义（分析/预测/建议）",
+    "L3_FIVE_NO": "L3 五不",
+    "ADR007_P5_P6": "ADR-007 P5/P6",
+    "PENDING_LEGAL": "待外部律师意见，禁止引用条号"
+  },
+  "rules": [
+    {"rule_id": "H3-C01", "theme": "荐股 / 买卖建议", "category": "investment_advice", "basis": ["CSRC_40_DEF", "L3_FIVE_NO"]},
+    {"rule_id": "H3-C02", "theme": "方向性结论", "category": "directional_conclusion", "basis": ["CSRC_40_DEF", "L3_FIVE_NO"]},
+    {"rule_id": "H3-C03", "theme": "评级", "category": "rating", "basis": ["L3_FIVE_NO", "ADR007_P5_P6"]},
+    {"rule_id": "H3-C04", "theme": "目标价", "category": "target_price", "basis": ["CSRC_40_DEF", "L3_FIVE_NO"]},
+    {"rule_id": "H3-C05", "theme": "买卖时点 / 择时", "category": "market_timing", "basis": ["CSRC_40_DEF"]},
+    {"rule_id": "H3-C06", "theme": "仓位建议", "category": "position_advice", "basis": ["CSRC_40_DEF", "L3_FIVE_NO"]},
+    {"rule_id": "H3-C07", "theme": "因果归因", "category": "causal_attribution", "basis": ["CSRC_40_DEF", "L3_FIVE_NO"]},
+    {"rule_id": "H3-C08", "theme": "收益承诺 / 保本保收益", "category": "guarantee", "basis": ["L3_FIVE_NO"]},
+    {"rule_id": "H3-C09", "theme": "选股招揽 / 榜单", "category": "selection_solicitation", "basis": ["CSRC_40_DEF", "L3_FIVE_NO"]},
+    {"rule_id": "H3-C10", "theme": "未来预测", "category": "future_prediction", "basis": ["CSRC_40_DEF"]},
+    {"rule_id": "H3-C11", "theme": "适当性匹配", "category": "suitability_advice", "basis": ["L3_FIVE_NO", "ADR007_P5_P6"]},
+    {"rule_id": "H3-C12", "theme": "未公开信息", "category": "nonpublic_information", "basis": ["PENDING_LEGAL"]}
+  ]
+}

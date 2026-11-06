@@ -1,0 +1,253 @@
+{
+  "schema_version": 1,
+  "canonical_source_of_truth": "rules/ai-content-policy.json",
+  "policy_version": "ai-content-policy/1.1.2",
+  "updated": "2026-11-06",
+  "authored_by": "A5 backend-compliance",
+  "authority": {
+    "defined_by": "H3",
+    "definition_refs": [
+      "内部 AI 建议决策 pending（ADR-008 仍为 OWNER-DECISION-PENDING，决策权按 L115 归 H5/owner）：policy 内部白名单只做最小保守，不构成放行；C 端部分不依赖该决策",
+      "agents/decisions.md L3：荐股/投资建议监管红线，对内部与 C 端两个 audience 硬禁止（不荐股/不目标价/不方向性结论/不适当性匹配/无收益承诺）",
+      "ADR-007 P5/P6（文本修订由 A0/H2 同步）：P5 命中即 block、禁止自动改写；P6 前缀仅「数据显示/历史统计上」且须证据类型匹配；policy 以本文件为准。",
+      "agents/decisions.md L126：策略内容（词表/禁用词/规则/policy_version 文本）归 A5 域，H3 定义并签字，A5 只实现不自行放宽阈值",
+      "H3 m01300：1.0.0 拒签意见（S1 白名单执行点 / S2 P6 改写 fail-open / S3 mapping 真源 / S4 生产未签强制 + 5 类词表缺口 + DDL as_of/postprocess 留痕）",
+      "H3 m01300 / m01470 / m01502：1.1.0 复核与 1.1.1 整改（skip_p6_classes 入策略、P4 日期 token、F3 audience、F7 依据修正、生产 version+sha256 双 pin）"
+    ],
+    "a5_change_policy": "A5 只维护词表的工程形态（文件结构、正则、版本号、测试）；新增/删除/放宽任何规则、category、reason_code 或允许前缀，必须由 H3 书面签字并升 policy_version。禁止 A5 为了让样本通过而放宽阈值。",
+    "h3_policy_version_signature": {
+      "required": true,
+      "status": "pending",
+      "note": "等待 H3 对 ai-content-policy/1.1.2 最终内容 sha256 签认；1.1.1 已签字节保留为历史，不改。签认不构成对 C 端 AI 生成内容展示的放行：AI-1/2/3 未闭环前不得展示。"
+    }
+  },
+  "scope": {
+    "audiences": [
+      "c_end",
+      "internal"
+    ],
+    "applies_to_stages": [
+      "P5",
+      "P6"
+    ],
+    "content_whitelist": {
+      "audiences": {
+        "internal": [
+          "objective_fields",
+          "metrics",
+          "quantiles",
+          "statistics",
+          "historical_facts",
+          "timestamps",
+          "data_gaps"
+        ],
+        "c_end": [
+          "objective_fields",
+          "metrics",
+          "quantiles",
+          "statistics",
+          "historical_facts",
+          "timestamps"
+        ]
+      },
+      "statement": "按 audience 分开白名单（H3 S1）。内部 AI 只输出客观字段/指标/分位/统计；C 端不生成 data_gaps（缺口文案由 API copy 常驻）。任何建议、方向判断、评级、目标价、买卖时点、仓位建议、因果归因均不在白名单内。"
+    },
+    "rewrite_rules": {
+      "require_evidence": true,
+      "prefix_evidence_match": {
+        "数据显示": "numeric",
+        "历史统计上": "historical_statistical"
+      },
+      "skip_p6_classes": [
+        "data_gaps"
+      ],
+      "historical_statistical_pattern": "历史|统计|分位|同比|环比|均值|中位数|年度|季度|近[一二三四五六七八九十0-9]+(?:年|月|日)"
+    }
+  },
+  "categories": [
+    {
+      "id": "investment_advice",
+      "reason_code": "investment_advice",
+      "default_action": "block",
+      "basis": "见 rules/redline-basis.json#H3-C01",
+      "patterns": [
+        "荐股",
+        "推荐(?:股票|个股|标的)",
+        "(?:建议|推荐|应当|应该|可以|宜|可考虑|值得)\\s*(?:买入|卖出|加仓|减仓|建仓|清仓|补仓|持有|增持|减持)",
+        "(?:买入|卖出)(?!额|量|金额|资金|笔|单|成交|占比|家数|席位)\\s*(?:信号|时机|评级|建议)",
+        "(?:^|[，。；：,])\\s*(?:买入|卖出|加仓|减仓|建仓|清仓|补仓|止损|止盈)(?:[，。；！？]|$)"
+      ]
+    },
+    {
+      "id": "directional_conclusion",
+      "reason_code": "directional_conclusion",
+      "default_action": "block",
+      "basis": "见 rules/redline-basis.json#H3-C02",
+      "patterns": [
+        "(?:看多|看空|看涨|看跌)",
+        "(?:将|会|有望|预计|大概率|即将|后市|继续)\\s*(?:上涨|下跌|走高|走低|反弹|回调|突破|跌破|创新高|创新低)",
+        "(?:上涨|下跌)(?:趋势|空间|概率)",
+        "方向性(?:结论|判断)"
+      ]
+    },
+    {
+      "id": "rating",
+      "reason_code": "rating",
+      "default_action": "block",
+      "basis": "见 rules/redline-basis.json#H3-C03",
+      "patterns": [
+        "评级",
+        "(?:增持|减持)(?:评级|至)",
+        "(?:买入|卖出|增持|减持|中性)评级"
+      ]
+    },
+    {
+      "id": "target_price",
+      "reason_code": "target_price",
+      "default_action": "block",
+      "basis": "见 rules/redline-basis.json#H3-C04",
+      "patterns": [
+        "目标价(?:位)?",
+        "目标市值",
+        "(?:上调|下调)目标价"
+      ]
+    },
+    {
+      "id": "market_timing",
+      "reason_code": "market_timing",
+      "default_action": "block",
+      "basis": "见 rules/redline-basis.json#H3-C05",
+      "patterns": [
+        "择时",
+        "抄底",
+        "逃顶",
+        "(?:逢低|逢高)(?:买入|卖出|吸纳|减仓)",
+        "(?:现在|马上|尽快|立即|赶紧)(?:买入|卖出|加仓|减仓)",
+        "(?:买入|卖出|加仓|减仓)(?:时机|时点)",
+        "时机已到",
+        "低吸",
+        "打板",
+        "追涨"
+      ]
+    },
+    {
+      "id": "position_advice",
+      "reason_code": "position_advice",
+      "default_action": "block",
+      "basis": "见 rules/redline-basis.json#H3-C06",
+      "patterns": [
+        "仓位(?:建议|配置|管理|控制)",
+        "建议仓位",
+        "(?:满仓|重仓|轻仓|空仓|半仓)",
+        "(?:加仓|减仓|止损|止盈)",
+        "定投",
+        "分批",
+        "网格"
+      ]
+    },
+    {
+      "id": "selection_solicitation",
+      "reason_code": "selection_solicitation",
+      "default_action": "block",
+      "basis": "见 rules/redline-basis.json#H3-C09",
+      "patterns": [
+        "值得关注",
+        "可关注",
+        "重点关注",
+        "建议关注",
+        "首选",
+        "不容错过",
+        "排名",
+        "榜单",
+        "榜首",
+        "最优",
+        "性价比最高",
+        "主线",
+        "龙头",
+        "轮动",
+        "题材",
+        "热点"
+      ]
+    },
+    {
+      "id": "future_prediction",
+      "reason_code": "future_prediction",
+      "default_action": "block",
+      "basis": "见 rules/redline-basis.json#H3-C10",
+      "patterns": [
+        "(?:预计|预测|有望|未来|将|大概率)(?![^。；！？]{0,20}(?:已披露|已公告|原文|引自|时点|公告日期))[^。；！？]{0,24}(?:上涨|下跌|走高|走低|反弹|回调|突破|跌破|增长|下降|增至|降至|\\d+(?:\\.\\d+)?%?)"
+      ]
+    },
+    {
+      "id": "suitability_advice",
+      "reason_code": "suitability_advice",
+      "default_action": "block",
+      "basis": "见 rules/redline-basis.json#H3-C11",
+      "patterns": [
+        "适合",
+        "适配",
+        "风险承受能力",
+        "稳健型",
+        "激进型",
+        "保守型"
+      ]
+    },
+    {
+      "id": "nonpublic_information",
+      "reason_code": "nonpublic_information",
+      "default_action": "block",
+      "basis": "见 rules/redline-basis.json#H3-C12",
+      "patterns": [
+        "内幕",
+        "未公开信息",
+        "内部消息",
+        "小道消息",
+        "提前获知"
+      ]
+    },
+    {
+      "id": "causal_attribution",
+      "reason_code": "causal_attribution",
+      "default_action": "block",
+      "basis": "见 rules/redline-basis.json#H3-C07",
+      "patterns": [
+        "(?:导致|造成|引发|推动|拖累|受益于|归因于|原因在于|因为|由于)",
+        "受.{0,12}影响"
+      ]
+    },
+    {
+      "id": "guarantee",
+      "reason_code": "guarantee",
+      "default_action": "block",
+      "basis": "见 rules/redline-basis.json#H3-C08",
+      "patterns": [
+        "(?:保证|保本|稳赚|稳赢|无风险|收益承诺|不会亏)",
+        "(?:必涨|必跌|翻倍)",
+        "(?:肯定|一定)\\s*(?:上涨|下跌|赚钱|盈利)"
+      ]
+    }
+  ],
+  "allowed_conclusion_prefixes": [
+    "数据显示",
+    "历史统计上"
+  ],
+  "caveat_rules": [
+    {
+      "id": "data_gap",
+      "caveat_code": "data_gap",
+      "trigger": "(?:数据)?(?:缺失|不可得|未获取|无权限|受限|缺口)",
+      "basis": "ADR-007 P5：缺口显式"
+    }
+  ],
+  "decision_mapping": {
+    "block": "blocked",
+    "allow": "passed",
+    "redact": "passed",
+    "caveat": "passed"
+  },
+  "consumers": {
+    "online": "A3 services/ai/src/postprocess/policy-evaluator.ts（runAiPolicy，fail-closed）",
+    "offline_review": "A16 用同包同文件同 policy_version 复核，不得另写判定脚本",
+    "audit": "audit.ai_generation_events.policy_version 必须等于本文件版本"
+  }
+}

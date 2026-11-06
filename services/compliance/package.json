@@ -1,0 +1,23 @@
+{
+  "name": "@market-sense/compliance",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "合规域（A5）：audit schema DDL/验证函数、AI 内容策略加载与落点。纯判定逻辑在 @market-sense/ai-policy；本服务只做 I/O 加载与装配。",
+  "exports": {
+    ".": "./src/index.ts",
+    "./ai-content-policy": "./src/ai-content-policy.ts"
+  },
+  "scripts": {
+    "test": "node --import tsx --test test/*.test.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@market-sense/ai-policy": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  }
+}

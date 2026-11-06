@@ -1,16 +1,17 @@
 {
   "schema_version": 1,
   "canonical_source_of_truth": "docs/reference/event-payloads.json",
-  "updated": "2026-11-04",
+  "updated": "2026-11-06",
   "authored_by": "A5 backend-compliance",
   "authorization": "Lead L70 m00688：docs/reference/ 不在任何 agent 写域，单独授权 A5 只写本文件",
-  "purpose": "按 event_type 声明 old_value/new_value 的必填与可选 JSON 键集。A3 写入前按本文件做 fail-closed 校验；A11 读同一文件断言库侧约束与键集相等，并做负向插入。",
+  "purpose": "按 event_type 声明 old_value/new_value 的必填与可选 JSON 键集；另声明独立 audit.ai_generation_events 的写入列与 postprocess_actions 结构。A3 写入前按本文件做 fail-closed 校验；A11/A16 读同一文件断言库侧约束与键集相等，并做负向插入。",
   "derived_from": {
     "ddl": [
       "services/compliance/migrations/001_audit_entitlement_events.sql",
-      "services/compliance/migrations/002_audit_gap.sql"
+      "services/compliance/migrations/002_audit_gap.sql",
+      "services/compliance/migrations/003_ai_generation_events.sql"
     ],
-    "event_key_function": "audit.entitlement_event_key(e audit.entitlement_events)",
+    "event_key_function": "audit.entitlement_event_key(e audit.entitlement_events)；audit.ai_generation_event_key(e audit.ai_generation_events)（AI 独立表）",
     "method": "required 键集 = 001/002 的 CHECK 约束实际强制的 new_value/old_value 键；optional 键集 = 现有写入方（A3 runtime、A13 seed、hold 函数）实际会写、但 DB 未强制的键。event_key 分支只消费列字段，不额外强制 JSON 键（audit_gap 的 window_start 除外：event_key 分支本身 RAISE）。",
     "related_canonical": [
       "docs/reference/entitlement-reasons.json"
@@ -220,5 +221,163 @@
         }
       }
     }
+  },
+  "ai_generation_event": {
+    "table": "audit.ai_generation_events",
+    "ddl": "services/compliance/migrations/003_ai_generation_events.sql",
+    "authorization": "L126（H2 会签 ADR-007 第 0 批）：AI 生成审计独立表，不复用 audit.entitlement_events；A5 DDL，A13 grants，A3 写入，A16/H3 读",
+    "writer": "ai_app（仅列级 INSERT；无 SELECT/UPDATE/DELETE/表级权限）",
+    "required_columns": [
+      "request_id",
+      "audience",
+      "user_id",
+      "kind",
+      "model_family",
+      "prompt_version",
+      "policy_version",
+      "content_version",
+      "input_evidence_hash",
+      "output_hash",
+      "postprocess_actions",
+      "decision",
+      "as_of"
+    ],
+    "optional_columns": [
+      "analysis_id",
+      "label_version",
+      "model_id",
+      "trace_id",
+      "occurred_at",
+      "schema_version",
+      "blocked_draft"
+    ],
+    "defaulted_columns": {
+      "schema_version": "1",
+      "occurred_at": "now()",
+      "event_id": "gen_random_uuid()",
+      "successor_note": "postprocess_actions 由写入方必填（无默认值；H3 m01300 逐条留痕）。"
+    },
+    "computed_columns": [
+      "event_id",
+      "event_key",
+      "prev_hash",
+      "hash"
+    ],
+    "computed_rule": "event_key=ai|generation|<request_id>（chat 与 analyses 统一）；prev_hash/hash 由 BEFORE INSERT 触发器根据整行 canonical 计算并覆盖应用传入值",
+    "column_rules": {
+      "audience": {
+        "enum": [
+          "c_end",
+          "internal"
+        ]
+      },
+      "kind": {
+        "enum": [
+          "stock_interpretation",
+          "watchlist_review",
+          "post_market_review",
+          "lhb_review",
+          "capital_features",
+          "factor_screen",
+          "research_brief",
+          "anomaly_alert"
+        ]
+      },
+      "decision": {
+        "enum": [
+          "passed",
+          "blocked"
+        ]
+      },
+      "policy_version": {
+        "rule": "必须等于 rules/ai-content-policy.json 的 policy_version（H3 签字版本）"
+      },
+      "input_evidence_hash": {
+        "pattern": "^[0-9a-f]{64}$"
+      },
+      "output_hash": {
+        "pattern": "^[0-9a-f]{64}$",
+        "rule": "passed: computeOutputHash(P2–P6 后候选 claims)；blocked: sha256(canonicalJson(blocked_draft))（与 P5 原文/哈希同一份 draft，H2 ADR-007 P5/P6 执行条件）。均由 @market-sense/ai-policy 的 hashCanonicalJson/computeOutputHash 计算，禁自创 canonical。"
+      },
+      "user_id": {
+        "nullable": false,
+        "rule": "HMAC(subject_ref) 受控标识；禁明文手机号/openid；系统触达固定写 `system`（不得省略，H3 追溯要求）"
+      },
+      "model_family": {
+        "rule": "只到模型家族，不出现供应商名（ADR-007 D2）"
+      },
+      "request_id": {
+        "pattern": "非空字符串",
+        "rule": "每次生成尝试一个唯一 id（含重试/blocked 后再次生成）；重试必须新 request_id；同一 request_id 只允许一条最终审计事件（event_key 唯一索引兜底，写入方无需 SELECT）。"
+      },
+      "analysis_id": {
+        "nullable": true,
+        "rule": "仅 /v1/ai/analyses 的任务填写；chat 为 NULL"
+      },
+      "content_version": {
+        "rule": "P7 copy/免责文案版本，必填。由 API 在调用 AI 的内部请求中传入（内部字段/内部头，不暴露 C 端）；AI 服务 P8 原样写入。缺失则 P8 审计失败、请求失败（fail-closed）。"
+      },
+      "label_version": {
+        "nullable": true,
+        "rule": "「AI 生成 · 仅供参考」标签版本；由 API 层注入方传入"
+      },
+      "model_id": {
+        "nullable": true,
+        "rule": "模型标识（不带供应商名）；model_family 仍保留家族级"
+      },
+      "as_of": {
+        "type": "timestamptz（UTC）",
+        "nullable": false,
+        "rule": "本次生成所用数据的业务时点（数据 as-of）。analyses 取请求/数据快照；chat 必须携带本轮数据上下文（无数据上下文时应在调用模型前拒绝，不产生审计行），取 API 内部字段或最后一轮 citation 的 as_of。与 occurred_at（事件发生时刻）分离。"
+      },
+      "blocked_draft": {
+        "type": "jsonb（完整 draft 对象/原文，受限存储）",
+        "nullable": true,
+        "required_when": "decision == 'blocked'；decision == 'passed' 时必须为 NULL（DDL CHECK 强制）",
+        "rule": "P5 阻断时保存被阻断的完整 draft（不是命中片段），按 analysis_id/request_id 关联；仅落审计/复核受限存储，不读入 API/C 端/SSE/普通日志/缓存/provider 日志；保留 ≥3 年（H3）。A3 P8 写入；对 decision=blocked，output_hash 必须等于 sha256(canonicalJson(blocked_draft))，P5 原文 hash 与 P8 模型输出 hash 指向同一份 draft；A16 用本段规则复核。"
+      }
+    },
+    "postprocess_actions": {
+      "type": "array",
+      "item_required_keys": [
+        "stage",
+        "action",
+        "matched"
+      ],
+      "item_conditional_keys": {
+        "block_or_redact": [
+          "original_text 或 original_hash 二选一"
+        ],
+        "redact": [
+          "rewritten_text 或 rewritten_hash 二选一"
+        ]
+      },
+      "item_optional_keys": [
+        "code",
+        "category",
+        "claim_index"
+      ],
+      "stage_enum": [
+        "P2",
+        "P3",
+        "P4",
+        "P5",
+        "P6"
+      ],
+      "action_enum": [
+        "allow",
+        "block",
+        "redact",
+        "caveat"
+      ],
+      "note": "H3 m01300：postprocess_actions 必须含 original/rewritten 文本或 hash + matched，否则 A16 无法复核改写是否制造新表述。DDL 的 ai_generation_events_postprocess_actions_shape_chk 用 JSONPath 内联校验（不引函数，避免 ai_app 需要函数 EXECUTE）。"
+    },
+    "verification": {
+      "chain": "SELECT * FROM audit.verify_ai_generation_chain(); 空结果=链完整",
+      "ddl_equality": "A11/A16 读取本段 required_columns 与 column_rules，断言 information_schema.columns NOT NULL 列（除 computed/default 列）与 required_columns 一致，并对 postprocess_actions/枚举做负向插入（缺 matched、block/redact 缺 original、redact 缺 rewritten 必须 23514）。",
+      "negative_inserts": "缺 blocked_draft 的 blocked 行 → 23514；passed 行带 blocked_draft → 23514；缺 postprocess_actions → NOT NULL；缺 matched/block 缺 original/redact 缺 rewritten → 23514。"
+    },
+    "note": "A0 复核（2026-11-06）：chat 无 analysis_id，故以 request_id 为链/幂等身份；content_version 必填，由 API 经内部请求字段传入（写入方仍是 ai_app/A3 的 P8）；label_version/model_id 可选。H3 m01300/m01470/m01502：as_of、postprocess original/rewritten+matched、user_id HMAC、Section.title 禁止模型生成、postprocess_actions 无默认值。",
+    "updated": "2026-11-06"
   }
 }

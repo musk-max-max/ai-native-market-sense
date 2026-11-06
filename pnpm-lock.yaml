@@ -27,6 +27,18 @@ importers:
         specifier: 8.11.0
         version: 8.11.0(eslint@9.13.0)(typescript@5.6.3)
 
+  packages/ai-policy:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.18.0
+        version: 22.20.5
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
   packages/api-client:
     dependencies:
       openapi-fetch:
@@ -40,8 +52,33 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
+  services/ai:
+    dependencies:
+      '@market-sense/ai-policy':
+        specifier: workspace:*
+        version: link:../../packages/ai-policy
+      '@market-sense/compliance':
+        specifier: workspace:*
+        version: link:../compliance
+      fastify:
+        specifier: ^5.12.8
+        version: 5.12.8
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.20.5
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
   services/api:
     dependencies:
+      '@market-sense/identity':
+        specifier: workspace:*
+        version: link:../identity
       fastify:
         specifier: ^5.12.8
         version: 5.12.8
@@ -54,6 +91,25 @@ importers:
     devDependencies:
       '@types/node':
         specifier: ^22.10.0
+        version: 22.20.5
+      '@types/pg':
+        specifier: ^8.15.5
+        version: 8.23.1
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  services/compliance:
+    dependencies:
+      '@market-sense/ai-policy':
+        specifier: workspace:*
+        version: link:../../packages/ai-policy
+    devDependencies:
+      '@types/node':
+        specifier: ^22.18.0
         version: 22.20.5
       tsx:
         specifier: ^4.23.15

@@ -1,0 +1,19 @@
+{
+  "name": "@market-sense/ai-policy",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AI 内容策略纯函数（P2 结构/P3 证据/P4 数值/P5 合规/P6 结论定性）。无 I/O；A3 在线与 A16 离线复核共用同一实现，策略文本单一真源 rules/ai-content-policy.json。",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "node --import tsx --test test/*.test.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  }
+}

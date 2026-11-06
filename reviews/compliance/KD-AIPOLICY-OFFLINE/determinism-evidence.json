@@ -1,0 +1,17 @@
+{
+  "runner_sha256": "05c157c90ecee6173db82f741c91e43f5c17968638257efef2717ae3d8fd1d9d",
+  "fixtures_sha256": "e74735c04471b8fb1379b9ff16fb66fdb3953c33692ce50cb95cccdab4c2e93c",
+  "policy_file_sha256": "3e03535efd02cb99fbeaddc476a408688b4b71e29e01e2a0bedbf37ccb990da9",
+  "runs": [
+    {
+      "md": "5f926cbb317d1dc33f267f350cf44f96291259ad609083b5236bb8ebb59b6dd3",
+      "json": "cfa5e81233e190c2d6fee29e178cf85061c9e828bb45b0122762b89785860f8a"
+    },
+    {
+      "md": "5f926cbb317d1dc33f267f350cf44f96291259ad609083b5236bb8ebb59b6dd3",
+      "json": "cfa5e81233e190c2d6fee29e178cf85061c9e828bb45b0122762b89785860f8a"
+    }
+  ],
+  "identical": true,
+  "note": "时间戳固定取 fixtures.report_generated_at/report_date（不取系统时钟）、键顺序固定、固定换行；两次连续执行输出字节一致。"
+}
