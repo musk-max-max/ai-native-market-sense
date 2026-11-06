@@ -277,6 +277,7 @@ agents:
     role: "后端 - CRM 域"
     type: 任务型
     phase: P3
+    model: sensenova-6.8-flash
     model_tier: 标准型
     mission: 线索/客户/跟进/会话服务；IM 通道接入；触达频次与话术合规的执行点。
     owns: ["services/crm/"]
@@ -333,6 +334,7 @@ agents:
     role: "前端 - 中后台（运营/合规/管理/CRM 四合一）"
     type: 任务型
     phase: P2
+    model: sensenova-6.8-flash
     model_tier: 标准型
     mission: 四个中台共用一套设计系统与脚手架；配置变更必须可视化 diff 与回滚。
     owns: ["web/console/"]
@@ -503,6 +505,7 @@ agents:
     role: "运营人员"
     type: 常驻
     phase: P2
+    model: sensenova-6.8-flash
     model_tier: 快速型
     mission: 通过配置 API 完成栏目/内容/策略配置；产出看板解读；所有变更走草稿-审批-发布。
     owns: ["configs/ops/"]
@@ -531,6 +534,7 @@ agents:
     role: "管理员（权限 + 审批）"
     type: 常驻
     phase: P2
+    model: sensenova-6.8-flash
     model_tier: 标准型
     mission: 按规则引擎处理审批单；权限授予与回收；审批异常与越权线索上报。
     owns: ["configs/rbac/", "approvals/"]
@@ -559,6 +563,7 @@ agents:
     role: "合规复核"
     type: 常驻
     phase: P2
+    model: sensenova-6.8-flash
     model_tier: 推理型
     mission: 内容与话术的初筛与复核、可疑线索提取、留痕抽查；为 H3 生成可签署的复核包。
     owns: ["reviews/compliance/"]
