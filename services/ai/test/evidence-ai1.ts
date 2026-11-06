@@ -99,7 +99,11 @@ async function freePort(): Promise<number> {
 // ---------- 主流程 ----------
 const PORT = await freePort();
 const BASE = `http://127.0.0.1:${PORT}`;
-const REQUEST_ID = 'ai1-http-req-0001';
+// 2026-11-06 21:5x A3 增补轮（SSE/轮询证据）：换新 request_id——event_key=ai|generation|<request_id> 唯一，
+// 复用 0001 会与 L0 首轮落行冲突（003 触发器 23505）。
+// event_key=ai|generation|<request_id> 全局唯一（003 幂等口径）：固定值重跑会撞已有行
+// 被 23505 幂等吞掉、查不到本次 analysis_id 的行，故每次采集用唯一 request_id。
+const REQUEST_ID = `ai1-sse-req-${Date.now().toString(36)}`;
 
 const evidence = httpEvidenceSource({ baseUrl: BASE });
 const policyPath = resolve(dirname(fileURLToPath(import.meta.url)), '../../../rules/ai-content-policy.json');
@@ -130,7 +134,7 @@ const requestBody = {
   kind: 'stock_interpretation',
   subject,
   options: { include_evidence: true },
-  idempotency_key: 'ai1-http-evidence-01',
+  idempotency_key: 'ai1-sse-evidence-01',
 };
 
 // 请求 1：真实生成。
@@ -199,6 +203,92 @@ const res4 = await fetch(`${BASE}/v1/ai/analyses/${analysisId}`, {
 check('GET 本人可取', res3.status === 200, `status=${res3.status}`);
 check('GET 越权/非本人 404（不泄露存在性）', res4.status === 404, `status=${res4.status}`);
 
+// ---------- 增补轮（A3 2026-11-06 21:5x，L0 m00275）：GET 轮询真实响应体 + SSE events 真实流 ----------
+const getBody = asRecord(await res3.json());
+const getData = asRecord(getBody['data']);
+const getAiMeta = asRecord(getData['ai']);
+check(
+  'GET 轮询响应 data.analysis_id ↔ POST 闭环',
+  asString(getData['analysis_id']) === analysisId,
+  `get=${asString(getData['analysis_id'])}；post=${analysisId}`,
+);
+check(
+  'GET 轮询响应 data.ai 六字段齐 + generated=true',
+  ['generated', 'label_version', 'content_version', 'model_family', 'prompt_version', 'policy_version'].every(
+    (key) => key in getAiMeta,
+  ) && getAiMeta['generated'] === true,
+  JSON.stringify(Object.keys(getAiMeta)),
+);
+check(
+  'GET 轮询响应顶层 meta 与 data.meta 同形（契约两处同形）',
+  JSON.stringify(asRecord(getBody['meta'])) === JSON.stringify(asRecord(getData['meta'])),
+  'deepEqual',
+);
+
+// SSE：真实 HTTP 拉流（重放已确认片段：status → section* → caveat* → done）。
+const resSse = await fetch(`${BASE}/v1/ai/analyses/${analysisId}/events`, {
+  headers: { authorization: `Bearer ${TOKEN}`, 'request-id': 'ai1-sse-req-0005' },
+});
+const sseText = await resSse.text();
+const sseContentType = resSse.headers.get('content-type') ?? '';
+check(
+  'GET …/events → 200 + content-type text/event-stream',
+  resSse.status === 200 && sseContentType.includes('text/event-stream'),
+  `status=${resSse.status}；content-type=${sseContentType}`,
+);
+const sseFrames = sseText
+  .split('\n\n')
+  .filter((block) => block.trim() !== '')
+  .map((block) => {
+    const eventLine = block.split('\n').find((line) => line.startsWith('event: '));
+    const dataLine = block.split('\n').find((line) => line.startsWith('data: '));
+    if (eventLine === undefined || dataLine === undefined) {
+      throw new Error(`SSE 帧格式非法：${block}`);
+    }
+    return { event: eventLine.slice('event: '.length), data: asRecord(JSON.parse(dataLine.slice('data: '.length))) };
+  });
+const sseEventNames = sseFrames.map((frame) => frame.event);
+const allowedSseEvents = ['status', 'section', 'caveat', 'done', 'error'];
+check(
+  'SSE 事件名 ∈ 契约枚举（status|section|caveat|done|error）',
+  sseEventNames.every((name) => allowedSseEvents.includes(name)),
+  JSON.stringify(sseEventNames),
+);
+check(
+  'SSE 序列 status → section* → caveat* → done 收尾',
+  sseEventNames[0] === 'status' &&
+    sseEventNames[sseEventNames.length - 1] === 'done' &&
+    sseEventNames.every((name, index) => {
+      const rank = allowedSseEvents.indexOf(name);
+      const prev = allowedSseEvents.indexOf(sseEventNames[index - 1] ?? name);
+      return index === 0 || rank >= prev;
+    }),
+  JSON.stringify(sseEventNames),
+);
+check(
+  'SSE 每帧 data.analysis_id ↔ POST 闭环',
+  sseFrames.every((frame) => frame.data['analysis_id'] === analysisId),
+  `frames=${sseFrames.length}`,
+);
+check(
+  'SSE 首帧 status = 响应 status',
+  sseFrames[0]?.data['status'] === data['status'],
+  `sse=${String(sseFrames[0]?.data['status'])}；response=${String(data['status'])}`,
+);
+check(
+  'SSE section 帧数 = 响应 sections 数（重放同源，不新增内容）',
+  sseFrames.filter((frame) => frame.event === 'section').length === sections.length,
+  `sse=${sseFrames.filter((frame) => frame.event === 'section').length}；response=${sections.length}`,
+);
+const resSse404 = await fetch(`${BASE}/v1/ai/analyses/${analysisId}/events`, {
+  headers: { authorization: `Bearer ${TOKEN_2}`, 'request-id': 'ai1-sse-req-0006' },
+});
+check(
+  'SSE 越权/非本人 404（Problem JSON，不建流）',
+  resSse404.status === 404 && (resSse404.headers.get('content-type') ?? '').includes('application/problem+json'),
+  `status=${resSse404.status}；content-type=${resSse404.headers.get('content-type') ?? ''}`,
+);
+
 // ---------- 审计行读回（owner 角色 ms；ai_app 仅 INSERT 列级授权，SELECT 归 A13 GRANT 待办） ----------
 const pool = new Pool({
   host: '127.0.0.1',
@@ -251,6 +341,15 @@ check(
   String(auditRow['policy_version']),
 );
 check('decision=passed 且 response status=succeeded', auditRow['decision'] === 'passed' && data['status'] === 'succeeded', String(auditRow['decision']));
+check(
+  'AI-CARD-SIGNOFF:32 五字段齐（policy_version/content_version/model_family/as_of/request_id 非空）',
+  ['policy_version', 'content_version', 'model_family', 'as_of', 'request_id'].every(
+    (key) => typeof auditRow[key] === 'string' && auditRow[key] !== '',
+  ),
+  JSON.stringify(Object.fromEntries(
+    ['policy_version', 'content_version', 'model_family', 'as_of', 'request_id'].map((key) => [key, auditRow[key]]),
+  )),
+);
 check('prev_hash/hash 64hex（003 触发器权威生成）', /^[0-9a-f]{64}$/.test(String(auditRow['hash'])) && /^[0-9a-f]{64}$/.test(String(auditRow['prev_hash'])), String(auditRow['hash']));
 
 // ---------- hash 复算（展示留痕可复算，判据 3） ----------
@@ -298,6 +397,8 @@ const report = {
   stack: '进程内 buildApp(壳)+marketPlugin(serving 真库)+aiPlugin(audit 真库)，PG 55432 market_sense',
   request: { request_id: REQUEST_ID, body: requestBody },
   response: body1,
+  get_response: getBody,
+  sse: { status: resSse.status, content_type: sseContentType, frames: sseFrames, raw: sseText },
   audit_row: auditRow,
   recomputed: { input_evidence_hash: recomputedInput, output_hash: recomputedOutput },
   checks,

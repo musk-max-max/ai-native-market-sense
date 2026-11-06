@@ -90,6 +90,57 @@ export function registerAnalysesRoutes(app: FastifyInstance, deps: AnalysesRoute
     const response = deps.service.get(request.params.analysis_id, principal.userId);
     return reply.code(200).send(response);
   });
+
+  // GET /v1/ai/analyses/{analysis_id}/events：契约 streamAiAnalysisEvents（SSE 重放）。
+  // P0 生成为同步 200，事件流按 analysis_id 重放已确认片段：status → section* → caveat* → done。
+  // 只发用户可见内容（与 GET 响应同源，已过 P2–P6）；不传模型原始输出、内部 tier/供应商信息。
+  // 鉴权/校验/越权 404 在建流前完成（与 GET 同语义，错误走 Problem JSON，不进流）。
+  app.get<{ Params: { analysis_id: string } }>('/ai/analyses/:analysis_id/events', async (request, reply) => {
+    const principal = await requirePrincipal(request, authenticate);
+    const response = deps.service.get(request.params.analysis_id, principal.userId);
+    const data = readResponseData(response);
+    const analysisId = readRequiredString(data, 'analysis_id');
+    const status = readRequiredString(data, 'status');
+
+    const frames: { event: string; payload: Record<string, unknown> }[] = [
+      { event: 'status', payload: { analysis_id: analysisId, event: 'status', status } },
+    ];
+    if (Array.isArray(data.sections)) {
+      for (const section of data.sections) {
+        frames.push({ event: 'section', payload: { analysis_id: analysisId, event: 'section', section } });
+      }
+    }
+    if (Array.isArray(data.caveats)) {
+      for (const caveat of data.caveats) {
+        frames.push({ event: 'caveat', payload: { analysis_id: analysisId, event: 'caveat', caveat } });
+      }
+    }
+    frames.push({ event: 'done', payload: { analysis_id: analysisId, event: 'done' } });
+
+    const payload = frames
+      .map((frame) => `event: ${frame.event}\ndata: ${JSON.stringify(frame.payload)}\n\n`)
+      .join('');
+    return reply.code(200).type('text/event-stream').send(payload);
+  });
+}
+
+function readResponseData(response: unknown): Record<string, unknown> {
+  if (typeof response !== 'object' || response === null || Array.isArray(response)) {
+    throw new HttpProblem(500, 'INTERNAL_ERROR', ERROR_TITLES.default);
+  }
+  const data = (response as { data?: unknown }).data;
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) {
+    throw new HttpProblem(500, 'INTERNAL_ERROR', ERROR_TITLES.default);
+  }
+  return data as Record<string, unknown>;
+}
+
+function readRequiredString(record: Record<string, unknown>, key: string): string {
+  const value = record[key];
+  if (typeof value !== 'string' || value === '') {
+    throw new HttpProblem(500, 'INTERNAL_ERROR', ERROR_TITLES.default);
+  }
+  return value;
 }
 
 /**
