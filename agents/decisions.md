@@ -1630,3 +1630,15 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 **Open**：①A3 席接管后需复核 request-id 头改动是否合 contracts/ai（internal-generation-context request_id 语义=「重试必须新 id」，客户端头 vs 服务端生成待 H2 判）；②AI-1 四判据余项（SSE 两 op、commit/CI 锚已部分补）；③仓库级门禁仍红（A4 域 services/approval 待修 8 errors，L135 ②）。
 
 **生效**：2026-11-06 19:57。影响席：A3（域属）、H2（契约判定）、H3（AI-1 签发）。
+
+### L140 — 仓库级门禁转绿 + ingest 越界字面量修复（L0 亲跑，2026-11-06 20:38）
+
+**L135#2 阻塞项解除**：`node infra/ci/typecheck.mjs` **10/10 workspace 通过**（packages/ai-policy、packages/api-client、services/{ai,api,approval,compliance,identity,market}、web/{console,h5}）；`pnpm -r test` **全绿**——services/identity 45P、services/ingest 214P、web/h5 28P、services/compliance 4P、services/api 26P、services/market 153P、services/ai 42P，0 fail。
+
+**修复**：`services/ingest/src/market_ingest/sync.py:1304` 注释含源字面量 `ts_code`，触发 `tests/test_boundaries.py::test_no_source_literals_outside_adapters`（adapter 层之外禁源耦合字面量）。改为「板块代码」。commit 见 git log。
+
+**意义**：H3 签 AI-1 的前置条件（仓库级门禁绿）已满足。余下签发动作=H2/H3 专属，L0 不代签。
+
+**Open**：AI-1 request-id 头改动合契约性待 H2 判；AI-2/3 computed-style/E2E 证据待 A7 域补（需起 Web@3000）。
+
+**生效**：2026-11-06 20:38。影响席：A3/A4（域属）、H2/H3（签发）。
