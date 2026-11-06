@@ -1,0 +1,100 @@
+{
+  "schema": "a7.rt10.hash-anchors/v1",
+  "generatedAt": "2026-11-06T14:40:04.848Z",
+  "purpose": "RT-10 证据哈希锚清单（A11 红队 RT-01/RT-10：证据文件 sha256 + commit 锚）",
+  "anchors": {
+    "gitSha": "807fbaadab0eda2fef45ea18ba41d2d988c86c9a",
+    "gitDescribe": "807fbaa 2026-11-06T22:16:17+08:00 docs(ai): AI-1 证据记录入库 + 增量补证（SSE/轮询证据、五字段、门禁、commit 锚）",
+    "ciRunId": null,
+    "ciNote": "本地独立端口自跑（L0 授权 m00262），无 CI run；等价锚 = gitSha + 本清单 + 跑批命令行 runCommand",
+    "runCommand": "E2E_BASE_URL=http://127.0.0.1:3457 A7_API_BASE=http://127.0.0.1:8099 A7_GIT_SHA=<git rev-parse HEAD> node tests/e2e/scripts/ai23-visual-evidence.mjs",
+    "stack": "web PORT=3457 (web/h5/server.mjs 服务 dist of 9562a04+) + api PORT=8099 (services/api, ENTITLEMENT_TIER=c_end_display 正配置, DATABASE_URL=market_sense 库) + PG 55432 + audit.control_heartbeat(a7-visual-run) 每60s 保活（否则 15min 后 control_stale 403）"
+  },
+  "files": [
+    {
+      "path": "tests/e2e/evidence/ai23-visual-computed-2026-11-06.json",
+      "bytes": 57649,
+      "sha256": "a3573264c90b00787a2fcf890386e8c7cdbbbee50874eb1d9a28372b2dd19eea",
+      "exists": true
+    },
+    {
+      "path": "tests/e2e/evidence/ai-card-2026-11-06/computed-styles-dark.json",
+      "bytes": 13478,
+      "sha256": "826ea5ab1e193781e9ed28f946b76467ae3e627402f5875c783f7eda2b04d2e4",
+      "exists": true
+    },
+    {
+      "path": "tests/e2e/evidence/ai-card-2026-11-06/computed-styles-light.json",
+      "bytes": 13473,
+      "sha256": "5754d5ea71c1312f640c8b5508c43f425d46950a6d650f856dfd10a35788b793",
+      "exists": true
+    },
+    {
+      "path": "tests/e2e/evidence/ai-card-2026-11-06/copy-export-scan.json",
+      "bytes": 95,
+      "sha256": "c8caefcfa0a09e615307441458b503a9bbc63329ae0f334107b4294fb8b92a30",
+      "exists": true
+    },
+    {
+      "path": "tests/e2e/evidence/ai-card-2026-11-06/copy-export-trio.json",
+      "bytes": 184,
+      "sha256": "25e189c60b911b843007d35ba405177a261bb2245730775807d21417b79674ac",
+      "exists": true
+    },
+    {
+      "path": "tests/e2e/evidence/ai-card-2026-11-06/tri-node-ai-response-as-of-empty.json",
+      "bytes": 5573,
+      "sha256": "c880cfcb59d727979b9ab3b8aa11fd81d0707a66c368e7ecc1e578890fe4497f",
+      "exists": true
+    },
+    {
+      "path": "tests/e2e/evidence/ai-card-2026-11-06/tri-node-ai-response-as-of-invalid.json",
+      "bytes": 5578,
+      "sha256": "276cc7fc79845193ade07dfb907f779b7b85bda87f552bc0f0f0e7bdbd35c4d8",
+      "exists": true
+    },
+    {
+      "path": "tests/e2e/evidence/ai-card-2026-11-06/tri-node-ai-response-as-of-missing.json",
+      "bytes": 5576,
+      "sha256": "b99c77850ffb3d35879ab6edf351b31bdad6b9fea4d565981131b0d32c915e06",
+      "exists": true
+    },
+    {
+      "path": "tests/e2e/evidence/ai-card-2026-11-06/tri-node-market-as-of-empty.json",
+      "bytes": 3092,
+      "sha256": "07598201f9b8f898101bd8d6f087bcc30f0a30f90463bf60670dd8ebcafe471d",
+      "exists": true
+    },
+    {
+      "path": "tests/e2e/evidence/ai-card-2026-11-06/tri-node-market-as-of-invalid.json",
+      "bytes": 5054,
+      "sha256": "99ac732d3483f12952971d0f37f571197d71a769d113f0123a9805db599bdb86",
+      "exists": true
+    },
+    {
+      "path": "tests/e2e/evidence/ai-card-2026-11-06/tri-node-market-as-of-missing.json",
+      "bytes": 3157,
+      "sha256": "b34c59b363a7d8c64ee5902f038c4e457df3e235fba6e363baae2236c785bc2c",
+      "exists": true
+    },
+    {
+      "path": "tests/e2e/scripts/ai23-visual-evidence.mjs",
+      "bytes": 16632,
+      "sha256": "dac6ba19a0687e478a571e82134756ae74c6436042f7cad986c23bdb8e71bd96",
+      "exists": true
+    },
+    {
+      "path": "reviews/compliance/ai-display-visual-spec-1.0.md",
+      "bytes": 11134,
+      "sha256": "aaebca611172fec689f422dbed83fe2d819633c42b6ae01c2cc14553100c3349",
+      "exists": true
+    },
+    {
+      "path": "docs/design/ai-display-visual-acceptance-2026-11-06.md",
+      "bytes": 10376,
+      "sha256": "3e72e679a3e6415eac3eb258459ffba45ce36c9b817a89ca0b428a1127bf185d",
+      "exists": true
+    }
+  ],
+  "verification": "L75 三项亲验：每文件存在、bytes>0、sha256 如上"
+}

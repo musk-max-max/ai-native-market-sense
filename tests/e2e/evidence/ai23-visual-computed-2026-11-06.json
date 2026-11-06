@@ -1,0 +1,2101 @@
+{
+  "schema": "a7.ai23.visual-evidence/v1",
+  "generatedAt": "2026-11-06T14:37:07.066Z",
+  "anchors": {
+    "gitSha": "807fbaadab0eda2fef45ea18ba41d2d988c86c9a",
+    "scriptSha256": "dac6ba19a0687e478a571e82134756ae74c6436042f7cad986c23bdb8e71bd96",
+    "evidenceFileNote": "sha256 见 RT-10 哈希锚清单"
+  },
+  "environment": {
+    "baseURL": "http://127.0.0.1:3457",
+    "apiBase": "http://127.0.0.1:8099",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "schemes": [
+      "light",
+      "dark"
+    ],
+    "methodology": "真实生产 DOM 自然渲染下读 computed-style；零 route 拦截；数据来自本地原生 api（c_end entitlement 正配置）真实 /v1 请求",
+    "noInjection": true,
+    "noRouteMock": true
+  },
+  "realStackProof": {
+    "apiHealth": {
+      "status": "ok",
+      "service": "market-sense-api",
+      "version": "0.1.0",
+      "uptime_s": 1474,
+      "domains": [
+        "identity",
+        "market",
+        "ai"
+      ],
+      "data_ready": false,
+      "data_ready_reason": "INGEST_REPORT_MISSING",
+      "entitlement_degraded": false,
+      "ai": {
+        "service": "market-sense-ai",
+        "provider": "fake",
+        "policy": "ai-content-policy/1.1.2"
+      }
+    },
+    "quoteSample": {
+      "instrument_id": "SSE:600519",
+      "as_of": "2026-11-06T13:54:15+08:00",
+      "entitlement": {
+        "tier": "c_end_display",
+        "is_entitled": true
+      },
+      "disclaimerPresent": true
+    },
+    "v1Requests": [
+      {
+        "path": "/v1/instruments/SSE%3A600519",
+        "status": 200,
+        "scheme": "light"
+      },
+      {
+        "path": "/v1/instruments/SSE%3A600519/quote",
+        "status": 200,
+        "scheme": "light"
+      },
+      {
+        "path": "/v1/instruments/SSE%3A600519/fundamental-summary",
+        "status": 200,
+        "scheme": "light"
+      },
+      {
+        "path": "/v1/watchlist",
+        "status": 200,
+        "scheme": "light"
+      },
+      {
+        "path": "/v1/instruments/SSE%3A600519",
+        "status": 200,
+        "scheme": "dark"
+      },
+      {
+        "path": "/v1/instruments/SSE%3A600519/quote",
+        "status": 200,
+        "scheme": "dark"
+      },
+      {
+        "path": "/v1/instruments/SSE%3A600519/fundamental-summary",
+        "status": 200,
+        "scheme": "dark"
+      },
+      {
+        "path": "/v1/watchlist",
+        "status": 200,
+        "scheme": "dark"
+      }
+    ],
+    "pages": [
+      {
+        "scheme": "light",
+        "path": "/stocks/SSE:600519",
+        "url": "http://127.0.0.1:3457/stocks/SSE:600519",
+        "title": "Market Sense · A 股数据工具",
+        "themeBg": "#f4f6f8"
+      },
+      {
+        "scheme": "light",
+        "path": "/ai",
+        "url": "http://127.0.0.1:3457/ai",
+        "title": "Market Sense · A 股数据工具",
+        "themeBg": "#f4f6f8"
+      },
+      {
+        "scheme": "dark",
+        "path": "/stocks/SSE:600519",
+        "url": "http://127.0.0.1:3457/stocks/SSE:600519",
+        "title": "Market Sense · A 股数据工具",
+        "themeBg": "#0b0f14"
+      },
+      {
+        "scheme": "dark",
+        "path": "/ai",
+        "url": "http://127.0.0.1:3457/ai",
+        "title": "Market Sense · A 股数据工具",
+        "themeBg": "#0b0f14"
+      }
+    ]
+  },
+  "themeSanity": {
+    "lightBg": "rgb(244,246,248)",
+    "darkBg": "rgb(11,15,20)",
+    "different": true
+  },
+  "results": {
+    "_tokensLight": {
+      "text": "rgb(20,23,28)",
+      "textMuted": "rgb(74,85,99)",
+      "textSubtle": "rgb(92,104,118)",
+      "bg": "rgb(244,246,248)"
+    },
+    "_closeScan": [],
+    "light": {
+      "[data-testid=\"ai-generated-badge\"]": {
+        "list": "spec62",
+        "minPx": 13,
+        "status": "ABSENT",
+        "instanceCount": 0,
+        "renderedCount": 0,
+        "instances": [],
+        "pages": [
+          {
+            "page": "/stocks/SSE:600519",
+            "status": "ABSENT"
+          },
+          {
+            "page": "/ai",
+            "status": "ABSENT"
+          }
+        ]
+      },
+      "[data-testid=\"ai-disclaimer\"]": {
+        "list": "spec62",
+        "minPx": 13,
+        "status": "ABSENT",
+        "instanceCount": 0,
+        "renderedCount": 0,
+        "instances": [],
+        "pages": [
+          {
+            "page": "/stocks/SSE:600519",
+            "status": "ABSENT"
+          },
+          {
+            "page": "/ai",
+            "status": "ABSENT"
+          }
+        ]
+      },
+      "[data-testid=\"disclaimer\"]": {
+        "list": "spec62",
+        "minPx": 13,
+        "status": "PASS",
+        "instanceCount": 1,
+        "renderedCount": 1,
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 15,
+            "color": "rgb(20,23,28)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 17.96,
+            "rect": {
+              "w": 358,
+              "h": 122,
+              "top": 573
+            },
+            "text": "免责声明本页面数据仅供参考，不构成任何投资建议或买卖依据。数据可能存在延迟，请以交易所及上市公司公告为准。版本 2026",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          }
+        ],
+        "pages": [
+          {
+            "page": "/stocks/SSE:600519",
+            "status": "PASS"
+          },
+          {
+            "page": "/ai",
+            "status": "ABSENT"
+          }
+        ]
+      },
+      "[data-testid=\"disclaimer-text\"]": {
+        "list": "spec62",
+        "minPx": 13,
+        "status": "PASS",
+        "instanceCount": 1,
+        "renderedCount": 1,
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(20,23,28)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 17.96,
+            "rect": {
+              "w": 325,
+              "h": 44,
+              "top": 612
+            },
+            "text": "本页面数据仅供参考，不构成任何投资建议或买卖依据。数据可能存在延迟，请以交易所及上市公司公告为准。",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          }
+        ],
+        "pages": [
+          {
+            "page": "/stocks/SSE:600519",
+            "status": "PASS"
+          },
+          {
+            "page": "/ai",
+            "status": "ABSENT"
+          }
+        ]
+      },
+      "[data-testid=\"disclaimer-version\"]": {
+        "list": "spec62",
+        "minPx": 13,
+        "status": "PASS",
+        "instanceCount": 1,
+        "renderedCount": 1,
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 7.58,
+            "rect": {
+              "w": 56,
+              "h": 16,
+              "top": 663
+            },
+            "text": "2026.11.1",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          }
+        ],
+        "pages": [
+          {
+            "page": "/stocks/SSE:600519",
+            "status": "PASS"
+          },
+          {
+            "page": "/ai",
+            "status": "ABSENT"
+          }
+        ]
+      },
+      "[data-testid=\"quote-as-of\"]": {
+        "list": "spec62",
+        "minPx": 13,
+        "status": "PASS",
+        "instanceCount": 1,
+        "renderedCount": 1,
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(20,23,28)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 17.96,
+            "rect": {
+              "w": 177,
+              "h": 16,
+              "top": 333
+            },
+            "text": "2026-11-06T13:54:15+08:00",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          }
+        ],
+        "pages": [
+          {
+            "page": "/stocks/SSE:600519",
+            "status": "PASS"
+          },
+          {
+            "page": "/ai",
+            "status": "ABSENT"
+          }
+        ]
+      },
+      "[data-testid=\"ai-as-of\"]": {
+        "list": "spec62",
+        "minPx": 13,
+        "status": "PASS",
+        "instanceCount": 1,
+        "renderedCount": 1,
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(20,23,28)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 15.86,
+            "rect": {
+              "w": 125,
+              "h": 36,
+              "top": 1370
+            },
+            "text": "2026-11-06T13:54:15+08:00",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          }
+        ],
+        "pages": [
+          {
+            "page": "/stocks/SSE:600519",
+            "status": "PASS"
+          },
+          {
+            "page": "/ai",
+            "status": "ABSENT"
+          }
+        ]
+      },
+      ".ai-badge": {
+        "list": "main",
+        "minPx": 13,
+        "status": "ABSENT",
+        "instanceCount": 0,
+        "renderedCount": 0,
+        "instances": [],
+        "pages": [
+          {
+            "page": "/stocks/SSE:600519",
+            "status": "ABSENT"
+          },
+          {
+            "page": "/ai",
+            "status": "ABSENT"
+          }
+        ]
+      },
+      ".ai-disclaimer": {
+        "list": "main",
+        "minPx": 13,
+        "status": "ABSENT",
+        "instanceCount": 0,
+        "renderedCount": 0,
+        "instances": [],
+        "pages": [
+          {
+            "page": "/stocks/SSE:600519",
+            "status": "ABSENT"
+          },
+          {
+            "page": "/ai",
+            "status": "ABSENT"
+          }
+        ]
+      },
+      ".disclaimer__meta": {
+        "list": "main",
+        "minPx": 13,
+        "status": "PASS",
+        "instanceCount": 1,
+        "renderedCount": 1,
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 7.58,
+            "rect": {
+              "w": 325,
+              "h": 20,
+              "top": 662
+            },
+            "text": "版本 2026.11.1 · 不可关闭",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          }
+        ],
+        "pages": [
+          {
+            "page": "/stocks/SSE:600519",
+            "status": "PASS"
+          },
+          {
+            "page": "/ai",
+            "status": "ABSENT"
+          }
+        ]
+      },
+      ".quote__meta dt": {
+        "list": "main",
+        "minPx": 13,
+        "status": "PASS",
+        "instanceCount": 4,
+        "renderedCount": 4,
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 7.58,
+            "rect": {
+              "w": 326,
+              "h": 20,
+              "top": 310
+            },
+            "text": "数据截止（北京时间）",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 7.58,
+            "rect": {
+              "w": 156,
+              "h": 20,
+              "top": 359
+            },
+            "text": "数据来源",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 7.58,
+            "rect": {
+              "w": 156,
+              "h": 20,
+              "top": 359
+            },
+            "text": "价格口径",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 7.58,
+            "rect": {
+              "w": 156,
+              "h": 20,
+              "top": 407
+            },
+            "text": "交易日",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          }
+        ],
+        "pages": [
+          {
+            "page": "/stocks/SSE:600519",
+            "status": "PASS"
+          },
+          {
+            "page": "/ai",
+            "status": "ABSENT"
+          }
+        ]
+      },
+      ".quote__meta dd": {
+        "list": "main",
+        "minPx": 13,
+        "status": "PASS",
+        "instanceCount": 4,
+        "renderedCount": 4,
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(20,23,28)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 17.96,
+            "rect": {
+              "w": 326,
+              "h": 19,
+              "top": 332
+            },
+            "text": "2026-11-06T13:54:15+08:00",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(20,23,28)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 17.96,
+            "rect": {
+              "w": 156,
+              "h": 19,
+              "top": 380
+            },
+            "text": "平台行情（收盘）",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(20,23,28)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 17.96,
+            "rect": {
+              "w": 156,
+              "h": 19,
+              "top": 380
+            },
+            "text": "不复权（快照）",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(20,23,28)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 17.96,
+            "rect": {
+              "w": 156,
+              "h": 19,
+              "top": 428
+            },
+            "text": "2026-11-05",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          }
+        ],
+        "pages": [
+          {
+            "page": "/stocks/SSE:600519",
+            "status": "PASS"
+          },
+          {
+            "page": "/ai",
+            "status": "ABSENT"
+          }
+        ]
+      },
+      ".ai-context__item dt": {
+        "list": "main",
+        "minPx": 13,
+        "status": "PASS",
+        "instanceCount": 4,
+        "renderedCount": 4,
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 6.69,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 1300
+            },
+            "text": "最新价",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 6.69,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 1300
+            },
+            "text": "涨跌幅",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 6.69,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 1347
+            },
+            "text": "数据截止（北京时间）",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 6.69,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 1347
+            },
+            "text": "数据来源",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          }
+        ],
+        "pages": [
+          {
+            "page": "/stocks/SSE:600519",
+            "status": "PASS"
+          },
+          {
+            "page": "/ai",
+            "status": "ABSENT"
+          }
+        ]
+      },
+      ".ai-context__item dd": {
+        "list": "main",
+        "minPx": 13,
+        "status": "PASS",
+        "instanceCount": 4,
+        "renderedCount": 4,
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(20,23,28)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 15.86,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 1322
+            },
+            "text": "1510.00 元",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(20,23,28)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 15.86,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 1322
+            },
+            "text": "+1.00%",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(20,23,28)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 15.86,
+            "rect": {
+              "w": 145,
+              "h": 39,
+              "top": 1369
+            },
+            "text": "2026-11-06T13:54:15+08:00",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(20,23,28)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 15.86,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 1369
+            },
+            "text": "平台行情（收盘）",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          }
+        ],
+        "pages": [
+          {
+            "page": "/stocks/SSE:600519",
+            "status": "PASS"
+          },
+          {
+            "page": "/ai",
+            "status": "ABSENT"
+          }
+        ]
+      },
+      ".ai-slot--pending": {
+        "list": "obs",
+        "minPx": 13,
+        "status": "PASS",
+        "instanceCount": 5,
+        "renderedCount": 5,
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(20,23,28)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 15.86,
+            "rect": {
+              "w": 302,
+              "h": 20,
+              "top": 1543
+            },
+            "text": "AI 解读待接入，本段不展示模型生成文案。",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(20,23,28)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 15.86,
+            "rect": {
+              "w": 302,
+              "h": 20,
+              "top": 1674
+            },
+            "text": "AI 解读待接入，本段不展示模型生成文案。",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(20,23,28)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 15.86,
+            "rect": {
+              "w": 302,
+              "h": 20,
+              "top": 1854
+            },
+            "text": "AI 解读待接入，本段不展示模型生成文案。",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(20,23,28)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 15.86,
+            "rect": {
+              "w": 302,
+              "h": 20,
+              "top": 2008
+            },
+            "text": "AI 解读待接入，本段不展示模型生成文案。",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(20,23,28)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 15.86,
+            "rect": {
+              "w": 302,
+              "h": 20,
+              "top": 2162
+            },
+            "text": "AI 解读待接入，本段不展示模型生成文案。",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          }
+        ],
+        "pages": [
+          {
+            "page": "/stocks/SSE:600519",
+            "status": "PASS"
+          },
+          {
+            "page": "/ai",
+            "status": "ABSENT"
+          }
+        ]
+      },
+      ".ai-section__footnote": {
+        "list": "obs",
+        "minPx": 13,
+        "status": "PASS",
+        "instanceCount": 1,
+        "renderedCount": 1,
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 7.58,
+            "rect": {
+              "w": 328,
+              "h": 42,
+              "top": 2206
+            },
+            "text": "缺口按受控类别显式标注，不用 0、样例值或推测值填充。",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          }
+        ],
+        "pages": [
+          {
+            "page": "/stocks/SSE:600519",
+            "status": "PASS"
+          },
+          {
+            "page": "/ai",
+            "status": "ABSENT"
+          }
+        ]
+      },
+      ".ai-section__meta": {
+        "list": "obs",
+        "minPx": 13,
+        "status": "PASS",
+        "instanceCount": 1,
+        "renderedCount": 1,
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 7.58,
+            "rect": {
+              "w": 328,
+              "h": 40,
+              "top": 2252
+            },
+            "text": "本段当前不含模型生成文本；AI 标识与免责仅在服务端注入后随内容展示。",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          }
+        ],
+        "pages": [
+          {
+            "page": "/stocks/SSE:600519",
+            "status": "PASS"
+          },
+          {
+            "page": "/ai",
+            "status": "ABSENT"
+          }
+        ]
+      },
+      ".quote__stale": {
+        "list": "obs",
+        "minPx": 13,
+        "status": "PASS",
+        "instanceCount": 1,
+        "renderedCount": 1,
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(122,44,11)",
+            "colorClass": "OUT_OF_SPEC_SCOPE",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,244,224)",
+            "contrast": 8.79,
+            "rect": {
+              "w": 326,
+              "h": 35,
+              "top": 457
+            },
+            "text": "延时数据 · 非实时（滞后约 8.7小时）",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          }
+        ],
+        "pages": [
+          {
+            "page": "/stocks/SSE:600519",
+            "status": "PASS"
+          },
+          {
+            "page": "/ai",
+            "status": "ABSENT"
+          }
+        ]
+      },
+      ".ai-badge__mark": {
+        "list": "mark",
+        "minPx": 10,
+        "status": "ABSENT",
+        "instanceCount": 0,
+        "renderedCount": 0,
+        "instances": [],
+        "pages": [
+          {
+            "page": "/stocks/SSE:600519",
+            "status": "ABSENT"
+          },
+          {
+            "page": "/ai",
+            "status": "ABSENT"
+          }
+        ]
+      }
+    },
+    "_tokensDark": {
+      "text": "rgb(232,237,244)",
+      "textMuted": "rgb(179,189,201)",
+      "textSubtle": "rgb(154,166,180)",
+      "bg": "rgb(11,15,20)"
+    },
+    "dark": {
+      "[data-testid=\"ai-generated-badge\"]": {
+        "list": "spec62",
+        "minPx": 13,
+        "status": "ABSENT",
+        "instanceCount": 0,
+        "renderedCount": 0,
+        "instances": [],
+        "pages": [
+          {
+            "page": "/stocks/SSE:600519",
+            "status": "ABSENT"
+          },
+          {
+            "page": "/ai",
+            "status": "ABSENT"
+          }
+        ]
+      },
+      "[data-testid=\"ai-disclaimer\"]": {
+        "list": "spec62",
+        "minPx": 13,
+        "status": "ABSENT",
+        "instanceCount": 0,
+        "renderedCount": 0,
+        "instances": [],
+        "pages": [
+          {
+            "page": "/stocks/SSE:600519",
+            "status": "ABSENT"
+          },
+          {
+            "page": "/ai",
+            "status": "ABSENT"
+          }
+        ]
+      },
+      "[data-testid=\"disclaimer\"]": {
+        "list": "spec62",
+        "minPx": 13,
+        "status": "PASS",
+        "instanceCount": 1,
+        "renderedCount": 1,
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 15,
+            "color": "rgb(232,237,244)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 14.89,
+            "rect": {
+              "w": 358,
+              "h": 122,
+              "top": 573
+            },
+            "text": "免责声明本页面数据仅供参考，不构成任何投资建议或买卖依据。数据可能存在延迟，请以交易所及上市公司公告为准。版本 2026",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          }
+        ],
+        "pages": [
+          {
+            "page": "/stocks/SSE:600519",
+            "status": "PASS"
+          },
+          {
+            "page": "/ai",
+            "status": "ABSENT"
+          }
+        ]
+      },
+      "[data-testid=\"disclaimer-text\"]": {
+        "list": "spec62",
+        "minPx": 13,
+        "status": "PASS",
+        "instanceCount": 1,
+        "renderedCount": 1,
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(232,237,244)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 14.89,
+            "rect": {
+              "w": 325,
+              "h": 44,
+              "top": 612
+            },
+            "text": "本页面数据仅供参考，不构成任何投资建议或买卖依据。数据可能存在延迟，请以交易所及上市公司公告为准。",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          }
+        ],
+        "pages": [
+          {
+            "page": "/stocks/SSE:600519",
+            "status": "PASS"
+          },
+          {
+            "page": "/ai",
+            "status": "ABSENT"
+          }
+        ]
+      },
+      "[data-testid=\"disclaimer-version\"]": {
+        "list": "spec62",
+        "minPx": 13,
+        "status": "PASS",
+        "instanceCount": 1,
+        "renderedCount": 1,
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 9.21,
+            "rect": {
+              "w": 56,
+              "h": 16,
+              "top": 663
+            },
+            "text": "2026.11.1",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          }
+        ],
+        "pages": [
+          {
+            "page": "/stocks/SSE:600519",
+            "status": "PASS"
+          },
+          {
+            "page": "/ai",
+            "status": "ABSENT"
+          }
+        ]
+      },
+      "[data-testid=\"quote-as-of\"]": {
+        "list": "spec62",
+        "minPx": 13,
+        "status": "PASS",
+        "instanceCount": 1,
+        "renderedCount": 1,
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(232,237,244)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 14.89,
+            "rect": {
+              "w": 177,
+              "h": 16,
+              "top": 333
+            },
+            "text": "2026-11-06T13:54:15+08:00",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          }
+        ],
+        "pages": [
+          {
+            "page": "/stocks/SSE:600519",
+            "status": "PASS"
+          },
+          {
+            "page": "/ai",
+            "status": "ABSENT"
+          }
+        ]
+      },
+      "[data-testid=\"ai-as-of\"]": {
+        "list": "spec62",
+        "minPx": 13,
+        "status": "PASS",
+        "instanceCount": 1,
+        "renderedCount": 1,
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(232,237,244)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 13.31,
+            "rect": {
+              "w": 125,
+              "h": 36,
+              "top": 1370
+            },
+            "text": "2026-11-06T13:54:15+08:00",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          }
+        ],
+        "pages": [
+          {
+            "page": "/stocks/SSE:600519",
+            "status": "PASS"
+          },
+          {
+            "page": "/ai",
+            "status": "ABSENT"
+          }
+        ]
+      },
+      ".ai-badge": {
+        "list": "main",
+        "minPx": 13,
+        "status": "ABSENT",
+        "instanceCount": 0,
+        "renderedCount": 0,
+        "instances": [],
+        "pages": [
+          {
+            "page": "/stocks/SSE:600519",
+            "status": "ABSENT"
+          },
+          {
+            "page": "/ai",
+            "status": "ABSENT"
+          }
+        ]
+      },
+      ".ai-disclaimer": {
+        "list": "main",
+        "minPx": 13,
+        "status": "ABSENT",
+        "instanceCount": 0,
+        "renderedCount": 0,
+        "instances": [],
+        "pages": [
+          {
+            "page": "/stocks/SSE:600519",
+            "status": "ABSENT"
+          },
+          {
+            "page": "/ai",
+            "status": "ABSENT"
+          }
+        ]
+      },
+      ".disclaimer__meta": {
+        "list": "main",
+        "minPx": 13,
+        "status": "PASS",
+        "instanceCount": 1,
+        "renderedCount": 1,
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 9.21,
+            "rect": {
+              "w": 325,
+              "h": 20,
+              "top": 662
+            },
+            "text": "版本 2026.11.1 · 不可关闭",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          }
+        ],
+        "pages": [
+          {
+            "page": "/stocks/SSE:600519",
+            "status": "PASS"
+          },
+          {
+            "page": "/ai",
+            "status": "ABSENT"
+          }
+        ]
+      },
+      ".quote__meta dt": {
+        "list": "main",
+        "minPx": 13,
+        "status": "PASS",
+        "instanceCount": 4,
+        "renderedCount": 4,
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 9.21,
+            "rect": {
+              "w": 326,
+              "h": 20,
+              "top": 310
+            },
+            "text": "数据截止（北京时间）",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 9.21,
+            "rect": {
+              "w": 156,
+              "h": 20,
+              "top": 359
+            },
+            "text": "数据来源",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 9.21,
+            "rect": {
+              "w": 156,
+              "h": 20,
+              "top": 359
+            },
+            "text": "价格口径",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 9.21,
+            "rect": {
+              "w": 156,
+              "h": 20,
+              "top": 407
+            },
+            "text": "交易日",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          }
+        ],
+        "pages": [
+          {
+            "page": "/stocks/SSE:600519",
+            "status": "PASS"
+          },
+          {
+            "page": "/ai",
+            "status": "ABSENT"
+          }
+        ]
+      },
+      ".quote__meta dd": {
+        "list": "main",
+        "minPx": 13,
+        "status": "PASS",
+        "instanceCount": 4,
+        "renderedCount": 4,
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(232,237,244)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 14.89,
+            "rect": {
+              "w": 326,
+              "h": 19,
+              "top": 332
+            },
+            "text": "2026-11-06T13:54:15+08:00",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(232,237,244)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 14.89,
+            "rect": {
+              "w": 156,
+              "h": 19,
+              "top": 380
+            },
+            "text": "平台行情（收盘）",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(232,237,244)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 14.89,
+            "rect": {
+              "w": 156,
+              "h": 19,
+              "top": 380
+            },
+            "text": "不复权（快照）",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(232,237,244)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 14.89,
+            "rect": {
+              "w": 156,
+              "h": 19,
+              "top": 428
+            },
+            "text": "2026-11-05",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          }
+        ],
+        "pages": [
+          {
+            "page": "/stocks/SSE:600519",
+            "status": "PASS"
+          },
+          {
+            "page": "/ai",
+            "status": "ABSENT"
+          }
+        ]
+      },
+      ".ai-context__item dt": {
+        "list": "main",
+        "minPx": 13,
+        "status": "PASS",
+        "instanceCount": 4,
+        "renderedCount": 4,
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 8.23,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 1300
+            },
+            "text": "最新价",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 8.23,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 1300
+            },
+            "text": "涨跌幅",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 8.23,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 1347
+            },
+            "text": "数据截止（北京时间）",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 8.23,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 1347
+            },
+            "text": "数据来源",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          }
+        ],
+        "pages": [
+          {
+            "page": "/stocks/SSE:600519",
+            "status": "PASS"
+          },
+          {
+            "page": "/ai",
+            "status": "ABSENT"
+          }
+        ]
+      },
+      ".ai-context__item dd": {
+        "list": "main",
+        "minPx": 13,
+        "status": "PASS",
+        "instanceCount": 4,
+        "renderedCount": 4,
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(232,237,244)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 13.31,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 1322
+            },
+            "text": "1510.00 元",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(232,237,244)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 13.31,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 1322
+            },
+            "text": "+1.00%",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(232,237,244)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 13.31,
+            "rect": {
+              "w": 145,
+              "h": 39,
+              "top": 1369
+            },
+            "text": "2026-11-06T13:54:15+08:00",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(232,237,244)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 13.31,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 1369
+            },
+            "text": "平台行情（收盘）",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          }
+        ],
+        "pages": [
+          {
+            "page": "/stocks/SSE:600519",
+            "status": "PASS"
+          },
+          {
+            "page": "/ai",
+            "status": "ABSENT"
+          }
+        ]
+      },
+      ".ai-slot--pending": {
+        "list": "obs",
+        "minPx": 13,
+        "status": "PASS",
+        "instanceCount": 5,
+        "renderedCount": 5,
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(232,237,244)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 13.31,
+            "rect": {
+              "w": 302,
+              "h": 20,
+              "top": 1543
+            },
+            "text": "AI 解读待接入，本段不展示模型生成文案。",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(232,237,244)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 13.31,
+            "rect": {
+              "w": 302,
+              "h": 20,
+              "top": 1674
+            },
+            "text": "AI 解读待接入，本段不展示模型生成文案。",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(232,237,244)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 13.31,
+            "rect": {
+              "w": 302,
+              "h": 20,
+              "top": 1854
+            },
+            "text": "AI 解读待接入，本段不展示模型生成文案。",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(232,237,244)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 13.31,
+            "rect": {
+              "w": 302,
+              "h": 20,
+              "top": 2008
+            },
+            "text": "AI 解读待接入，本段不展示模型生成文案。",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(232,237,244)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 13.31,
+            "rect": {
+              "w": 302,
+              "h": 20,
+              "top": 2162
+            },
+            "text": "AI 解读待接入，本段不展示模型生成文案。",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          }
+        ],
+        "pages": [
+          {
+            "page": "/stocks/SSE:600519",
+            "status": "PASS"
+          },
+          {
+            "page": "/ai",
+            "status": "ABSENT"
+          }
+        ]
+      },
+      ".ai-section__footnote": {
+        "list": "obs",
+        "minPx": 13,
+        "status": "PASS",
+        "instanceCount": 1,
+        "renderedCount": 1,
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 9.21,
+            "rect": {
+              "w": 328,
+              "h": 42,
+              "top": 2206
+            },
+            "text": "缺口按受控类别显式标注，不用 0、样例值或推测值填充。",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          }
+        ],
+        "pages": [
+          {
+            "page": "/stocks/SSE:600519",
+            "status": "PASS"
+          },
+          {
+            "page": "/ai",
+            "status": "ABSENT"
+          }
+        ]
+      },
+      ".ai-section__meta": {
+        "list": "obs",
+        "minPx": 13,
+        "status": "PASS",
+        "instanceCount": 1,
+        "renderedCount": 1,
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 9.21,
+            "rect": {
+              "w": 328,
+              "h": 40,
+              "top": 2252
+            },
+            "text": "本段当前不含模型生成文本；AI 标识与免责仅在服务端注入后随内容展示。",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          }
+        ],
+        "pages": [
+          {
+            "page": "/stocks/SSE:600519",
+            "status": "PASS"
+          },
+          {
+            "page": "/ai",
+            "status": "ABSENT"
+          }
+        ]
+      },
+      ".quote__stale": {
+        "list": "obs",
+        "minPx": 13,
+        "status": "PASS",
+        "instanceCount": 1,
+        "renderedCount": 1,
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(255,214,147)",
+            "colorClass": "OUT_OF_SPEC_SCOPE",
+            "opacity": "1",
+            "effectiveBg": "rgb(51,36,12)",
+            "contrast": 10.94,
+            "rect": {
+              "w": 326,
+              "h": 35,
+              "top": 457
+            },
+            "text": "延时数据 · 非实时（滞后约 8.7小时）",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/stocks/SSE:600519"
+          }
+        ],
+        "pages": [
+          {
+            "page": "/stocks/SSE:600519",
+            "status": "PASS"
+          },
+          {
+            "page": "/ai",
+            "status": "ABSENT"
+          }
+        ]
+      },
+      ".ai-badge__mark": {
+        "list": "mark",
+        "minPx": 10,
+        "status": "ABSENT",
+        "instanceCount": 0,
+        "renderedCount": 0,
+        "instances": [],
+        "pages": [
+          {
+            "page": "/stocks/SSE:600519",
+            "status": "ABSENT"
+          },
+          {
+            "page": "/ai",
+            "status": "ABSENT"
+          }
+        ]
+      }
+    }
+  },
+  "verdict": {
+    "pass": [
+      {
+        "selector": "[data-testid=\"disclaimer\"]",
+        "list": "spec62"
+      },
+      {
+        "selector": "[data-testid=\"disclaimer-text\"]",
+        "list": "spec62"
+      },
+      {
+        "selector": "[data-testid=\"disclaimer-version\"]",
+        "list": "spec62"
+      },
+      {
+        "selector": "[data-testid=\"quote-as-of\"]",
+        "list": "spec62"
+      },
+      {
+        "selector": "[data-testid=\"ai-as-of\"]",
+        "list": "spec62"
+      },
+      {
+        "selector": ".disclaimer__meta",
+        "list": "main"
+      },
+      {
+        "selector": ".quote__meta dt",
+        "list": "main"
+      },
+      {
+        "selector": ".quote__meta dd",
+        "list": "main"
+      },
+      {
+        "selector": ".ai-context__item dt",
+        "list": "main"
+      },
+      {
+        "selector": ".ai-context__item dd",
+        "list": "main"
+      },
+      {
+        "selector": ".ai-slot--pending",
+        "list": "obs"
+      },
+      {
+        "selector": ".ai-section__footnote",
+        "list": "obs"
+      },
+      {
+        "selector": ".ai-section__meta",
+        "list": "obs"
+      },
+      {
+        "selector": ".quote__stale",
+        "list": "obs"
+      }
+    ],
+    "fail": [],
+    "absent": [
+      {
+        "selector": "[data-testid=\"ai-generated-badge\"]",
+        "list": "spec62",
+        "light": "ABSENT",
+        "dark": "ABSENT",
+        "reason": "同上：content=null → badge 不渲染"
+      },
+      {
+        "selector": "[data-testid=\"ai-disclaimer\"]",
+        "list": "spec62",
+        "light": "ABSENT",
+        "dark": "ABSENT",
+        "reason": "同上：content=null → 免责不渲染"
+      },
+      {
+        "selector": ".ai-badge",
+        "list": "main",
+        "light": "ABSENT",
+        "dark": "ABSENT",
+        "reason": "AiInterpretation.tsx:71 AiTextSlot content=null → 生产不渲染（A6 接线红项，需接通 /v1/ai/analyses 后复测）"
+      },
+      {
+        "selector": ".ai-disclaimer",
+        "list": "main",
+        "light": "ABSENT",
+        "dark": "ABSENT",
+        "reason": "同上：模型文本位 content=null，标识/免责随内容注入才渲染"
+      },
+      {
+        "selector": ".ai-badge__mark",
+        "list": "mark",
+        "light": "ABSENT",
+        "dark": "ABSENT",
+        "reason": "同上：badge 未渲染则 mark 不存在"
+      }
+    ],
+    "status": "PASS_WITH_GAPS"
+  }
+}
