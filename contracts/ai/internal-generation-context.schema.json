@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.market-sense.invalid/ai/internal-generation-context.schema.json",
+  "title": "InternalAiGenerationContext",
+  "description": "API -> services/ai 的内部生成上下文。只由 services/api 在服务端构造并随内部调用传入；不得从 C 端请求读取、不得出现在 /v1/ai/* 公共请求/响应中、不得由 H5 生成。P8 用它写 audit.ai_generation_events 的 content_version/label_version/model_id/as_of 等列。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["request_id", "audience", "user_id", "content_version", "as_of"],
+  "properties": {
+    "request_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "一次生成尝试的稳定 id（重试必须新 id）；AI 用它写 event_key=ai|generation|<request_id>。"
+    },
+    "analysis_id": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9_-]+$",
+      "description": "仅 analyses 任务填写；chat 不填。"
+    },
+    "audience": {
+      "type": "string",
+      "enum": ["c_end", "internal"],
+      "description": "由 services/api 按路径判定，不读客户端 header。"
+    },
+    "user_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "description": "HMAC(subject_ref) 受控标识；系统触达固定写 system；不得为明文手机号/openid。"
+    },
+    "content_version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "P7 注入的 AI 文案版本（services/api/src/copy.ts 的 COPY_VERSION 派生版本）；缺失即拒绝生成。"
+    },
+    "label_version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "「AI 生成 · 仅供参考」标签版本；可选。"
+    },
+    "model_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "模型标识（不得含供应商名）；可选。"
+    },
+    "as_of": {
+      "type": "string",
+      "format": "date-time",
+      "description": "本轮生成所用数据的业务时点（数据 as-of），必须是真实数据截止时点；chat 无数据上下文时应在 API 层调用模型前拒绝，不产生审计行。"
+    },
+    "trace_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "端到端 trace id；可选，用于 API/网关日志关联。"
+    }
+  }
+}

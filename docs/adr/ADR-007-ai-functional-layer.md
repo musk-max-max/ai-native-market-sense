@@ -127,7 +127,8 @@ AnalysisResult {
   compliance: { policy_version, decision: "passed" | "blocked", reason_codes: [] },
   ai: {
     generated: true,
-    label_version: string,                       # 文案版本；具体文本由 API 层 copy.ts 注入
+    label_version: string,                       # 标签版本；具体文本由 API 层 copy.ts 注入
+    content_version: string,                     # P7 文案/免责版本；由 API 内部上下文传入
     model_family: string,                        # 只到家族/档位，不出现供应商名
     prompt_version: string,
     policy_version: string
@@ -143,6 +144,12 @@ AnalysisResult {
 - 所有 `/v1/ai/*` 响应沿用 `Cache-Control: no-store`（与 ADR-006 D4 出口规则一致）；AI 结果禁止跨 entitlement 缓存。
 - 破坏性变更（删 `kind`、改字段语义、删除 `evidence_ids` 等）按 ADR-001 D5/D6 走 H2 签字；
   additive（新增 `kind`/新增 optional 字段）也须 A11 契约测试与版本号。
+- **内部审计上下文不进公共契约**：`content_version`/`label_version`/`model_id`/审计 `as_of`
+  由 `services/api` 在服务端构造成 `InternalAiGenerationContext`
+  （`contracts/ai/internal-generation-context.schema.json`）随内部调用传给 `services/ai`；H5 永不生成或覆盖这些值。
+  公共 `AnalysisSubject.as_of` 是客户端期望的数据截止时点，不能替代审计的业务时点 `as_of`。
+  `content_version` 缺失、或 chat 无数据上下文时，`services/ai`/API 必须在调用模型前拒绝（fail-closed），
+  不产生半条审计。
 
 ### D3 统一后处理组件：一处实现，所有功能点复用
 
@@ -220,9 +227,11 @@ prompt、输出 JSON Schema、确定性 fallback，**禁止各自实现过滤/�
 
 并行建议：INF-01/02/03/04 与 INF-05/06 两条线同时启动；INF-07 在 INF-01 冻结后启动。
 
-> 落地状态（2026-11-06）：INF-01 `contracts/ai/openapi.yaml` 已落盘（4 operations，kind 封闭 8 值，additive，redocly valid）；
-> INF-02 `services/ai/` 骨架已落盘（Fastify、`AiProvider`/FakeProvider、tool registry、postprocess 空管线、`/healthz`，
-> typecheck + 10 tests 通过）。A3 在验收后接管 `services/ai/` 写域。A11 契约测试脚手架（ai 域 DOMAINS/baseline/specimens）待补。
+> 落地状态（2026-11-06）：INF-01 `contracts/ai/openapi.yaml` 已落盘（4 operations，kind 封闭 8 值，additive，redocly valid；
+> 内部审计上下文字段见 `contracts/ai/internal-generation-context.schema.json`，不进公共请求/响应）；
+> INF-02 `services/ai/` 骨架已落盘（Fastify、`AiProvider`/FakeProvider、tool registry、postprocess 空管线、`/healthz`）。
+> A11 契约脚手架已落地（ai 域 DOMAINS/baseline/specimens，commit `6d28560`）：`pytest tests/contract` 67 passed；
+> `services/ai` typecheck 通过、测试 16 passed。A3 在验收后接管 `services/ai/` 写域。
 这是 P0 的关键路径，**先做功能页面等数据会空转**。
 
 #### 第 1 批（现有能力可开工，不依赖 AI 网关/新数据域）
