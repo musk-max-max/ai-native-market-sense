@@ -203,7 +203,7 @@ DO $$
 DECLARE
   role_name text;
 BEGIN
-  FOREACH role_name IN ARRAY ARRAY['ci_deploy_writer', 'reconciler', 'human_hold_clear', 'audit_reader'] LOOP
+  FOREACH role_name IN ARRAY ARRAY['ci_deploy_writer', 'ai_app', 'reconciler', 'human_hold_clear', 'audit_reader'] LOOP
     EXECUTE format('REVOKE ALL ON SCHEMA public FROM %I', role_name);
     EXECUTE format('GRANT USAGE ON SCHEMA public TO %I', role_name);
     EXECUTE format('REVOKE CREATE ON SCHEMA public FROM %I', role_name);
@@ -216,6 +216,57 @@ BEGIN
       EXECUTE format('GRANT USAGE ON SCHEMA audit TO %I', role_name);
     END IF;
   END LOOP;
+END
+$$;
+
+
+-- ---------------------------------------------------------------------------
+-- 3c) ai_app（L126 H2）：AI 生成审计独立写进程，只允许
+--     audit.ai_generation_events 列级 INSERT；无 SELECT/UPDATE/DELETE，无业务表权限。
+--     与 market_app 解耦：AI 侧被入侵不得读行情/自选/授权审计，也不得篡改任何已有行。
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  cols text;
+  col_count integer;
+BEGIN
+  -- public/serving/identity 先显式收口（不依赖默认权限；未来新表也不自动可写）。
+  EXECUTE 'REVOKE ALL ON SCHEMA public FROM ai_app';
+  EXECUTE 'GRANT USAGE ON SCHEMA public TO ai_app';
+  EXECUTE 'REVOKE CREATE ON SCHEMA public FROM ai_app';
+  EXECUTE 'REVOKE ALL ON ALL TABLES IN SCHEMA public FROM ai_app';
+  EXECUTE 'REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM ai_app';
+  IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'serving') THEN
+    EXECUTE 'REVOKE ALL ON SCHEMA serving FROM ai_app';
+    EXECUTE 'REVOKE ALL ON ALL TABLES IN SCHEMA serving FROM ai_app';
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'identity') THEN
+    EXECUTE 'REVOKE ALL ON SCHEMA identity FROM ai_app';
+    EXECUTE 'REVOKE ALL ON ALL TABLES IN SCHEMA identity FROM ai_app';
+    EXECUTE 'REVOKE ALL ON ALL SEQUENCES IN SCHEMA identity FROM ai_app';
+  END IF;
+
+  IF to_regclass('audit.ai_generation_events') IS NULL THEN
+    RAISE NOTICE 'skip: audit.ai_generation_events 尚未迁移；A5 DDL 落地后 db-migrate 会重跑本文件授予 ai_app 列级 INSERT';
+    RETURN;
+  END IF;
+
+  -- 先收回该 schema 下所有既有授权（roles 反复 bootstrap 幂等，也防误授残留），再按列授。
+  EXECUTE 'REVOKE ALL ON SCHEMA audit FROM ai_app';
+  EXECUTE 'GRANT USAGE ON SCHEMA audit TO ai_app';
+  EXECUTE 'REVOKE ALL ON ALL TABLES IN SCHEMA audit FROM ai_app';
+  EXECUTE 'REVOKE ALL ON ALL FUNCTIONS IN SCHEMA audit FROM ai_app';
+
+  SELECT count(*), string_agg(quote_ident(column_name), ', ' ORDER BY ordinal_position)
+    INTO col_count, cols
+    FROM information_schema.columns
+   WHERE table_schema = 'audit' AND table_name = 'ai_generation_events';
+  IF cols IS NULL OR col_count = 0 THEN
+    RAISE EXCEPTION 'audit.ai_generation_events 存在但没有列，无法给 ai_app 授权（DDL 不完整？）';
+  END IF;
+
+  EXECUTE format('GRANT INSERT (%s) ON TABLE audit.ai_generation_events TO ai_app', cols);
+  RAISE NOTICE 'granted ai_app: column-level INSERT on audit.ai_generation_events (% columns, no table-level SELECT/UPDATE/DELETE)', col_count;
 END
 $$;
 

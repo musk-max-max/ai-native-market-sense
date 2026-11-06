@@ -18,7 +18,8 @@
 # 用法：
 #   infra/db/bootstrap.sh --env dev [--dsn "$DATABASE_URL"] [--dry-run]
 #   infra/db/bootstrap.sh --env preview --dsn ... --verify
-#   APP_DB_MARKET_PASSWORD=... APP_DB_LOADER_PASSWORD=... infra/db/bootstrap.sh --env production --dsn ... \
+#   APP_DB_MARKET_PASSWORD=... APP_DB_LOADER_PASSWORD=... APP_DB_AI_GENERATION_PASSWORD=... \
+#     infra/db/bootstrap.sh --env production --dsn ... \
 #     ALLOW_PRODUCTION_BOOTSTRAP=1 APPROVAL_REF="<H5 批准链接>"
 #
 # 退出码：0 成功 / 2 用法或环境错误 / 3 生产未批准 / 4 前置检查失败 / 5 psql 执行失败
@@ -80,10 +81,10 @@ printf '%s\n' \
   "${ROOT}/warehouse/dwd/schema.sql" \
   "${ROOT}/warehouse/serving/schema.sql" \
   "${DB_DIR}/sql/10_roles.sql" > "$PLAN_FILE"
-if [ -n "${APP_DB_MARKET_PASSWORD:-}" ] || [ -n "${APP_DB_LOADER_PASSWORD:-}" ]; then
+if [ -n "${APP_DB_MARKET_PASSWORD:-}" ] || [ -n "${APP_DB_LOADER_PASSWORD:-}" ] || [ -n "${APP_DB_AI_GENERATION_PASSWORD:-}" ]; then
   printf '%s\n' "${DB_DIR}/sql/15_role_passwords.sql" >> "$PLAN_FILE"
 else
-  log "未设置 APP_DB_MARKET_PASSWORD / APP_DB_LOADER_PASSWORD：跳过密码设置（角色保留现有密码；生产由 secret manager 注入）"
+  log "未设置 APP_DB_*_PASSWORD（market/loader/ai_generation）：跳过密码设置（角色保留现有密码；生产由 secret manager 注入）"
 fi
 printf '%s\n' "${DB_DIR}/sql/20_grants.sql" >> "$PLAN_FILE"
 if [ "$VERIFY" = "1" ]; then
@@ -117,6 +118,7 @@ psql_file() {
   set -- -X -q -v ON_ERROR_STOP=1
   if [ -n "${APP_DB_MARKET_PASSWORD:-}" ]; then set -- "$@" -v "market_app_password=${APP_DB_MARKET_PASSWORD}"; fi
   if [ -n "${APP_DB_LOADER_PASSWORD:-}" ]; then set -- "$@" -v "warehouse_loader_password=${APP_DB_LOADER_PASSWORD}"; fi
+  if [ -n "${APP_DB_AI_GENERATION_PASSWORD:-}" ]; then set -- "$@" -v "ai_generation_password=${APP_DB_AI_GENERATION_PASSWORD}"; fi
   psql "$DSN" "$@" --single-transaction -f "$_file"
 }
 

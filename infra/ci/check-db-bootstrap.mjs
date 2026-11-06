@@ -97,8 +97,10 @@ if (bootstrap) {
   check('bootstrap 先跑静态自检', bootstrap.includes('check-db-bootstrap.mjs'));
   check('bootstrap 不自动建业务表', !/CREATE\s+TABLE[^;]*watchlist_items/i.test(bootstrap));
   check(
-    'bootstrap 支持两个角色密码变量',
-    bootstrap.includes('APP_DB_MARKET_PASSWORD') && bootstrap.includes('APP_DB_LOADER_PASSWORD'),
+    'bootstrap 支持三个进程角色密码变量（含 ai_app）',
+    bootstrap.includes('APP_DB_MARKET_PASSWORD') &&
+      bootstrap.includes('APP_DB_LOADER_PASSWORD') &&
+      bootstrap.includes('APP_DB_AI_GENERATION_PASSWORD'),
   );
   check(
     'bootstrap --verify 走 90_verify_privileges.sql',
@@ -273,6 +275,7 @@ if (roleSql) {
     'warehouse_loader',
     'market_app',
     'ci_deploy_writer',
+    'ai_app',
     'reconciler',
     'human_hold_clear',
   ]) {
@@ -393,6 +396,62 @@ for (const relPath of migrationFiles) {
   );
   check(`${relPath} 无 DROP TABLE`, !/DROP\s+TABLE/i.test(body));
 }
+
+// ---- 9b. identity 新服务：迁移自动发现 + env 清单（m04031）------------------
+const identityMigrationRel = 'services/identity/migrations/001_identity.sql';
+check('identity: 迁移文件存在（A4 交付）', fileExists(identityMigrationRel));
+check(
+  'identity: 迁移会被 db-migrate 自动发现（services/*/migrations/*.sql，无硬编码服务清单）',
+  /find[^\n]*services[^\n]*migrations[^\n]*\*\.sql/.test(migrate) &&
+    !/services\/identity\/migrations\/001_identity\.sql/.test(migrate),
+);
+check(
+  'identity: discovery 结果确实包含 identity 迁移',
+  migrationFiles.includes('services/identity/migrations/001_identity.sql'),
+  `scanned=${migrationFiles.length}`,
+);
+const identityMigration = fileExists(identityMigrationRel)
+  ? readFileSync(resolve(ROOT, identityMigrationRel), 'utf8')
+  : '';
+check(
+  'identity: 迁移幂等（CREATE TABLE IF NOT EXISTS / ADD COLUMN IF NOT EXISTS）',
+  /CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS/i.test(identityMigration) ||
+    /ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS/i.test(identityMigration),
+);
+check(
+  'identity: 迁移无 DROP TABLE（注释里的禁止条款不算）',
+  !/DROP\s+TABLE/i.test(stripSqlComments(identityMigration)),
+);
+
+const envChecklistRel = 'infra/ops/deploy-env-checklist.md';
+check('identity: 部署 env checklist 存在', fileExists(envChecklistRel));
+const envChecklist = fileExists(envChecklistRel)
+  ? readFileSync(resolve(ROOT, envChecklistRel), 'utf8')
+  : '';
+for (const name of [
+  'IDENTITY_JWT_SECRET',
+  'IDENTITY_JWT_AUDIENCE',
+  'IDENTITY_JWT_TTL_SECONDS',
+  'IDENTITY_ACCEPT_LEGACY_TOKENS',
+  'IDENTITY_PASSWORD_MIN_LENGTH',
+  'IDENTITY_INTERNAL_REGISTRATION_ENABLED',
+  'IDENTITY_INTERNAL_INVITE_SHA256',
+  'IDENTITY_COMPANY_EMAIL_DOMAINS',
+  'IDENTITY_SOURCE_IP_HASH_SALT',
+  'IDENTITY_APPROVAL_ENV',
+]) {
+  check(`identity env: ${name} 在 checklist`, envChecklist.includes(name));
+}
+check(
+  'identity env: prod fail-closed（缺省拒绝启动/部署）明示',
+  /prod[\s\S]{0,2000}?(fail-closed|拒绝启动|拒绝部署|不允许缺省)/i.test(envChecklist),
+);
+check(
+  'identity env: JWT secret 不得给默认值（缺失即失败）',
+  /IDENTITY_JWT_SECRET[\s\S]{0,200}?(无默认|没有默认|必须由 secret|缺失即失败|必填)/i.test(
+    envChecklist,
+  ),
+);
 
 // ---- 10. 密码不得硬编码 ------------------------------------------------------
 for (const [name, sql] of [
@@ -548,7 +607,62 @@ if (auditGap) {
   check('audit_gap: 新增 CHECK 均 validated（本文件无 NOT VALID）', !/NOT VALID/i.test(auditGap));
 }
 
-// ---- 输出 ---// ---- 输出 -------------------------------------------------------------------
+// ---- 12. ai_app（L126 H2）：只允许 ai_generation_events 列级 INSERT -----------
+if (roleSql && grants && verifySql) {
+  check(
+    'ai_app: 角色声明为 LOGIN（独立写进程，禁用交互式复用）',
+    /ai_app[\s\S]{0,400}?LOGIN|LOGIN[\s\S]{0,400}?ai_app/i.test(roleSql),
+  );
+  check(
+    'ai_app: grants 先收回 public/serving/identity 权限',
+    /ai_app[\s\S]{0,2000}?REVOKE\s+ALL\s+ON\s+SCHEMA\s+public/i.test(grants) &&
+      /ai_app[\s\S]{0,2500}?REVOKE\s+ALL\s+ON\s+ALL\s+TABLES\s+IN\s+SCHEMA\s+serving/i.test(
+        grants,
+      ) &&
+      /ai_app[\s\S]{0,3000}?REVOKE\s+ALL\s+ON\s+ALL\s+TABLES\s+IN\s+SCHEMA\s+identity/i.test(
+        grants,
+      ),
+  );
+  check(
+    'ai_app: 只对 audit.ai_generation_events 列级 INSERT（按 information_schema.columns 动态生成）',
+    /GRANT\s+INSERT\s+\(%s\)\s+ON\s+TABLE\s+audit\.ai_generation_events\s+TO\s+ai_app/i.test(
+      grants,
+    ),
+  );
+  check(
+    'ai_app: grants 对表不存在时 fail-soft（skip + NOTICE，等 DDL 迁移后重跑）',
+    /to_regclass\('audit\.ai_generation_events'\)\s+IS\s+NULL[\s\S]{0,600}?NOTICE/i.test(grants),
+  );
+  check(
+    'ai_app: 未授任何 table-level 权限（只有列级 INSERT）',
+    !/GRANT\s+(?:SELECT|UPDATE|DELETE|TRUNCATE|REFERENCES|TRIGGER)\b[^;]*ON\s+TABLE\s+audit\.ai_generation_events/i.test(
+      grants,
+    ) && !/GRANT\s+INSERT\s+ON\s+TABLE\s+audit\.ai_generation_events/i.test(grants),
+  );
+  check(
+    'ai_app: 90_verify 有「检查在读」——列级 SELECT 逐列断言 + 表级 SELECT 循环断言',
+    /has_column_privilege\('ai_app'[\s\S]{0,200}?'SELECT'\)/i.test(verifySql) &&
+      /FOREACH p IN ARRAY ARRAY\['SELECT'[\s\S]{0,500}?has_table_privilege\('ai_app', 'audit\.ai_generation_events', p\)/i.test(
+        verifySql,
+      ),
+  );
+  check(
+    'ai_app: 90_verify 覆盖每一列的 INSERT 授权',
+    /information_schema\.columns[\s\S]{0,600}?ai_generation_events[\s\S]{0,800}?has_column_privilege\('ai_app'/i.test(
+      verifySql,
+    ),
+  );
+  check(
+    'ai_app: 90_verify 断言无表级 ACL / 无函数 / 无继承 / 零 owner（直接查 pg 目录，不用 role_*_grants 假绿）',
+    /aclexplode\(COALESCE\(c\.relacl/i.test(verifySql) &&
+      /aclexplode\(COALESCE\(p\.proacl/i.test(verifySql) &&
+      /pg_auth_members/i.test(verifySql) &&
+      /relowner/i.test(verifySql) &&
+      /attacl/i.test(verifySql),
+  );
+}
+
+// ---- 输出 -------------------------------------------------------------------
 if (process.argv.includes('--json')) {
   console.log(JSON.stringify({ ok: failures.length === 0, passes, failures }, null, 2));
 } else {

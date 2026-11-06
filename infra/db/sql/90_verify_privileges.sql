@@ -445,3 +445,182 @@ BEGIN
   RAISE NOTICE 'entitlement 授权断言通过：hold 只读/人工清；reconciler 仅函数；audit_reader 只读；hash 列不可写';
 END
 $$;
+
+-- ---------------------------------------------------------------------------
+-- ai_app（L126 H2）：AI 生成审计独立写角色。
+-- 口径：只允许 audit.ai_generation_events 的列级 INSERT；表级任何权限、UPDATE/DELETE、
+--       SELECT（「检查在读」——不是只靠 REVOKE）、业务表/identity/audit 其它对象一律不许。
+-- 表尚未迁移时跳过表级断言并 NOTICE；db-migrate 迁移+授权后会重跑本文件强断言。
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  n integer;
+  col record;
+  seq record;
+  p text;
+  has_ai_table boolean := to_regclass('audit.ai_generation_events') IS NOT NULL;
+  has_audit_schema boolean := EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'audit');
+  expected_cols integer := 0;
+BEGIN
+  -- 1. 角色存在、属性、可登录、互不继承。
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ai_app') THEN
+    RAISE EXCEPTION '角色缺失：ai_app（AI 生成审计写进程）必须存在';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM pg_roles
+    WHERE rolname = 'ai_app'
+      AND (rolsuper OR rolcreatedb OR rolcreaterole OR rolbypassrls)
+  ) THEN
+    RAISE EXCEPTION 'ai_app 角色属性越权（不得 SUPERUSER/CREATEDB/CREATEROLE/BYPASSRLS）';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ai_app' AND rolcanlogin) THEN
+    RAISE EXCEPTION 'ai_app 必须 LOGIN（服务进程直接写入）';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ai_app' AND rolinherit) THEN
+    RAISE EXCEPTION 'ai_app 应 INHERIT（但不得继承任何组角色）';
+  END IF;
+  SELECT count(*) INTO n
+  FROM pg_auth_members m
+  JOIN pg_roles granted_role ON granted_role.oid = m.roleid
+  JOIN pg_roles member_role ON member_role.oid = m.member
+  WHERE granted_role.rolname = 'ai_app' OR member_role.rolname = 'ai_app';
+  IF n > 0 THEN
+    RAISE EXCEPTION 'ai_app 不得参与任何角色继承关系（当前 % 条）', n;
+  END IF;
+
+  -- 2. 不得拥有任何关系/序列/schema（owner 可绕过 ACL）。
+  SELECT count(*) INTO n
+  FROM pg_class c JOIN pg_roles r ON r.oid = c.relowner
+  WHERE r.rolname = 'ai_app';
+  IF n > 0 THEN RAISE EXCEPTION 'ai_app 拥有 % 个关系/序列（必须零所有权）', n; END IF;
+  SELECT count(*) INTO n
+  FROM pg_namespace ns JOIN pg_roles r ON r.oid = ns.nspowner
+  WHERE r.rolname = 'ai_app';
+  IF n > 0 THEN RAISE EXCEPTION 'ai_app 拥有 % 个 schema（必须零所有权）', n; END IF;
+
+  -- 3. 任何表级授权都不允许（目标表也只能列级）。
+  -- 注意：information_schema.role_table_grants / table_privileges 只覆盖「当前启用角色」，
+  -- 对 ai_app 这类非当前角色永远返回 0，会静默假绿。这里直接查 pg_class.relacl / pg_proc.proacl。
+  SELECT count(*) INTO n
+  FROM pg_class c
+  CROSS JOIN LATERAL aclexplode(COALESCE(c.relacl, acldefault('r', c.relowner))) a
+  JOIN pg_roles r ON r.oid = a.grantee
+  WHERE r.rolname = 'ai_app';
+  IF n > 0 THEN
+    RAISE EXCEPTION 'ai_app 有 % 条表/序列 ACL 授权（目标表只允许列级 INSERT，其他对象一律零权限）', n;
+  END IF;
+  SELECT count(*) INTO n
+  FROM pg_proc p
+  CROSS JOIN LATERAL aclexplode(COALESCE(p.proacl, acldefault('f', p.proowner))) a
+  JOIN pg_roles r ON r.oid = a.grantee
+  WHERE r.rolname = 'ai_app';
+  IF n > 0 THEN RAISE EXCEPTION 'ai_app 有 % 条函数 EXECUTE 授权（应为零）', n; END IF;
+
+  -- 4. schema 权限：public（默认连接 schema）必有 USAGE；audit 迁移后必须有 USAGE；
+  --    其余 schema 不得有 USAGE；任何 schema 不得有 CREATE。
+  IF NOT has_schema_privilege('ai_app', 'public', 'USAGE') THEN
+    RAISE EXCEPTION 'ai_app 缺 public schema USAGE（连不上默认 schema）';
+  END IF;
+  IF has_audit_schema AND NOT has_schema_privilege('ai_app', 'audit', 'USAGE') THEN
+    RAISE EXCEPTION 'ai_app 缺 audit schema USAGE（无法写 ai_generation_events）';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM pg_namespace ns
+    WHERE ns.nspname NOT IN ('public', 'audit')
+      AND ns.nspname NOT LIKE 'pg\_%'
+      AND ns.nspname <> 'information_schema'
+      AND has_schema_privilege('ai_app', ns.nspname, 'USAGE')
+  ) THEN
+    RAISE EXCEPTION 'ai_app 对 public/audit 之外的 schema 有 USAGE（越权）';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM pg_namespace ns WHERE has_schema_privilege('ai_app', ns.nspname, 'CREATE')
+  ) THEN
+    RAISE EXCEPTION 'ai_app 不应有任何 schema CREATE 权限';
+  END IF;
+  -- 显式 USAGE 授权也只允许 public/audit（防未来新增 schema 时被 GRANT）。
+  SELECT count(*) INTO n
+  FROM pg_namespace ns
+  CROSS JOIN LATERAL aclexplode(COALESCE(ns.nspacl, acldefault('n', ns.nspowner))) a
+  JOIN pg_roles r ON r.oid = a.grantee
+  WHERE r.rolname = 'ai_app'
+    AND a.privilege_type = 'USAGE'
+    AND ns.nspname NOT IN ('public', 'audit')
+    AND ns.nspname NOT LIKE 'pg\_%'
+    AND ns.nspname <> 'information_schema';
+  IF n > 0 THEN
+    RAISE EXCEPTION 'ai_app 对 public/audit 之外的 schema 有显式 USAGE 授权（% 条）', n;
+  END IF;
+
+  -- 5. 序列零权限（序列权限不在 role_table_grants 里，逐条断言）。
+  FOR seq IN
+    SELECT c.oid::regclass AS qualified
+    FROM pg_class c JOIN pg_namespace ns ON ns.oid = c.relnamespace
+    WHERE c.relkind = 'S' AND ns.nspname IN ('public', 'serving', 'audit', 'identity')
+  LOOP
+    IF has_sequence_privilege('ai_app', seq.qualified, 'USAGE')
+       OR has_sequence_privilege('ai_app', seq.qualified, 'SELECT')
+       OR has_sequence_privilege('ai_app', seq.qualified, 'UPDATE') THEN
+      RAISE EXCEPTION 'ai_app 对序列 % 有权限（应为零）', seq.qualified;
+    END IF;
+  END LOOP;
+
+  IF NOT has_ai_table THEN
+    RAISE NOTICE 'audit.ai_generation_events 尚未迁移：跳过 ai_app 列级断言（db-migrate 后复验）';
+    RETURN;
+  END IF;
+
+  -- 6. 表级七种权限必须全无（只允许列级 INSERT）。
+  FOREACH p IN ARRAY ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER'] LOOP
+    IF has_table_privilege('ai_app', 'audit.ai_generation_events', p) THEN
+      RAISE EXCEPTION 'ai_app 对 audit.ai_generation_events 有表级 % 权限（只允许列级 INSERT）', p;
+    END IF;
+  END LOOP;
+
+  -- 7. 目标表每一列：INSERT 有、SELECT/UPDATE/REFERENCES 无；覆盖数必须等于列数。
+  SELECT count(*) INTO expected_cols
+  FROM information_schema.columns
+  WHERE table_schema = 'audit' AND table_name = 'ai_generation_events';
+  IF expected_cols = 0 THEN
+    RAISE EXCEPTION 'audit.ai_generation_events 没有列（DDL 不完整）';
+  END IF;
+
+  FOR col IN
+    SELECT column_name
+    FROM information_schema.columns
+    WHERE table_schema = 'audit' AND table_name = 'ai_generation_events'
+  LOOP
+    IF NOT has_column_privilege('ai_app', 'audit.ai_generation_events', col.column_name, 'INSERT') THEN
+      RAISE EXCEPTION 'ai_app 缺列级 INSERT：ai_generation_events.%（写入会失败）', col.column_name;
+    END IF;
+    IF has_column_privilege('ai_app', 'audit.ai_generation_events', col.column_name, 'SELECT') THEN
+      RAISE EXCEPTION 'ai_app 可读列 ai_generation_events.%（AI 进程不应读审计）', col.column_name;
+    END IF;
+    IF has_column_privilege('ai_app', 'audit.ai_generation_events', col.column_name, 'UPDATE')
+       OR has_column_privilege('ai_app', 'audit.ai_generation_events', col.column_name, 'REFERENCES') THEN
+      RAISE EXCEPTION 'ai_app 对列 ai_generation_events.% 有 UPDATE/REFERENCES（只应 INSERT）', col.column_name;
+    END IF;
+  END LOOP;
+
+  -- 8. 目标表之外不得有任何列级授权（未来新增表/列也不会自动获得权限）。
+  --    information_schema.column_privileges 同样只覆盖当前启用角色，改用 pg_attribute.attacl。
+  SELECT count(*) INTO n
+  FROM pg_attribute att
+  JOIN pg_class c ON c.oid = att.attrelid
+  JOIN pg_namespace ns ON ns.oid = c.relnamespace
+  CROSS JOIN LATERAL aclexplode(att.attacl) a
+  JOIN pg_roles r ON r.oid = a.grantee
+  WHERE r.rolname = 'ai_app'
+    AND att.attnum > 0
+    AND NOT (
+      ns.nspname = 'audit'
+      AND c.relname = 'ai_generation_events'
+      AND a.privilege_type = 'INSERT'
+    );
+  IF n > 0 THEN
+    RAISE EXCEPTION 'ai_app 在目标表之外有 % 条列级授权（越权）', n;
+  END IF;
+
+  RAISE NOTICE 'ai_app 授权断言通过：仅 audit.ai_generation_events 列级 INSERT（% 列），无读/改/删/表级权限', expected_cols;
+END
+$$;

@@ -9,6 +9,9 @@
 --       audit.entitlement_events 仅列级 INSERT；audit.entitlement_hold 仅 SELECT（hold 读取）。
 --   * ci_deploy_writer —— 发布流水线使用（不可变产物写 deploy/tier_switch 事件）。
 --       权限：audit.entitlement_events 仅列级 INSERT；其余零权限。禁止交互式手写 deploy 记录。
+--   * ai_app —— AI 生成审计独立写进程（L126 H2 裁定：AI 生成与行情授权解耦）。
+--       权限：audit.ai_generation_events 仅列级 INSERT（含全部列，不排除哈希列——该表无审计链；
+--       但不得 SELECT/UPDATE/DELETE，不给任何业务表/identity/audit 其它表权限）。
 --   * reconciler —— 授权对账 CronJob 使用。
 --       权限：仅 EXECUTE audit.raise_hold / audit.mark_reconciled；无表级权限、无 clear_hold。
 --   * human_hold_clear —— 人工清 hold 的专用角色（NOLOGIN；人走 T2 工单 + H5 签字，
@@ -25,7 +28,7 @@
 
 DO $$
 DECLARE
-  login_roles text[] := ARRAY['warehouse_loader', 'market_app', 'ci_deploy_writer', 'reconciler'];
+  login_roles text[] := ARRAY['warehouse_loader', 'market_app', 'ci_deploy_writer', 'ai_app', 'reconciler'];
   role_name   text;
 BEGIN
   FOREACH role_name IN ARRAY login_roles LOOP
@@ -64,11 +67,11 @@ BEGIN
 END
 $$;
 
--- 六个角色互不继承：任何一个被误 GRANT 给另一个，下一次 bootstrap 会再次收回。
+-- 七个角色互不继承：任何一个被误 GRANT 给另一个，下一次 bootstrap 会再次收回。
 DO $$
 DECLARE
   all_roles text[] := ARRAY[
-    'warehouse_loader', 'market_app', 'ci_deploy_writer', 'reconciler',
+    'warehouse_loader', 'market_app', 'ci_deploy_writer', 'ai_app', 'reconciler',
     'human_hold_clear', 'audit_reader'
   ];
   member_role text;
