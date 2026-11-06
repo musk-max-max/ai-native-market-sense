@@ -51,7 +51,8 @@ contracts/
 | `meta.adjustment`（`AdjType`） | **价格/序列类**响应必填 | `none` 为 H4 主口径；K 线响应必须回显实际生效口径 |
 | `meta.disclaimer`（`DisclaimerMeta`） | 价格/财务类响应必填 | 合规文案；`closable` 恒 `false`（H6 不可配，A10 不得渲染关闭入口） |
 
-- 财务数据不适用复权：`fundamental` 响应不携带 `adjustment`，原始/追溯调整两套口径由 `data.statement_basis`（`reported`/`restated`）表达（H4 D6）。这是唯一经批准的例外，扩展其他例外需 H2 签字。
+- 财务数据不适用复权：`fundamental` 响应不携带 `adjustment`，原始/追溯调整两套口径由 `data.statement_basis`（`reported`/`restated`）表达（H4 D6）。这是唯一经批准的**面客**例外，扩展面客例外需 H2 签字。
+- 内部接口例外（2026-11-06，待 H2 会签）：`contracts/config`、`contracts/approval` 的 `/v1/internal/*` 成功响应**直接返回资源对象**（如 `OpsConfigDocument`/`Approval`/`Release`/`ValidationReport`），不套 `{data, meta}`。理由：这两域只服务内部运营/审批，不面向 C 端或 agent，不涉及行情授权与 C 端免责元数据；若套 shared `ResponseMeta` 会注入无意义的 source/entitlement。错误仍统一 `application/problem+json` + shared `Problem`。此例外仅限 internal-only 契约，任何面客/agent 契约不得套用。
 - 错误响应统一 `application/problem+json`，结构 `Problem`（RFC 9457）：`type/title/status/code/detail/trace_id`；`code` 是契约测试（A11）唯一断言依据，P0 已定义 8 个错误码（见 `contracts/shared/openapi.yaml`；`NOT_FOUND` 于 2026-11-04 以 additive 方式加入，语义见下）。
 - 授权降级路径：受授权约束的数据接口（quote/bars/fundamental-summary）在**无权展示**时必须返回 `403` + `code=ENTITLEMENT_RESTRICTED`；`403` 语义是「无权展示」，**不是**「无数据」（无数据用 404）。成功响应里的 `meta.entitlement.is_entitled=false` 仅用于前端预判与降级提示，**不得替代** 403。基础信息 `getInstrument` 不因授权缺失整体 403（个股页必须先能渲染证券标识），授权状态同样由 `meta.entitlement` 表达。watchlist 的越权（已认证但操作他人自选）返回 `403` + `code=FORBIDDEN`。
 - 404 语义：证券标识不存在/未收录 → `INSTRUMENT_NOT_FOUND`；标识存在但请求的资源无数据（无行情快照、无财报）或路由不存在 → `NOT_FOUND`。**判定顺序（Lead m00443；A3 封版复核补受限档例外，H4 m02334 签）**：

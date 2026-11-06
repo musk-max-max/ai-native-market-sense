@@ -336,7 +336,7 @@ components:
 
     ApprovalFlow:
       type: string
-      enum: [T1, T2, T3, T4, T5, T6, T7]
+      enum: [t1, t2, t3, t4, t5, t6, t7]
       description: T1 常规/T2 高风险/T3 文案/T4 触达/T5 权限/T6 紧急回滚/T7 数据导出。
 
     ApprovalStatus:

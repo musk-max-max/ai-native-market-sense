@@ -739,7 +739,7 @@ components:
           enum: [all_a, main_board]
         window:
           type: string
-          enum: [1d, 5d, 20d]
+          enum: [d1, d5, d20]
         limit:
           type: integer
           minimum: 1
@@ -926,7 +926,7 @@ components:
           minLength: 1
         flow:
           type: string
-          enum: [T1, T3]
+          enum: [t1, t3]
         status:
           type: string
           enum: [submitted]
