@@ -6,7 +6,7 @@
       "name": "读取审批单",
       "request": {
         "method": "GET",
-        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc",
+        "path": "/v1/internal/approvals/apr_12345678-1234-7abc-8def-123456789abc",
         "headers": {
           "authorization": "Bearer synthetic-internal-token"
         }

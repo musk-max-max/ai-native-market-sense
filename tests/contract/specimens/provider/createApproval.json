@@ -33,7 +33,7 @@
       },
       "status": 201,
       "body": {
-        "approval_ref": "apr_12345678-1234-1234-1234-123456789abc",
+        "approval_ref": "apr_12345678-1234-7abc-8def-123456789abc",
         "application_id": "app-20261106-001",
         "flow": "t1",
         "status": "submitted",

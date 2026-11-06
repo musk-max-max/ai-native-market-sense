@@ -6,7 +6,7 @@
       "name": "执行评估",
       "request": {
         "method": "POST",
-        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc/evaluate",
+        "path": "/v1/internal/approvals/apr_12345678-1234-7abc-8def-123456789abc/evaluate",
         "headers": {
           "authorization": "Bearer synthetic-internal-token"
         }

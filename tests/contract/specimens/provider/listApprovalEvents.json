@@ -8,20 +8,20 @@
       "name": "200 事件列表",
       "request": {
         "method": "GET",
-        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc/events"
+        "path": "/v1/internal/approvals/apr_12345678-1234-7abc-8def-123456789abc/events"
       },
       "status": 200,
       "body": {
         "items": [
           {
             "event_id": "evt-0001",
-            "approval_ref": "apr_12345678-1234-1234-1234-123456789abc",
+            "approval_ref": "apr_12345678-1234-7abc-8def-123456789abc",
             "type": "created",
             "at": "2026-11-06T09:30:00+08:00"
           },
           {
             "event_id": "evt-0002",
-            "approval_ref": "apr_12345678-1234-1234-1234-123456789abc",
+            "approval_ref": "apr_12345678-1234-7abc-8def-123456789abc",
             "type": "approved",
             "at": "2026-11-06T09:30:00+08:00"
           }
@@ -34,7 +34,7 @@
       "name": "400 参数错误",
       "request": {
         "method": "GET",
-        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc/events"
+        "path": "/v1/internal/approvals/apr_12345678-1234-7abc-8def-123456789abc/events"
       },
       "status": 400,
       "body": {
@@ -51,7 +51,7 @@
       "name": "401 未认证",
       "request": {
         "method": "GET",
-        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc/events"
+        "path": "/v1/internal/approvals/apr_12345678-1234-7abc-8def-123456789abc/events"
       },
       "status": 401,
       "body": {
@@ -68,7 +68,7 @@
       "name": "403 越权",
       "request": {
         "method": "GET",
-        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc/events"
+        "path": "/v1/internal/approvals/apr_12345678-1234-7abc-8def-123456789abc/events"
       },
       "status": 403,
       "body": {
@@ -85,7 +85,7 @@
       "name": "404 不存在",
       "request": {
         "method": "GET",
-        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc/events"
+        "path": "/v1/internal/approvals/apr_12345678-1234-7abc-8def-123456789abc/events"
       },
       "status": 404,
       "body": {
@@ -102,7 +102,7 @@
       "name": "429 限流",
       "request": {
         "method": "GET",
-        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc/events"
+        "path": "/v1/internal/approvals/apr_12345678-1234-7abc-8def-123456789abc/events"
       },
       "status": 429,
       "body": {
@@ -119,7 +119,7 @@
       "name": "500 内部错误",
       "request": {
         "method": "GET",
-        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc/events"
+        "path": "/v1/internal/approvals/apr_12345678-1234-7abc-8def-123456789abc/events"
       },
       "status": 500,
       "body": {

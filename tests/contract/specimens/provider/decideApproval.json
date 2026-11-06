@@ -8,7 +8,7 @@
       "name": "200 同意",
       "request": {
         "method": "POST",
-        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc/decision",
+        "path": "/v1/internal/approvals/apr_12345678-1234-7abc-8def-123456789abc/decision",
         "headers": {
           "idempotency-key": "idem-a11-0002"
         },
@@ -22,7 +22,7 @@
       },
       "status": 200,
       "body": {
-        "approval_ref": "apr_12345678-1234-1234-1234-123456789abc",
+        "approval_ref": "apr_12345678-1234-7abc-8def-123456789abc",
         "decision": "approved",
         "decided_by": {
           "kind": "human",
@@ -37,7 +37,7 @@
       "name": "400 参数错误",
       "request": {
         "method": "POST",
-        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc/decision"
+        "path": "/v1/internal/approvals/apr_12345678-1234-7abc-8def-123456789abc/decision"
       },
       "status": 400,
       "body": {
@@ -54,7 +54,7 @@
       "name": "401 未认证",
       "request": {
         "method": "POST",
-        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc/decision"
+        "path": "/v1/internal/approvals/apr_12345678-1234-7abc-8def-123456789abc/decision"
       },
       "status": 401,
       "body": {
@@ -71,7 +71,7 @@
       "name": "403 越权",
       "request": {
         "method": "POST",
-        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc/decision"
+        "path": "/v1/internal/approvals/apr_12345678-1234-7abc-8def-123456789abc/decision"
       },
       "status": 403,
       "body": {
@@ -88,7 +88,7 @@
       "name": "404 不存在",
       "request": {
         "method": "POST",
-        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc/decision"
+        "path": "/v1/internal/approvals/apr_12345678-1234-7abc-8def-123456789abc/decision"
       },
       "status": 404,
       "body": {
@@ -105,7 +105,7 @@
       "name": "409 已决定",
       "request": {
         "method": "POST",
-        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc/decision"
+        "path": "/v1/internal/approvals/apr_12345678-1234-7abc-8def-123456789abc/decision"
       },
       "status": 409,
       "body": {
@@ -122,7 +122,7 @@
       "name": "429 限流",
       "request": {
         "method": "POST",
-        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc/decision"
+        "path": "/v1/internal/approvals/apr_12345678-1234-7abc-8def-123456789abc/decision"
       },
       "status": 429,
       "body": {
@@ -139,7 +139,7 @@
       "name": "500 内部错误",
       "request": {
         "method": "POST",
-        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc/decision"
+        "path": "/v1/internal/approvals/apr_12345678-1234-7abc-8def-123456789abc/decision"
       },
       "status": 500,
       "body": {

@@ -8,11 +8,11 @@
       "name": "200 评估结果",
       "request": {
         "method": "POST",
-        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc/evaluate"
+        "path": "/v1/internal/approvals/apr_12345678-1234-7abc-8def-123456789abc/evaluate"
       },
       "status": 200,
       "body": {
-        "approval_ref": "apr_12345678-1234-1234-1234-123456789abc",
+        "approval_ref": "apr_12345678-1234-7abc-8def-123456789abc",
         "application_id": "app-20261106-001",
         "flow": "t1",
         "status": "evaluated",
@@ -61,7 +61,7 @@
       "name": "400 参数错误",
       "request": {
         "method": "POST",
-        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc/evaluate"
+        "path": "/v1/internal/approvals/apr_12345678-1234-7abc-8def-123456789abc/evaluate"
       },
       "status": 400,
       "body": {
@@ -78,7 +78,7 @@
       "name": "401 未认证",
       "request": {
         "method": "POST",
-        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc/evaluate"
+        "path": "/v1/internal/approvals/apr_12345678-1234-7abc-8def-123456789abc/evaluate"
       },
       "status": 401,
       "body": {
@@ -95,7 +95,7 @@
       "name": "403 越权",
       "request": {
         "method": "POST",
-        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc/evaluate"
+        "path": "/v1/internal/approvals/apr_12345678-1234-7abc-8def-123456789abc/evaluate"
       },
       "status": 403,
       "body": {
@@ -112,7 +112,7 @@
       "name": "404 不存在",
       "request": {
         "method": "POST",
-        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc/evaluate"
+        "path": "/v1/internal/approvals/apr_12345678-1234-7abc-8def-123456789abc/evaluate"
       },
       "status": 404,
       "body": {
@@ -129,7 +129,7 @@
       "name": "409 状态冲突",
       "request": {
         "method": "POST",
-        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc/evaluate"
+        "path": "/v1/internal/approvals/apr_12345678-1234-7abc-8def-123456789abc/evaluate"
       },
       "status": 409,
       "body": {
@@ -146,7 +146,7 @@
       "name": "429 限流",
       "request": {
         "method": "POST",
-        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc/evaluate"
+        "path": "/v1/internal/approvals/apr_12345678-1234-7abc-8def-123456789abc/evaluate"
       },
       "status": 429,
       "body": {
@@ -163,7 +163,7 @@
       "name": "500 内部错误",
       "request": {
         "method": "POST",
-        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc/evaluate"
+        "path": "/v1/internal/approvals/apr_12345678-1234-7abc-8def-123456789abc/evaluate"
       },
       "status": 500,
       "body": {

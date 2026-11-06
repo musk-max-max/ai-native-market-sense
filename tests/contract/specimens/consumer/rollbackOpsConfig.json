@@ -15,7 +15,7 @@
         },
         "body": {
           "target_release_id": "rel_20261103abc",
-          "approval_ref": "apr_12345678-1234-1234-1234-123456789abc"
+          "approval_ref": "apr_12345678-1234-7abc-8def-123456789abc"
         }
       },
       "expect": {

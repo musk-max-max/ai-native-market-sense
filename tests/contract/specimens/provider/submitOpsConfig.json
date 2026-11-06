@@ -1,7 +1,7 @@
 {
   "operation_id": "submitOpsConfig",
   "origin": "synthetic",
-  "note": "提交审批：200 Submission/400/401/403/409/429/500",
+  "note": "提交审批：200 Submission/400/401/403/409/412 版本不符/429/500",
   "recorded_at": "2026-11-06T09:30:00+08:00",
   "cases": [
     {
@@ -22,7 +22,7 @@
       },
       "status": 200,
       "body": {
-        "approval_ref": "apr_12345678-1234-1234-1234-123456789abc",
+        "approval_ref": "apr_12345678-1234-7abc-8def-123456789abc",
         "application_id": "app-20261106-001",
         "flow": "t1",
         "status": "submitted",
@@ -105,6 +105,33 @@
         "title": "错误",
         "status": 409,
         "code": "CONFLICT",
+        "detail": "请求校验失败",
+        "trace_id": "trace-synthetic-0001"
+      },
+      "media_type": "application/json"
+    },
+    {
+      "name": "412 版本不符",
+      "request": {
+        "method": "POST",
+        "path": "/v1/internal/configs/ops_home_feed/submit",
+        "query": {
+          "environment": "dev"
+        },
+        "body": {
+          "change_reason": "上线首页改版并灰度发布",
+          "impact_scope": [
+            "ranking"
+          ],
+          "expected_version": 6
+        }
+      },
+      "status": 412,
+      "body": {
+        "type": "https://errors.market-sense.invalid/precondition_failed",
+        "title": "错误",
+        "status": 412,
+        "code": "PRECONDITION_FAILED",
         "detail": "请求校验失败",
         "trace_id": "trace-synthetic-0001"
       },

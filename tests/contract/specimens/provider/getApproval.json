@@ -8,11 +8,11 @@
       "name": "200 审批单",
       "request": {
         "method": "GET",
-        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc"
+        "path": "/v1/internal/approvals/apr_12345678-1234-7abc-8def-123456789abc"
       },
       "status": 200,
       "body": {
-        "approval_ref": "apr_12345678-1234-1234-1234-123456789abc",
+        "approval_ref": "apr_12345678-1234-7abc-8def-123456789abc",
         "application_id": "app-20261106-001",
         "flow": "t1",
         "status": "submitted",
@@ -40,11 +40,11 @@
       "name": "200 已评估",
       "request": {
         "method": "GET",
-        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc"
+        "path": "/v1/internal/approvals/apr_12345678-1234-7abc-8def-123456789abc"
       },
       "status": 200,
       "body": {
-        "approval_ref": "apr_12345678-1234-1234-1234-123456789abc",
+        "approval_ref": "apr_12345678-1234-7abc-8def-123456789abc",
         "application_id": "app-20261106-001",
         "flow": "t1",
         "status": "evaluated",
@@ -93,7 +93,7 @@
       "name": "400 非法 ref",
       "request": {
         "method": "GET",
-        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc"
+        "path": "/v1/internal/approvals/apr_12345678-1234-7abc-8def-123456789abc"
       },
       "status": 400,
       "body": {
@@ -110,7 +110,7 @@
       "name": "401 未认证",
       "request": {
         "method": "GET",
-        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc"
+        "path": "/v1/internal/approvals/apr_12345678-1234-7abc-8def-123456789abc"
       },
       "status": 401,
       "body": {
@@ -127,7 +127,7 @@
       "name": "403 越权",
       "request": {
         "method": "GET",
-        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc"
+        "path": "/v1/internal/approvals/apr_12345678-1234-7abc-8def-123456789abc"
       },
       "status": 403,
       "body": {
@@ -144,7 +144,7 @@
       "name": "404 不存在",
       "request": {
         "method": "GET",
-        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc"
+        "path": "/v1/internal/approvals/apr_12345678-1234-7abc-8def-123456789abc"
       },
       "status": 404,
       "body": {
@@ -161,7 +161,7 @@
       "name": "429 限流",
       "request": {
         "method": "GET",
-        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc"
+        "path": "/v1/internal/approvals/apr_12345678-1234-7abc-8def-123456789abc"
       },
       "status": 429,
       "body": {
@@ -178,7 +178,7 @@
       "name": "500 内部错误",
       "request": {
         "method": "GET",
-        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc"
+        "path": "/v1/internal/approvals/apr_12345678-1234-7abc-8def-123456789abc"
       },
       "status": 500,
       "body": {

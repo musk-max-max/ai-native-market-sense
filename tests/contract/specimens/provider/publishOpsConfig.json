@@ -13,7 +13,7 @@
           "environment": "dev"
         },
         "body": {
-          "approval_ref": "apr_12345678-1234-1234-1234-123456789abc",
+          "approval_ref": "apr_12345678-1234-7abc-8def-123456789abc",
           "expected_version": 7,
           "canary_percent": 5
         }
@@ -27,7 +27,7 @@
         "schema_version": "0.1",
         "policy_version": "ai-content-policy/1.2.0",
         "content_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-        "approval_ref": "apr_12345678-1234-1234-1234-123456789abc",
+        "approval_ref": "apr_12345678-1234-7abc-8def-123456789abc",
         "published_at": "2026-11-06T09:30:00+08:00",
         "canary_percent": 5,
         "release_notes": "首页改版灰度"
