@@ -1,0 +1,222 @@
+generated_by: build-prompts.py
+seats:
+- id: L0
+  kind: lead
+  role: 主 agent / 项目协调
+  model: DeepSeek（主 agent，当前会话）
+  sources:
+  - lead
+  write:
+  - agents/
+  - docs/decisions-2026-11-06-ui-round.md
+  chars: 5816
+  lines: 138
+- id: H1
+  kind: human
+  role: PM / PO（产品负责人）
+  model: SenseNova
+  sources:
+  - H1
+  write:
+  - docs/requirements/
+  - docs/p0-acceptance.md
+  - docs/reference/
+  chars: 6016
+  lines: 143
+- id: H2
+  kind: human
+  role: 架构与技术负责人
+  model: SenseNova
+  sources:
+  - H2
+  - A0
+  write:
+  - contracts/
+  - docs/adr/
+  - docs/release/
+  - services/api/
+  - packages/api-client/
+  chars: 6650
+  lines: 157
+- id: H3
+  kind: human
+  role: 合规负责人（兼 DPO）
+  model: SenseNova
+  sources:
+  - H3
+  write:
+  - reviews/compliance/
+  - rules/
+  chars: 6017
+  lines: 142
+- id: H4
+  kind: human
+  role: 数据负责人 + 安全运维
+  model: SenseNova
+  sources:
+  - H4
+  - H5
+  - A9
+  write:
+  - security/
+  - auth/
+  chars: 6617
+  lines: 166
+- id: M1
+  kind: subagent
+  role: UI/UX 设计（多模态）
+  model: MiMo（xiaomi-token-plan-cn/mimo-v2.6-pro，图文输入）
+  sources:
+  - A10
+  write:
+  - docs/design/
+  - design/
+  - packages/design-tokens/
+  chars: 6412
+  lines: 150
+- id: A1
+  kind: agent
+  role: 数据接入 + 调度
+  model: SenseNova
+  sources:
+  - A1
+  write:
+  - services/ingest/
+  - jobs/
+  - config/datasource/
+  - data/instruments/
+  chars: 6120
+  lines: 147
+- id: A2
+  kind: agent
+  role: 数仓建模 + 指标 + 质量
+  model: SenseNova
+  sources:
+  - A2
+  write:
+  - warehouse/
+  - warehouse/quality/
+  - docs/metrics/
+  - data/golden/
+  chars: 6137
+  lines: 148
+- id: A3
+  kind: agent
+  role: 后端 · 行情/内容/研究域
+  model: SenseNova
+  sources:
+  - A3
+  write:
+  - services/market/
+  - services/ai/
+  - services/content/
+  chars: 6112
+  lines: 147
+- id: A4
+  kind: agent
+  role: 后端 · 用户/权限/审批/CRM
+  model: SenseNova
+  sources:
+  - A4
+  - A6
+  write:
+  - services/identity/
+  - services/approval/
+  - services/crm/
+  - services/workflow-adapter/
+  chars: 8447
+  lines: 203
+- id: A5
+  kind: agent
+  role: 后端 · 合规域 + 审计
+  model: SenseNova
+  sources:
+  - A5
+  write:
+  - services/compliance/
+  - packages/ai-policy/
+  - rules/
+  chars: 6043
+  lines: 148
+- id: A6
+  kind: agent
+  role: 前端全栈（H5 + 中后台）
+  model: SenseNova
+  sources:
+  - A7
+  - A8
+  write:
+  - web/h5/
+  - web/console/
+  chars: 8799
+  lines: 207
+- id: A7
+  kind: agent
+  role: QA · 契约/数据/E2E
+  model: SenseNova
+  sources:
+  - A11
+  - A12
+  - A18
+  write:
+  - tests/
+  chars: 6876
+  lines: 178
+- id: A8
+  kind: agent
+  role: SRE / 平台工程
+  model: SenseNova
+  sources:
+  - A13
+  write:
+  - infra/
+  - .github/workflows/
+  - docs/runbook/
+  - ops/dashboards/
+  - docker/
+  chars: 6217
+  lines: 147
+- id: A9
+  kind: agent
+  role: 业务线 · 运营 + 管理员 + 拓客
+  model: SenseNova
+  sources:
+  - A14
+  - A15
+  - A17
+  - H6
+  write:
+  - configs/ops/
+  - configs/rbac/
+  - approvals/
+  - crm/
+  chars: 10574
+  lines: 280
+- id: A10
+  kind: agent
+  role: 研究 · 证券/标的/资金面
+  model: SenseNova
+  sources:
+  - A20
+  - A22
+  write:
+  - research/quant/
+  - research/fund/
+  chars: 7042
+  lines: 166
+- id: A11
+  kind: agent
+  role: 研究 · 宏观/政策 + 合规复核/红队
+  model: SenseNova
+  sources:
+  - A21
+  - A23
+  - A16
+  - A19
+  write:
+  - research/macro/
+  - research/intel/
+  - reviews/compliance-policy-review/
+  - tests/adversarial/
+  chars: 10679
+  lines: 258

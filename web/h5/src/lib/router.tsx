@@ -8,6 +8,10 @@
  *  - /watchlist                自选页
  *  - /review/portfolio         B1-01 自选组合复盘（固定模板）
  *  - /review/limits            B1-02 涨跌停梯队
+ *  - /ai                       「AI」Tab：AI 解读聚合入口（docs/design/c-end-h5-v2.md §1.1）
+ *  - /me                       「我的」Tab：账户 / 权限 / 退订（置顶）/ 免责全文
+ *
+ * 5 个底部 Tab 的路由映射见 components/TabBar.tsx（/review/limits 与个股页归「行情」）。
  *
  * 服务端（server.mjs）对所有非静态 GET 做 SPA fallback，因此直接刷新深链可用。
  */
@@ -19,6 +23,8 @@ export type Route =
   | { name: 'watchlist' }
   | { name: 'portfolio' }
   | { name: 'limitLadder' }
+  | { name: 'ai' }
+  | { name: 'me' }
   | { name: 'stock'; instrumentId: string }
   | { name: 'notFound'; path: string };
 
@@ -48,6 +54,8 @@ export function parseRoute(pathname: string): Route {
     return { name: 'portfolio' };
   if (pathname === '/review/limits' || pathname === '/review/limits/')
     return { name: 'limitLadder' };
+  if (pathname === '/ai' || pathname === '/ai/') return { name: 'ai' };
+  if (pathname === '/me' || pathname === '/me/') return { name: 'me' };
 
   const stockMatch = /^\/(?:stocks|stock)\/([^/]+)\/?$/.exec(pathname);
   if (stockMatch && stockMatch[1]) {

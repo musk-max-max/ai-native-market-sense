@@ -87,8 +87,8 @@ test('能解析真实 ownership.yaml（路径表 + default-deny）', () => {
   );
   assert.equal(doc.notes.unmatched_paths, 'deny');
   const infra = doc.paths.find((entry) => entry.path === 'infra/');
-  assert.equal(infra.owner, 'A13');
-  assert.deepEqual(infra.reviewers, ['H5']);
+  assert.equal(infra.owner, 'A8');
+  assert.deepEqual(infra.reviewers, ['H4']);
 });
 
 test('能解析真实告警规则（57? 条 alert 全部带 runbook_url）', () => {

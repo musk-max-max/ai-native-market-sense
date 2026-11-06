@@ -1,0 +1,25 @@
+# 真栈健康检查 · 20261106T0724Z (UTC) · A8 SRE
+## 本地：PG@55432 / API@8081 / Web@3000
+$ pg_isready -h 127.0.0.1 -p 55432
+127.0.0.1:55432 - accepting connections
+
+$ psql -h 127.0.0.1 -p 55432 -U ms -d market_sense -tAc 'select version()'
+PostgreSQL 16.15 (Homebrew) on aarch64-apple-darwin25.6.0, compiled by Apple clang version 21.0.0 (clang-2100.3.34.2), 64-bit
+
+$ curl -s -o /dev/null -w '%{http_code} %{time_total}s' http://127.0.0.1:8081/healthz
+200 0.002475s
+$ curl -s .../readyz
+401 0.000764s
+$ curl -s .../healthz body
+{"status":"ok","service":"market-sense-api","version":"0.1.0","uptime_s":5031,"domains":["identity","market"],"data_ready":false,"data_ready_reason":"INGEST_REPORT_MISSING","entitlement_degraded":false}
+
+$ curl -s -o /dev/null -w '%{http_code} %{time_total}s' http://127.0.0.1:3000/
+200 0.001673s
+
+## 监听进程
+postgres 21040 leiyu    7u  IPv4  0x27ab0e0a325aece      0t0  TCP 127.0.0.1:55432 (LISTEN)
+postgres 21040 leiyu    8u  IPv6 0xca0cd903128ac0c2      0t0  TCP [::1]:55432 (LISTEN)
+COMMAND  PID  USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
+node    4554 leiyu   24u  IPv4 0x75203ad9081b9a0c      0t0  TCP 127.0.0.1:8081 (LISTEN)
+COMMAND  PID  USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
+node    3357 leiyu   12u  IPv4 0x7e4be38474b6ce5b      0t0  TCP 127.0.0.1:3000 (LISTEN)

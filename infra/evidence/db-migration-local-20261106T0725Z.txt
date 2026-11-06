@@ -1,0 +1,102 @@
+# 本地 dev 库迁移执行记录 · 20261106T0725Z (UTC) · A8 SRE 执行
+## 迁移前 ledger
+                            filename                             |          applied_at           | applied_by 
+-----------------------------------------------------------------+-------------------------------+------------
+ infra/db/migrations/002_display_safe.sql                        | 2026-11-04 10:32:13.587079+08 | ms
+ services/compliance/migrations/001_audit_entitlement_events.sql | 2026-11-04 10:32:13.630509+08 | ms
+ services/compliance/migrations/002_audit_gap.sql                | 2026-11-04 10:32:13.688186+08 | ms
+ services/market/migrations/001_watchlist.sql                    | 2026-11-04 10:32:13.732078+08 | ms
+(4 rows)
+
+
+## 执行：sh infra/scripts/db-migrate.sh --env dev
+[1;34m[db-migrate][0m 发现 6 个迁移（env=dev）
+  - infra/db/migrations/002_display_safe.sql
+  - services/compliance/migrations/001_audit_entitlement_events.sql
+  - services/compliance/migrations/002_audit_gap.sql
+  - services/compliance/migrations/003_ai_generation_events.sql
+  - services/identity/migrations/001_identity.sql
+  - services/market/migrations/001_watchlist.sql
+NOTICE:  schema "meta" already exists, skipping
+NOTICE:  relation "schema_migrations" already exists, skipping
+[1;34m[db-migrate][0m 待执行 2 个：
+  + services/compliance/migrations/003_ai_generation_events.sql
+  + services/identity/migrations/001_identity.sql
+[1;34m[db-migrate][0m apply services/compliance/migrations/003_ai_generation_events.sql
+psql:/var/folders/3z/sfqk2hr14m3gppb4j9g6j3zr0000gn/T/tmp.QjlHW8aQtG:1: WARNING:  there is already a transaction in progress
+ pg_advisory_xact_lock 
+-----------------------
+ 
+(1 row)
+
+psql:/var/folders/3z/sfqk2hr14m3gppb4j9g6j3zr0000gn/T/tmp.QjlHW8aQtG:127: NOTICE:  column "blocked_draft" of relation "ai_generation_events" already exists, skipping
+psql:/var/folders/3z/sfqk2hr14m3gppb4j9g6j3zr0000gn/T/tmp.QjlHW8aQtG:240: NOTICE:  trigger "ai_generation_events_chain_bi" for relation "audit.ai_generation_events" does not exist, skipping
+psql:/var/folders/3z/sfqk2hr14m3gppb4j9g6j3zr0000gn/T/tmp.QjlHW8aQtG:268: NOTICE:  trigger "ai_generation_events_no_update_bu" for relation "audit.ai_generation_events" does not exist, skipping
+psql:/var/folders/3z/sfqk2hr14m3gppb4j9g6j3zr0000gn/T/tmp.QjlHW8aQtG:273: NOTICE:  trigger "ai_generation_events_no_delete_bd" for relation "audit.ai_generation_events" does not exist, skipping
+psql:/var/folders/3z/sfqk2hr14m3gppb4j9g6j3zr0000gn/T/tmp.QjlHW8aQtG:319: NOTICE:  constraint "ai_generation_events_blocked_draft_chk" of relation "ai_generation_events" does not exist, skipping
+psql:/var/folders/3z/sfqk2hr14m3gppb4j9g6j3zr0000gn/T/tmp.QjlHW8aQtG:328: NOTICE:  constraint "ai_generation_events_postprocess_actions_shape_chk" of relation "ai_generation_events" does not exist, skipping
+WARNING:  there is no transaction in progress
+[1;34m[db-migrate][0m apply services/identity/migrations/001_identity.sql
+psql:/var/folders/3z/sfqk2hr14m3gppb4j9g6j3zr0000gn/T/tmp.QjlHW8aQtG:1: WARNING:  there is already a transaction in progress
+ pg_advisory_xact_lock 
+-----------------------
+ 
+(1 row)
+
+psql:/var/folders/3z/sfqk2hr14m3gppb4j9g6j3zr0000gn/T/tmp.QjlHW8aQtG:18: NOTICE:  schema "identity" already exists, skipping
+psql:/var/folders/3z/sfqk2hr14m3gppb4j9g6j3zr0000gn/T/tmp.QjlHW8aQtG:62: NOTICE:  relation "users" already exists, skipping
+psql:/var/folders/3z/sfqk2hr14m3gppb4j9g6j3zr0000gn/T/tmp.QjlHW8aQtG:98: NOTICE:  relation "internal_applications" already exists, skipping
+psql:/var/folders/3z/sfqk2hr14m3gppb4j9g6j3zr0000gn/T/tmp.QjlHW8aQtG:103: NOTICE:  relation "uq_internal_applications_pending" already exists, skipping
+psql:/var/folders/3z/sfqk2hr14m3gppb4j9g6j3zr0000gn/T/tmp.QjlHW8aQtG:105: NOTICE:  relation "ix_internal_applications_status_requested" already exists, skipping
+psql:/var/folders/3z/sfqk2hr14m3gppb4j9g6j3zr0000gn/T/tmp.QjlHW8aQtG:144: NOTICE:  relation "audit_events" already exists, skipping
+psql:/var/folders/3z/sfqk2hr14m3gppb4j9g6j3zr0000gn/T/tmp.QjlHW8aQtG:147: NOTICE:  relation "ix_audit_events_user_time" already exists, skipping
+psql:/var/folders/3z/sfqk2hr14m3gppb4j9g6j3zr0000gn/T/tmp.QjlHW8aQtG:149: NOTICE:  relation "ix_audit_events_type_time" already exists, skipping
+WARNING:  there is no transaction in progress
+[1;34m[db-migrate][0m 迁移完成：2 个，耗时 0s
+[1;34m[db-migrate][0m 重放 serving 视图（warehouse/serving/schema.sql，幂等）
+psql:/Users/leiyu/Documents/deepseek-harness/default-workspace/warehouse/serving/schema.sql:7: NOTICE:  schema "serving" already exists, skipping
+[1;34m[db-migrate][0m 重跑授权（迁移后新表：watchlist_items / audit.entitlement_events）
+psql:/Users/leiyu/Documents/deepseek-harness/default-workspace/infra/db/sql/20_grants.sql:51: NOTICE:  granted market_app: SELECT/INSERT/UPDATE/DELETE on public.watchlist_items
+psql:/Users/leiyu/Documents/deepseek-harness/default-workspace/infra/db/sql/20_grants.sql:83: NOTICE:  granted market_app: column-level INSERT on audit.entitlement_events (no hash columns)
+psql:/Users/leiyu/Documents/deepseek-harness/default-workspace/infra/db/sql/20_grants.sql:83: NOTICE:  granted market_app: SELECT on audit.entitlement_hold_state (hold 读取)
+psql:/Users/leiyu/Documents/deepseek-harness/default-workspace/infra/db/sql/20_grants.sql:151: NOTICE:  granted: ci_deploy_writer(event INSERT), reconciler(raise_hold/mark_reconciled+hold view), human_hold_clear(clear_hold only), audit_reader(SELECT only + verify chain EXECUTE)
+psql:/Users/leiyu/Documents/deepseek-harness/default-workspace/infra/db/sql/20_grants.sql:192: NOTICE:  granted warehouse_loader: DML on 17 dwd_/dim_ relations (no DDL, no TRUNCATE)
+psql:/Users/leiyu/Documents/deepseek-harness/default-workspace/infra/db/sql/20_grants.sql:279: NOTICE:  granted ai_app: column-level INSERT on audit.ai_generation_events (24 columns, no table-level SELECT/UPDATE/DELETE)
+grants applied: market_app => serving SELECT + watchlist DML + audit column INSERT + hold view; warehouse_loader => DWD/DIM DML only; ci/reconciler/human/audit_reader => explicit minimal grants (A5 canonical audit DDL)
+[1;34m[db-migrate][0m 运行权限断言（越权=0 且应有权限齐备）
+psql:/Users/leiyu/Documents/deepseek-harness/default-workspace/infra/db/sql/90_verify_privileges.sql:219: NOTICE:  verify ok: market_app(serving SELECT + watchlist DML + audit INSERT), warehouse_loader(DWD/DIM DML), 越权=0
+     grantee      | table_schema | privilege_type | grants 
+------------------+--------------+----------------+--------
+ market_app       | audit        | SELECT         |      1
+ market_app       | public       | DELETE         |      1
+ market_app       | public       | INSERT         |      1
+ market_app       | public       | SELECT         |      1
+ market_app       | public       | UPDATE         |      1
+ market_app       | serving      | SELECT         |     16
+ warehouse_loader | public       | DELETE         |     17
+ warehouse_loader | public       | INSERT         |     17
+ warehouse_loader | public       | SELECT         |     17
+ warehouse_loader | public       | UPDATE         |     17
+(10 rows)
+
+psql:/Users/leiyu/Documents/deepseek-harness/default-workspace/infra/db/sql/90_verify_privileges.sql:469: NOTICE:  entitlement 授权断言通过：hold 只读/人工清；reconciler 仅函数；audit_reader 只读；hash 列不可写
+psql:/Users/leiyu/Documents/deepseek-harness/default-workspace/infra/db/sql/90_verify_privileges.sql:648: NOTICE:  ai_app 授权断言通过：仅 audit.ai_generation_events 列级 INSERT（24 列），无读/改/删/表级权限
+[1;34m[db-migrate][0m OK
+[exit=0]
+
+## 迁移后 ledger
+                            filename                             |                              sha256                              |          applied_at           | applied_by 
+-----------------------------------------------------------------+------------------------------------------------------------------+-------------------------------+------------
+ infra/db/migrations/002_display_safe.sql                        | 6d240088fba98aede9b1d094161a060f6ffda8dca20ae56330f073d193e0944e | 2026-11-04 10:32:13.587079+08 | ms
+ services/compliance/migrations/001_audit_entitlement_events.sql | c8116e4fa5bb0d88da5cbfb643cdebbcfcec6d24853544425ec59cfa8c5ffd5e | 2026-11-04 10:32:13.630509+08 | ms
+ services/compliance/migrations/002_audit_gap.sql                | c118eeb3950149564c06f73a04d4e2e5561a6a6201abae101502635c30e999da | 2026-11-04 10:32:13.688186+08 | ms
+ services/compliance/migrations/003_ai_generation_events.sql     | 86aaef0d8e0242ddb8ed7067d5c001629fd28af311405e3e924a46c365c73677 | 2026-11-06 15:25:06.752452+08 | ms
+ services/identity/migrations/001_identity.sql                   | 46947c35a0c36cff1c87d221de0bfd71c588362aa91cee2e9a137b2d54af9845 | 2026-11-06 15:25:06.883584+08 | ms
+ services/market/migrations/001_watchlist.sql                    | a877f9d365b45cb0ec7a6a865e3c000745e882f9632fc156f052e3f6dd2a89f4 | 2026-11-04 10:32:13.732078+08 | ms
+(6 rows)
+
+
+## 断言：audit.ai_generation_events / identity 表 / ai_app 授权
+audit.ai_generation_events
+t
+f

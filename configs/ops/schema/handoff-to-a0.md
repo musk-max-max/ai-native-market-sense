@@ -1,6 +1,7 @@
 # 交接说明：运营配置 schema → Config Service 契约（A14 → A0）
 
 日期：2026-11-06 ｜ 发起：A14（运营自动化操作员）｜ 评审：A0（架构/契约）｜ 抄送：H5、H6、A8
+状态：**A0 契约已落盘并回填本文件 §10**（`contracts/config/openapi.yaml` 0.1.0，commit `b73c293`）；§1 已解决。
 
 ## 背景
 
@@ -10,22 +11,20 @@
 A14 起草结构草案(configs/ops/schema/) → A0 收敛 OpenAPI 契约 → 契约回到 A14/A8 做实现与表单依据
 ```
 
-## 1. 需要 A0 先做的一件事（阻塞 CI）：激活 `configs/ops/` 写域
+## 1. ~~需要 A0 先做的一件事（阻塞 CI）：激活 `configs/ops/` 写域~~ ✅ 已解决
 
-`ownership.yaml` 中 `configs/ops/` 仅出现在 `notes.reserved_paths`（owner A14），未在 `paths` 登记；`notes.unmatched_paths: deny`。实测：
+`ownership.yaml` 的 `paths` 已激活 `configs/ops/`（commit `b73c293`）。复测：
 
 ```
 $ node infra/ci/path-guard.mjs --files configs/ops/README.md --actor A14 --json
-{"violations":[{"file":"configs/ops/README.md","code":"UNMATCHED",
-  "detail":"路径未在 ownership.yaml / 根文件白名单登记（default-deny）"}]}
+{"actor":"A14","checked":1,"owners":{"A14":["configs/ops/README.md"]},"violations":[]}
 ```
-
-=> 本目录的 PR 会被 path-guard 判红。A14 不可改 `ownership.yaml`（A0 owns，reviewers [H2]，forbidden ["*"]），请 A0 在 `paths` 增加条目（建议：owner `A14`，reviewers 含 A0/H6，`modes` 允许 write，与 `configs/rbac/` 同级惯例），并把 `notes.reserved_paths` 里的旧条目移除或注明已激活。
 
 ## 2. 结构真源与规模
 
 - 文件：`configs/ops/schema/ops-config.schema.json`（JSON Schema 2020-12，`$schema` 已声明）。
 - 规模：**50 个叶字段** = 34 运营填写 + 5 信封服务端维护（`schema_version`/`config_id`/`environment`/`version`/`status`）+ 11 `meta` 系统只读；另含对象/数组容器 8 个（未计入叶字段）。
+- 写请求体另有 `$defs/OpsConfigWrite`（与契约 `OpsConfigWrite` 对齐）：不含 `version`/`status`/`meta`；`OpsConfigDocument` 仍是完整文档形态。
 - 顶层 required：`schema_version`、`config_id`、`environment`、`version`、`status`、`change_reason`、`impact_scope`、`spec`。
 - 每个对象 `additionalProperties: false`；未登记字段（含全部不可配项）→ 结构校验硬拒绝，不做静默忽略。
 - 逐字段类型/约束/默认值/审批分类/可见性/影响面：`configs/ops/schema/field-catalog.md`（评审时以此为准）。
@@ -105,3 +104,33 @@ $ node infra/ci/path-guard.mjs --files configs/ops/README.md --actor A14 --json
 ## 9. A14 不做/不决定的
 
 字段的业务分类（T1/T3 的最终判定、C0–C4 映射）由 H6 定；对外的 12 类禁用词与白名单由 H3 定；文案过审由 H3 执行。A14 不修改 `ownership.yaml`、`rules/ai-content-policy.json`、ADR、代码与数据库。
+
+## 10. 契约对齐回执（2026-11-06，A14 核对 A0 0.1.0）
+
+**已对齐**：`contracts/config/openapi.yaml` 0.1.0（commit `b73c293`；`9e85839` 下调枚举大小写/命名）10 operations；redocly lint 通过。将契约的 10 个 component 与本 schema 的 props/required/enum/pattern/边界逐项比对，**除 `window` 枚举 token 外无差异**（`target_route`、`policy_version` 的 pattern 仅是 JSON 与单引号 YAML 的转义写法差异）。**已把 schema/示例/字段清单的 `window` 从 `1d/5d/20d` 对齐为契约的 `d1/d5/d20`**（commit `9e85839`）；`flow` 枚举 `t1/t3` 仅存在于契约，本表 `T1/T3` 为审批流标签。已闭环：
+
+| 原待决                 | 契约决定                                                                                                               |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| 多栏目投放（§7.4）     | 一个 content_item 单栏目（`column_id` 单值）                                                                           |
+| 灰度粒度（§7.5）       | `canary_percent` 1–10，无全量字段；分桶服务端实现                                                                      |
+| 三点 diff 结构（§7.6） | `ThreeWayDiff{base_version,current_version,submitted_version,changes[],conflicts[]}`；409 `ConfigConflictProblem.diff` |
+| 回滚（§6）             | 只切不可变 release 指针；需**新的** `approval_ref`，不复用发布审批                                                     |
+| 写请求体（§3/§4）      | `OpsConfigWrite` 不含 `version`/`status`/`meta`；已在 schema 补同名 `$defs`                                            |
+
+**契约比 schema 松、需 A0 决断的 4 处**（服务端 validate 必须按 schema 执行，否则契约类型与运行时不符；若要在契约层补，用 `allOf/if-then`）：
+
+1. `ContentItem` 条件必填：`editorial`/`banner` → `content_ref`+`asset_ref`；`data_card` → `content_ref`（schema 已有，契约仅 optional 属性）。
+2. `OpsConfigDocument`：`status=published` ⇒ `meta.published_release` 必填（schema 有 allOf）。
+3. `RankingStrategy.title_template`：须含 `{metric_label}` 与 `{as_of}` 的 pattern（schema 结构校验 + V-09 语义双保险）。
+4. `Actor`：`kind=agent` ⇒ `model_version` 必填（schema 已有；契约描述里写了「agent 必须带」但未结构约束）。
+
+**另一处待澄清**：`environment` 在契约中既是每个 ops-config 路径的 required query，又是 `OpsConfigWrite` 的 required body 字段——双写须服务端校验一致；建议契约注明该规则（或写请求体去掉 `environment`，以 query 为准）。A14 不会自改 `contracts/`。
+
+**A0 回复结论（2026-11-06，m00294，最终）**：
+
+- `d1/d5/d20` 为最终口径（ADR-001 D3：枚举值小写下划线、首字符不能数字），语义为 1/5/20 个交易日；A14 的 schema 同步正确。
+- `environment` 双写保留：query 为路由键，body 必须一致，不一致服务端 400 `VALIDATION_ERROR`；A14 在语义校验层补 V-13，服务端实现时执行。
+- 上述 4 处条件必填：**契约不补 `allOf`/`if-then`**，保持「结构契约 + V-01–V-12 语义校验」分层；`configs/ops/schema/ops-config.schema.json` 是服务端执行真源，拒绝行为由 validate 负责，A11 只按契约结构断言。若 H6 要求升级为契约结构，走 D6。
+- 契约工作区另有内部域 409/412 错误码与 conflict schema 修订（`shared 0.2.3`）待 A11 复跑后由 A0 统一提交；以 `contracts/` 现场为准，不另发版本号。A14 复核当前工作区：除 pattern 转义写法外仍与本 schema 一致。
+
+**仍开放（不阻塞服务端实现）**：H6 C0–C4 字段级映射、A2 指标注册表机器可读化、A3/A10 的 `content_ref`/`asset_ref` 命名空间、发布快照是否入仓。

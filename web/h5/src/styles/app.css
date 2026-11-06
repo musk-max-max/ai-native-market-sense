@@ -82,7 +82,8 @@ input {
   min-height: 100dvh;
   max-width: var(--max-width);
   margin: 0 auto;
-  padding: 0 16px calc(28px + env(safe-area-inset-bottom));
+  /* 底部 TabBar 固定定位不占文档流（见 .app-tabbar），这里补出 50px + 安全区 + 原有留白。 */
+  padding: 0 16px calc(78px + env(safe-area-inset-bottom));
 }
 
 /* ---------- 顶栏 ---------- */
@@ -135,28 +136,6 @@ input {
   letter-spacing: 0.06em;
 }
 
-.app-nav {
-  display: flex;
-  gap: 2px;
-}
-
-.app-nav__link {
-  display: inline-flex;
-  align-items: center;
-  min-height: 36px;
-  padding: 0 10px;
-  border-radius: var(--radius-sm);
-  color: var(--text-muted);
-  font-size: 14px;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.app-nav__link[aria-current='page'] {
-  color: var(--accent);
-  background: var(--accent-weak);
-}
-
 .app-main {
   flex: 1;
   padding-top: 16px;
@@ -182,6 +161,104 @@ input {
 .app-footer__meta {
   margin-top: 4px;
   color: var(--text-subtle);
+}
+
+
+.app-footer__title {
+  margin: 0 0 2px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.app-footer__links {
+  margin-top: 6px;
+}
+
+.app-footer__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  font-weight: 600;
+}
+
+/* ---------- 底部 TabBar（5 项固定；定位必须自补，见 docs/design/c-end-h5-v2.md §2.1） ---------- */
+
+.app-tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom);
+  box-shadow: 0 -1px 2px rgb(16 24 40 / 4%);
+}
+
+.app-tabbar__list {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+}
+
+.app-tabbar__item {
+  display: flex;
+}
+
+.app-tabbar__link {
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 50px;
+  padding: 0 4px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.app-tabbar__link[aria-current='page'] {
+  color: var(--accent);
+  font-weight: 700;
+  background: var(--accent-weak);
+}
+
+/* 当前项不只靠颜色区分：加一条顶部指示条（aria-current 已同时提供语义）。 */
+.app-tabbar__link[aria-current='page']::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 24px;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: var(--accent);
+  transform: translateX(-50%);
+}
+
+/* ---------- 页面级通用 ---------- */
+
+.page__lede {
+  margin: 0 0 16px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.ai-home .gap-card {
+  margin-bottom: 16px;
+}
+
+.me__card {
+  margin-bottom: 12px;
 }
 
 /* ---------- 通用 ---------- */

@@ -812,3 +812,16 @@ a {
     padding: var(--space-4);
   }
 }
+
+.c-split {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+@media (max-width: 1000px) {
+  .c-split {
+    grid-template-columns: 1fr;
+  }
+}

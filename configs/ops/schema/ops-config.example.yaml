@@ -77,7 +77,7 @@ spec:
       metric_id: M08
       metric_label: 涨跌幅
       universe: all_a
-      window: 1d
+      window: d1
       limit: 10
       title_template: 「{metric_label}排序 · 截至 {as_of}」
       schedule: eod

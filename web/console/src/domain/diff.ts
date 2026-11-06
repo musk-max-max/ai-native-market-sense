@@ -41,7 +41,8 @@ export function formatConfigValue(value: ConfigValue | undefined): string {
   if (Array.isArray(value)) return value.length === 0 ? '（空列表）' : value.join('、');
   if (typeof value === 'boolean') return value ? '开启' : '关闭';
   if (typeof value === 'number') return Number.isFinite(value) ? String(value) : '非法数值';
-  return value === '' ? '（空）' : value;
+  if (typeof value === 'string') return value === '' ? '（空）' : value;
+  return value.join('、');
 }
 
 export function diffValues(
@@ -145,7 +146,9 @@ export type ConflictChoice = 'mine' | 'theirs';
 
 /**
  * 把三点 diff 的冲突选择合并成最终值：
- * - mine / theirs / same-change / unchanged → 取 mine（冲突行若选 theirs 则覆盖）
+ * - unchanged / mine / same-change → 取 mine
+ * - theirs（只有线上改过）→ 取 theirs
+ * - conflict 行按选择覆盖（mine 取我的、theirs 取线上的）
  * - 仍有冲突未决 → 抛错（前端门禁 + 适配层二次校验）
  */
 export function applyMergeResolutions(
@@ -165,6 +168,8 @@ export function applyMergeResolutions(
       } else {
         unresolved.push(row.key);
       }
+    } else if (row.resolution === 'theirs') {
+      merged[row.key] = row.theirs ?? null;
     }
   }
   if (unresolved.length > 0) {

@@ -17,6 +17,7 @@
   ],
   "properties": {
     "schema_version": {
+      "type": "string",
       "const": "0.1",
       "description": "运营配置文档结构版本（不是 ai-content-policy 的 policy_version，也不是 release 的 content_hash）。"
     },
@@ -296,6 +297,7 @@
           "description": "结束展示时刻（RFC 3339，+08:00）。过期后自动隐藏，不需要运营手工下线。"
         },
         "timezone": {
+          "type": "string",
           "const": "Asia/Shanghai",
           "description": "固定 A 股市场时区，避免跨时区歧义。"
         }
@@ -329,6 +331,7 @@
       ],
       "properties": {
         "type": {
+          "type": "string",
           "const": "ranking"
         },
         "id": {
@@ -354,8 +357,8 @@
         },
         "window": {
           "type": "string",
-          "enum": ["1d", "5d", "20d"],
-          "description": "统计窗口。必须与 metric_id 的口径支持范围匹配（语义校验 V-08）；P0 主口径为 1d（C2 不做盘中实时）。"
+          "enum": ["d1", "d5", "d20"],
+          "description": "统计窗口（token 与 Config Service 契约 0.1.0 的 d1/d5/d20 对齐，commit 9e85839）。必须与 metric_id 的口径支持范围匹配（语义校验 V-08）；P0 主口径为 d1（T+1 收盘口径，C2 不做盘中实时）。"
         },
         "limit": {
           "type": "integer",
@@ -377,6 +380,7 @@
           "description": "更新时机。P0 只允许收盘后（eod）或人工触发（manual）；盘中实时不在 P0 范围（C2）。"
         },
         "personalized": {
+          "type": "boolean",
           "const": false,
           "description": "L12 硬裁定：榜单不做个性化推送。const false，运营无法开启；如需变更须 H6/H3 重新裁定并升 schema 版本。"
         },
@@ -421,6 +425,7 @@
       "required": ["type", "id", "max_items", "interval_seconds"],
       "properties": {
         "type": {
+          "type": "string",
           "const": "rotation"
         },
         "id": {
@@ -530,6 +535,7 @@
           "description": "发布内容规范化后的 sha256，用于「线上生效配置唯一回指」与不可变校验。"
         },
         "schema_version": {
+          "type": "string",
           "const": "0.1",
           "description": "发布时的运营配置 schema 版本。"
         },
@@ -537,6 +543,58 @@
           "type": "string",
           "pattern": "^ai-content-policy\\/[0-9]+\\.[0-9]+\\.[0-9]+$",
           "description": "发布时用于文案预检的 rules/ai-content-policy.json policy_version（A5 持有，H3 签字）。T3 文案审批必须以该版本为准，版本变化后需重新预检。"
+        }
+      }
+    },
+    "OpsConfigWrite": {
+      "$comment": "写请求体（PUT /validate）：与契约 contracts/config/openapi.yaml#/components/schemas/OpsConfigWrite 一致。version/status/meta 由服务端维护，不出现于请求体；出现即 additionalProperties 拒绝（契约文档称 INVALID_SYSTEM_FIELD）。",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "config_id",
+        "environment",
+        "change_reason",
+        "impact_scope",
+        "spec"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "0.1"
+        },
+        "config_id": {
+          "type": "string",
+          "pattern": "^ops_[a-z0-9_]{3,48}$"
+        },
+        "environment": {
+          "type": "string",
+          "enum": ["dev", "staging", "prod"],
+          "description": "必须与环境查询参数一致（契约每个 ops-config 路径另带 environment required query；不一致应 400）。"
+        },
+        "change_reason": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 200
+        },
+        "impact_scope": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 6,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "column_layout",
+              "content_copy",
+              "content_placement",
+              "ranking",
+              "rotation",
+              "visibility"
+            ]
+          }
+        },
+        "spec": {
+          "$ref": "#/$defs/OpsSpec"
         }
       }
     }

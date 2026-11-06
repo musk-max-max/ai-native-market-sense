@@ -1566,3 +1566,10 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 **入库**：commit `dab6842`（policy + 归档，message 记四 sha 与代签授权）。
 
 **Open**：①A5 更新 engine.test.ts 断言 ②A16 r3 + E-0005（等冻结 commit + r3 冻结 sha）③ai-content-policy note 笔误「E-0003」应为「E-0004」（A16 已记更正）④C 端 AI 展示卡 AI-1/2/3 仍 H3 未签（签认不构成 C 端展示放行）⑤F1 取数合规 a/b owner 未答。
+
+### L133 — 2026-11-06 会话接管：17 席编制确认 + 轻量建队模式（quota 收敛，用户指令）
+
+- **背景**：新模型（本会话）按 `docs/HANDOFF-team-rebuild-2026-11-06.md` 接管。核实：`agents/roster.yaml` 已重建为 17 席（H1–H4/L0/M1/A1–A11），逐席初始 prompt 已打包于 `agents/team-rebuild-2026-11-06/prompts/`（17 份 + MANIFEST）。前任会话的 teammate 与任务板随会话消亡，工作树留有未提交在途产物（5 tab、Console 骨架、AI-CARD-SIGNOFF 等）。
+- **用户指令（quota 反馈）**：收敛资源消耗——不批量拉起 teammate/subagent。**Lead 裁定记 L133**：改「轻量建队」模式——编制以 roster.yaml + prompts/ 为真源常驻台账，**按需逐席唤醒**（subagent/teammate 单席单任务），不做 15 席常驻并发。模型路由按 HANDOFF §2（L0=DeepSeek 系、M1=MiMo、其余=SenseNova），DSH spawn_teammate 无 model 参数的限制见 BOARD §五。
+- **在途状态核对（Lead 亲验）**：①C 端 5 tab 已落地工作树（`web/h5/src/App.tsx` 六路由 + `components/TabBar.tsx`），首屏 JS 83.7KB gzip PASS（预算 200KB）；②antd 未进 package.json（待 owner 确认）；③`reviews/compliance/AI-CARD-SIGNOFF-2026-11-06.md`：AI-1/2/3 均**不签**，闭环判据挂 A3/A4/A6/A7（/v1/ai/* 路由 + ai_generation_events 留痕 + computed-style/E2E 证据）；④Console 真契约映射已更（CONTRACT-MAP.md），HTTP adapter 未落。
+- **生效**：2026-11-06。影响席：全队。唤醒顺序 = P0 AI 证据链（A3→A4→A7→H3 复核）> P1 Console adapter（A6+A4）> AKshare（A1+A3）> 其余按需。

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import type { ImpactItem } from '../domain/types';
 import { ImpactPanel } from './ImpactPanel';
 import { TESTIDS } from '../lib/testids';
@@ -10,6 +10,8 @@ export interface DoubleConfirmProps {
   /** 第二步需要手动输入的确认词（如「发布」「回滚」）。 */
   confirmWord: string;
   impacts?: readonly ImpactItem[];
+  /** 第一步可附加的明细（如回滚的 before/after diff 列表）。 */
+  detail?: ReactNode;
   busy?: boolean;
   onCancel: () => void;
   onConfirm: () => void;
@@ -25,6 +27,7 @@ export function DoubleConfirm({
   description,
   confirmWord,
   impacts = [],
+  detail,
   busy = false,
   onCancel,
   onConfirm,
@@ -50,6 +53,7 @@ export function DoubleConfirm({
         {step === 1 ? (
           <div className="c-modal-body">
             <ImpactPanel impacts={impacts} title="影响面（请逐条核对）" />
+            {detail}
             <div className="c-alert is-warning">
               这一步只是核对影响面，下一步还需要手动输入确认词「{confirmWord}」。
             </div>

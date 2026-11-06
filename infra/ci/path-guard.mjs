@@ -14,7 +14,7 @@
  *   node infra/ci/path-guard.mjs --validate-registry        # 只校验注册表自身
  *   node infra/ci/path-guard.mjs --base <sha> --head <sha>  # CI 模式（git diff）
  *   node infra/ci/path-guard.mjs --all-tracked              # 首次推送（无 base）
- *   node infra/ci/path-guard.mjs --files a.tf b.md --actor A13
+ *   node infra/ci/path-guard.mjs --files a.tf b.md --actor A8
  *   node infra/ci/path-guard.mjs --self-test               # 内置用例自检
  */
 
@@ -98,11 +98,20 @@ function parseArgs(argv) {
   return args;
 }
 
+// 已知主体 = 「可被注册表引用」的全集。刻意比现役 17 席宽：
+// 重映射是渐进过程（ownership.yaml / roster.yaml / allowlist 分批改），
+// 旧 id 留在注册表里只能告警、不能把 CI 判红（否则 L0 每次重映射都会误红）。
 const KNOWN_PRINCIPALS = [
   'lead',
-  ...Array.from({ length: 20 }, (_, i) => `A${i}`),
+  ...Array.from({ length: 24 }, (_, i) => `A${i}`), // A0–A23：含旧编制存量
+  'M1', // 17 席新增：多模态设计（MiMo）
   ...DEFAULTS.humanSeats,
 ];
+
+// 现役 17 席（docs/HANDOFF-team-rebuild-2026-11-06.md）：L0 + H1–H4 + M1 + A1–A11。
+// 旧 id A0/A12–A23/H5/H6 已撤销；检测到残留只告警（见 findRetiredSeatUsage）。
+const CURRENT_AGENT_SEATS = ['M1', ...Array.from({ length: 11 }, (_, i) => `A${i + 1}`)];
+const CURRENT_HUMAN_SEATS = ['H1', 'H2', 'H3', 'H4'];
 
 export function isHumanSeat(id) {
   return DEFAULTS.humanSeats.includes(id);
@@ -115,11 +124,32 @@ export function normalizeActingId(raw) {
   if (seat) return seat[1].toUpperCase();
   const agent = text.match(/^(A\d{1,2})$/i);
   if (agent) return agent[1].toUpperCase();
+  const multi = text.match(/^(M\d{1,2})$/i);
+  if (multi) return multi[1].toUpperCase();
   if (/^lead$/i.test(text)) return 'lead';
   return null;
 }
 
-/** 从分支名推导操作者：`a13/ci-skeleton` → A13；无法推导 → null（降级为仅覆盖检查）。 */
+/**
+ * 旧席 id 残留检测（只告警不判红）：重映射后应为空。
+ * 返回 [{ id, paths }]，用于 --validate-registry 输出提醒 L0 清理。
+ */
+export function findRetiredSeatUsage(registry) {
+  const active = new Set(['lead', ...CURRENT_AGENT_SEATS, ...CURRENT_HUMAN_SEATS]);
+  const usage = new Map();
+  const record = (id, path) => {
+    if (!id || active.has(id)) return;
+    if (!usage.has(id)) usage.set(id, []);
+    usage.get(id).push(path);
+  };
+  for (const entry of [...registry.paths, ...registry.rootFiles]) {
+    record(entry.owner, entry.path);
+    for (const reviewer of entry.reviewers ?? []) record(reviewer, entry.path);
+  }
+  return [...usage.entries()].map(([id, paths]) => ({ id, paths }));
+}
+
+/** 从分支名推导操作者：`a8/ci-skeleton` → A8、`m1/design-token` → M1；无法推导 → null（降级为仅覆盖检查）。 */
 export function actorFromBranch(branch) {
   if (!branch) return null;
   const first = String(branch).split('/')[0];
@@ -190,7 +220,7 @@ export function parseRosterAgents(text) {
       continue;
     }
     if (!inAgents) continue;
-    const agentMatch = /^\s{2}- id:\s*(A\d+)\s*$/.exec(line);
+    const agentMatch = /^\s{2}- id:\s*([AM]\d{1,2})\s*$/.exec(line);
     if (agentMatch) {
       current = { id: agentMatch[1], writeScope: [], forbidden: [], owns: [] };
       agents.push(current);
@@ -283,7 +313,7 @@ export function validateRegistry(registry) {
     if (seen.has(entry.path)) errors.push(`重复登记 path: ${label}`);
     seen.add(entry.path);
     if (!KNOWN_PRINCIPALS.includes(entry.owner)) {
-      errors.push(`${label}: owner "${entry.owner}" 不是已知主体（A0–A19 / H1–H6 / lead）`);
+      errors.push(`${label}: owner "${entry.owner}" 不是已知主体（lead / M1 / A0–A23 / H1–H6）`);
     }
     if (!Array.isArray(entry.reviewers) || entry.reviewers.length === 0) {
       errors.push(`${label}: 缺少 reviewers（必须至少一个人类席位）`);

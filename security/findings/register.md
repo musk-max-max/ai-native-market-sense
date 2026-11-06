@@ -16,6 +16,10 @@
 | SEC-005 | 限流桶按「源 IP=web 容器」共享且放宽到 600/120（默认 60/10），单用户可 DoS 同侪 | P3 Medium | R5 | A13 / A0（容量口径） | **OPEN** |
 | SEC-006 | 无用户身份、无访问审计、隧道可二次转发 → 技术上无法证明 tushare「仅个人查看」 | 合规事实（不定级） | R6 | H3 定性 / H5 技术边界 | **OPEN（H5 已选 A 档，待实现；§9）** |
 | R7 | ECS 主机态（sshd/ufw/SG/非 compose 容器）零 IaC 表达 → 基线 #11 违反 | 基线违反（单列） | A9 新发现 | A13 修法 / H5 认措辞 | **B 档就绪、A 档未做；§9**，见 `../baselines/BL-11-R7-host-state-not-in-iac.md` |
+| SEC-007 | 取数端点配置漂移：`services/ingest/.env` 的 `TUSHARE_HTTP_URL` 是死配置（代码只读 `TUSHARE_API_URL`），未导出该变量时**静默回落**官方默认端点 | P2 High | —（H4 2026-11-06 新增） | A1 修代码 / H4 复核 | **OPEN（§10.1）** |
+| SEC-008 | 默认端点 `http://api.tushare.pro` 明文 + transport 无 TLS/证书校验，token 在 POST body 明文出网 | P2 High | —（H4 2026-11-06 新增） | A1 修 / H4 复核 | **OPEN（§10.2）** |
+| SEC-009 | 限流未接线：`TUSHARE_RATE_LIMIT_PER_MIN=200` 全仓无引用，实际按 `quota.calls_per_minute=500`（×0.8=400/min）打 mirror，超其 200/min 声明 | P3 Medium | —（H4 2026-11-06 新增） | A1 修 / H4 复核 | **OPEN（§10.3）** |
+| SEC-010 | 真实 tushare 报文样本 11 文件已入 git（`tests/fixtures/tushare/real-sample-20261105/`），与 L32「不得录真实报文」冲突；`m02923` 授权仅见 commit/README，`agents/decisions.md` 无留痕 | 合规事实（不定级） | —（H4 2026-11-06 新增） | 定性 H3 / 留痕 L0 / 处置 A1 | **OPEN（§10.4）** |
 
 > 不在本登记内、且**不因本次复核重开**的两项：L98「④ PASS（L91 内网口径）」（口径本身成立，但须补注：PASS 是
 > 「当时无业务监听」，**网络层未拒绝**，见 SEC-002）；L99 已关闭的 P2 nginx 事件（不写「全清」，口径按 L99 台账）。
@@ -119,3 +123,71 @@ commit `5ea7e97`（脚本修复）/`9bc29fb`（自证）。
 
 **未变**：SEC-001 仍为 P1 release-blocking，release gate 仍 BLOCKED（⑤-1/2/4 + ⑤-5 SG + A 档 IaC）。
 **A9 未做**：未在真实主机执行任何变更/探测；以上均为对 A13 证据的完整性核对，非 A9 复测。
+
+## 10. 数据源控制面与授权证据（2026-11-06，H4 只读；追加，不改上文原判定）
+
+> 起因：task-12「tushare 授权三件台账 + 来源解耦核查」。台账见 `../compliance/tushare-authorization-ledger.md`。
+> 本节只记事实与判据；修法与执行归 A1（取数）/ A13（主机）/ owner（书面授权），H4 不代签。
+
+### 10.1 SEC-007（P2 High）端点配置漂移：`.env` 死键 + 静默回落
+
+**事实**
+
+- `services/ingest/.env:6` 写 `TUSHARE_HTTP_URL=https://tuaremax.top`；代码从不读该变量（全仓 grep 仅 .env、
+  agent prompt、HANDOFF 引用；`services/ingest/` 内无 dotenv loader），实际读 `TUSHARE_API_URL`
+  （`services/ingest/src/market_ingest/adapters/tushare/adapter.py:72-74,945`）。
+- 端点解析链：`options.endpoint or os.environ.get(TUSHARE_API_URL) or ts_transport.DEFAULT_ENDPOINT`（`adapter.py:945`）。
+- 运行产物可举证的端点：`services/ingest/var/research-ods-smoke/internal/_meta/research_coverage.json` 现为
+  `source_channel=replay`、`endpoint_host=null` → **仓库内没有任何一次「mirror 真实取数」的端点证据**。
+
+**影响**：仅写 `.env` 不会走 mirror；未导出 `TUSHARE_API_URL` 时静默回落到官方默认端点，既绕过 mirror 声明限速，
+也把「取数走 mirror」这一事实变成不可举证。任何台账/发布材料不得以 `.env` 作为 mirror 已配置的证据。
+
+**闭环判据**：单一端点变量（代码与文档一致）；未配置端点时**启动失败**而非回落默认；一次真实研究跑批的
+`research_coverage.json` 满足 `source_channel=third_party_mirror`、`authorization_status=unverified_third_party`、
+`endpoint_host=tuaremax.top`。
+
+### 10.2 SEC-008（P2 High）默认端点明文 http + 无 TLS 校验
+
+**事实**
+
+- `services/ingest/src/market_ingest/adapters/tushare/transport.py:21`：`DEFAULT_ENDPOINT = "http://api.tushare.pro"`（http，非 https）；
+  transport 全文无 ssl/verify/TLS 配置；token 置于 POST body（`transport.py:91-104`）。
+
+**影响**：SEC-007 的回落路径一旦触发，token 与请求体明文出网（可被中间人读取），且请求打到官方端点——
+同时改变授权基础（与 L118「只认官方书面回复」不是同一件事，不能互相替代）。
+
+**闭环判据**：默认端点改 `https://`；非 https 端点启动/调用即报错；HTTPS 证书校验开启（自签仅限本地回环且显式开关）。
+
+### 10.3 SEC-009（P3 Medium）限流声明未接线
+
+**事实**
+
+- `services/ingest/.env` 有 `TUSHARE_RATE_LIMIT_PER_MIN=200`，但全仓无引用（仅 `TUSHARE_USER_AGENT` 被用，
+  `transport.py:97`）；实际限流取 `services/ingest/config/ingest.yaml` quota 段 `calls_per_minute=500`、
+  `reserve_ratio=0.2` → 400/min。
+
+**影响**：按 400/min 打 mirror，已超其公开声明 200/min → 429/封禁风险；研究跑批可能整体失败；且「已按 mirror 限速」
+不可声明。
+
+**闭环判据**：限流变量接入 transport/调度器，实际速率 ≤ mirror 声明值，并在配置注释标明来源；压测证据（1 分钟调用计数）。
+
+### 10.4 SEC-010（合规事实，定性归 H3）真实报文样本入 git 与授权留痕缺失
+
+**事实**
+
+- `tests/fixtures/tushare/real-sample-20261105/` 共 11 个文件**已被 git 跟踪**（`git ls-files`），内容为
+  tuaremax.top 真实报文子集（`source_url: https://tuaremax.top`、`channel/tushare`、`display_safe:false`）；
+  manifest 记 `"sample_type":"real-controlled"`、`"authorization":"H4 m02923"`、`production_evidence:false`、`token_recorded:false`。
+- 相关提交：`1476e8f`（H4 m02923 受控真实样本）+ `443f65c`/`9428c99`/`bc118ce`/`36f36ee`/`a60a849` 扩张。
+- `agents/decisions.md` 内 grep **无 `m02923`**：授权记录只存在于 commit message 与 fixture README，无决策流水号、无期限/范围。
+
+**影响**：与 L32「fixture 必须合成、不得录真实报文（真实报文入仓=上游数据再分发）」直接冲突；真实行情/资金面
+数据已进入仓库历史（远端 `origin` 存在），属**内部再分发事实**；授权引用不可追溯 → 若上游追责无法举证。
+本项**不因样本标了 `production_evidence:false` 而免责**。
+
+**处置建议**（不越权执行；owner 决策）：①H3 定性；②L0 在 `agents/decisions.md` 补记 m02923 授权（用途/期限/范围）
+或判定其不成立；③A1 停止扩张，明确样本「仅内部 e2e、不入 CI、不进任何产物」，并在发布证据链声明残留；
+④若判定违规，历史清理需 L0 决策（git 历史改写不在 H4 写域）。
+
+**闭环判据**：decisions.md 有对应条目（授权或判定违规）；仓库内不再新增真实报文；发布材料包含该残留声明。

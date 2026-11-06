@@ -13,6 +13,7 @@
 | 基线 #11「生产只走 IaC」违反（R7）的措辞与验收标准 | [`baselines/BL-11-R7-host-state-not-in-iac.md`](baselines/BL-11-R7-host-state-not-in-iac.md) | 已出（待 H5 认措辞） |
 | 认证方式与主机加固提案（覆盖 H5 门禁 ⑤） | [`../auth/proposal-2026-11-05-authn-and-host-hardening.md`](../auth/proposal-2026-11-05-authn-and-host-hardening.md) | 已出（**待 H5 + 人类架构签字**） |
 | 越权用例集（含主机层/隧道两类新面） | [`test-cases/overreach-cases.md`](test-cases/overreach-cases.md) | 设计稿；执行方 A19/A12 |
+| tushare 授权三件到哪一步、card 端能否上线、换源成本多少 | [`compliance/tushare-authorization-ledger.md`](compliance/tushare-authorization-ledger.md) | **未闭环**（三件 0/3，11-12 到期；residual 口径见文档 §2） |
 
 ## 2. 结论的三个来源（可复核）
 

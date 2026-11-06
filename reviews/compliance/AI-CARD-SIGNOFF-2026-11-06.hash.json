@@ -1,0 +1,28 @@
+{
+  "record_id": "H3-SIGNOFF-AI-CARD-2026-11-06-v1",
+  "signed_by": "H3",
+  "signed_at": "2026-11-06T15:26:00+08:00",
+  "partition": "c_end",
+  "policy_version": "ai-content-policy/1.1.2",
+  "policy_content_sha256": "aae8032a1423566d7d3f0355326a891ee88d8236959ebe5605557da57291a2bd",
+  "redline_basis_version": "1.0.2",
+  "redline_basis_content_sha256": "f071cbc91710671d330dc1272558ca05436b9b4db21c2690388534dbe5ef53e6",
+  "files": [
+    {
+      "path": "reviews/compliance/ai-display-visual-spec-1.0.md",
+      "sha256": "aaebca611172fec689f422dbed83fe2d819633c42b6ae01c2cc14553100c3349",
+      "kind": "visual_spec_signed"
+    },
+    {
+      "path": "reviews/compliance/AI-CARD-SIGNOFF-2026-11-06.md",
+      "sha256": "b114f42baa4085887c691cc7adb33ef4e67661bcebf741795715587da3ced7b6",
+      "kind": "card_signoff_record"
+    }
+  ],
+  "decisions": {
+    "AI-1": "not_released",
+    "AI-2": "not_released",
+    "AI-3": "not_released"
+  },
+  "note": "规格层签认不构成 C 端 AI 展示放行；三卡均需 owner 证据 + H3 复核后另行追加签发记录。"
+}

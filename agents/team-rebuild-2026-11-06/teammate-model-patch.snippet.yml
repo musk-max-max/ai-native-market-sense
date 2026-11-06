@@ -1,0 +1,37 @@
+# teammate 模型路由补丁（未应用，需 owner 决策 + 重启 GUI 才生效）
+
+## 背景（平台事实，2026-11-06 实测）
+
+1. `spawn_teammate` 的参数只有 `name / description / prompt / context(fresh|fork)`，**没有 model / provider 字段**。实现里 provider 取 agent-team 插件配置的 `freshProvider`（默认 `"spawn"`），指向 `ctx.subagents` 的子智能体 provider，而不是某个 LLM 路由。
+2. teammate 的实际 LLM 路由来自 agent preset 的 `agentRouteDefaults`；当前 profile 未给 `subagent-spawn-in-process` 配 `agentOptions`，因此继承 profile 的 `agent-default-model`。
+3. 实测：本会话 spawn 的 15 个 teammate 全部是 `provider: spawn, model: deepseek-flash`（`list_agents` 可核）。
+4. `subagent` 工具（非 team）支持 `provider/model/reasoning_effort`，本会话白名单为 sense/glm-5.2、sense/sensenova-6.8-flash、xiaomi-token-plan-cn/mimo-v2.6-flash、xiaomi-token-plan-cn/mimo-v2.6-pro；实测 `mimo-v2.6-pro` 被 Session 拒绝（"not allowed for this Session"），`mimo-v2.6-flash` 可用。
+
+**结论**：交接文档要求的「L0=DeepSeek、M1=MiMo、其余 SenseNova」在 Team 通道里无法逐席指定。当前落法：
+- L0 = 宿主 Lead 会话（DeepSeek 系路由）；
+- M1 = MiMo 常驻 `subagent`（xiaomi-token-plan-cn/mimo-v2.6-flash，图像输入可用）——这是唯一能真正走 MiMo 且能看图的路；
+- H1–H4 / A1–A11 = `spawn_teammate` 的 15 个 durable teammate，实际路由 `deepseek-flash`（偏差，见下）。
+
+## 若要 15 席对齐 SenseNova（需 owner 批准 + 重启 GUI）
+
+改 `~/.dsh/profiles/desktop/cordis.patch.yml`，追加一条（其余内容不动）：
+
+```yaml
+- id: subagent-spawn-in-process
+  name: "@deepseek-ai/dsh-subagent-spawn-in-process"
+  config:
+    providerName: spawn
+    agentOptions:
+      provider: sense
+      model: sensenova-6.8-flash
+```
+
+- 生效条件：profile patch 在 **启动时** 装配；改完必须重启 DSH GUI（本会话会被中断，可在 GUI 里 resume 同一 session）。
+- 影响面：**全体 teammate 一起**切到 sense/sensenova-6.8-flash（无法只切部分席位）；M1 不受影响（走 subagent 通道）。
+- 回滚：删掉这条 patch 再重启，即回到 deepseek-flash。
+- 未验证风险：`sensenova-6.8-flash` 的 262144 ctx 与工具调用能力对长 prompt（本席 prompt 6–11KB）应够用，但未实测；若失败，回滚即可。
+
+## L0 的建议
+
+- 现阶段先不切：正在跑的 15 席已在 deepseek-flash 上开始执行 P1 任务，中途重启会打断在途工作。
+- 若 owner 要求严格对齐交接文档的模型表，建议在**本轮 P1 收敛后**统一切换 + 重启，再让各席重新确认身份底稿（prompt 包已落盘，切模型不需要重写任何东西）。

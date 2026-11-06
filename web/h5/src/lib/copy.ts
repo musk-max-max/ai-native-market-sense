@@ -168,10 +168,15 @@ export const copy = {
     brandAriaLabel: 'Market Sense 首页',
     brandName: 'Market Sense',
     brandTag: 'A 股数据',
-    navAriaLabel: '主导航',
-    navHome: '首页',
-    navWatchlist: '自选',
-    navReview: '复盘',
+    navAriaLabel: '底部导航',
+    /** 5 个 Tab 的可见标签（docs/design/c-end-h5-v2.md §1.1）；路由映射见 components/TabBar.tsx。 */
+    tabMarket: '行情',
+    tabWatchlist: '自选',
+    tabPortfolio: '组合',
+    tabAi: 'AI',
+    tabMe: '我的',
+    footerDisclaimerTitle: '免责摘要',
+    footerUnsubscribe: '退订入口',
     footerNote:
       '本平台为客观数据工具，展示市场公开披露数据与平台自有数据，不构成投资建议、要约或收益承诺。',
     footerMeta: '数据均标注来源与截止时间 · 免责声明由服务端版本化下发且不可关闭',
@@ -307,6 +312,28 @@ export const copy = {
     quoteContext: '行情上下文',
     asOfLabel: '数据截止（北京时间）',
     sourceLabel: '数据来源',
+  },
+  /** 「AI」Tab（/ai）：AI 解读聚合入口；模型生成内容一律由服务端注入标识与免责（ADR-007 D3）。 */
+  aiHome: {
+    title: 'AI 解读',
+    lede: '按标的聚合的 AI 解读入口；每条解读都带不可关闭的 AI 生成标识与免责声明。',
+    aggregateTitle: '解读聚合',
+    aggregateEmpty: '聚合列表尚未接入，本页不展示模型生成文案。',
+  },
+  /** 「我的」Tab（/me）：账户、权限、退订（置顶）、免责全文（docs/design/c-end-h5-v2.md §1.1）。 */
+  me: {
+    title: '我的',
+    unsubscribeTitle: '退订',
+    unsubscribeNote: '退订入口固定在本页顶部区域，不藏在三级页面里。',
+    unsubscribePending: '退订通道尚未接入，本页不提供可点击的占位按钮。',
+    accountTitle: '账户',
+    accountAnonymous: '当前为未登录状态，本页不展示账户与自选数据，也不填充占位数值。',
+    entitlementTitle: '数据权限',
+    entitlementNote:
+      '行情与基本面数据的展示范围以服务端下发的权限结果为准；无权展示时不出现任何数值。',
+    disclaimerTitle: '免责声明全文',
+    disclaimerNote:
+      '免责声明由服务端版本化下发且不可关闭；本页展示常驻摘要，全文文案以服务端下发版本为准。',
   },
   gap: {
     title: '数据缺口',
