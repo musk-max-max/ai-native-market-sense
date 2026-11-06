@@ -100,6 +100,19 @@ test('P8 动作：block/redact 必须带原文标识，redact 必须带改写文
   );
 });
 
+test('P8 动作：非法 stage/action 在应用侧拒绝', () => {
+  assert.throws(
+    () =>
+      assertValidAiGenerationAuditEvent({
+        ...validEvent(),
+        postprocessActions: [
+          { stage: 'P9' as never, action: 'block', matched: 'x', original_text: 'x' },
+        ],
+      }),
+    /stage 非法/u,
+  );
+});
+
 test('P8 动作：从 A5 violations 补齐 matched/original/rewritten，不复制判定', () => {
   const actions = postprocessActionsFromViolations([
     {

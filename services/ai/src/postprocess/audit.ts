@@ -87,6 +87,12 @@ function optionalNonEmpty(value: string | undefined, field: string): void {
 
 function assertAction(action: AiGenerationPostprocessAction, index: number): void {
   const path = `postprocess_actions[${index}]`;
+  if (!['P2', 'P3', 'P4', 'P5', 'P6'].includes(action.stage)) {
+    throw new Error(`${path}.stage 非法：${String(action.stage)}`);
+  }
+  if (!['allow', 'block', 'redact', 'caveat'].includes(action.action)) {
+    throw new Error(`${path}.action 非法：${String(action.action)}`);
+  }
   requireNonEmpty(action.matched, `${path}.matched`);
   if (
     (action.action === 'block' || action.action === 'redact') &&
