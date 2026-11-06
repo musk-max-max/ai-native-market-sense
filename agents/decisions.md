@@ -1740,4 +1740,33 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 **生效**：2026-11-06 23:16。影响席：A4（approval/identity 域属）、H2（判契约）。
 
 
+### L147 — AI-2/3 badge 族复测 PASS + A6 渲染路径 + api-client ai 域归属澄清（2026-11-07 00:53）
+
+**A6 渲染路径（a4b5659，7 files/+190/-16）**：
+- AiInterpretation.tsx 加可选 aiContent prop（AiSegmentKey→AiGeneratedContent），五段走 content ?? null；生产未注入时 null 占位守卫不变。
+- 新建 /dev/ai-card fixture 采证路由（AiCardFixturePage，标注 Not an API response，纯 ASCII，零 /v1），渲染 QuoteBlock+AiInterpretation(五段 badge/disclaimer/块内 as_of)+DisclaimerNotice 全套真实类。
+- AiTextSlot asOf 四必填+非法 fail-closed。app.css 补 .quote__meta dd/.ai-context__item dd color --text-muted + .ai-slot__as-of。
+- 门禁：typecheck 0 错、h5 28/28、testids 60、budget 85.1KB gzip PASS。
+
+**A7 badge 族复测（7f37a8e）**：
+- verdict 从 PASS_WITH_GAPS(14P/5GAP) 升级为 **PASS（19/19，0 FAIL/0 ABSENT，浅+深 390×844）**。五项 GAP（ai-generated-badge/.ai-badge/.ai-disclaimer/ai-disclaimer/.ai-badge__mark）全达标，规格 §1-§3 逐值命中。
+- 判据对齐（非放水）：.ai-badge__mark 字色记 advisory——规格:35 明文 mark aria-hidden=true 属设计、:40 只规字形≥10px+底色，:104 字色允许清单 scope=§6.2 testid 不覆盖 mark。脚本注释引行号。
+- 采证环境：A7 自建独立栈 web:3457+api:8099（c_end 正档+heartbeat 保活），dist=a4b5659 新构建。ECS API 旧镜像无 /v1/auth 且 entitlement 403，本地栈才能出真 8×200。
+- 清理：tests/e2e/tests/e2e/ 10 个重复嵌套路径文件（正确路径 tests/e2e/evidence/ 已有真值）。
+
+**api-client ai 生成域归属澄清**：
+- packages/api-client/ owner=H2（生成物禁手改，架构 owner 只跑 codegen，ownership.yaml:167 forbidden:["*"]）。
+- gen:client 脚本现仅覆盖 shared/market/fundamental/watchlist/config/approval，无 ai 条目。补 ai 域=改 gen:client 脚本+跑 openapi-typescript，属 H2 权限，**L0 不代行**（生成物禁手改纪律）。
+- A6 真 /v1/ai 请求（AI2-1b 正对照）等 H2 补 ai 生成域。/dev/ai-card fixture 已解 A7 复测。
+
+**AI 卡交付就绪（工程侧全绿，签发待 H3）**：
+- AI-1：HTTP 16/16 + SSE/轮询 32/32 PASS，五字段全非空，仓库门禁绿。契约性判定材料已交 H2（c894452）。签发=H3。
+- AI-2/3：视觉源码+computed-style PASS 19/19。签发=H3。
+
+**Open**：AI-1 request-id 头契约性待 H2；AI-1/2/3 签发待 H3；api-client ai 生成域待 H2（A6 真 API 接线前置）；AI2-3/AI3-3/流式 E2E 用例待续；tushare 授权 0/3、安全半 3/3、SEC-011 = owner/H3 专属。
+
+**生效**：2026-11-07 00:53。影响席：A6（渲染路径）、A7（采证）、H2（api-client codegen+契约判定）、H3（签发）。
+
+
+
 
