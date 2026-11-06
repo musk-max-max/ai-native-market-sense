@@ -1,0 +1,30 @@
+{
+  "operation_id": "diffOpsConfig",
+  "client": "内部运营后台（ops）",
+  "calls": [
+    {
+      "name": "三点 diff",
+      "request": {
+        "method": "GET",
+        "path": "/v1/internal/configs/ops_home_feed/diff",
+        "query": {
+          "environment": "dev",
+          "base": 6,
+          "submitted": 8
+        },
+        "headers": {
+          "authorization": "Bearer synthetic-internal-token"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "required_fields": [
+          "base_version",
+          "current_version",
+          "changes[].path",
+          "conflicts"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "operation_id": "createApproval",
+  "client": "内部审批后台（approval）",
+  "calls": [
+    {
+      "name": "创建审批单",
+      "request": {
+        "method": "POST",
+        "path": "/v1/internal/approvals",
+        "headers": {
+          "authorization": "Bearer synthetic-internal-token",
+          "idempotency-key": "idem-a11-0001"
+        },
+        "body": {
+          "flow": "t1",
+          "applicant": {
+            "kind": "human",
+            "id": "u-1001"
+          },
+          "subject": {
+            "environment": "dev",
+            "domain": "ops_config",
+            "object_id": "ops_home_feed"
+          },
+          "change": {
+            "keys": [
+              "spec.strategies"
+            ],
+            "diff_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        }
+      },
+      "expect": {
+        "status": 201,
+        "required_fields": [
+          "approval_ref",
+          "status",
+          "change.diff_hash"
+        ]
+      }
+    }
+  ]
+}

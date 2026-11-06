@@ -1,0 +1,180 @@
+{
+  "operation_id": "evaluateApproval",
+  "origin": "synthetic",
+  "note": "执行评估：200 Evaluation/400/401/403/404/409/429/500",
+  "recorded_at": "2026-11-06T09:30:00+08:00",
+  "cases": [
+    {
+      "name": "200 评估结果",
+      "request": {
+        "method": "POST",
+        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc/evaluate"
+      },
+      "status": 200,
+      "body": {
+        "approval_ref": "apr_12345678-1234-1234-1234-123456789abc",
+        "application_id": "app-20261106-001",
+        "flow": "t1",
+        "status": "evaluated",
+        "applicant": {
+          "kind": "human",
+          "id": "u-1001"
+        },
+        "subject": {
+          "environment": "dev",
+          "domain": "ops_config",
+          "object_id": "ops_home_feed",
+          "path": "spec.strategies"
+        },
+        "change": {
+          "keys": [
+            "spec.strategies"
+          ],
+          "diff_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "created_at": "2026-11-06T09:30:00+08:00",
+        "evaluation": {
+          "decision": "yellow_route",
+          "rule_id": "t1-standard",
+          "rule_version": "approval-rules/1.2.0",
+          "reason_codes": [
+            "touches_ranking"
+          ],
+          "source_refs": [
+            "agents/decisions.md#L44"
+          ],
+          "policy_snapshot": {
+            "version": "ai-content-policy/1.2.0",
+            "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          "input_hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "route_to": "t3",
+          "required_reviews": [
+            "t3"
+          ],
+          "evaluated_at": "2026-11-06T09:30:00+08:00"
+        }
+      },
+      "media_type": "application/json"
+    },
+    {
+      "name": "400 参数错误",
+      "request": {
+        "method": "POST",
+        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc/evaluate"
+      },
+      "status": 400,
+      "body": {
+        "type": "https://errors.market-sense.invalid/validation_error",
+        "title": "错误",
+        "status": 400,
+        "code": "VALIDATION_ERROR",
+        "detail": "请求校验失败",
+        "trace_id": "trace-synthetic-0001"
+      },
+      "media_type": "application/json"
+    },
+    {
+      "name": "401 未认证",
+      "request": {
+        "method": "POST",
+        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc/evaluate"
+      },
+      "status": 401,
+      "body": {
+        "type": "https://errors.market-sense.invalid/unauthenticated",
+        "title": "错误",
+        "status": 401,
+        "code": "UNAUTHENTICATED",
+        "detail": "请求校验失败",
+        "trace_id": "trace-synthetic-0001"
+      },
+      "media_type": "application/json"
+    },
+    {
+      "name": "403 越权",
+      "request": {
+        "method": "POST",
+        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc/evaluate"
+      },
+      "status": 403,
+      "body": {
+        "type": "https://errors.market-sense.invalid/forbidden",
+        "title": "错误",
+        "status": 403,
+        "code": "FORBIDDEN",
+        "detail": "请求校验失败",
+        "trace_id": "trace-synthetic-0001"
+      },
+      "media_type": "application/json"
+    },
+    {
+      "name": "404 不存在",
+      "request": {
+        "method": "POST",
+        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc/evaluate"
+      },
+      "status": 404,
+      "body": {
+        "type": "https://errors.market-sense.invalid/not_found",
+        "title": "错误",
+        "status": 404,
+        "code": "NOT_FOUND",
+        "detail": "请求校验失败",
+        "trace_id": "trace-synthetic-0001"
+      },
+      "media_type": "application/json"
+    },
+    {
+      "name": "409 状态冲突",
+      "request": {
+        "method": "POST",
+        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc/evaluate"
+      },
+      "status": 409,
+      "body": {
+        "type": "https://errors.market-sense.invalid/conflict",
+        "title": "错误",
+        "status": 409,
+        "code": "CONFLICT",
+        "detail": "请求校验失败",
+        "trace_id": "trace-synthetic-0001"
+      },
+      "media_type": "application/json"
+    },
+    {
+      "name": "429 限流",
+      "request": {
+        "method": "POST",
+        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc/evaluate"
+      },
+      "status": 429,
+      "body": {
+        "type": "https://errors.market-sense.invalid/rate_limited",
+        "title": "错误",
+        "status": 429,
+        "code": "RATE_LIMITED",
+        "detail": "请求校验失败",
+        "trace_id": "trace-synthetic-0001"
+      },
+      "media_type": "application/json"
+    },
+    {
+      "name": "500 内部错误",
+      "request": {
+        "method": "POST",
+        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc/evaluate"
+      },
+      "status": 500,
+      "body": {
+        "type": "https://errors.market-sense.invalid/internal_error",
+        "title": "错误",
+        "status": 500,
+        "code": "INTERNAL_ERROR",
+        "detail": "请求校验失败",
+        "trace_id": "trace-synthetic-0001"
+      },
+      "media_type": "application/json"
+    }
+  ]
+}

@@ -115,6 +115,8 @@ ALLOWED_ERRORS = {
     # ADDED_AFTER_V1 域：baseline 为 2026-11-06 首冻（A0 KD-AI-INF-01 请求），
     # 首冻即当前版本，diff 预检应为空；之后 ai 的破坏性变更照常走 waiver。
     "ai": set(),
+    "config": set(),
+    "approval": set(),
 }
 
 

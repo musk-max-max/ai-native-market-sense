@@ -1,0 +1,33 @@
+{
+  "operation_id": "publishOpsConfig",
+  "client": "内部运营后台（ops）",
+  "calls": [
+    {
+      "name": "发布",
+      "request": {
+        "method": "POST",
+        "path": "/v1/internal/configs/ops_home_feed/publish",
+        "query": {
+          "environment": "dev"
+        },
+        "headers": {
+          "authorization": "Bearer synthetic-internal-token"
+        },
+        "body": {
+          "approval_ref": "apr_12345678-1234-1234-1234-123456789abc",
+          "expected_version": 7,
+          "canary_percent": 5
+        }
+      },
+      "expect": {
+        "status": 200,
+        "required_fields": [
+          "release_id",
+          "content_hash",
+          "policy_version",
+          "approval_ref"
+        ]
+      }
+    }
+  ]
+}

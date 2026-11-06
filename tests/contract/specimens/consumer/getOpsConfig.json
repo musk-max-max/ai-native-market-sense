@@ -1,0 +1,29 @@
+{
+  "operation_id": "getOpsConfig",
+  "client": "内部运营后台（ops）",
+  "calls": [
+    {
+      "name": "读取草稿",
+      "request": {
+        "method": "GET",
+        "path": "/v1/internal/configs/ops_home_feed",
+        "query": {
+          "environment": "dev",
+          "status": "draft"
+        },
+        "headers": {
+          "authorization": "Bearer synthetic-internal-token"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "required_fields": [
+          "config_id",
+          "version",
+          "status",
+          "spec.columns[].id"
+        ]
+      }
+    }
+  ]
+}

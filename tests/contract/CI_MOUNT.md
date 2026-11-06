@@ -395,3 +395,14 @@ fixture 排除、`services/market/src/**` 仍在扫描面）。C01 5 passed；`p
 - G-IMPL 实时门禁支持 SSE（LIVE-02/03/09）：文本帧只看媒体类型、非空、schema（string）；不允许 consumer 对 SSE 声明 JSON 依赖字段。
 - G-IMPL 自检 stub 修正：同一 operation 的多个 consumer call 共享 path 时（createAiAnalysis 的 200/202），按请求体精确匹配；SSE 响应按样本 `media_type` 回放帧文本。
 - 状态：`pytest tests/contract` = **67 passed / 1 warning**；`pytest tests/contract tests/data` = **228 passed / 2 warnings**（2026-11-06）。
+
+## §7.18 config / approval 内部域契约脚手架（A0 m04467 / b73c293，2026-11-06）
+
+- 覆盖：`contracts/config/openapi.yaml` **10/10 operation**、`contracts/approval/openapi.yaml` **6/6 operation**；provider + consumer specimens 各 16 份（config 10 + approval 6）；全仓 operation 合计 **30**（market 5 + fundamental 1 + watchlist 4 + ai 4 + config 10 + approval 6）。
+- 内部域短路（ADR-001 D4 例外）：路径必须 `/v1/internal/*`、2xx 必须 `application/json`、成功响应**不套** `{data,meta}`、meta 若出现不得引用 shared `ResponseMeta`；`test_meta_semantics_from_shared` 跳过内部域。
+- `REQUIRED_META`：`config:*` 与 `approval:*` 全为 `set()`（`test_success_envelope` 对内部域另走闭合对象断言）。
+- 基线：`tests/contract/baselines/v1/{config,approval}/openapi.yaml` 首冻并登记 `baseline_manifest.json`（ADDED_AFTER_V1）；`ALLOWED_ERRORS["config"]=set()`、`["approval"]=set()`。
+- 409/412：`CONFLICT`、`PRECONDITION_FAILED` 进 `P0_ERROR_CODES`（internal-only，A0 已在 shared 0.2.3 Problem description 与 ADR-001 D4 同步为 10 码，H2 追认待办）；`CONFLICT` 样本使用 A0 新的独立 object 冲突体（不再 allOf Problem），可带 `diff`/`approval_ref`/`current_status`。
+- provider 测试的 `repo.parameters()` 修正为 path-item 级 + operation 级合并（同名同位置后者覆盖），修复内部域 path/query 参数误报。
+- G-IMPL 自检 stub 补 `do_PUT`/`do_PATCH`；clean stub 覆盖内部域 200（含 ETag 语义由 `If-Match` 请求反映，不在样本断言内）。
+- 状态（2026-11-06，A0 工作区 shared 0.2.3 + 两域修复生效）：`pytest tests/contract` = **67 passed / 1 warning**；`pytest tests/contract tests/data` = **228 passed / 2 warnings**；2 warning 为 approval `decideApproval`/`evaluateApproval` 的 `response-body-all-of-removed`（A0 冲突体从 allOf 改为独立 object 的非破坏性观察项，不登记 waiver）。

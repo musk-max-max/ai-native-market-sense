@@ -1,0 +1,25 @@
+{
+  "operation_id": "getApproval",
+  "client": "内部审批后台（approval）",
+  "calls": [
+    {
+      "name": "读取审批单",
+      "request": {
+        "method": "GET",
+        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc",
+        "headers": {
+          "authorization": "Bearer synthetic-internal-token"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "required_fields": [
+          "approval_ref",
+          "status",
+          "subject.object_id",
+          "change.keys[]"
+        ]
+      }
+    }
+  ]
+}

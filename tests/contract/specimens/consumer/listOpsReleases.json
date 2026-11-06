@@ -1,0 +1,28 @@
+{
+  "operation_id": "listOpsReleases",
+  "client": "内部运营后台（ops）",
+  "calls": [
+    {
+      "name": "release 列表",
+      "request": {
+        "method": "GET",
+        "path": "/v1/internal/releases",
+        "query": {
+          "config_id": "ops_home_feed",
+          "environment": "dev",
+          "limit": 20
+        },
+        "headers": {
+          "authorization": "Bearer synthetic-internal-token"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "required_fields": [
+          "items[].release_id",
+          "items[].policy_version"
+        ]
+      }
+    }
+  ]
+}

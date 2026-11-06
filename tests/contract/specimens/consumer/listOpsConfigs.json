@@ -1,0 +1,28 @@
+{
+  "operation_id": "listOpsConfigs",
+  "client": "内部运营后台（ops）",
+  "calls": [
+    {
+      "name": "运营配置列表",
+      "request": {
+        "method": "GET",
+        "path": "/v1/internal/configs",
+        "query": {
+          "environment": "dev",
+          "limit": 20
+        },
+        "headers": {
+          "authorization": "Bearer synthetic-internal-token"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "required_fields": [
+          "items[].config_id",
+          "items[].version",
+          "items[].status"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "operation_id": "evaluateApproval",
+  "client": "内部审批后台（approval）",
+  "calls": [
+    {
+      "name": "执行评估",
+      "request": {
+        "method": "POST",
+        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc/evaluate",
+        "headers": {
+          "authorization": "Bearer synthetic-internal-token"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "required_fields": [
+          "evaluation.decision",
+          "evaluation.rule_version",
+          "evaluation.reason_codes[]",
+          "evaluation.evaluated_at"
+        ]
+      }
+    }
+  ]
+}

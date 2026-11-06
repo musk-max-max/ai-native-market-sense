@@ -31,6 +31,10 @@ ENUM_VALUE_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 
 # ADR-001 D4：按响应类别强制的 meta 要素（契约策略表，不是契约字段副本；
 # 契约字段本身仍从 contracts/ 现场读取）。
+INTERNAL_DOMAINS = {"config", "approval"}
+# 内部运维域（/v1/internal/*）不面向 C 端：不套 shared data/meta 信封，也不得出现 meta/disclaimer。
+# 强度不降：路径必须 /v1/internal/、schema 必须闭合对象、独立禁止 data/meta。
+
 REQUIRED_META = {
     "market:getInstrument": {"source", "entitlement"},
     "market:getInstrumentQuote": {"source", "entitlement", "adjustment", "disclaimer"},
@@ -166,7 +170,12 @@ def test_no_unused_components(repo):
     命中已知缺陷台账 = 绿灯 + 债务告警；未登记/已过期/条目失效 = 红灯。
     """
     used: set[tuple[str, str, str]] = set()
-    queue = [(domain, op.spec) for domain, op in ((d, o) for d in DOMAINS for o in repo.operations((d,)))]
+    queue: list[tuple[str, object]] = [(domain, op.spec) for domain, op in ((d, o) for d in DOMAINS for o in repo.operations((d,)))]
+    # path item 级 parameters 由多个 operation 共享，不在 op.spec 内，必须单独作为入口
+    for domain in DOMAINS:
+        for item in (repo.raw[domain].get("paths") or {}).values():
+            if isinstance(item, dict) and item.get("parameters"):
+                queue.append((domain, item["parameters"]))
     seen_docs: set[str] = set()
     while queue:
         domain, node = queue.pop()
@@ -291,6 +300,27 @@ def test_success_envelope(repo):
                 assert schema is None, f"{op.operation_id}: 204 不得携带 schema"
                 continue
             key = (op.domain, op.operation_id, status)
+            if op.domain in INTERNAL_DOMAINS:
+                if not op.path.startswith("/v1/internal/"):
+                    problems.append(f"{op.operation_id}: 内部域接口路径必须 /v1/internal/，实际 {op.path}")
+                if content_type != "application/json":
+                    problems.append(f"{op.operation_id}: 内部域响应必须是 application/json，实际 {content_type}")
+                    continue
+                if not isinstance(schema, dict):
+                    problems.append(f"{op.operation_id}: 内部域 2xx 响应缺 schema")
+                    continue
+                required = set(schema.get("required") or [])
+                props = schema.get("properties") or {}
+                if {"data", "meta"} <= required:
+                    problems.append(f"{op.operation_id}: 内部运维域不得套 C 端 data/meta 信封（ADR-001 D4 仅 C 端数据接口）")
+                meta_prop = props.get("meta")
+                if isinstance(meta_prop, dict) and any(
+                    ref.endswith("#/components/schemas/ResponseMeta") for ref in iter_refs(meta_prop)
+                ):
+                    problems.append(f"{op.operation_id}: 内部运维域的 meta 若存在不得是 C 端 shared ResponseMeta")
+                if not props:
+                    problems.append(f"{op.operation_id}: 内部域响应 schema 必须有明确 properties（防 any）")
+                continue
             if key in STREAMING_RESPONSES:
                 if content_type != "text/event-stream":
                     problems.append(
@@ -370,6 +400,8 @@ def test_meta_semantics_from_shared(repo):
     """meta 四要素必须从 shared 引用，禁止域内复制定义（单一真源）。"""
     problems = []
     for op in repo.operations():
+        if op.domain in INTERNAL_DOMAINS:
+            continue
         schema = repo.response_schema(op, "200")
         if not isinstance(schema, dict):
             continue
@@ -403,6 +435,16 @@ def meta_schema_source(repo, op) -> dict:
     return (schema.get("properties") or {}).get("meta") or {}
 
 
+def _all_required(repo, domain: str, schema: dict, depth: int = 0) -> set[str]:
+    """合并 allOf 各分支的 required（扩展 Problem 如 ConfigConflictProblem 的基类必填在 allOf 里）。"""
+    if depth > 4 or not isinstance(schema, dict):
+        return set()
+    required = set(schema.get("required") or [])
+    for part in schema.get("allOf") or []:
+        required |= _all_required(repo, domain, part, depth + 1)
+    return required
+
+
 def test_error_responses_use_problem(repo):
     problems = []
     for op in repo.operations():
@@ -415,8 +457,8 @@ def test_error_responses_use_problem(repo):
                 problems.append(f"{op.operation_id} {status}: 错误响应用 application/problem+json（RFC 9457）")
                 continue
             schema = content["application/problem+json"].get("schema") or {}
-            resolved_schema = repo.deref(schema, op.domain)
-            if not {"code", "title", "status", "type"} <= set(resolved_schema.get("required") or []):
+            required = _all_required(repo, op.domain, schema)
+            if not {"code", "title", "status", "type"} <= required:
                 problems.append(f"{op.operation_id} {status}: Problem 必须 required type/title/status/code")
     assert not problems, "\n".join(problems)
 

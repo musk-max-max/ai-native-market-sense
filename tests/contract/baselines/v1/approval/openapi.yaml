@@ -1,0 +1,612 @@
+openapi: 3.1.0
+
+info:
+  title: market-sense-h5 · approval（审批账本与规则引擎）
+  version: 0.1.0
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+  description: |
+    内部审批契约：A4 审批 API 负责建单/账本，A15 规则引擎负责判定，A8 中后台做审批界面。
+    所有路径位于 /v1/internal/，由 services/api 默认拒绝 preHandler 强制 Bearer 身份；
+    audience 由路径决定为 internal，不读客户端 header。审批入口 P0 不对公网暴露。
+
+    硬约束（L51）：
+    - approval_ref 形如 apr_<uuidv7>，只能由 A4 建单事务生成；CreateApprovalRequest 不接收
+      approval_ref，申请人/A15 均不得预填/代填。
+    - 一单一对象：批量/一键通过不是 UI 约束而是 API 约束。
+    - 人类审批人只能是 H3/user（identity 服务端强制）；agent 与 A15 永远不是审批主体。
+    - 审批决定不可复用：撤回/驳回后重提必须新建单。
+    - approval_ref 必须可解析到具名账本记录，自由字符串不算。
+
+    判定三档（A15 设计稿）：
+    - green_auto_pass：确定性规则引擎按已签判据自动放行；A15 不出现在 decided_by。
+    - yellow_route：路由给人类审批人；A15 只填单/催办/解释。
+    - red_block：阻断 + 升级；默认方向，字段缺失/判据未签/策略不一致一律红。
+    规则引擎未实现前，所有审批单一律按人审（yellow_route）处理；T5 权限类与内部员工转正/tier
+    改档是硬门，永远不得 green。
+
+servers:
+  - url: https://api.market-sense.invalid
+    description: 占位域名（RFC 2606 .invalid），由 A13 在部署环境替换；路径含 /v1（决策 #1）
+
+tags:
+  - name: approvals
+    description: 审批建单、查询、规则评估、人类决定与 append-only 事件
+
+security:
+  - bearerAuth: []
+
+paths:
+
+  /v1/internal/approvals:
+    post:
+      operationId: createApproval
+      tags: [approvals]
+      summary: 创建审批单（A4 事务内生成 approval_ref）
+      description: |
+        申请人和 executor 可以是 human 或 agent；agent 必须带 model_version。
+        approval_ref 由服务端在事务内生成并写账本，请求体不接受该字段（additionalProperties:false）。
+        Idempotency-Key 必填：同一 key 重试返回同一单，不重复建单。
+        T5 权限类 / ADR-008 转正与 tier 改档即使被创建也必须走人类；请求本身不构成放行。
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateApprovalRequest'
+      responses:
+        '201':
+          description: 审批单已创建
+          headers:
+            Location:
+              description: 新建单的审批引用路径
+              schema:
+                type: string
+                pattern: '^/v1/internal/approvals/apr_[0-9a-f-]{36}$'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalApplication'
+        '400':
+          $ref: '../shared/openapi.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '../shared/openapi.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '../shared/openapi.yaml#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/ApprovalConflict'
+        '429':
+          $ref: '../shared/openapi.yaml#/components/responses/TooManyRequests'
+        '500':
+          $ref: '../shared/openapi.yaml#/components/responses/InternalError'
+        default:
+          $ref: '../shared/openapi.yaml#/components/responses/ProblemResponse'
+    get:
+      operationId: listApprovals
+      tags: [approvals]
+      summary: 列出审批单
+      parameters:
+        - name: flow
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ApprovalFlow'
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ApprovalStatus'
+        - name: applicant_id
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: 审批单列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalApplicationList'
+        '400':
+          $ref: '../shared/openapi.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '../shared/openapi.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '../shared/openapi.yaml#/components/responses/Forbidden'
+        '429':
+          $ref: '../shared/openapi.yaml#/components/responses/TooManyRequests'
+        '500':
+          $ref: '../shared/openapi.yaml#/components/responses/InternalError'
+        default:
+          $ref: '../shared/openapi.yaml#/components/responses/ProblemResponse'
+
+  /v1/internal/approvals/{approval_ref}:
+    parameters:
+      - $ref: '#/components/parameters/ApprovalRefPath'
+    get:
+      operationId: getApproval
+      tags: [approvals]
+      summary: 读取审批单
+      description: 返回账本具名记录、当前状态、最近一次 evaluation 与 decision（如有）。
+      responses:
+        '200':
+          description: 审批单
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalApplication'
+        '400':
+          $ref: '../shared/openapi.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '../shared/openapi.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '../shared/openapi.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '../shared/openapi.yaml#/components/responses/NotFound'
+        '429':
+          $ref: '../shared/openapi.yaml#/components/responses/TooManyRequests'
+        '500':
+          $ref: '../shared/openapi.yaml#/components/responses/InternalError'
+        default:
+          $ref: '../shared/openapi.yaml#/components/responses/ProblemResponse'
+
+  /v1/internal/approvals/{approval_ref}/evaluate:
+    parameters:
+      - $ref: '#/components/parameters/ApprovalRefPath'
+    post:
+      operationId: evaluateApproval
+      tags: [approvals]
+      summary: 规则引擎评估审批单（确定性、无目标变更）
+      description: |
+        由 A15 调度器触发或建单后自动执行；只做确定性规则判定，不执行目标变更本身。
+        输入必须可复算（input_hash）；policy 版本不一致/加载失败/判据未签 → red_block。
+        结果写入 append-only 事件并更新审批单状态；green_auto_pass 仍由 A4 审批事务记录
+        auto_pass，A15 不进入 decided_by。
+        规则引擎未实现时返回 yellow_route，不得伪造 green。
+      responses:
+        '200':
+          description: 评估后的审批单
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalApplication'
+        '400':
+          $ref: '../shared/openapi.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '../shared/openapi.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '../shared/openapi.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '../shared/openapi.yaml#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/ApprovalConflict'
+        '429':
+          $ref: '../shared/openapi.yaml#/components/responses/TooManyRequests'
+        '500':
+          $ref: '../shared/openapi.yaml#/components/responses/InternalError'
+        default:
+          $ref: '../shared/openapi.yaml#/components/responses/ProblemResponse'
+
+  /v1/internal/approvals/{approval_ref}/decision:
+    parameters:
+      - $ref: '#/components/parameters/ApprovalRefPath'
+    post:
+      operationId: decideApproval
+      tags: [approvals]
+      summary: 人类审批决定（approve/reject）
+      description: |
+        仅人类 H3/user 可调用；agent/A15 一律 403（approver_not_human）。
+        审批人是 token 主体，不在请求体里传；申请人不得审批自己（403）。
+        单条决定；批量/一键通过不存在。已决定/已失效的单不可再次决定，返回 409。
+        决定写 append-only 事件，登记 decided_by 人类身份与 reason。
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalDecisionRequest'
+      responses:
+        '200':
+          description: 决定已记录
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalDecision'
+        '400':
+          $ref: '../shared/openapi.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '../shared/openapi.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '../shared/openapi.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '../shared/openapi.yaml#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/ApprovalConflict'
+        '429':
+          $ref: '../shared/openapi.yaml#/components/responses/TooManyRequests'
+        '500':
+          $ref: '../shared/openapi.yaml#/components/responses/InternalError'
+        default:
+          $ref: '../shared/openapi.yaml#/components/responses/ProblemResponse'
+
+  /v1/internal/approvals/{approval_ref}/events:
+    parameters:
+      - $ref: '#/components/parameters/ApprovalRefPath'
+    get:
+      operationId: listApprovalEvents
+      tags: [approvals]
+      summary: 读取 append-only 审批事件
+      description: 按时间正序返回；事件只增不改，撤回/驳回后重提是新单，不复用 id。
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: 审批事件列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalEventList'
+        '400':
+          $ref: '../shared/openapi.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '../shared/openapi.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '../shared/openapi.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '../shared/openapi.yaml#/components/responses/NotFound'
+        '429':
+          $ref: '../shared/openapi.yaml#/components/responses/TooManyRequests'
+        '500':
+          $ref: '../shared/openapi.yaml#/components/responses/InternalError'
+        default:
+          $ref: '../shared/openapi.yaml#/components/responses/ProblemResponse'
+
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: A4 identity 签发的内部员工 access token；服务端同时校验 userType=internal_active 与 sessionVersion。
+
+  parameters:
+    ApprovalRefPath:
+      name: approval_ref
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^apr_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    IdempotencyKeyHeader:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: 同一 key 的重试返回同一结果，不重复建单/决定。
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 128
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      schema:
+        type: string
+
+  responses:
+    ApprovalConflict:
+      description: 审批状态/绑定不满足要求，或审批单已决定/已失效。
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ApprovalConflictProblem'
+
+  schemas:
+
+    ApprovalFlow:
+      type: string
+      enum: [t1, t2, t3, t4, t5, t6, t7]
+      description: T1 常规/T2 高风险/T3 文案/T4 触达/T5 权限/T6 紧急回滚/T7 数据导出。
+
+    ApprovalStatus:
+      type: string
+      enum: [submitted, evaluated, routed, auto_passed, approved, rejected, expired]
+
+    Actor:
+      type: object
+      additionalProperties: false
+      required: [kind, id]
+      properties:
+        kind:
+          type: string
+          enum: [human, agent]
+        id:
+          type: string
+          minLength: 1
+          maxLength: 64
+        model_version:
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: agent 必填；用于留痕与漂移排查。
+
+    DiffValue:
+      description: 任意 JSON 值（before/after/diff 用）
+      oneOf:
+        - type: 'null'
+        - type: boolean
+        - type: number
+        - type: string
+        - type: object
+        - type: array
+
+    ApprovalSubject:
+      type: object
+      additionalProperties: false
+      required: [environment, domain, object_id]
+      properties:
+        environment:
+          type: string
+          enum: [dev, staging, prod]
+        domain:
+          type: string
+          enum: [ops_config, rbac, identity, release, export, reach, other]
+        object_id:
+          type: string
+          minLength: 1
+        path:
+          type: string
+          description: 可选：repo/配置路径或 URL 路径
+        diff_hash:
+          type: string
+          pattern: '^sha256:[0-9a-f]{64}$'
+
+    ApprovalChange:
+      type: object
+      additionalProperties: false
+      required: [keys, diff_hash]
+      properties:
+        keys:
+          type: array
+          minItems: 1
+          items:
+            type: string
+        before:
+          $ref: '#/components/schemas/DiffValue'
+        after:
+          $ref: '#/components/schemas/DiffValue'
+        diff_hash:
+          type: string
+          pattern: '^sha256:[0-9a-f]{64}$'
+
+    CreateApprovalRequest:
+      type: object
+      additionalProperties: false
+      required: [flow, applicant, subject, change]
+      properties:
+        flow:
+          $ref: '#/components/schemas/ApprovalFlow'
+        applicant:
+          $ref: '#/components/schemas/Actor'
+        beneficiary:
+          $ref: '#/components/schemas/Actor'
+          description: 变更受益方；T5 权限类必填，用于自批/利益关联检查。
+        executor:
+          $ref: '#/components/schemas/Actor'
+          description: 实际执行者（如 A13 部署、A14 发布）；与 approver 分开留痕（L20）。
+        subject:
+          $ref: '#/components/schemas/ApprovalSubject'
+        change:
+          $ref: '#/components/schemas/ApprovalChange'
+        evidence:
+          type: object
+          description: 按 flow 的证据（窗口/kill switch/回滚步骤/触达计数/policy_sha 等）；形状由各 flow 细化，P0 先允许扩展。
+
+    ApprovalEvaluation:
+      type: object
+      additionalProperties: false
+      required: [decision, rule_id, rule_version, source_refs, policy_snapshot, input_hash, reason_codes, evaluated_at]
+      properties:
+        decision:
+          type: string
+          enum: [green_auto_pass, yellow_route, red_block]
+        rule_id:
+          type: string
+        rule_version:
+          type: string
+        source_refs:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            description: decisions 行号/L 编号/ADR 章节/rules 文件+sha
+        policy_snapshot:
+          type: object
+          additionalProperties: false
+          required: [version, sha256]
+          properties:
+            version:
+              type: string
+            sha256:
+              type: string
+              pattern: '^[0-9a-f]{64}$'
+        input_hash:
+          type: string
+          pattern: '^sha256:[0-9a-f]{64}$'
+        reason_codes:
+          type: array
+          items:
+            type: string
+        route_to:
+          type: string
+          description: 黄档必填的人类席位；红档为升级对象（如 H5/A9）。
+        required_reviews:
+          type: array
+          items:
+            type: string
+        evaluated_at:
+          type: string
+          format: date-time
+
+    ApprovalDecisionRequest:
+      type: object
+      additionalProperties: false
+      required: [decision, reason]
+      properties:
+        decision:
+          type: string
+          enum: [approved, rejected]
+        reason:
+          type: string
+          minLength: 8
+          maxLength: 500
+        evidence_refs:
+          type: array
+          items:
+            type: string
+
+    ApprovalDecision:
+      type: object
+      additionalProperties: false
+      required: [approval_ref, decision, decided_by, decided_at, reason]
+      properties:
+        approval_ref:
+          type: string
+          pattern: '^apr_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+        decision:
+          type: string
+          enum: [approved, rejected]
+        decided_by:
+          $ref: '#/components/schemas/Actor'
+        decided_at:
+          type: string
+          format: date-time
+        reason:
+          type: string
+
+    ApprovalApplication:
+      type: object
+      additionalProperties: false
+      required: [approval_ref, application_id, flow, status, applicant, subject, change, created_at]
+      properties:
+        approval_ref:
+          type: string
+          pattern: '^apr_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+        application_id:
+          type: string
+          minLength: 1
+        flow:
+          $ref: '#/components/schemas/ApprovalFlow'
+        status:
+          $ref: '#/components/schemas/ApprovalStatus'
+        applicant:
+          $ref: '#/components/schemas/Actor'
+        beneficiary:
+          $ref: '#/components/schemas/Actor'
+        executor:
+          $ref: '#/components/schemas/Actor'
+        subject:
+          $ref: '#/components/schemas/ApprovalSubject'
+        change:
+          $ref: '#/components/schemas/ApprovalChange'
+        evidence:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+        evaluation:
+          $ref: '#/components/schemas/ApprovalEvaluation'
+        decision:
+          $ref: '#/components/schemas/ApprovalDecision'
+
+    ApprovalEvent:
+      type: object
+      additionalProperties: false
+      required: [event_id, approval_ref, type, at]
+      properties:
+        event_id:
+          type: string
+          minLength: 1
+        approval_ref:
+          type: string
+          pattern: '^apr_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+        type:
+          type: string
+          enum: [created, evaluated, routed, auto_passed, approved, rejected, expired]
+        at:
+          type: string
+          format: date-time
+        actor:
+          $ref: '#/components/schemas/Actor'
+        evaluation:
+          $ref: '#/components/schemas/ApprovalEvaluation'
+        decision:
+          $ref: '#/components/schemas/ApprovalDecision'
+        note:
+          type: string
+
+    ApprovalApplicationList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApprovalApplication'
+        next_cursor:
+          type: [string, 'null']
+
+    ApprovalEventList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApprovalEvent'
+        next_cursor:
+          type: [string, 'null']
+
+    ApprovalConflictProblem:
+      allOf:
+        - $ref: '../shared/openapi.yaml#/components/schemas/Problem'
+        - type: object
+          additionalProperties: false
+          properties:
+            approval_ref:
+              type: string
+            current_status:
+              $ref: '#/components/schemas/ApprovalStatus'

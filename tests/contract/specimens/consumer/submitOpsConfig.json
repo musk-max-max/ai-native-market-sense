@@ -1,0 +1,34 @@
+{
+  "operation_id": "submitOpsConfig",
+  "client": "内部运营后台（ops）",
+  "calls": [
+    {
+      "name": "提交审批",
+      "request": {
+        "method": "POST",
+        "path": "/v1/internal/configs/ops_home_feed/submit",
+        "query": {
+          "environment": "dev"
+        },
+        "headers": {
+          "authorization": "Bearer synthetic-internal-token"
+        },
+        "body": {
+          "change_reason": "上线首页改版并灰度发布",
+          "impact_scope": [
+            "ranking"
+          ],
+          "expected_version": 7
+        }
+      },
+      "expect": {
+        "status": 200,
+        "required_fields": [
+          "approval_ref",
+          "status",
+          "submitted_at"
+        ]
+      }
+    }
+  ]
+}

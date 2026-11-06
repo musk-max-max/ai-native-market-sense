@@ -1,0 +1,25 @@
+{
+  "operation_id": "getOpsRelease",
+  "client": "内部运营后台（ops）",
+  "calls": [
+    {
+      "name": "单个 release",
+      "request": {
+        "method": "GET",
+        "path": "/v1/internal/releases/rel_20261103abc",
+        "headers": {
+          "authorization": "Bearer synthetic-internal-token"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "required_fields": [
+          "release_id",
+          "config_id",
+          "policy_version",
+          "published_at"
+        ]
+      }
+    }
+  ]
+}

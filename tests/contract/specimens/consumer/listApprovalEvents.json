@@ -1,0 +1,24 @@
+{
+  "operation_id": "listApprovalEvents",
+  "client": "内部审批后台（approval）",
+  "calls": [
+    {
+      "name": "审批事件流",
+      "request": {
+        "method": "GET",
+        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc/events",
+        "headers": {
+          "authorization": "Bearer synthetic-internal-token"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "required_fields": [
+          "items[].event_id",
+          "items[].type",
+          "items[].at"
+        ]
+      }
+    }
+  ]
+}

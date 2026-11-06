@@ -1,0 +1,95 @@
+{
+  "operation_id": "putOpsConfigDraft",
+  "client": "内部运营后台（ops）",
+  "calls": [
+    {
+      "name": "保存草稿",
+      "request": {
+        "method": "PUT",
+        "path": "/v1/internal/configs/ops_home_feed",
+        "query": {
+          "environment": "dev"
+        },
+        "headers": {
+          "authorization": "Bearer synthetic-internal-token",
+          "if-match": "\"v7\""
+        },
+        "body": {
+          "schema_version": "0.1",
+          "config_id": "ops_home_feed",
+          "environment": "dev",
+          "change_reason": "首版首页布局改版说明",
+          "impact_scope": [
+            "ranking",
+            "visibility"
+          ],
+          "spec": {
+            "columns": [
+              {
+                "id": "hero",
+                "title": "首页焦点",
+                "order": 1,
+                "subtitle": "编辑精选",
+                "visible": true,
+                "max_items": 3
+              },
+              {
+                "id": "rank",
+                "title": "榜单",
+                "order": 2,
+                "visible": true,
+                "max_items": 10
+              }
+            ],
+            "content_items": [
+              {
+                "id": "ci_news_001",
+                "kind": "editorial",
+                "column_id": "hero",
+                "order": 1,
+                "visible": true,
+                "display_title": "今日焦点",
+                "summary": "示例摘要",
+                "target_route": "/article/1",
+                "content_ref": "cnt_news001",
+                "asset_ref": "ast_hero001",
+                "display_window": {
+                  "start_at": "2026-11-06T09:30:00+08:00",
+                  "end_at": "2026-11-07T09:30:00+08:00",
+                  "timezone": "Asia/Shanghai"
+                }
+              }
+            ],
+            "strategies": [
+              {
+                "type": "ranking",
+                "id": "st_rank01",
+                "metric_id": "M01",
+                "metric_label": "涨幅榜",
+                "universe": "all_a",
+                "window": "d1",
+                "limit": 10,
+                "title_template": "{metric_label} TOP {limit}",
+                "personalized": false
+              },
+              {
+                "type": "rotation",
+                "id": "st_rot01",
+                "max_items": 2,
+                "interval_seconds": 8
+              }
+            ]
+          }
+        }
+      },
+      "expect": {
+        "status": 200,
+        "required_fields": [
+          "version",
+          "status",
+          "spec.strategies[]"
+        ]
+      }
+    }
+  ]
+}

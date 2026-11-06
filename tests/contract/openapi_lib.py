@@ -27,16 +27,19 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 # 以证明「改坏契约 -> 红灯」且不触碰 A0 的真源。
 CONTRACTS_DIR = Path(os.environ.get("A11_CONTRACTS_DIR") or (REPO_ROOT / "contracts"))
 DATA_DIR = REPO_ROOT / "tests" / "data"
-DOMAINS = ("shared", "market", "fundamental", "watchlist", "ai")
+DOMAINS = ("shared", "market", "fundamental", "watchlist", "ai", "config", "approval")
 # 契约版本 v1 冻结之后新增的域：v1 baseline 里没有它们，diff 门禁对其按「全域 additive」处理
 # （新增域不存在破坏性变更；一旦这些域写入 baseline，必须从本元组移除并重冻 manifest）。
-ADDED_AFTER_V1 = ("ai",)  # ai 域基线已在 baselines/v1/ai 首冻（2026-11-06），此常量仅作文档标记，不参与跳过。
+ADDED_AFTER_V1 = ("ai", "config", "approval")  # 各自在 baselines/v1/<domain> 首冻；此常量仅作文档标记，不参与跳过。
 HTTP_METHODS = ("get", "put", "post", "delete", "options", "head", "patch", "trace")
 
 # P0 错误码集合（ADR-001 D4 / shared Problem description）。初始 7 个；2026-11-04 按 A3 实现需要
 # 新增 NOT_FOUND（标识存在但资源无数据/路由不存在），属 D5「非破坏：新增错误码」，
 # 必须同时更新 ADR-001 D4 与本清单，否则 consumer 侧会漏处理未知码。
 # 404 语义：INSTRUMENT_NOT_FOUND=标识不存在/未收录；NOT_FOUND=资源无数据；403 判定先于 404。
+# 2026-11-06 按 A0 config/approval 契约（b73c293）新增 CONFLICT（409：版本/审批冲突）与
+# PRECONDITION_FAILED（412：If-Match 不匹配）；这两个码尚无 consumer 分支，A0 需同步 shared/ADR-001 D4，
+# 否则属「新增错误码未通告」，H2 追认前清单以本文件为准（A11 门禁要求 code 可枚举）。
 P0_ERROR_CODES = (
     "VALIDATION_ERROR",
     "UNAUTHENTICATED",
@@ -46,6 +49,8 @@ P0_ERROR_CODES = (
     "ENTITLEMENT_RESTRICTED",
     "RATE_LIMITED",
     "INTERNAL_ERROR",
+    "CONFLICT",
+    "PRECONDITION_FAILED",
 )
 
 
@@ -218,10 +223,13 @@ class ContractRepo:
         return None
 
     def parameters(self, op: Operation) -> list[dict]:
-        params = []
-        for raw in op.spec.get("parameters") or []:
-            params.append(self.deref(raw, op.domain))
-        return params
+        """operation 生效参数 = path-item 级 + operation 级（同名同位置后者覆盖，OpenAPI 语义）。"""
+        merged: dict[tuple[str, str], dict] = {}
+        item = (self.raw[op.domain].get("paths") or {}).get(op.path) or {}
+        for raw in list(item.get("parameters") or []) + list(op.spec.get("parameters") or []):
+            param = self.deref(raw, op.domain)
+            merged[(param.get("name"), param.get("in"))] = param
+        return list(merged.values())
 
     def component(self, domain: str, section: str, name: str) -> Any:
         components = self.raw[domain].get("components") or {}

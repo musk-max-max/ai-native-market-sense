@@ -1,0 +1,33 @@
+{
+  "operation_id": "decideApproval",
+  "client": "内部审批后台（approval）",
+  "calls": [
+    {
+      "name": "人工决定",
+      "request": {
+        "method": "POST",
+        "path": "/v1/internal/approvals/apr_12345678-1234-1234-1234-123456789abc/decision",
+        "headers": {
+          "authorization": "Bearer synthetic-internal-token",
+          "idempotency-key": "idem-a11-0002"
+        },
+        "body": {
+          "decision": "approved",
+          "reason": "风险可控，同意发布",
+          "evidence_refs": [
+            "agents/decisions.md#L44"
+          ]
+        }
+      },
+      "expect": {
+        "status": 200,
+        "required_fields": [
+          "approval_ref",
+          "decision",
+          "decided_by.id",
+          "decided_at"
+        ]
+      }
+    }
+  ]
+}

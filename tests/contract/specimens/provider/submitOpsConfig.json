@@ -1,0 +1,154 @@
+{
+  "operation_id": "submitOpsConfig",
+  "origin": "synthetic",
+  "note": "提交审批：200 Submission/400/401/403/409/429/500",
+  "recorded_at": "2026-11-06T09:30:00+08:00",
+  "cases": [
+    {
+      "name": "200 提交成功",
+      "request": {
+        "method": "POST",
+        "path": "/v1/internal/configs/ops_home_feed/submit",
+        "query": {
+          "environment": "dev"
+        },
+        "body": {
+          "change_reason": "上线首页改版并灰度发布",
+          "impact_scope": [
+            "ranking"
+          ],
+          "expected_version": 7
+        }
+      },
+      "status": 200,
+      "body": {
+        "approval_ref": "apr_12345678-1234-1234-1234-123456789abc",
+        "application_id": "app-20261106-001",
+        "flow": "t1",
+        "status": "submitted",
+        "submitted_at": "2026-11-06T09:30:00+08:00"
+      },
+      "media_type": "application/json"
+    },
+    {
+      "name": "400 参数错误",
+      "request": {
+        "method": "POST",
+        "path": "/v1/internal/configs/ops_home_feed/submit",
+        "query": {
+          "environment": "dev"
+        }
+      },
+      "status": 400,
+      "body": {
+        "type": "https://errors.market-sense.invalid/validation_error",
+        "title": "错误",
+        "status": 400,
+        "code": "VALIDATION_ERROR",
+        "detail": "请求校验失败",
+        "trace_id": "trace-synthetic-0001"
+      },
+      "media_type": "application/json"
+    },
+    {
+      "name": "401 未认证",
+      "request": {
+        "method": "POST",
+        "path": "/v1/internal/configs/ops_home_feed/submit",
+        "query": {
+          "environment": "dev"
+        }
+      },
+      "status": 401,
+      "body": {
+        "type": "https://errors.market-sense.invalid/unauthenticated",
+        "title": "错误",
+        "status": 401,
+        "code": "UNAUTHENTICATED",
+        "detail": "请求校验失败",
+        "trace_id": "trace-synthetic-0001"
+      },
+      "media_type": "application/json"
+    },
+    {
+      "name": "403 越权",
+      "request": {
+        "method": "POST",
+        "path": "/v1/internal/configs/ops_home_feed/submit",
+        "query": {
+          "environment": "dev"
+        }
+      },
+      "status": 403,
+      "body": {
+        "type": "https://errors.market-sense.invalid/forbidden",
+        "title": "错误",
+        "status": 403,
+        "code": "FORBIDDEN",
+        "detail": "请求校验失败",
+        "trace_id": "trace-synthetic-0001"
+      },
+      "media_type": "application/json"
+    },
+    {
+      "name": "409 已有待审",
+      "request": {
+        "method": "POST",
+        "path": "/v1/internal/configs/ops_home_feed/submit",
+        "query": {
+          "environment": "dev"
+        }
+      },
+      "status": 409,
+      "body": {
+        "type": "https://errors.market-sense.invalid/conflict",
+        "title": "错误",
+        "status": 409,
+        "code": "CONFLICT",
+        "detail": "请求校验失败",
+        "trace_id": "trace-synthetic-0001"
+      },
+      "media_type": "application/json"
+    },
+    {
+      "name": "429 限流",
+      "request": {
+        "method": "POST",
+        "path": "/v1/internal/configs/ops_home_feed/submit",
+        "query": {
+          "environment": "dev"
+        }
+      },
+      "status": 429,
+      "body": {
+        "type": "https://errors.market-sense.invalid/rate_limited",
+        "title": "错误",
+        "status": 429,
+        "code": "RATE_LIMITED",
+        "detail": "请求校验失败",
+        "trace_id": "trace-synthetic-0001"
+      },
+      "media_type": "application/json"
+    },
+    {
+      "name": "500 内部错误",
+      "request": {
+        "method": "POST",
+        "path": "/v1/internal/configs/ops_home_feed/submit",
+        "query": {
+          "environment": "dev"
+        }
+      },
+      "status": 500,
+      "body": {
+        "type": "https://errors.market-sense.invalid/internal_error",
+        "title": "错误",
+        "status": 500,
+        "code": "INTERNAL_ERROR",
+        "detail": "请求校验失败",
+        "trace_id": "trace-synthetic-0001"
+      },
+      "media_type": "application/json"
+    }
+  ]
+}
