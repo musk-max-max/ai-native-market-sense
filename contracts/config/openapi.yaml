@@ -1,0 +1,1142 @@
+openapi: 3.1.0
+
+info:
+  title: market-sense-h5 · config（运营配置 Config Service）
+  version: 0.1.0
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+  description: |
+    运营配置 Config Service 契约（A14 KD-OPS-001 / A8 中后台 mock 适配层目标）。
+    本域只服务内部员工与调度器：所有路径位于 /v1/internal/，由 services/api 的默认拒绝
+    preHandler 强制 Bearer 身份；audience 由路径决定为 internal，不读客户端 header。
+    运营配置不是对外数据响应，不携带 ResponseMeta 的 source/as_of/entitlement/disclaimer；
+    它只保存对内容、素材、指标口径、审批账本的引用，不保存数据值。
+
+    状态机（L6）：draft 可编辑；published 不可原地修改；submit 生成审批单；
+    publish 需要可解析的 approval_ref，并生成不可变 release（snapshot + content_hash）。
+    回滚 = 切换 release 指针，不修改历史 release。
+
+    版本与冲突：version 是乐观锁（整数，从 1 开始）；PUT 必须带 If-Match（ETag "v<n>"），
+    冲突返回 409 + 三点 diff（base/current/submitted）；成功后 version+1。
+    发布灰度：canary_percent 固定 1–10，**全量参数不存在**（不是被忽略，是不在 schema 中；
+    传入未知字段按 400 拒绝）。灰度桶算法由服务端实现，发布期内同一 config_id + 匿名会话桶稳定。
+
+    结构真源：configs/ops/schema/ops-config.schema.json（JSON Schema 2020-12），
+    本契约的 OpsConfigDocument 必须与其字段、约束同步；schema_version 0.1 只增字段走 minor，
+    不得在 0.1 上放宽 additionalProperties。
+
+servers:
+  - url: https://api.market-sense.invalid
+    description: 占位域名（RFC 2606 .invalid），由 A13 在部署环境替换；路径含 /v1（决策 #1）
+
+tags:
+  - name: ops-config
+    description: 运营配置草稿读取、校验、保存、提交、发布与回滚
+  - name: ops-release
+    description: 不可变运营配置发布版本
+
+security:
+  - bearerAuth: []
+
+paths:
+
+  /v1/internal/configs:
+    get:
+      operationId: listOpsConfigs
+      tags: [ops-config]
+      summary: 列出运营配置
+      description: 按 updated_at 倒序；默认只列 published，可用 status=draft 查草稿。
+      parameters:
+        - $ref: '#/components/parameters/EnvironmentQuery'
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [draft, published]
+            default: published
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: 配置列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpsConfigList'
+        '400':
+          $ref: '../shared/openapi.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '../shared/openapi.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '../shared/openapi.yaml#/components/responses/Forbidden'
+        '429':
+          $ref: '../shared/openapi.yaml#/components/responses/TooManyRequests'
+        '500':
+          $ref: '../shared/openapi.yaml#/components/responses/InternalError'
+        default:
+          $ref: '../shared/openapi.yaml#/components/responses/ProblemResponse'
+
+  /v1/internal/configs/{config_id}:
+    parameters:
+      - $ref: '#/components/parameters/ConfigIdPath'
+      - $ref: '#/components/parameters/EnvironmentQuery'
+    get:
+      operationId: getOpsConfig
+      tags: [ops-config]
+      summary: 读取指定运营配置
+      description: |
+        返回 published 版本，或 status=draft 返回当前草稿。响应带 ETag（"v<n>"）。
+        published 响应必须带 meta.published_release；draft 可无 meta。
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [draft, published]
+            default: published
+      responses:
+        '200':
+          description: 运营配置文档
+          headers:
+            ETag:
+              description: 当前版本号，格式 "v<version>"
+              schema:
+                type: string
+                pattern: '^"v[0-9]+"$'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpsConfigDocument'
+        '400':
+          $ref: '../shared/openapi.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '../shared/openapi.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '../shared/openapi.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '../shared/openapi.yaml#/components/responses/NotFound'
+        '429':
+          $ref: '../shared/openapi.yaml#/components/responses/TooManyRequests'
+        '500':
+          $ref: '../shared/openapi.yaml#/components/responses/InternalError'
+        default:
+          $ref: '../shared/openapi.yaml#/components/responses/ProblemResponse'
+    put:
+      operationId: putOpsConfigDraft
+      tags: [ops-config]
+      summary: 保存运营配置草稿（乐观锁）
+      description: |
+        必须带 If-Match: "v<version>"（来自上一次 GET/PUT 的 ETag）。服务端校验结构
+        （JSON Schema 2020-12）和语义（V-01–V-12），失败返回 400 VALIDATION_ERROR，
+        detail 里带 errors[].path/code 供表单定位。版本冲突返回 409 + 三点 diff。
+        成功返回新版本，version+1；只写 draft，不改变 published。
+      parameters:
+        - $ref: '#/components/parameters/IfMatchHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpsConfigWrite'
+      responses:
+        '200':
+          description: 保存后的草稿
+          headers:
+            ETag:
+              description: 新版本号
+              schema:
+                type: string
+                pattern: '^"v[0-9]+"$'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpsConfigDocument'
+        '400':
+          $ref: '../shared/openapi.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '../shared/openapi.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '../shared/openapi.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '../shared/openapi.yaml#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/ConfigConflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '429':
+          $ref: '../shared/openapi.yaml#/components/responses/TooManyRequests'
+        '500':
+          $ref: '../shared/openapi.yaml#/components/responses/InternalError'
+        default:
+          $ref: '../shared/openapi.yaml#/components/responses/ProblemResponse'
+
+  /v1/internal/configs/{config_id}/validate:
+    parameters:
+      - $ref: '#/components/parameters/ConfigIdPath'
+      - $ref: '#/components/parameters/EnvironmentQuery'
+    post:
+      operationId: validateOpsConfig
+      tags: [ops-config]
+      summary: 校验运营配置（无副作用）
+      description: |
+        只读校验，不写 draft、不建审批单、不改 version。结构错误（JSON Schema）与语义错误
+        （V-01–V-12）分列返回；valid=false 时 HTTP 仍为 200，供 A8 逐字段定位。
+        本接口可离线/无副作用重试。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpsConfigWrite'
+      responses:
+        '200':
+          description: 校验报告
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationReport'
+        '400':
+          $ref: '../shared/openapi.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '../shared/openapi.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '../shared/openapi.yaml#/components/responses/Forbidden'
+        '429':
+          $ref: '../shared/openapi.yaml#/components/responses/TooManyRequests'
+        '500':
+          $ref: '../shared/openapi.yaml#/components/responses/InternalError'
+        default:
+          $ref: '../shared/openapi.yaml#/components/responses/ProblemResponse'
+
+  /v1/internal/configs/{config_id}/submit:
+    parameters:
+      - $ref: '#/components/parameters/ConfigIdPath'
+      - $ref: '#/components/parameters/EnvironmentQuery'
+    post:
+      operationId: submitOpsConfig
+      tags: [ops-config]
+      summary: 提交运营配置审批
+      description: |
+        对当前 draft 建审批单（T1 常规或 T3 文案），返回 A4 审批账本的 approval_ref。
+        approval_ref 只能由 A4 审批建单事务生成，本接口不接收；申请人不得预填。
+        T3 需带 policy_version，服务端校验与当前已签 policy 一致，否则 400。
+        draft 的 expected_version 必须与当前版本一致，否则 409。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitRequest'
+      responses:
+        '200':
+          description: 审批单已创建
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalSubmission'
+        '400':
+          $ref: '../shared/openapi.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '../shared/openapi.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '../shared/openapi.yaml#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/ApprovalConflict'
+        '429':
+          $ref: '../shared/openapi.yaml#/components/responses/TooManyRequests'
+        '500':
+          $ref: '../shared/openapi.yaml#/components/responses/InternalError'
+        default:
+          $ref: '../shared/openapi.yaml#/components/responses/ProblemResponse'
+
+  /v1/internal/configs/{config_id}/publish:
+    parameters:
+      - $ref: '#/components/parameters/ConfigIdPath'
+      - $ref: '#/components/parameters/EnvironmentQuery'
+    post:
+      operationId: publishOpsConfig
+      tags: [ops-config]
+      summary: 发布运营配置（生成不可变 release）
+      description: |
+        需要可解析、且状态为 approved 的 approval_ref（A4 账本具名记录，L51：不得申请人预填）。
+        服务端校验 approval_ref 与 config_id/version 的绑定、policy_version 与当前 rules 一致，
+        否则拒绝。canary_percent 必填且 1–10；服务端按 config_id + 匿名会话桶稳定分桶。
+        全量参数不存在：本 schema 没有全量字段，额外字段因 additionalProperties:false 被 400 拒绝。
+        成功后生成不可变 release（snapshot + sha256:...），并切换指针；version 不变（内容版本仍为
+        已审批的 draft version）。回滚见 rollback 接口。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublishRequest'
+      responses:
+        '200':
+          description: 已发布 release
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Release'
+        '400':
+          $ref: '../shared/openapi.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '../shared/openapi.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '../shared/openapi.yaml#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/ApprovalConflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '429':
+          $ref: '../shared/openapi.yaml#/components/responses/TooManyRequests'
+        '500':
+          $ref: '../shared/openapi.yaml#/components/responses/InternalError'
+        default:
+          $ref: '../shared/openapi.yaml#/components/responses/ProblemResponse'
+
+  /v1/internal/configs/{config_id}/rollback:
+    parameters:
+      - $ref: '#/components/parameters/ConfigIdPath'
+      - $ref: '#/components/parameters/EnvironmentQuery'
+    post:
+      operationId: rollbackOpsConfig
+      tags: [ops-config]
+      summary: 回滚到指定 release（切指针）
+      description: |
+        只切换 config 的当前 release 指针，不修改/删除任何历史 release。需要新的
+        approval_ref（审批账本的可解析记录），不得复用发布时的 approval_ref。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RollbackRequest'
+      responses:
+        '200':
+          description: 已切换指针
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Rollback'
+        '400':
+          $ref: '../shared/openapi.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '../shared/openapi.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '../shared/openapi.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '../shared/openapi.yaml#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/ApprovalConflict'
+        '429':
+          $ref: '../shared/openapi.yaml#/components/responses/TooManyRequests'
+        '500':
+          $ref: '../shared/openapi.yaml#/components/responses/InternalError'
+        default:
+          $ref: '../shared/openapi.yaml#/components/responses/ProblemResponse'
+
+  /v1/internal/configs/{config_id}/diff:
+    parameters:
+      - $ref: '#/components/parameters/ConfigIdPath'
+      - $ref: '#/components/parameters/EnvironmentQuery'
+    get:
+      operationId: diffOpsConfig
+      tags: [ops-config]
+      summary: 三点 diff（base/current/submitted）
+      description: |
+        按 version 取三个快照做字段级 diff。base 与 submitted 必填，current 缺省为当前版本。
+        用于 409 冲突响应和运营 rebase；只读、无副作用。
+      parameters:
+        - name: base
+          in: query
+          required: true
+          description: 基线版本号（整数）
+          schema:
+            type: integer
+            minimum: 1
+        - name: current
+          in: query
+          required: false
+          description: 当前版本号；缺省取服务端 current
+          schema:
+            type: integer
+            minimum: 1
+        - name: submitted
+          in: query
+          required: true
+          description: 提交版本号
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: 三点 diff
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ThreeWayDiff'
+        '400':
+          $ref: '../shared/openapi.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '../shared/openapi.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '../shared/openapi.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '../shared/openapi.yaml#/components/responses/NotFound'
+        '429':
+          $ref: '../shared/openapi.yaml#/components/responses/TooManyRequests'
+        '500':
+          $ref: '../shared/openapi.yaml#/components/responses/InternalError'
+        default:
+          $ref: '../shared/openapi.yaml#/components/responses/ProblemResponse'
+
+  /v1/internal/releases:
+    get:
+      operationId: listOpsReleases
+      tags: [ops-release]
+      summary: 列出运营配置 release
+      parameters:
+        - $ref: '#/components/parameters/EnvironmentQuery'
+        - name: config_id
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: '^ops_[a-z0-9_]{3,48}$'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: release 列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReleaseList'
+        '400':
+          $ref: '../shared/openapi.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '../shared/openapi.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '../shared/openapi.yaml#/components/responses/Forbidden'
+        '429':
+          $ref: '../shared/openapi.yaml#/components/responses/TooManyRequests'
+        '500':
+          $ref: '../shared/openapi.yaml#/components/responses/InternalError'
+        default:
+          $ref: '../shared/openapi.yaml#/components/responses/ProblemResponse'
+
+  /v1/internal/releases/{release_id}:
+    get:
+      operationId: getOpsRelease
+      tags: [ops-release]
+      summary: 读取 release 快照元数据
+      parameters:
+        - name: release_id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^rel_[0-9a-z-]{8,40}$'
+      responses:
+        '200':
+          description: release
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Release'
+        '400':
+          $ref: '../shared/openapi.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '../shared/openapi.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '../shared/openapi.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '../shared/openapi.yaml#/components/responses/NotFound'
+        '429':
+          $ref: '../shared/openapi.yaml#/components/responses/TooManyRequests'
+        '500':
+          $ref: '../shared/openapi.yaml#/components/responses/InternalError'
+        default:
+          $ref: '../shared/openapi.yaml#/components/responses/ProblemResponse'
+
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: A4 identity 签发的内部员工 access token；服务端同时校验 userType=internal_active 与 sessionVersion。
+
+  parameters:
+    ConfigIdPath:
+      name: config_id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^ops_[a-z0-9_]{3,48}$'
+    EnvironmentQuery:
+      name: environment
+      in: query
+      required: true
+      schema:
+        type: string
+        enum: [dev, staging, prod]
+    IfMatchHeader:
+      name: If-Match
+      in: header
+      required: true
+      description: 当前版本 ETag，格式 "v<version>"。
+      schema:
+        type: string
+        pattern: '^"v[0-9]+"$'
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 50
+        default: 20
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      schema:
+        type: string
+
+  responses:
+    ConfigConflict:
+      description: 版本冲突或与当前状态不一致；problem+json 的扩展 diff 提供三点差异。
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ConfigConflictProblem'
+    ApprovalConflict:
+      description: 审批状态/绑定不满足要求，或审批单不可解析/已失效。
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ApprovalConflictProblem'
+    PreconditionFailed:
+      description: If-Match 与当前版本不一致（412）。
+      content:
+        application/problem+json:
+          schema:
+            $ref: '../shared/openapi.yaml#/components/schemas/Problem'
+
+  schemas:
+
+    OpsConfigDocument:
+      type: object
+      additionalProperties: false
+      description: 运营配置文档（GET/PUT 顶层体），字段与 configs/ops/schema/ops-config.schema.json 同步。
+      required: [schema_version, config_id, environment, version, status, change_reason, impact_scope, spec]
+      properties:
+        schema_version:
+          type: string
+          const: '0.1'
+        config_id:
+          type: string
+          pattern: '^ops_[a-z0-9_]{3,48}$'
+        environment:
+          type: string
+          enum: [dev, staging, prod]
+        version:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+          enum: [draft, published]
+        change_reason:
+          type: string
+          minLength: 8
+          maxLength: 200
+        impact_scope:
+          type: array
+          minItems: 1
+          maxItems: 6
+          uniqueItems: true
+          items:
+            type: string
+            enum: [column_layout, content_copy, content_placement, ranking, rotation, visibility]
+        spec:
+          $ref: '#/components/schemas/OpsSpec'
+        meta:
+          $ref: '#/components/schemas/SystemMeta'
+
+    OpsConfigWrite:
+      type: object
+      additionalProperties: false
+      description: 保存/校验草稿的请求体；version/status/meta 由服务端维护，不在请求体。
+      required: [schema_version, config_id, environment, change_reason, impact_scope, spec]
+      properties:
+        schema_version:
+          type: string
+          const: '0.1'
+        config_id:
+          type: string
+          pattern: '^ops_[a-z0-9_]{3,48}$'
+        environment:
+          type: string
+          enum: [dev, staging, prod]
+        change_reason:
+          type: string
+          minLength: 8
+          maxLength: 200
+        impact_scope:
+          type: array
+          minItems: 1
+          maxItems: 6
+          uniqueItems: true
+          items:
+            type: string
+            enum: [column_layout, content_copy, content_placement, ranking, rotation, visibility]
+        spec:
+          $ref: '#/components/schemas/OpsSpec'
+
+    OpsSpec:
+      type: object
+      additionalProperties: false
+      required: [columns, content_items, strategies]
+      properties:
+        columns:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/Column'
+        content_items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/ContentItem'
+        strategies:
+          type: array
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/Strategy'
+
+    Column:
+      type: object
+      additionalProperties: false
+      required: [id, title, order]
+      properties:
+        id:
+          type: string
+          pattern: '^[a-z][a-z0-9_]{2,31}$'
+        title:
+          type: string
+          minLength: 1
+          maxLength: 20
+        subtitle:
+          type: string
+          minLength: 1
+          maxLength: 40
+        order:
+          type: integer
+          minimum: 0
+          maximum: 999
+        visible:
+          type: boolean
+          default: true
+        max_items:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 10
+
+    ContentItem:
+      type: object
+      additionalProperties: false
+      required: [id, kind, column_id, order]
+      properties:
+        id:
+          type: string
+          pattern: '^ci_[a-z0-9_]{3,40}$'
+        kind:
+          type: string
+          enum: [editorial, data_card, banner]
+        column_id:
+          type: string
+          pattern: '^[a-z][a-z0-9_]{2,31}$'
+        order:
+          type: integer
+          minimum: 0
+          maximum: 999
+        visible:
+          type: boolean
+          default: true
+        content_ref:
+          type: string
+          pattern: '^cnt_[a-z0-9_]{6,40}$'
+        asset_ref:
+          type: string
+          pattern: '^ast_[a-z0-9_]{6,40}$'
+        display_title:
+          type: string
+          minLength: 1
+          maxLength: 30
+        summary:
+          type: string
+          minLength: 1
+          maxLength: 80
+        target_route:
+          type: string
+          pattern: '^/(?:[a-z0-9_-]+)(?:/[a-z0-9_{}-]+)*$'
+        display_window:
+          $ref: '#/components/schemas/DisplayWindow'
+
+    DisplayWindow:
+      type: object
+      additionalProperties: false
+      required: [start_at, end_at]
+      properties:
+        start_at:
+          type: string
+          format: date-time
+        end_at:
+          type: string
+          format: date-time
+        timezone:
+          type: string
+          const: Asia/Shanghai
+
+    Strategy:
+      oneOf:
+        - $ref: '#/components/schemas/RankingStrategy'
+        - $ref: '#/components/schemas/RotationStrategy'
+      discriminator:
+        propertyName: type
+        mapping:
+          ranking: '#/components/schemas/RankingStrategy'
+          rotation: '#/components/schemas/RotationStrategy'
+
+    RankingStrategy:
+      type: object
+      additionalProperties: false
+      required: [type, id, metric_id, metric_label, universe, window, limit, title_template, personalized]
+      properties:
+        type:
+          type: string
+          const: ranking
+        id:
+          type: string
+          pattern: '^st_[a-z0-9_]{2,32}$'
+        metric_id:
+          type: string
+          pattern: '^M[0-9]{2}$'
+        metric_label:
+          type: string
+          minLength: 1
+          maxLength: 12
+        universe:
+          type: string
+          enum: [all_a, main_board]
+        window:
+          type: string
+          enum: [1d, 5d, 20d]
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 10
+        title_template:
+          type: string
+          minLength: 4
+          maxLength: 40
+        schedule:
+          type: string
+          enum: [eod, manual]
+          default: eod
+        personalized:
+          type: boolean
+          const: false
+        enabled:
+          type: boolean
+          default: true
+
+    RotationStrategy:
+      type: object
+      additionalProperties: false
+      required: [type, id, max_items, interval_seconds]
+      properties:
+        type:
+          type: string
+          const: rotation
+        id:
+          type: string
+          pattern: '^st_[a-z0-9_]{2,32}$'
+        max_items:
+          type: integer
+          minimum: 1
+          maximum: 20
+          default: 5
+        interval_seconds:
+          type: integer
+          minimum: 3
+          maximum: 30
+          default: 8
+        enabled:
+          type: boolean
+          default: true
+
+    Actor:
+      type: object
+      additionalProperties: false
+      description: 操作者；agent 必须带 model_version，供「这次是 A14 还是张三改的」留痕。
+      required: [kind, id]
+      properties:
+        kind:
+          type: string
+          enum: [human, agent]
+        id:
+          type: string
+          minLength: 1
+          maxLength: 64
+        model_version:
+          type: string
+          minLength: 1
+          maxLength: 64
+
+    SystemMeta:
+      type: object
+      additionalProperties: false
+      description: 系统只读字段；请求体携带即 400 INVALID_SYSTEM_FIELD（code=VALIDATION_ERROR）。
+      properties:
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        created_by:
+          $ref: '#/components/schemas/Actor'
+        published_release:
+          $ref: '#/components/schemas/ReleaseMeta'
+
+    ReleaseMeta:
+      type: object
+      additionalProperties: false
+      required: [release_id, published_at, approval_ref, content_hash, schema_version, policy_version]
+      properties:
+        release_id:
+          type: string
+          pattern: '^rel_[0-9a-z-]{8,40}$'
+        published_at:
+          type: string
+          format: date-time
+        approval_ref:
+          type: string
+          pattern: '^apr_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+        content_hash:
+          type: string
+          pattern: '^sha256:[0-9a-f]{64}$'
+        schema_version:
+          type: string
+          const: '0.1'
+        policy_version:
+          type: string
+          pattern: '^ai-content-policy/[0-9]+\.[0-9]+\.[0-9]+$'
+
+    OpsConfigList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OpsConfigDocument'
+        next_cursor:
+          type: [string, 'null']
+
+    ValidationReport:
+      type: object
+      additionalProperties: false
+      required: [valid, structural_errors, semantic_errors]
+      properties:
+        valid:
+          type: boolean
+        structural_errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationIssue'
+        semantic_errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationIssue'
+        normalized_hash:
+          type: string
+          pattern: '^sha256:[0-9a-f]{64}$'
+
+    ValidationIssue:
+      type: object
+      additionalProperties: false
+      required: [path, code, message]
+      properties:
+        path:
+          type: string
+          description: JSON Pointer（如 /spec/columns/0/order）
+        code:
+          type: string
+          description: 结构错误码或 V-01–V-12 语义错误码
+        message:
+          type: string
+
+    SubmitRequest:
+      type: object
+      additionalProperties: false
+      required: [change_reason, impact_scope, expected_version]
+      properties:
+        change_reason:
+          type: string
+          minLength: 8
+          maxLength: 200
+        impact_scope:
+          type: array
+          minItems: 1
+          maxItems: 6
+          uniqueItems: true
+          items:
+            type: string
+            enum: [column_layout, content_copy, content_placement, ranking, rotation, visibility]
+        expected_version:
+          type: integer
+          minimum: 1
+        policy_version:
+          type: string
+          pattern: '^ai-content-policy/[0-9]+\.[0-9]+\.[0-9]+$'
+          description: T3 文案审批必填：当前已签 policy 版本；服务端校验一致性。
+
+    ApprovalSubmission:
+      type: object
+      additionalProperties: false
+      required: [approval_ref, application_id, flow, status, submitted_at]
+      properties:
+        approval_ref:
+          type: string
+          pattern: '^apr_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+        application_id:
+          type: string
+          minLength: 1
+        flow:
+          type: string
+          enum: [T1, T3]
+        status:
+          type: string
+          enum: [submitted]
+        submitted_at:
+          type: string
+          format: date-time
+
+    PublishRequest:
+      type: object
+      additionalProperties: false
+      required: [approval_ref, expected_version, canary_percent]
+      properties:
+        approval_ref:
+          type: string
+          pattern: '^apr_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+        expected_version:
+          type: integer
+          minimum: 1
+        canary_percent:
+          type: integer
+          minimum: 1
+          maximum: 10
+          description: 灰度百分比，只能 1–10；无全量字段（全量请求不存在，而不是被忽略）。
+        release_notes:
+          type: string
+          maxLength: 500
+
+    RollbackRequest:
+      type: object
+      additionalProperties: false
+      required: [target_release_id, approval_ref]
+      properties:
+        target_release_id:
+          type: string
+          pattern: '^rel_[0-9a-z-]{8,40}$'
+        approval_ref:
+          type: string
+          pattern: '^apr_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+        reason:
+          type: string
+          minLength: 8
+          maxLength: 500
+
+    Release:
+      type: object
+      additionalProperties: false
+      required: [release_id, config_id, environment, version, schema_version, policy_version, content_hash, published_at, approval_ref, canary_percent]
+      properties:
+        release_id:
+          type: string
+          pattern: '^rel_[0-9a-z-]{8,40}$'
+        config_id:
+          type: string
+          pattern: '^ops_[a-z0-9_]{3,48}$'
+        environment:
+          type: string
+          enum: [dev, staging, prod]
+        version:
+          type: integer
+          minimum: 1
+        schema_version:
+          type: string
+          const: '0.1'
+        policy_version:
+          type: string
+          pattern: '^ai-content-policy/[0-9]+\.[0-9]+\.[0-9]+$'
+        content_hash:
+          type: string
+          pattern: '^sha256:[0-9a-f]{64}$'
+        published_at:
+          type: string
+          format: date-time
+        approval_ref:
+          type: string
+          pattern: '^apr_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+        canary_percent:
+          type: integer
+          minimum: 1
+          maximum: 10
+        release_notes:
+          type: string
+          maxLength: 500
+
+    Rollback:
+      type: object
+      additionalProperties: false
+      required: [config_id, environment, release_id, previous_release_id, approval_ref, rolled_back_at]
+      properties:
+        config_id:
+          type: string
+          pattern: '^ops_[a-z0-9_]{3,48}$'
+        environment:
+          type: string
+          enum: [dev, staging, prod]
+        release_id:
+          type: string
+          pattern: '^rel_[0-9a-z-]{8,40}$'
+        previous_release_id:
+          type: string
+          pattern: '^rel_[0-9a-z-]{8,40}$'
+        approval_ref:
+          type: string
+          pattern: '^apr_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+        rolled_back_at:
+          type: string
+          format: date-time
+
+    ReleaseList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Release'
+        next_cursor:
+          type: [string, 'null']
+
+    DiffValue:
+      description: 任意 JSON 值（用于 diff 的 base/current/submitted）
+      oneOf:
+        - type: 'null'
+        - type: boolean
+        - type: number
+        - type: string
+        - type: object
+        - type: array
+
+    FieldChange:
+      type: object
+      additionalProperties: false
+      required: [path, kind]
+      properties:
+        path:
+          type: string
+          description: JSON Pointer
+        kind:
+          type: string
+          enum: [added, removed, modified]
+        base:
+          $ref: '#/components/schemas/DiffValue'
+        current:
+          $ref: '#/components/schemas/DiffValue'
+        submitted:
+          $ref: '#/components/schemas/DiffValue'
+
+    FieldConflict:
+      type: object
+      additionalProperties: false
+      required: [path, reason]
+      properties:
+        path:
+          type: string
+        reason:
+          type: string
+          enum: [both_modified, base_removed_current_modified, base_modified_current_removed]
+        base:
+          $ref: '#/components/schemas/DiffValue'
+        current:
+          $ref: '#/components/schemas/DiffValue'
+        submitted:
+          $ref: '#/components/schemas/DiffValue'
+
+    ThreeWayDiff:
+      type: object
+      additionalProperties: false
+      required: [config_id, environment, base_version, current_version, submitted_version, changes, conflicts]
+      properties:
+        config_id:
+          type: string
+          pattern: '^ops_[a-z0-9_]{3,48}$'
+        environment:
+          type: string
+          enum: [dev, staging, prod]
+        base_version:
+          type: integer
+          minimum: 1
+        current_version:
+          type: integer
+          minimum: 1
+        submitted_version:
+          type: integer
+          minimum: 1
+        changes:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldChange'
+        conflicts:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldConflict'
+
+    ConfigConflictProblem:
+      allOf:
+        - $ref: '../shared/openapi.yaml#/components/schemas/Problem'
+        - type: object
+          additionalProperties: false
+          required: [diff]
+          properties:
+            diff:
+              $ref: '#/components/schemas/ThreeWayDiff'
+
+    ApprovalConflictProblem:
+      allOf:
+        - $ref: '../shared/openapi.yaml#/components/schemas/Problem'
+        - type: object
+          additionalProperties: false
+          properties:
+            approval_ref:
+              type: string
+            current_status:
+              type: string

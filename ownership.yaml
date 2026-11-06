@@ -44,6 +44,24 @@ paths:
     reviewers: [H4]
     forbidden: ["*"]
 
+  # ---------- 运营配置与审批（A14/A15，2026-11-06 激活） ----------
+  # 注：reviewers 只登记人类席位（README §3 / path-guard 强制 H1–H6）；
+  # A0 的架构/契约评审走 handoff 与 PR 评审，不写进 reviewers 字段。
+  - path: configs/ops/
+    owner: A14
+    reviewers: [H3]
+    forbidden: ["*"]
+
+  - path: configs/rbac/
+    owner: A15
+    reviewers: [H2]
+    forbidden: ["*"]
+
+  - path: approvals/
+    owner: A15
+    reviewers: [H2]
+    forbidden: ["*"]
+
   # ---------- 文档与数据口径 ----------
   - path: docs/runbook/
     owner: A13
@@ -217,9 +235,6 @@ notes:
   reserved_paths:
     - { path: services/workflow-adapter/, owner: A4 }
     - { path: rules/, owner: A5 }
-    - { path: configs/ops/, owner: A14 }
-    - { path: configs/rbac/, owner: A15 }
-    - { path: approvals/, owner: A15 }
     - { path: reviews/compliance/, owner: A16 }
     - { path: crm/playbooks/, owner: A17 }
     - { path: security/, owner: A9 }
