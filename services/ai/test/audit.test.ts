@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { hashCanonicalJson } from '@market-sense/ai-policy';
+import {
+  computeInputEvidenceHash,
+  computeOutputHash,
+} from '@market-sense/ai-policy';
 
 import {
   AI_GENERATION_INSERT_SQL,
@@ -12,7 +15,12 @@ import {
 } from '../src/postprocess/audit.js';
 import { runPostprocessHost, type PostprocessContext } from '../src/postprocess/host.js';
 
-const hash = (value: unknown): string => hashCanonicalJson(value);
+const inputEvidenceHash = computeInputEvidenceHash({
+  kind: 'stock_interpretation',
+  audience: 'c_end',
+  asOf: '2026-11-06T08:00:00.000Z',
+  evidence: [{ id: 'e1', text: '区间收益 3%', numbers: [3] }],
+});
 
 function validEvent(): AiGenerationAuditEvent {
   return {
@@ -23,10 +31,12 @@ function validEvent(): AiGenerationAuditEvent {
     kind: 'stock_interpretation',
     modelFamily: 'fake-v1',
     promptVersion: 'prompt-1',
-    policyVersion: 'ai-content-policy/1.1.0',
+    policyVersion: 'ai-content-policy/1.1.1',
     contentVersion: 'copy-1',
-    inputEvidenceHash: hash({ id: 'e1', numbers: [3] }),
-    outputHash: hash({ text: '数据显示，区间收益 3%' }),
+    inputEvidenceHash,
+    outputHash: computeOutputHash([
+      { text: '数据显示，区间收益 3%', class: 'metrics', evidence_ids: ['e1'] },
+    ]),
     postprocessActions: [],
     decision: 'passed',
     asOf: '2026-11-06T08:00:00.000Z',
@@ -67,6 +77,28 @@ test('P8 writer：17 列 INSERT 与参数顺序，不写触发器计算列', asy
   assert.equal(values[14], 'passed');
   assert.equal(values[16], '2026-11-06T08:00:00.000Z');
   assert.deepEqual(JSON.parse(String(values[13])), event.postprocessActions);
+});
+
+test('P8 writer：event_key 唯一冲突按已记录幂等成功，其他唯一冲突 fail-closed', async () => {
+  const duplicate = new Error('duplicate') as Error & { code: string; constraint: string };
+  duplicate.code = '23505';
+  duplicate.constraint = 'ai_generation_events_event_key_uq';
+  const idempotent = createAiGenerationAuditWriter({
+    async query() {
+      throw duplicate;
+    },
+  });
+  await assert.doesNotReject(() => idempotent(validEvent()));
+
+  const other = new Error('other duplicate') as Error & { code: string; constraint: string };
+  other.code = '23505';
+  other.constraint = 'some_other_uq';
+  const failClosed = createAiGenerationAuditWriter({
+    async query() {
+      throw other;
+    },
+  });
+  await assert.rejects(() => failClosed(validEvent()), /other duplicate/u);
 });
 
 test('P8 writer：应用侧按 DDL 契约 fail-closed（缺 content_version）', async () => {
@@ -164,7 +196,7 @@ test('P8 集成：host 把策略 actions 写进审计事件（经 writer 落库�
   });
   const context: PostprocessContext = {
     audience: 'c_end',
-    policyVersion: 'ai-content-policy/1.1.0',
+    policyVersion: 'ai-content-policy/1.1.1',
     entitlement: {
       audience: 'c_end',
       displayAllowed: true,
@@ -178,7 +210,7 @@ test('P8 集成：host 把策略 actions 写进审计事件（经 writer 落库�
     promptVersion: 'prompt-1',
     contentVersion: 'copy-1',
     asOf: '2026-11-06T08:00:00.000Z',
-    inputEvidenceHash: hash({ evidence: ['e1'] }),
+    inputEvidenceHash,
   };
   const result = await runPostprocessHost(
     { draft: { claims: [] }, evidence: [] },
@@ -189,6 +221,9 @@ test('P8 集成：host 把策略 actions 写进审计事件（经 writer 落库�
           return {
             blocked: true,
             reasonCodes: ['investment_advice'],
+            outputClaims: [
+              { text: '建议买入', class: 'objective_fields', evidence_ids: ['e1'] },
+            ],
             actions: [
               {
                 stage: 'P5',
@@ -209,6 +244,12 @@ test('P8 集成：host 把策略 actions 写进审计事件（经 writer 落库�
   const values = calls[0]?.values ?? [];
   assert.equal(values[0], 'req-p8-host');
   assert.equal(values[14], 'blocked');
+  assert.equal(
+    values[12],
+    computeOutputHash([
+      { text: '建议买入', class: 'objective_fields', evidence_ids: ['e1'] },
+    ]),
+  );
   assert.deepEqual(JSON.parse(String(values[13])), [
     {
       stage: 'P5',

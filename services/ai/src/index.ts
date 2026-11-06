@@ -23,6 +23,7 @@ export type { PostprocessContext as SkeletonPostprocessContext, PostprocessResul
 export {
   PostprocessBlockedError,
   PostprocessHostError,
+  assertAuditContextReady,
   runPostprocessHost,
 } from './postprocess/host.js';
 export { createAiPolicyEvaluator, rewriteDraft } from './postprocess/policy-evaluator.js';

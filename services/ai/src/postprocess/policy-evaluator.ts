@@ -11,9 +11,11 @@
 
 import { loadAiContentPolicy } from '@market-sense/compliance';
 import {
+  collectClaims,
   runAiPolicy,
   type AiContentPolicy,
   type AiDraft,
+  type AuditOutputClaim,
   type Claim,
   type EvidenceItem,
   type PolicyResult,
@@ -76,15 +78,38 @@ export function rewriteDraft(draft: AiDraft, claims: readonly { text: string }[]
   };
 }
 
+/**
+ * P2–P6 后的最终 claim（P6 改写后的 text，保留 class/evidence_ids 与输出顺序）。
+ * 只用于 A5 `computeOutputHash`，不参与用户可见文案拼接。
+ */
+function outputClaimsFromResult(result: PolicyResult, draft: AiDraft): AuditOutputClaim[] {
+  const sourceClaims = collectClaims(draft);
+  return result.claims.map((claim) => {
+    const source = sourceClaims[claim.index];
+    if (source === undefined) {
+      throw new Error(`runAiPolicy 返回未知 claim_index=${claim.index}，拒绝生成审计 hash`);
+    }
+    // P2 class_missing 时原 claim 没有 class；审计 hash 用 data_gaps 占位（判定仍 blocked），
+    // 保证 P8 不因缺 class 抛错。A5 若要求其他占位口径再对齐。
+    return {
+      text: claim.text,
+      class: source.class ?? 'data_gaps',
+      evidence_ids: [...source.evidence_ids],
+    };
+  });
+}
+
 function toVerdict(result: PolicyResult, input: PostprocessDraftInput): PolicyVerdict {
   const actions = postprocessActionsFromViolations(result.violations);
+  const outputClaims = outputClaimsFromResult(result, input.draft);
   if (result.decision === 'blocked') {
-    return { blocked: true, reasonCodes: result.reason_codes, actions };
+    return { blocked: true, reasonCodes: result.reason_codes, actions, outputClaims };
   }
   return {
     blocked: false,
     reasonCodes: result.reason_codes,
     actions,
+    outputClaims,
     output: {
       ...input,
       draft: rewriteDraft(input.draft, result.claims),

@@ -13,7 +13,7 @@
  *  - 用户可见文案由 api 注入，本层不写中文文案、不写供应商/模型名。
  */
 
-import { hashCanonicalJson } from '@market-sense/ai-policy';
+import { computeOutputHash, type AuditOutputClaim } from '@market-sense/ai-policy';
 
 import {
   assertValidAiGenerationAuditEvent,
@@ -41,7 +41,7 @@ export interface PostprocessContext {
   readonly analysisId?: string;
   readonly traceId?: string;
 
-  // P8 审计元数据（A5 1.1.0 DDL 必填）。只有注入 audit 时才强制校验，
+  // P8 审计元数据（A5 1.1.1 DDL 必填）。只有注入 audit 时才强制校验，
   // 未接审计的骨架/测试路径可缺省；请求路径一旦开审计，缺字段即 P8 失败。
   /** 统一请求 id，P8 event_key 身份（chat/analyses 共用）。 */
   readonly requestId?: string;
@@ -56,7 +56,7 @@ export interface PostprocessContext {
   readonly labelVersion?: string;
   /** 数据业务时点（ISO-8601），不是 occurred_at。 */
   readonly asOf?: string;
-  /** 输入证据集的 `hashCanonicalJson()`；由取数方计算，host 不复算 canonical。 */
+  /** 输入证据集 hash，由取数方调用 A5 `computeInputEvidenceHash()` 计算，host 不复算。 */
   readonly inputEvidenceHash?: string;
 }
 
@@ -68,6 +68,8 @@ export interface PolicyVerdict {
   readonly output?: unknown;
   /** P2–P6 命中/改写记录，供 P8 `postprocess_actions` 留痕；不含用户文案。 */
   readonly actions?: readonly AiGenerationPostprocessAction[];
+  /** P2–P6 后的最终 claim（P6 改写后文本），供 A5 `computeOutputHash`；blocked 时为被阻断候选。 */
+  readonly outputClaims?: readonly AuditOutputClaim[];
 }
 
 export interface PolicyEvaluator {
@@ -117,11 +119,29 @@ export class PostprocessHostError extends Error {
   }
 }
 
+/**
+ * 请求校验阶段可提前调用：P8 必填元数据缺失时抛 P8（API 应在调用模型前调用，
+ * 避免生成完成后才失败）。host 注入 audit 时也会先执行本校验。
+ */
+export function assertAuditContextReady(context: PostprocessContext): void {
+  requiredAuditField(context.requestId, 'request_id');
+  requiredAuditField(context.userId, 'user_id');
+  requiredAuditField(context.kind, 'kind');
+  requiredAuditField(context.modelFamily, 'model_family');
+  requiredAuditField(context.promptVersion, 'prompt_version');
+  requiredAuditField(context.contentVersion, 'content_version');
+  requiredAuditField(context.asOf, 'as_of');
+  requiredAuditField(context.inputEvidenceHash, 'input_evidence_hash');
+}
+
 export async function runPostprocessHost<T>(
   input: T,
   context: PostprocessContext,
   options: PostprocessHostOptions = {},
 ): Promise<PostprocessHostResult<T>> {
+  if (options.audit !== undefined) {
+    assertAuditContextReady(context);
+  }
   // P0：授权判定（由 market 传入）。阻断必须发生在 LLM 之前；这里只是执行宿主，不重做 gate。
   if (context.entitlement.blocked) {
     throw new PostprocessBlockedError();
@@ -154,7 +174,7 @@ export async function runPostprocessHost<T>(
   // P8 审计：失败即请求失败（不能"生成完但没留痕"）。
   if (options.audit !== undefined) {
     try {
-      await options.audit(buildAuditEvent(context, verdict, output, blocked));
+      await options.audit(buildAuditEvent(context, verdict, blocked));
     } catch (error) {
       if (error instanceof PostprocessHostError) {
         // 已在 buildAuditEvent 内标明具体缺失字段/非法结构；不要用泛化文案覆盖。
@@ -174,11 +194,10 @@ function requiredAuditField<T>(value: T | undefined, field: string): T {
   return value;
 }
 
-/** 组装 A5 1.1.0 的 P8 事件；字段缺失/结构非法先在应用侧失败，不把 23514 留到 DB。 */
-function buildAuditEvent<T>(
+/** 组装 A5 1.1.1 的 P8 事件；字段缺失/结构非法先在应用侧失败，不把 23514 留到 DB。 */
+function buildAuditEvent(
   context: PostprocessContext,
   verdict: PolicyVerdict,
-  output: T | DegradedDataCard,
   blocked: boolean,
 ): AiGenerationAuditEvent {
   const requestId = requiredAuditField(context.requestId, 'request_id');
@@ -192,9 +211,10 @@ function buildAuditEvent<T>(
 
   let outputHash: string;
   try {
-    outputHash = hashCanonicalJson(output);
+    // A5 1.1.1：模型输出/被阻断候选 claim 的 hash，不是降级卡/最终展示结构。
+    outputHash = computeOutputHash([...(verdict.outputClaims ?? [])]);
   } catch (error) {
-    throw new PostprocessHostError('P8', 'postprocess 输出无法 canonical 序列化', { cause: error });
+    throw new PostprocessHostError('P8', 'postprocess 输出 claims 无法 canonical 序列化', { cause: error });
   }
 
   const event: AiGenerationAuditEvent = {

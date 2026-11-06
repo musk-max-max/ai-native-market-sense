@@ -94,6 +94,11 @@ test('ai-policy 装配：P6 非白名单前缀改写为「数据显示，…」'
   assert.equal(result.blocked, false);
   const output = result.output as typeof input;
   assert.equal(output.draft.claims[0]?.text, '数据显示，该股上涨 3%');
+  // P8 output_hash 的输入：P6 改写后的最终 claim（class/evidence_ids 保留，顺序不变）。
+  const verdict = await evaluator.evaluate(input, context);
+  assert.deepEqual(verdict.outputClaims, [
+    { text: '数据显示，该股上涨 3%', class: 'metrics', evidence_ids: ['e1'] },
+  ]);
 });
 
 test('ai-policy 装配：P4 模型自算数字无证据 → blocked', async () => {

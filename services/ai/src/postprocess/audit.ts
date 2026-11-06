@@ -7,8 +7,9 @@
  *  - 生成固定列级 INSERT（不写 event_key/prev_hash/hash/occurred_at，触发器权威计算）；
  *  - 提供可注入的 query 执行器（生产注入 pg.Pool，测试注入 fake）。
  *
- * input_evidence_hash / output_hash 由调用方用 `@market-sense/ai-policy` 导出的
- * `hashCanonicalJson()` 计算，禁止在本文件里另写 canonical 序列化（A5 1.1.0）。
+ * input_evidence_hash / output_hash 由 `@market-sense/ai-policy` 的
+ * `computeInputEvidenceHash()` / `computeOutputHash()` 计算，禁止在本文件里另写
+ * canonical 序列化（A5 1.1.1）。
  */
 
 import type { PolicyViolation } from '@market-sense/ai-policy';
@@ -164,31 +165,48 @@ export const AI_GENERATION_INSERT_SQL = `INSERT INTO audit.ai_generation_events 
 export type AiGenerationAuditWriter = (event: AiGenerationAuditEvent) => Promise<void>;
 
 /**
- * 构造 P8 写入器。query 抛错/DB 拒绝都必须向上抛，由 `runPostprocessHost`
- * 映射为 P8 失败（不得吞掉后继续返回文案）。
+ * 构造 P8 写入器。除 event_key 唯一冲突按“该尝试已记录”幂等成功外，
+ * query 抛错/DB 拒绝都必须向上抛，由 `runPostprocessHost` 映射为 P8 失败。
+ */
+function isEventKeyConflict(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false;
+  const candidate = error as { code?: unknown; constraint?: unknown };
+  return (
+    candidate.code === '23505' && candidate.constraint === 'ai_generation_events_event_key_uq'
+  );
+}
+
+/**
+ * 同一 request_id 只允许一条最终事件；唯一键冲突按“该尝试已记录”幂等成功。
+ * 其他唯一冲突/校验错误一律抛出（fail-closed）。不做 SELECT 预查。
  */
 export function createAiGenerationAuditWriter(query: AuditQuery): AiGenerationAuditWriter {
   return async (event) => {
     assertValidAiGenerationAuditEvent(event);
-    await query.query(AI_GENERATION_INSERT_SQL, [
-      event.requestId,
-      event.analysisId ?? null,
-      event.audience,
-      event.userId,
-      event.kind,
-      event.modelFamily,
-      event.modelId ?? null,
-      event.promptVersion,
-      event.policyVersion,
-      event.contentVersion,
-      event.labelVersion ?? null,
-      event.inputEvidenceHash,
-      event.outputHash,
-      JSON.stringify(event.postprocessActions),
-      event.decision,
-      event.traceId ?? null,
-      event.asOf,
-    ]);
+    try {
+      await query.query(AI_GENERATION_INSERT_SQL, [
+        event.requestId,
+        event.analysisId ?? null,
+        event.audience,
+        event.userId,
+        event.kind,
+        event.modelFamily,
+        event.modelId ?? null,
+        event.promptVersion,
+        event.policyVersion,
+        event.contentVersion,
+        event.labelVersion ?? null,
+        event.inputEvidenceHash,
+        event.outputHash,
+        JSON.stringify(event.postprocessActions),
+        event.decision,
+        event.traceId ?? null,
+        event.asOf,
+      ]);
+    } catch (error) {
+      if (isEventKeyConflict(error)) return;
+      throw error;
+    }
   };
 }
 
