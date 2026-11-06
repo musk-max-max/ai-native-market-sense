@@ -1723,3 +1723,21 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 **生效**：2026-11-06 22:47。影响席：A7（E2E 域属）、A6（badge 接线）、H3（签发）。
 
 
+### L146 — G-03 四 B 级缺口修复 + approval 首入库（A4，L0 亲验，2026-11-06 23:16）
+
+**A4 交付**：commit 36b2851（21 files/+4873，services/approval 全树首入库 + services/identity/docs/G-03-判定材料）。四 B 级缺口修复：
+- **B1 断链**：loadOrThrow 接 verifyChain，断链 throw DomainError(500,'ledger_integrity_failure')——停用单+出壳进日志，fail-closed 不静默修复。
+- **B2 多步写非原子**：DomainStore.transaction()（PG BEGIN/COMMIT/ROLLBACK+重入并入；memory 快照回滚+串行）；create/decide/evaluate/putDraft/submit/publish/rollback 七处全包事务，审计随事务回滚；修 publish 忽略 consumeBinding 返回值→null 补 409 approval_ref_reuse。
+- **B3 submit 幂等**：新增 findActiveSubmission——同内容四字段全等→重放原单；异内容→409 approval_state_conflict；驳回重提→新建单（R9 保住）。
+- **B4 actor 显式**：agent 缺/空/超64 x-model-version→400 写前 fail-fast，不再 unknown 落审计（human 不受影响）。附带 B5：cursor 非 ^[0-9]{1,15}$→400（原 parseInt NaN 静默空页）。
+
+**仓库卫生（L0 P0 升级）**：services/approval 此前从未 git commit——infra/ci/typecheck.mjs 遍历磁盘 tsconfig，把它算进 10/10，任何人 clone 后 typecheck 会 FAIL（本机磁盘假象）。A4 首入库后 git ls-tree HEAD services/approval 非空（20 文件），node_modules 经根 .gitignore 排除。clone 假象消除。
+
+**L0 亲验门禁**：typecheck **10/10**；approval test **12/12**（断链/7 处注入式故障回滚/幂等三态/cursor/actor）；identity **45P/0F**（recordApprovalDenied 未回退）。
+
+**Open**：approval 契约判定（specimens WARN response-property-pattern-changed 等，非破坏性）待 H2 判；AI-1 request-id 头契约性待 H2（L142）、签发 H3；A6 badge 接线中；tushare 授权 0/3、安全半 3/3、SEC-011 = owner/H3。
+
+**生效**：2026-11-06 23:16。影响席：A4（approval/identity 域属）、H2（判契约）。
+
+
+
