@@ -58,7 +58,7 @@ SCOPES = (
 def excluded(rel: str) -> bool:
     if any(rel.startswith(prefix) for prefix in RAW_LAYER + EXEMPT_TREES):
         return True
-    # L83（H2 签）：测试宿主既可能是 `/tests/`（复数）也可能是服务侧 `/test/`（单数），
+    # L83 裁定（Lead）；H2 未签：测试宿主既可能是 `/tests/`（复数）也可能是服务侧 `/test/`（单数），
     # 两者语义相同（fixture 合法承载源格式），排除范围必须同时覆盖；单数目录属
     # 「测试宿主排除项」，不加入 EXEMPT_TREES 正向清单（L81 边界保持不变）。
     return "/tests/" in rel or "/test/" in rel or rel.endswith(".md")
