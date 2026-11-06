@@ -1769,4 +1769,30 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 
 
 
+### L148 — Console P1-6 adapter 层入库 + AKshare sync 脚本 + tushare per_board（2026-11-07 01:00）
+
+**范围**：Console adapters/ 首入库（89ebffd）+ adapters.test.ts 10 用例（6b56d00）+ AKshare realtime sync 脚本（ae4342c）+ tushare dc_member per_board 补完（8cde242）。本轮四项均为 L0 亲跑，A3/A4/A6/A7 保持 inactive。
+
+**交付**：
+
+- **Console adapters/**（P1-6 adapter 层，A6 写域已入库）：contract-types.ts（Wire* 契约线格式）+ http-common.ts（requestJson/HttpProblemError/JSON Pointer/文档扁平化/Idempotency-Key）+ config-ids.ts（UI key↔canonical config_id）。契约对齐 contracts/config + contracts/approval；success 不套 shared ResponseMeta、4xx 均 problem+json。app.test + backend.test + adapters.test = **26 passed**（16 旧+10 新），仓库级 typecheck **10/10** PASS。
+  - adapters.test.ts 10 用例覆盖 requestJson（200/4xx/NON_JSON fallback）+ JSON Pointer RFC6901（~0/~1）+ flattenWriteBody/patchWriteBody 深拷贝 + toWriteBody 剥 version/status/meta（契约硬要求）+ config-ids 双向/未知/NOT_FOUND。
+  - **Open**：App.tsx 仍 MockBackend（services 字段），P1-6 接线待真 /v1 隧道恢复（本轮 SSH 隧道 down，ECS API 13001 直连 000，故走注入 HttpFetch 离线验证）。
+
+- **AKshare realtime sync**（A1 域，L0 代跑）：services/ingest/scripts/sync_realtime_quotes.py（153 行），从 AKshare（东方财富源）拉 A 股全市场快照 UPSERT 到 dwd_realtime_quote。文件头明写 AKshare=爬虫封装东方财富、F1 residual、仅内部研究/展示域、C 端商用需另行授权（SEC-012 未放行）。py_compile PASS，adapter 层（29737be）ingest 219 passed。
+  - **Open**：脚本本身不构成 SEC-012 闭环；C 端展示放行待 H3/H4 裁（红线①同源）。
+
+- **tushare dc_member per_board**（A1 域）：adapter.py 新增 board_codes 参数 + per_board 分支（.DC 板块代码迭代），缺 board_codes 抛 InvalidRequestError fail-closed；research.py `_DATASET_MODES['dc_member']` 改 per_instrument → per_board；test_research.py 新增 test_fetch_research_per_board_requires_board_codes（缺参拒绝+板块迭代+research_mode 断言）。ingest **219 passed**（含边界+akshare+research）。
+
+**门禁全绿**：typecheck 10/10；pnpm -r test 全绿（identity 45/ingest 219/h5 28/compliance 4/api 26/market 153/ai 42/approval 12/ai-policy 41/console 26 = 0 fail）；G-CONTRACT 69 passed（approval specimens 非破坏性 WARN）；仓库卫生 PASS。
+
+**Open（非本轮可闭环，守边界）**：
+- AI-1/2/3 go-live 签发 = H3（红线⑤）；AI-1 request-id 头契约性 = H2（L142 判定材料）。
+- tushare 转售授权三件 0/3（11-12 到期）、安全半 3/3 OPEN、SEC-011/SEC-012 residual = owner/H3/H4 专属（L0 已如实交底）。
+- antd 引入 = owner 确认（改 package.json 纪律）。
+
+
+
+
+
 
