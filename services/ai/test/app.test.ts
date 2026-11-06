@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { computeBlockedDraftHash } from '@market-sense/ai-policy';
 import { buildAiApp } from '../src/app.js';
 import type { AiConfig } from '../src/config.js';
 import { FakeProvider } from '../src/provider.js';
@@ -11,6 +12,7 @@ import {
   runPostprocessHost,
   type PostprocessContext,
 } from '../src/postprocess/host.js';
+import type { AiGenerationAuditEvent } from '../src/postprocess/audit.js';
 
 const config: AiConfig = {
   host: '127.0.0.1',
@@ -229,4 +231,47 @@ test('postprocess host：审计失败 fail-closed', async () => {
       ),
     (error: unknown) => error instanceof PostprocessHostError && error.stage === 'P8',
   );
+});
+
+
+test('block→D3：FakeProvider 输出命中 block 后只返回降级卡，P8 写完整 draft', async () => {
+  const provider = new FakeProvider();
+  const completion = await provider.complete({ prompt: '建议买入该股' });
+  const draft = {
+    claims: [{ text: completion.text, class: 'objective_fields', evidence_ids: ['e1'] }],
+  };
+  const records: AiGenerationAuditEvent[] = [];
+  const result = await runPostprocessHost(
+    { draft, evidence: [] },
+    preContext,
+    {
+      policy: {
+        async evaluate() {
+          return {
+            blocked: true,
+            reasonCodes: ['investment_advice'],
+            blockedDraft: draft,
+            actions: [
+              {
+                stage: 'P5',
+                action: 'block',
+                matched: completion.text,
+                code: 'investment_advice',
+                original_text: completion.text,
+              },
+            ],
+          };
+        },
+      },
+      audit: (record) => {
+        records.push(record);
+      },
+    },
+  );
+  assert.equal(result.blocked, true);
+  assert.deepEqual(result.output, { degraded: true, reasonCodes: ['investment_advice'] });
+  assert.equal(JSON.stringify(result.output).includes(completion.text), false);
+  assert.deepEqual(records[0]?.blockedDraft, draft);
+  assert.equal(records[0]?.outputHash, computeBlockedDraftHash(draft));
+  assert.equal(records[0]?.decision, 'blocked');
 });
