@@ -463,6 +463,39 @@ def test_error_responses_use_problem(repo):
     assert not problems, "\n".join(problems)
 
 
+CONFLICT_PROBLEM_SUFFIX = "ConflictProblem"
+CONFLICT_SHARED_FIELDS = ("type", "title", "status", "code")
+
+
+def test_conflict_problem_fields_reference_shared_problem(repo):
+    """409/412 冲突体必须字段级 $ref shared Problem.properties，不得内联复制（H2 P2，2026-11-20 前落）。
+
+    单一真源：type/title/status/code 的约束只允许定义在 shared Problem.properties；
+    新增任何 *ConflictProblem 体（任意域）自动纳入本断言，防止复制粘贴后两边漂移。
+    """
+    checked = 0
+    problems = []
+    for domain in DOMAINS:
+        schemas = ((repo.raw.get(domain) or {}).get("components") or {}).get("schemas") or {}
+        for name, schema in schemas.items():
+            if not name.endswith(CONFLICT_PROBLEM_SUFFIX) or not isinstance(schema, dict):
+                continue
+            checked += 1
+            props = schema.get("properties") or {}
+            for field in CONFLICT_SHARED_FIELDS:
+                node = props.get(field)
+                expected = f"../shared/openapi.yaml#/components/schemas/Problem/properties/{field}"
+                actual = node.get("$ref") if isinstance(node, dict) else None
+                if actual != expected:
+                    problems.append(f"{domain}:{name}.{field} 期望 $ref {expected}，实际 {actual!r}（禁止内联复制）")
+                else:
+                    _, _, resolved = repo.resolve_ref(domain, actual)
+                    if resolved is None:
+                        problems.append(f"{domain}:{name}.{field} 的 $ref 无法解析")
+    assert checked >= 2, f"应至少检查 Config/Approval 两个 ConflictProblem，实际 {checked} 个"
+    assert not problems, "冲突体字段未复用 shared Problem（单一真源约束）：\n" + "\n".join(problems)
+
+
 def test_error_code_set_is_frozen(repo):
     """code 是契约测试唯一依据；集合必须与 ADR-001 D4 完全一致。
 

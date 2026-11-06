@@ -407,3 +407,11 @@ fixture 排除、`services/market/src/**` 仍在扫描面）。C01 5 passed；`p
 - G-IMPL 自检 stub 补 `do_PUT`/`do_PATCH`；clean stub 覆盖内部域 200（含 ETag 语义由 `If-Match` 请求反映，不在样本断言内）。
 - 状态（2026-11-06，HEAD `6bc0ade`：shared 0.2.3 + config/approval + ADR-001 H2 会签）：`pytest tests/contract` = **67 passed / 1 warning**；`pytest tests/contract tests/data` = **228 passed / 2 warnings**；2 warning 为 approval `decideApproval`/`evaluateApproval` 的 `response-body-all-of-removed`（A0 冲突体从 allOf 改为独立 object 的非破坏性观察项，不登记 waiver）。
 - 错误码冻结：H2 2026-11-06 已书面追认 `CONFLICT`/`PRECONDITION_FAILED`（shared 0.2.3、ADR-001 D4 10 码）；`P0_ERROR_CODES` 注释已同步，`test_error_code_set_is_frozen` 在 HEAD 绿。
+
+## §7.19 P2 residual：冲突体字段必须复用 shared Problem（H2 2026-11-06，截止 2026-11-20）
+
+- 台账：rule=`conflict-problem-fields-reference-shared`，owner=A11，deadline=2026-11-20（v1 冻结前必须落），状态=**已落地（2026-11-06）**，触发来源=A0 m04640。
+- 规则：任意域中名字以 `ConflictProblem` 结尾的 schema，其 `type`/`title`/`status`/`code` 必须**字段级** `$ref: ../shared/openapi.yaml#/components/schemas/Problem/properties/<field>`；内联复制即红灯。新增第三处冲突体（任意域）自动纳入，不需要改测试。
+- 门禁：`tests/contract/test_contract_lint.py::test_conflict_problem_fields_reference_shared_problem`（当前检查 Config/Approval 两处 × 4 字段，并要求 `$ref` 可解析）。
+- 自证：`tests/contract/test_gate_selfcheck.py::test_inlined_conflict_problem_field_turns_red`——把 `ConfigConflictProblem.type` 改成内联 `{type:string,minLength:1}` 后 lint 必须红灯且归因到该门禁。
+- H2 观察项（不动作）：`evaluateApproval`/`decideApproval` 的 `response-body-all-of-removed` warning 属 409 冲突体从 allOf 改独立 object 的非破坏性观察；等 config/approval 出现首个消费方再重新首冻 + 更新 `baseline_manifest.json`，现在不登 waiver。

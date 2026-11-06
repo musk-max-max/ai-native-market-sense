@@ -96,6 +96,22 @@ def test_injected_lint_violation_turns_red(tmp_path):
     )
 
 
+def test_inlined_conflict_problem_field_turns_red(tmp_path):
+    """负样本（H2 P2）：把 ConfigConflictProblem.type 从 shared $ref 改成内联复制 -> 单一真源门禁红灯。"""
+    contracts_dir = copy_contracts(tmp_path)
+    path = contracts_dir / "config" / "openapi.yaml"
+    doc = read_yaml(path)
+    doc["components"]["schemas"]["ConfigConflictProblem"]["properties"]["type"] = {"type": "string", "minLength": 1}
+    write_yaml(path, doc)
+    result = run_lint_subprocess(contracts_dir)
+    assert result.returncode != 0, (
+        "内联复制 Problem.type 后 lint 仍然绿 —— 冲突体单一真源门禁没有生效（H2 P2）:\n" + result.stdout[-4000:]
+    )
+    assert any(
+        "test_conflict_problem_fields_reference_shared_problem" in test_id for test_id in failed_test_ids(result.stdout)
+    ), "红灯了但不是冲突体单一真源规则触发的，门禁归因错误:\n" + result.stdout[-4000:]
+
+
 def test_injected_breaking_change_turns_red(tmp_path):
     """把 Quote.volume 从 integer 改成 string（破坏性：消费方按整数解析）-> oasdiff ERR。"""
     contracts_dir = copy_contracts(tmp_path)
