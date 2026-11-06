@@ -6,10 +6,11 @@
   "description": "market-sense-h5 生成的类型化 API 客户端（契约单一真源：contracts/；本包禁止手写 DTO）",
   "exports": {
     ".": "./src/index.ts",
-    "./generated/*": "./src/generated/*"
+    "./generated/*": "./src/generated/*",
+    "./internal/*": "./src/internal/*"
   },
   "scripts": {
-    "gen:client": "openapi-typescript ../../contracts/shared/openapi.yaml -o src/generated/shared.ts && openapi-typescript ../../contracts/market/openapi.yaml -o src/generated/market.ts && openapi-typescript ../../contracts/fundamental/openapi.yaml -o src/generated/fundamental.ts && openapi-typescript ../../contracts/watchlist/openapi.yaml -o src/generated/watchlist.ts",
+    "gen:client": "openapi-typescript ../../contracts/shared/openapi.yaml -o src/generated/shared.ts && openapi-typescript ../../contracts/market/openapi.yaml -o src/generated/market.ts && openapi-typescript ../../contracts/fundamental/openapi.yaml -o src/generated/fundamental.ts && openapi-typescript ../../contracts/watchlist/openapi.yaml -o src/generated/watchlist.ts && openapi-typescript ../../contracts/config/openapi.yaml -o src/internal/config.ts && openapi-typescript ../../contracts/approval/openapi.yaml -o src/internal/approval.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

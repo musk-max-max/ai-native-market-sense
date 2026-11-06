@@ -89,6 +89,13 @@ paths:
       tags: [approvals]
       summary: 列出审批单
       parameters:
+        - name: environment
+          in: query
+          required: false
+          description: 按环境过滤（审批单 subject.environment）；缺省不按环境过滤。
+          schema:
+            type: string
+            enum: [dev, staging, prod]
         - name: flow
           in: query
           required: false
@@ -601,12 +608,24 @@ components:
           type: [string, 'null']
 
     ApprovalConflictProblem:
-      allOf:
-        - $ref: '../shared/openapi.yaml#/components/schemas/Problem'
-        - type: object
-          additionalProperties: false
-          properties:
-            approval_ref:
-              type: string
-            current_status:
-              $ref: '#/components/schemas/ApprovalStatus'
+      type: object
+      additionalProperties: false
+      description: '409 冲突响应；字段与 shared Problem 相同，可选携带 approval_ref/current_status 帮助前端刷新。'
+      required: [type, title, status, code]
+      properties:
+        type:
+          $ref: '../shared/openapi.yaml#/components/schemas/Problem/properties/type'
+        title:
+          $ref: '../shared/openapi.yaml#/components/schemas/Problem/properties/title'
+        status:
+          $ref: '../shared/openapi.yaml#/components/schemas/Problem/properties/status'
+        code:
+          $ref: '../shared/openapi.yaml#/components/schemas/Problem/properties/code'
+        detail:
+          $ref: '../shared/openapi.yaml#/components/schemas/Problem/properties/detail'
+        trace_id:
+          $ref: '../shared/openapi.yaml#/components/schemas/Problem/properties/trace_id'
+        approval_ref:
+          type: string
+        current_status:
+          $ref: '#/components/schemas/ApprovalStatus'

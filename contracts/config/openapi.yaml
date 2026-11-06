@@ -483,6 +483,7 @@ components:
       name: environment
       in: query
       required: true
+      description: 环境路由键。PUT/validate/submit 的请求体也带 environment，二者必须一致；不一致按 400 VALIDATION_ERROR，以 query 为准。
       schema:
         type: string
         enum: [dev, staging, prod]
@@ -1121,22 +1122,45 @@ components:
             $ref: '#/components/schemas/FieldConflict'
 
     ConfigConflictProblem:
-      allOf:
-        - $ref: '../shared/openapi.yaml#/components/schemas/Problem'
-        - type: object
-          additionalProperties: false
-          required: [diff]
-          properties:
-            diff:
-              $ref: '#/components/schemas/ThreeWayDiff'
+      type: object
+      additionalProperties: false
+      description: '409 冲突响应；字段与 shared Problem 相同并附加三点 diff（由 PUT 的 If-Match/版本冲突触发）。'
+      required: [type, title, status, code, diff]
+      properties:
+        type:
+          $ref: '../shared/openapi.yaml#/components/schemas/Problem/properties/type'
+        title:
+          $ref: '../shared/openapi.yaml#/components/schemas/Problem/properties/title'
+        status:
+          $ref: '../shared/openapi.yaml#/components/schemas/Problem/properties/status'
+        code:
+          $ref: '../shared/openapi.yaml#/components/schemas/Problem/properties/code'
+        detail:
+          $ref: '../shared/openapi.yaml#/components/schemas/Problem/properties/detail'
+        trace_id:
+          $ref: '../shared/openapi.yaml#/components/schemas/Problem/properties/trace_id'
+        diff:
+          $ref: '#/components/schemas/ThreeWayDiff'
 
     ApprovalConflictProblem:
-      allOf:
-        - $ref: '../shared/openapi.yaml#/components/schemas/Problem'
-        - type: object
-          additionalProperties: false
-          properties:
-            approval_ref:
-              type: string
-            current_status:
-              type: string
+      type: object
+      additionalProperties: false
+      description: '409 冲突响应；字段与 shared Problem 相同，可选携带 approval_ref/current_status 帮助前端刷新。'
+      required: [type, title, status, code]
+      properties:
+        type:
+          $ref: '../shared/openapi.yaml#/components/schemas/Problem/properties/type'
+        title:
+          $ref: '../shared/openapi.yaml#/components/schemas/Problem/properties/title'
+        status:
+          $ref: '../shared/openapi.yaml#/components/schemas/Problem/properties/status'
+        code:
+          $ref: '../shared/openapi.yaml#/components/schemas/Problem/properties/code'
+        detail:
+          $ref: '../shared/openapi.yaml#/components/schemas/Problem/properties/detail'
+        trace_id:
+          $ref: '../shared/openapi.yaml#/components/schemas/Problem/properties/trace_id'
+        approval_ref:
+          type: string
+        current_status:
+          type: string
