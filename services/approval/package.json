@@ -1,0 +1,25 @@
+{
+  "name": "@market-sense/approval",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "//": "A4 域：审批账本（/v1/internal/approvals）+ 运营配置（/v1/internal/configs|releases）。见 README.md。",
+  "exports": {
+    ".": "./src/index.ts",
+    "./plugin": "./src/plugin.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node --import tsx --test test/*.test.ts"
+  },
+  "dependencies": {
+    "fastify": "^5.12.8",
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "@types/pg": "^8.15.5",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  }
+}
