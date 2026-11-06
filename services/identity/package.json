@@ -1,0 +1,26 @@
+{
+  "name": "@market-sense/identity",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "identity 域（A4）：user_type 三态、注册/登录、人工审批、JWT claims、session_version。按 ADR-008 D1/D2 实现，不含 gate（A3）。",
+  "exports": {
+    ".": "./src/index.ts",
+    "./plugin": "./src/plugin.ts",
+    "./authenticator": "./src/auth/authenticator.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node --import tsx --test test/*.test.ts"
+  },
+  "dependencies": {
+    "fastify": "^5.12.8",
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "@types/pg": "^8.15.5",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  }
+}
