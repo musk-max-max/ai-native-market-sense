@@ -36,10 +36,11 @@ HTTP_METHODS = ("get", "put", "post", "delete", "options", "head", "patch", "tra
 # P0 错误码集合（ADR-001 D4 / shared Problem description）。初始 7 个；2026-11-04 按 A3 实现需要
 # 新增 NOT_FOUND（标识存在但资源无数据/路由不存在），属 D5「非破坏：新增错误码」，
 # 必须同时更新 ADR-001 D4 与本清单，否则 consumer 侧会漏处理未知码。
-# 404 语义：INSTRUMENT_NOT_FOUND=标识不存在/未收录；NOT_FOUND=资源无数据；403 判定先于 404。
-# 2026-11-06 按 A0 config/approval 契约（b73c293）新增 CONFLICT（409：版本/审批冲突）与
-# PRECONDITION_FAILED（412：If-Match 不匹配）；这两个码尚无 consumer 分支，A0 需同步 shared/ADR-001 D4，
-# 否则属「新增错误码未通告」，H2 追认前清单以本文件为准（A11 门禁要求 code 可枚举）。
+# 404 语义：INSTRUMENT_NOT_FOUND=标识不存在/未收录；NOT_FOUND=资源无数据；
+# 判定顺序：存在性 404 INSTRUMENT_NOT_FOUND → entitlement 403 → 取数 404 NOT_FOUND（Lead m00443 / shared 0.2.1+）。
+# 2026-11-06 按 A0 config/approval 契约新增 CONFLICT（409：版本/审批冲突）与
+# PRECONDITION_FAILED（412：If-Match 不匹配）；H2 2026-11-06 追认，ADR-001 D4 已同步（shared 0.2.3）。
+# 内部接口专用；consumer 侧新增分支仍需走契约变更声明。
 P0_ERROR_CODES = (
     "VALIDATION_ERROR",
     "UNAUTHENTICATED",

@@ -405,4 +405,5 @@ fixture 排除、`services/market/src/**` 仍在扫描面）。C01 5 passed；`p
 - 409/412：`CONFLICT`、`PRECONDITION_FAILED` 进 `P0_ERROR_CODES`（internal-only，A0 已在 shared 0.2.3 Problem description 与 ADR-001 D4 同步为 10 码，H2 追认待办）；`CONFLICT` 样本使用 A0 新的独立 object 冲突体（不再 allOf Problem），可带 `diff`/`approval_ref`/`current_status`。
 - provider 测试的 `repo.parameters()` 修正为 path-item 级 + operation 级合并（同名同位置后者覆盖），修复内部域 path/query 参数误报。
 - G-IMPL 自检 stub 补 `do_PUT`/`do_PATCH`；clean stub 覆盖内部域 200（含 ETag 语义由 `If-Match` 请求反映，不在样本断言内）。
-- 状态（2026-11-06，A0 工作区 shared 0.2.3 + 两域修复生效）：`pytest tests/contract` = **67 passed / 1 warning**；`pytest tests/contract tests/data` = **228 passed / 2 warnings**；2 warning 为 approval `decideApproval`/`evaluateApproval` 的 `response-body-all-of-removed`（A0 冲突体从 allOf 改为独立 object 的非破坏性观察项，不登记 waiver）。
+- 状态（2026-11-06，HEAD `6bc0ade`：shared 0.2.3 + config/approval + ADR-001 H2 会签）：`pytest tests/contract` = **67 passed / 1 warning**；`pytest tests/contract tests/data` = **228 passed / 2 warnings**；2 warning 为 approval `decideApproval`/`evaluateApproval` 的 `response-body-all-of-removed`（A0 冲突体从 allOf 改为独立 object 的非破坏性观察项，不登记 waiver）。
+- 错误码冻结：H2 2026-11-06 已书面追认 `CONFLICT`/`PRECONDITION_FAILED`（shared 0.2.3、ADR-001 D4 10 码）；`P0_ERROR_CODES` 注释已同步，`test_error_code_set_is_frozen` 在 HEAD 绿。
