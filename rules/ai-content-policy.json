@@ -17,9 +17,23 @@
     "a5_change_policy": "A5 只维护词表的工程形态（文件结构、正则、版本号、测试）；新增/删除/放宽任何规则、category、reason_code 或允许前缀，必须由 H3 书面签字并升 policy_version。禁止 A5 为了让样本通过而放宽阈值。",
     "h3_policy_version_signature": {
       "required": true,
+      "status": "signed",
+      "signed_by": "H3",
+      "content_sha256_at_signoff": "aae8032a1423566d7d3f0355326a891ee88d8236959ebe5605557da57291a2bd",
+      "sign_at": "2026-11-06T03:27:11Z",
+      "note": "H3 签认 c_end 分区；签认内容 sha256=aae8032a…；签字 ref 以 A16 登记簿 E-0003 记录（H3『签认生效』回执）为准；1.1.1 已签字节不存于仓库，历史记录见 A16 登记簿。签认不构成 C 端 AI 生成内容展示放行：AI-1/2/3 未闭环前不得展示。"
+    },
+    "owner_policy_version_signature": {
+      "required": true,
       "status": "pending",
-      "note": "等待 H3 对 ai-content-policy/1.1.2 最终内容 sha256 签认；1.1.1 已签字节保留为历史，不改。签认不构成对 C 端 AI 生成内容展示的放行：AI-1/2/3 未闭环前不得展示。"
+      "ref": "m06899",
+      "signed_at": null,
+      "note": "等待 owner 签 internal 分区（owner decision m06899 / L127）；由 owner 本人填写，A5 不代签。"
     }
+  },
+  "basis_scope": {
+    "applies_to": "c_end",
+    "internal_basis": "owner decision 2026-11-06 (m06899)"
   },
   "scope": {
     "audiences": [

@@ -1,11 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { AiPolicyConfigError } from "@market-sense/ai-policy";
 
 import {
   AI_CONTENT_POLICY_RELATIVE_PATH,
+  REDLINE_BASIS_RELATIVE_PATH,
   loadAiContentPolicy,
   loadRedlineBasis,
   resolveRepoRoot,
@@ -34,16 +36,22 @@ test("loader fail-closed：文件不存在/JSON 损坏/canonical 路径不符都
 
 test("redline loader 从仓库根加载 H3 依据并与 policy 双向对齐", () => {
   const policy = loadAiContentPolicy();
-  if (policy.authority.h3_policy_version_signature.status !== "signed") {
-    // 1.1.2 待签期间 redline 文件仍绑定 1.1.1；loader 必须 fail-closed，
-    // H3 签认后升版 1.0.1 重绑 sha，本断言自动切到成功分支。
+  const redlinePath = resolve(resolveRepoRoot(), REDLINE_BASIS_RELATIVE_PATH);
+  const redlineRaw = JSON.parse(readFileSync(redlinePath, "utf8")) as {
+    policy_version?: unknown;
+    signed?: unknown;
+  };
+  if (redlineRaw.policy_version !== policy.policy_version) {
+    // 每次 policy 升版签认后、redline 升版重绑前的窗口：loader 必须 fail-closed，
+    // 直到 redline 的新版本绑定本次 policy 的两个 sha。
     assert.throws(() => loadRedlineBasis(policy));
     return;
   }
   const redline = loadRedlineBasis(policy);
   assert.equal(redline.rules.length, 12);
   assert.equal(redline.policy_version, policy.policy_version);
-  assert.equal(redline.signed, true);
+  // pending 1.0.1 在非生产可读；生产由 requireSigned 拒绝，签后此断言自然升级为 true。
+  assert.equal(redline.signed, redlineRaw.signed === true);
 });
 
 test("redline loader fail-closed：文件不存在/JSON 损坏抛错", () => {

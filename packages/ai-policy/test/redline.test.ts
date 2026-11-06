@@ -36,9 +36,10 @@ function expectCode(fn: () => unknown, code: string): void {
   });
 }
 
-test("redline-basis：12 条 C01..C12 与 policy 12 类双向对齐，signed 版可解析", () => {
-  const redline = parseRedlineBasis(cloneRedline(), { policy, requireSigned: true });
-  assert.equal(redline.version, "1.0.0");
+test("redline-basis：12 条 C01..C12 与 policy 12 类双向对齐，可解析", () => {
+  const redline = parseRedlineBasis(cloneRedline(), { policy });
+  assert.equal(redline.version, "1.0.1");
+  assert.equal(redline.signed, redlineRaw.signed);
   assert.equal(redline.rules.length, 12);
   assert.deepEqual(
     redline.rules.map((r) => r.rule_id).sort(),
@@ -124,13 +125,13 @@ test("红用例 6：生产 requireSigned 下 signed=false → fail-closed", () =
   const raw = cloneRedline();
   raw.signed = false;
   expectCode(() => parseRedlineBasis(raw, { policy, requireSigned: true }), "not_signed");
-  // 非生产（仅离线演练）允许 pending 解析，但版本不符仍拒绝
-  assert.equal(parseRedlineBasis(cloneRedline(), { policy }).signed, true);
+  // 非生产（仅离线演练）允许 pending 解析；真实状态以文件为准（签后为 true）
+  assert.equal(parseRedlineBasis(cloneRedline(), { policy }).signed, redlineRaw.signed);
 });
 
 test("红用例 6b：redline 文件版本与期望不符 → fail-closed", () => {
   expectCode(
-    () => parseRedlineBasis(cloneRedline(), { policy, expectedVersion: "1.0.1" }),
+    () => parseRedlineBasis(cloneRedline(), { policy, expectedVersion: "1.0.2" }),
     "version_mismatch",
   );
 });
@@ -149,6 +150,22 @@ test("1.1.2 反向校验：policy category.basis 指向别的 Cxx → fail-close
   assert.ok(target);
   target.basis = "见 rules/redline-basis.json#H3-C02";
   expectCode(() => parseRedlineBasis(cloneRedline(), { policy: badPolicy }), "invalid_basis_ref");
+});
+
+test("签认翻转字段：signed=true 但缺 content_sha256_at_signoff/sign_at → signature_incomplete", () => {
+  const raw = cloneRedline();
+  raw.signed = true;
+  raw.signed_at = "2026-11-06T00:00:00Z";
+  raw.content_sha256_at_signoff = null;
+  raw.sign_at = null;
+  expectCode(() => parseRedlineBasis(raw, { policy }), "signature_incomplete");
+
+  const noSignAt = cloneRedline();
+  noSignAt.signed = true;
+  noSignAt.signed_at = "2026-11-06T00:00:00Z";
+  noSignAt.content_sha256_at_signoff = "a".repeat(64);
+  noSignAt.sign_at = null;
+  expectCode(() => parseRedlineBasis(noSignAt, { policy }), "signature_incomplete");
 });
 
 test("1.1.2 反向校验：policy category.basis 不是引用式 → fail-closed", () => {

@@ -17,7 +17,7 @@ export const BASIS_TIERS = {
 
 export type BasisTier = keyof typeof BASIS_TIERS;
 
-export const REDLINE_BASIS_EXPECTED_VERSION = "1.0.0";
+export const REDLINE_BASIS_EXPECTED_VERSION = "1.0.1";
 
 export const REDLINE_RULE_IDS = [
   "H3-C01",
@@ -51,7 +51,12 @@ export interface RedlineBasis {
   implemented_by: string;
   signed: boolean;
   signed_by: string;
-  signed_at: string;
+  /** 待签时为 null；翻转 signed=true 时必须为非空 UTC 时间。 */
+  signed_at: string | null;
+  /** H3 签认的 pending 内容 sha256；待签时为 null，翻转时填入。 */
+  content_sha256_at_signoff: string | null;
+  /** 翻转签认的实际 UTC 时间；待签时为 null。 */
+  sign_at: string | null;
   policy_version: string;
   policy_signed_content_sha256: string;
   policy_deployed_file_sha256: string;
@@ -70,6 +75,7 @@ export type RedlineBasisErrorCode =
   | "policy_version_mismatch"
   | "policy_sha_mismatch"
   | "not_signed"
+  | "signature_incomplete"
   | "version_mismatch";
 
 export class RedlineBasisError extends Error {
@@ -112,6 +118,18 @@ function assertString(value: unknown, field: string, code: RedlineBasisErrorCode
   return value;
 }
 
+function assertNullableString(
+  value: unknown,
+  field: string,
+  code: RedlineBasisErrorCode,
+): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "string" || value.trim().length === 0) {
+    fail(code, `字段 ${field} 必须为非空字符串或 null`);
+  }
+  return value;
+}
+
 /**
  * 校验红线依据文件，并做三层一致性：
  * 1) 文件自身结构/签名/版本；
@@ -133,9 +151,6 @@ export function parseRedlineBasis(
   if (raw.owner !== "H3" || raw.implemented_by !== "A5" || raw.signed_by !== "H3") {
     fail("invalid_structure", "redline-basis 的 owner/implemented_by/signed_by 不匹配（H3 定义、A5 实现）");
   }
-  if (typeof raw.signed !== "boolean") {
-    fail("invalid_structure", "redline-basis.signed 必须为布尔值");
-  }
   if (options.requireSigned === true && raw.signed !== true) {
     fail("not_signed", "生产环境要求 redline-basis.signed=true");
   }
@@ -147,7 +162,23 @@ export function parseRedlineBasis(
       `redline-basis.version=${version}，期望 ${options.expectedVersion}（改版须升版并找 H3 重签）`,
     );
   }
-  const signedAt = assertString(raw.signed_at, "signed_at", "invalid_structure");
+  const signedAt = assertNullableString(raw.signed_at, "signed_at", "invalid_structure");
+  const contentShaAtSignoff = assertNullableString(
+    raw.content_sha256_at_signoff,
+    "content_sha256_at_signoff",
+    "invalid_structure",
+  );
+  const signAt = assertNullableString(raw.sign_at, "sign_at", "invalid_structure");
+  if (typeof raw.signed !== "boolean") {
+    fail("invalid_structure", "redline-basis.signed 必须为布尔值");
+  }
+  if (raw.signed) {
+    if (!signedAt) fail("signature_incomplete", "signed=true 但 signed_at 为空");
+    if (!contentShaAtSignoff || !SHA256_RE.test(contentShaAtSignoff)) {
+      fail("signature_incomplete", "signed=true 但 content_sha256_at_signoff 不是 64 位小写 hex");
+    }
+    if (!signAt) fail("signature_incomplete", "signed=true 但 sign_at 为空");
+  }
   const policyVersion = assertString(raw.policy_version, "policy_version", "invalid_structure");
 
   const signedSha = assertString(
@@ -323,6 +354,8 @@ export function parseRedlineBasis(
     signed: raw.signed as boolean,
     signed_by: "H3",
     signed_at: signedAt,
+    content_sha256_at_signoff: contentShaAtSignoff,
+    sign_at: signAt,
     policy_version: policyVersion,
     policy_signed_content_sha256: signedSha,
     policy_deployed_file_sha256: deployedSha,

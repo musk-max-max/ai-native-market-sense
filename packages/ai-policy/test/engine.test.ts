@@ -34,12 +34,18 @@ const claim = (text: string, cls: Claim["class"] = "metrics", ids = ["e1"]): Cla
 // 除专门的 F3 缺省 audience 用例外，测试统一显式传 c_end。
 const run = (input: Parameters<typeof runAiPolicy>[0]) => runAiPolicy({ audience: "c_end", ...input });
 
-test("策略文件：1.1.1 / 12 类 / 2 个允许前缀 / H3 签字 pending", () => {
+test("策略文件：1.1.2 / 12 类 / 2 个允许前缀 / c_end 已签、internal 待 owner", () => {
   assert.equal(policy.policy_version, "ai-content-policy/1.1.2");
   assert.equal(policy.categories.length, 12);
   assert.deepEqual(policy.allowed_conclusion_prefixes, ["数据显示", "历史统计上"]);
-  assert.equal(policy.authority.h3_policy_version_signature.status, "pending");
-  assert.match(policy.authority.h3_policy_version_signature.note, /等待 H3 对 ai-content-policy\/1\.1\.2/);
+  assert.equal(policy.authority.h3_policy_version_signature.status, "signed");
+  assert.equal(policy.authority.h3_policy_version_signature.signed_by, "H3");
+  assert.equal(policy.authority.h3_policy_version_signature.content_sha256_at_signoff, "aae8032a1423566d7d3f0355326a891ee88d8236959ebe5605557da57291a2bd");
+  assert.ok(policy.authority.h3_policy_version_signature.sign_at);
+  assert.equal(policy.authority.owner_policy_version_signature.status, "pending");
+  assert.equal(policy.authority.owner_policy_version_signature.ref, "m06899");
+  assert.equal(policy.basis_scope.applies_to, "c_end");
+  assert.equal(policy.basis_scope.internal_basis, "owner decision 2026-11-06 (m06899)");
   assert.deepEqual(policy.scope.content_whitelist.audiences.internal, [
     "objective_fields",
     "metrics",
@@ -121,11 +127,57 @@ test("H3 S4 / m01502 F5：生产环境未签字、pin 缺失、sha/版本不一�
 
     const signed = JSON.parse(JSON.stringify(raw));
     signed.authority.h3_policy_version_signature.status = "signed";
+    signed.authority.h3_policy_version_signature.content_sha256_at_signoff = "f".repeat(64);
+    signed.authority.h3_policy_version_signature.sign_at = "2026-11-06T00:00:00Z";
+    signed.authority.owner_policy_version_signature.status = "signed";
+    signed.authority.owner_policy_version_signature.signed_at = "2026-11-06T00:00:00Z";
     process.env["AI_CONTENT_POLICY_EXPECTED_VERSION"] = "ai-content-policy/1.1.2";
     process.env["AI_CONTENT_POLICY_EXPECTED_SHA256"] = sourceSha256;
     assert.equal(
       parseAiContentPolicy(signed, { sourceSha256 }).policy_version,
       "ai-content-policy/1.1.2",
+    );
+
+    // 分区签发：H3 已签但 owner 未签 internal → 生产拒绝。
+    const ownerPending = JSON.parse(JSON.stringify(signed));
+    ownerPending.authority.owner_policy_version_signature.status = "pending";
+    assert.throws(
+      () => parseAiContentPolicy(ownerPending, { sourceSha256 }),
+      (error: unknown) =>
+        error instanceof AiPolicyConfigError && error.code === "policy_not_signed_for_production",
+    );
+    // 缺 owner 分区 → fail-closed。
+    const noOwner = JSON.parse(JSON.stringify(signed));
+    delete noOwner.authority.owner_policy_version_signature;
+    assert.throws(
+      () => parseAiContentPolicy(noOwner, { sourceSha256 }),
+      (error: unknown) => error instanceof AiPolicyConfigError,
+    );
+
+    // 只翻 status 不填绑定字段 → signature_incomplete。
+    const noSha = JSON.parse(JSON.stringify(signed));
+    noSha.authority.h3_policy_version_signature.content_sha256_at_signoff = null;
+    assert.throws(
+      () => parseAiContentPolicy(noSha, { sourceSha256 }),
+      (error: unknown) => error instanceof AiPolicyConfigError && error.code === "signature_incomplete",
+    );
+    const noSignAt = JSON.parse(JSON.stringify(signed));
+    noSignAt.authority.h3_policy_version_signature.sign_at = null;
+    assert.throws(
+      () => parseAiContentPolicy(noSignAt, { sourceSha256 }),
+      (error: unknown) => error instanceof AiPolicyConfigError && error.code === "signature_incomplete",
+    );
+    const wrongSigner = JSON.parse(JSON.stringify(signed));
+    wrongSigner.authority.h3_policy_version_signature.signed_by = "owner";
+    assert.throws(
+      () => parseAiContentPolicy(wrongSigner, { sourceSha256 }),
+      (error: unknown) => error instanceof AiPolicyConfigError && error.code === "signature_incomplete",
+    );
+    const ownerNoSignAt = JSON.parse(JSON.stringify(signed));
+    ownerNoSignAt.authority.owner_policy_version_signature.signed_at = null;
+    assert.throws(
+      () => parseAiContentPolicy(ownerNoSignAt, { sourceSha256 }),
+      (error: unknown) => error instanceof AiPolicyConfigError && error.code === "signature_incomplete",
     );
 
     // 缺任一 pin：拒绝。

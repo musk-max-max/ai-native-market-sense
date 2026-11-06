@@ -105,8 +105,23 @@ export interface AiContentPolicy {
     h3_policy_version_signature: {
       required: boolean;
       status: string;
+      signed_by: string;
+      content_sha256_at_signoff: string | null;
+      sign_at: string | null;
       note: string;
     };
+    owner_policy_version_signature: {
+      required: boolean;
+      status: string;
+      ref: string;
+      signed_at: string | null;
+      note: string;
+    };
+  };
+  /** 依据分区：H3-Cxx 只约束 c_end；internal 依据由 owner decision 承载。 */
+  basis_scope: {
+    applies_to: string;
+    internal_basis: string;
   };
   scope: PolicyScope;
   categories: PolicyCategory[];

@@ -44,6 +44,14 @@ function asRecord(value: unknown, path: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
+function asNullableString(value: unknown, path: string): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "string" || value.trim().length === 0) {
+    fail("invalid_type", `${path} 必须是非空字符串或 null`);
+  }
+  return value;
+}
+
 function asNonEmptyString(value: unknown, path: string): string {
   if (typeof value !== "string" || value.trim() === "") {
     fail("invalid_type", `${path} 必须是非空字符串`);
@@ -200,6 +208,10 @@ export function parseAiContentPolicy(
   if (root["schema_version"] !== 1) {
     fail("unsupported_schema_version", "schema_version 必须为 1");
   }
+  const basisScope = asRecord(root["basis_scope"], "basis_scope");
+  const basisScopeAppliesTo = asNonEmptyString(basisScope["applies_to"], "basis_scope.applies_to");
+  const basisScopeInternal = asNonEmptyString(basisScope["internal_basis"], "basis_scope.internal_basis");
+
   const policyVersion = asNonEmptyString(root["policy_version"], "policy_version");
   const updated = asNonEmptyString(root["updated"], "updated");
   const canonical = asNonEmptyString(
@@ -220,6 +232,53 @@ export function parseAiContentPolicy(
     signature["status"],
     "authority.h3_policy_version_signature.status",
   );
+  const signatureSignedBy = asNonEmptyString(
+    signature["signed_by"],
+    "authority.h3_policy_version_signature.signed_by",
+  );
+  const signatureContentSha = asNullableString(
+    signature["content_sha256_at_signoff"],
+    "authority.h3_policy_version_signature.content_sha256_at_signoff",
+  );
+  const signatureSignAt = asNullableString(
+    signature["sign_at"],
+    "authority.h3_policy_version_signature.sign_at",
+  );
+  const ownerSignature = asRecord(
+    authority["owner_policy_version_signature"],
+    "authority.owner_policy_version_signature",
+  );
+  if (typeof ownerSignature["required"] !== "boolean") {
+    fail("invalid_type", "authority.owner_policy_version_signature.required 必须是布尔");
+  }
+  const ownerSignatureStatus = asNonEmptyString(
+    ownerSignature["status"],
+    "authority.owner_policy_version_signature.status",
+  );
+  const ownerSignatureRef = asNonEmptyString(
+    ownerSignature["ref"],
+    "authority.owner_policy_version_signature.ref",
+  );
+  const ownerSignatureAt = asNullableString(
+    ownerSignature["signed_at"],
+    "authority.owner_policy_version_signature.signed_at",
+  );
+
+  // 分区签名完整性：只翻 status、不填绑定字段一律 fail-closed（Lead L130 硬化）。
+  if (signatureStatus === "signed") {
+    if (signatureSignedBy !== "H3") {
+      fail("signature_incomplete", `c_end 分区 signed_by 必须为 H3，实际 ${signatureSignedBy}`);
+    }
+    if (signatureContentSha === null) {
+      fail("signature_incomplete", "c_end 分区 status=signed 但 content_sha256_at_signoff 为空");
+    }
+    if (signatureSignAt === null) {
+      fail("signature_incomplete", "c_end 分区 status=signed 但 sign_at 为空");
+    }
+  }
+  if (ownerSignatureStatus === "signed" && ownerSignatureAt === null) {
+    fail("signature_incomplete", "internal 分区 status=signed 但 signed_at 为空");
+  }
 
   const scopeRaw = asRecord(root["scope"], "scope");
   const audiences = scopeRaw["audiences"];
@@ -293,12 +352,18 @@ export function parseAiContentPolicy(
   }
   caveatRules.forEach((rule, index) => compileRegex(rule.trigger, `caveat_rules[${index}].trigger`));
 
-  // H3 S4：未签状态必须在生产环境技术强制，而不是靠口头约定。
+  // H3 S4 + L130：分区签发（c_end=H3 / internal=owner）必须在生产环境同时成立。
   if (isProductionEnvironment()) {
     if (signatureStatus !== "signed") {
       fail(
         "policy_not_signed_for_production",
-        `生产环境拒绝加载未签字策略：status=${signatureStatus}`,
+        `生产环境拒绝加载未签字策略（c_end 分区）：status=${signatureStatus}`,
+      );
+    }
+    if (parsedAudiences.includes("internal") && ownerSignatureStatus !== "signed") {
+      fail(
+        "policy_not_signed_for_production",
+        `生产环境拒绝加载未签字策略（internal 分区）：status=${ownerSignatureStatus}`,
       );
     }
     const expectedVersion = process.env["AI_CONTENT_POLICY_EXPECTED_VERSION"]?.trim();
@@ -342,8 +407,22 @@ export function parseAiContentPolicy(
       h3_policy_version_signature: {
         required: signature["required"],
         status: signatureStatus,
+        signed_by: signatureSignedBy,
+        content_sha256_at_signoff: signatureContentSha,
+        sign_at: signatureSignAt,
         note: asNonEmptyString(signature["note"], "authority.h3_policy_version_signature.note"),
       },
+      owner_policy_version_signature: {
+        required: ownerSignature["required"],
+        status: ownerSignatureStatus,
+        ref: ownerSignatureRef,
+        signed_at: ownerSignatureAt,
+        note: asNonEmptyString(ownerSignature["note"], "authority.owner_policy_version_signature.note"),
+      },
+    },
+    basis_scope: {
+      applies_to: basisScopeAppliesTo,
+      internal_basis: basisScopeInternal,
     },
     scope: {
       audiences: parsedAudiences,
