@@ -1642,3 +1642,19 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 **Open**：AI-1 request-id 头改动合契约性待 H2 判；AI-2/3 computed-style/E2E 证据待 A7 域补（需起 Web@3000）。
 
 **生效**：2026-11-06 20:38。影响席：A3/A4（域属）、H2/H3（签发）。
+
+### L141 — AI-2/3 computed-style 采证受阻：ECS 容器陈旧 + injected probe 方法论不可采信（L0 亲探，2026-11-06 21:39）
+
+**目标**：补规格 §6.2（docs/design/ai-display-visual-acceptance-2026-11-06.md）要求的 computed-style/E2E（390×844 浅+深）证据，H3 签 AI-2/3 前置缺口。
+
+**已确认当前源码达标**（commit 9562a04）：主断言清单 7 选择器（.ai-badge/.ai-disclaimer/.disclaimer__meta/.quote__meta dt,dd/.ai-context__item dt,dd）全落 --fs-caption；web/h5/src/styles/tokens.css:45 --fs-caption:13px；.ai-badge__mark 10px；.ai-section__meta 字色 --text-muted；aiAsOf testid 两端注册（web/h5/src/lib/testids.ts:46 + tests/e2e/testids.json:35/68）。
+
+**阻塞 1｜ECS web 容器陈旧**：ssh lyuddu@47.120.16.239，容器 market-sense-e2e-web-1 image=market-sense-e2e-web Created=2026-11-04T06:06（Up 2d，healthy）。其 app.css:424 仍 font-size:11px 硬编码——**未含本会话 9562a04 修复**。在旧容器上实测 FAIL 是旧版基线，非当前代码结论。须把当前 web/h5 部署进容器（或本地 build 起服务）才能采当前代码证据。
+
+**阻塞 2｜injected probe 方法论不可采信**：L0 起草 tests/e2e/scripts/ai23-visual-evidence.mjs（@playwright/test chromium）。但把宿主挂 body 屏外，脱离真实父级（.stock/.quote），继承/特异性被破坏——实测 injected 同选择器显示 15px，自然渲染的 .disclaimer__meta/.quote__meta dt,dd/.ai-context__item dt,dd 显示 11/11.5/12.5px，**injected 数值不可采信**。规格 §6.2 原意是「生产同 class 结构渲染」，须在真实渲染 DOM 内读。AI 文本位当前传 null（AiInterpretation.tsx:71，仅占位），.ai-badge/.ai-disclaimer/.ai-context 不天然渲染——如何在真实渲染下采需 A6/A7 判断。
+
+**处置**：规格 §6.2 证据归 A6/A7 域；已拉活 **A7**（QA·E2E，写域 tests/e2e/）接手采证，派单含上述两阻塞与方法论纠偏。L0 不越 A6/A7 域代采。
+
+**Open**：A7 采证结果待回；AI-1 签发待 H2/H3；tushare 授权 0/3、安全半 3/3、SEC-011 = owner/H3。
+
+**生效**：2026-11-06 21:39。影响席：A7（采证）、A6（渲染采证对齐）、H3（签发）。
