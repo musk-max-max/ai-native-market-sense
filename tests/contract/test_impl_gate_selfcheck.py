@@ -65,11 +65,31 @@ class _Handler(BaseHTTPRequestHandler):
     def _respond(self) -> None:
         parsed = urlparse(self.path)
         method = self.command
+        raw = b""
+        length = int(self.headers.get("Content-Length") or 0)
+        if length:
+            raw = self.rfile.read(length)
+        actual_body = None
+        if raw:
+            try:
+                actual_body = json.loads(raw.decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                actual_body = None
+        exact, loose = [], []
         for operation_id, calls in self.consumers.items():
             for call in calls:
-                if call["request"]["method"] == method and call["request"]["path"] == parsed.path:
-                    self._serve(operation_id, call)
-                    return
+                request = call["request"]
+                if request["method"] != method or request["path"] != parsed.path:
+                    continue
+                loose.append((operation_id, call))
+                expected = request.get("body")
+                if expected == actual_body:
+                    exact.append((operation_id, call))
+        chosen = (exact or loose)
+        if chosen:
+            operation_id, call = chosen[0]
+            self._serve(operation_id, call)
+            return
         self._send(404, "application/problem+json", {"type": "about:blank", "title": "not found", "status": 404, "code": "INSTRUMENT_NOT_FOUND"})
 
     def _serve(self, operation_id: str, call: dict) -> None:
@@ -77,7 +97,8 @@ class _Handler(BaseHTTPRequestHandler):
         status = int(case["status"])
         body = copy.deepcopy(case.get("body"))
         status, body = self._mutate(operation_id, call, status, body)
-        self._send(status, _content_type(status), body)
+        ctype = str(case.get("media_type") or _content_type(status))
+        self._send(status, ctype, body)
 
     def _mutate(self, operation_id: str, call: dict, status: int, body):
         scenario = self.scenario
@@ -111,7 +132,12 @@ class _Handler(BaseHTTPRequestHandler):
         return status, body
 
     def _send(self, status: int, content_type: str, body) -> None:
-        payload = b"" if body is None else json.dumps(body, ensure_ascii=False).encode("utf-8")
+        if body is None:
+            payload = b""
+        elif isinstance(body, str):
+            payload = body.encode("utf-8")
+        else:
+            payload = json.dumps(body, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         if content_type:
             self.send_header("Content-Type", content_type)

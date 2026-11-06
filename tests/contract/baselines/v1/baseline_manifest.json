@@ -8,6 +8,10 @@
     "shared/openapi.yaml": "5e3ad075c52600df2cecfbeb4465d4276d4600955ffdd40b56b0e08351c5b601",
     "market/openapi.yaml": "0681b5aa92be7a84153e3eb81f5d744bec46ff1f66ad13b70219db6368999dac",
     "fundamental/openapi.yaml": "0522af0e2a31ded636a61f79da383c23f3e46c9e10a719f1a737097cf3bd28cc",
-    "watchlist/openapi.yaml": "c8976fe1a7d9f2fe02a8449c570ba4a6b8a06f5cd67170d2bba64628deef3d94"
+    "watchlist/openapi.yaml": "c8976fe1a7d9f2fe02a8449c570ba4a6b8a06f5cd67170d2bba64628deef3d94",
+    "ai/openapi.yaml": "8f165b4556d8776d0df0d026a19856d3f936aec8daf26ff7f4b62648598e82f6"
+  },
+  "notes": {
+    "ai/openapi.yaml": "AI 域首版基线（ADDED_AFTER_V1；A0 KD-AI-INF-01 请求由 A11 首冻，2026-11-06）。v1 四域基线哈希不变；此文件只作 ai 域后续 diff 的对照起点。"
   }
 }

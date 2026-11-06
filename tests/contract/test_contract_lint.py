@@ -43,6 +43,22 @@ REQUIRED_META = {
     "market:getLimitLadder": {"adjustment", "disclaimer"},
     "market:getInstrumentPageSummary": {"disclaimer"},
     "watchlist:getWatchlistReview": {"adjustment", "disclaimer"},
+    # INF-01 AI 域（A0 contracts/ai 0.1.0）：JSON 结果为 data+meta；202 受理体与 SSE 无包络
+    "ai:createAiAnalysis": {"source", "entitlement", "disclaimer"},
+    "ai:getAiAnalysis": {"source", "entitlement", "disclaimer"},
+    "ai:streamAiAnalysisEvents": set(),  # text/event-stream，无 JSON meta
+    "ai:createAiChat": set(),  # text/event-stream，无 JSON meta
+}
+
+# AI 域的两种非 JSON 包络形态（A0 contracts/ai 0.1.0 / ADR-007）：
+# - SSE：200 是 text/event-stream（schema 为 string），没有 data+meta 包络；
+# - 202：受理体 AnalysisAccepted，只有 analysis_id+status，没有 meta。
+STREAMING_RESPONSES = {
+    ("ai", "streamAiAnalysisEvents", "200"),
+    ("ai", "createAiChat", "200"),
+}
+NO_ENVELOPE_RESPONSES = {
+    ("ai", "createAiAnalysis", "202"),
 }
 
 # 响应对象必须闭合（additionalProperties: false）的基础定义白名单：
@@ -274,6 +290,30 @@ def test_success_envelope(repo):
             if status == "204":
                 assert schema is None, f"{op.operation_id}: 204 不得携带 schema"
                 continue
+            key = (op.domain, op.operation_id, status)
+            if key in STREAMING_RESPONSES:
+                if content_type != "text/event-stream":
+                    problems.append(
+                        f"{op.operation_id}: {status} 是 SSE 流，媒体类型必须 text/event-stream，实际 {content_type}"
+                    )
+                    continue
+                if not (isinstance(schema, dict) and schema.get("type") == "string"):
+                    problems.append(f"{op.operation_id}: SSE schema 必须是 type: string（帧文本）")
+                if "required" in (schema or {}):
+                    problems.append(f"{op.operation_id}: SSE schema 不得套 JSON 包络 required")
+                continue
+            if key in NO_ENVELOPE_RESPONSES:
+                if content_type != "application/json":
+                    problems.append(f"{op.operation_id}: {status} 必须是 application/json，实际 {content_type}")
+                    continue
+                required = set((schema or {}).get("required") or [])
+                if required != {"analysis_id", "status"}:
+                    problems.append(
+                        f"{op.operation_id}: {status} 受理体字段应为 analysis_id+status，实际 {sorted(required)}"
+                    )
+                if (schema or {}).get("properties", {}).get("meta"):
+                    problems.append(f"{op.operation_id}: {status} 受理体不得带 meta")
+                continue
             if content_type != "application/json":
                 problems.append(f"{op.operation_id}: 2xx 响应必须是 application/json，实际 {content_type}")
                 continue
@@ -302,6 +342,30 @@ def test_success_envelope(repo):
     assert not problems, "\n".join(problems)
 
 
+def _schema_reaches_shared_response_meta(repo, domain: str, node: dict, depth: int = 0) -> bool:
+    """meta 可直接引用 shared，也可经域内组合组件（如 AiResponseMeta）间接引用。
+
+    只沿「同一域 components.schemas」的引用向下追踪（深度 ≤3），shared ResponseMeta
+    出现即成立；域内重定义 meta 四要素仍由调用处单独断言。
+    """
+    if depth > 3:
+        return False
+    for ref in iter_refs(node):
+        if ref.endswith("#/components/schemas/ResponseMeta"):
+            return True
+        file_part, pointer = split_ref(ref)
+        if file_part is not None or not pointer.startswith("/components/schemas/"):
+            continue
+        name = pointer.strip("/").split("/", 2)[2]
+        # 必须读原始定义：repo.component() 已递归展开 $ref，会把「是否引用 shared」吃掉
+        target = (((repo.raw[domain].get("components") or {}).get("schemas") or {}).get(name))
+        if not isinstance(target, dict):
+            continue
+        if _schema_reaches_shared_response_meta(repo, domain, target, depth + 1):
+            return True
+    return False
+
+
 def test_meta_semantics_from_shared(repo):
     """meta 四要素必须从 shared 引用，禁止域内复制定义（单一真源）。"""
     problems = []
@@ -312,8 +376,7 @@ def test_meta_semantics_from_shared(repo):
         meta = (schema.get("properties") or {}).get("meta")
         if not isinstance(meta, dict):
             continue
-        refs = list(iter_refs(meta_schema_source(repo, op)))
-        if not any(r.endswith("#/components/schemas/ResponseMeta") for r in refs):
+        if not _schema_reaches_shared_response_meta(repo, op.domain, meta_schema_source(repo, op)):
             problems.append(f"{op.operation_id}: meta 必须 allOf 引用 shared ResponseMeta")
         for element in ("source", "entitlement", "adjustment", "disclaimer"):
             if element in (meta.get("properties") or {}):
@@ -441,3 +504,45 @@ def test_contracts_do_not_leak_vendor_names(repo):
             if re.search(rf"(?<![a-z0-9_]){token}(?![a-z0-9_])", text):
                 problems.append(f"{domain}: 契约文本出现厂商名 {token!r}")
     assert not problems, "\n".join(problems)
+
+
+# ---------------------------------------------------------------- AI 域（INF-01 / ADR-007）
+
+AI_ANALYSIS_KINDS = {
+    "stock_interpretation",
+    "watchlist_review",
+    "post_market_review",
+    "lhb_review",
+    "capital_features",
+    "factor_screen",
+    "research_brief",
+    "anomaly_alert",
+}
+
+
+def test_ai_analysis_kind_is_closed_eight(repo):
+    """AnalysisKind 是封闭 8 值（ADR-007 D2）；扩值必须走 ADR-001 D5/D6，不许脚手架私扩。"""
+    schema = repo.component("ai", "schemas", "AnalysisKind")
+    enum = schema.get("enum")
+    assert isinstance(enum, list), "AnalysisKind 必须是封闭 enum"
+    assert set(enum) == AI_ANALYSIS_KINDS, (
+        f"AnalysisKind 值集漂移：多 {sorted(set(enum) - AI_ANALYSIS_KINDS)}，"
+        f"少 {sorted(AI_ANALYSIS_KINDS - set(enum))}"
+    )
+    assert len(enum) == len(set(enum)) == 8, "AnalysisKind 必须恰好 8 个不重复值"
+
+
+def test_ai_endpoints_are_private_and_sse_is_declared(repo):
+    """AI 域只对登录用户开放（bearerAuth，文档级或 operation 级）；两个流式接口必须是 text/event-stream。"""
+    doc_security = repo.raw["ai"].get("security") or []
+    for op in repo.operations(("ai",)):
+        security = op.spec.get("security") or doc_security
+        assert security, f"{op.operation_id}: AI 端点必须声明 security（bearerAuth）"
+        declared = [entry.get("bearerAuth") for entry in security if isinstance(entry, dict) and "bearerAuth" in entry]
+        assert declared, f"{op.operation_id}: security 必须使用 bearerAuth"
+    for operation_id in ("streamAiAnalysisEvents", "createAiChat"):
+        op = repo.operation(operation_id)
+        content_type = repo.response_content_type(op, "200")
+        assert content_type == "text/event-stream", (
+            f"{operation_id}: 200 必须是 text/event-stream，实际 {content_type}"
+        )

@@ -1,0 +1,212 @@
+{
+  "operation_id": "getAiAnalysis",
+  "origin": "synthetic",
+  "recorded_at": "2026-11-06T09:10:00+08:00",
+  "note": "provider 侧录播（合成样本）。覆盖 succeeded/running/400/401/403/404；SSE 与 JSON 同为合成。",
+  "cases": [
+    {
+      "name": "分析已完成",
+      "status": 200,
+      "body": {
+        "data": {
+          "analysis_id": "an-20261103-0001",
+          "kind": "stock_interpretation",
+          "subject": {
+            "instrument_id": "SSE:600519"
+          },
+          "status": "succeeded",
+          "as_of": "2026-11-03T15:00:00+08:00",
+          "sections": [
+            {
+              "id": "price-action",
+              "title": "价格与量能",
+              "claims": [
+                {
+                  "text": "收盘价较前一交易日上涨 1.66%，成交额处于近 20 日均值上方。",
+                  "evidence_ids": [
+                    "ev-q-1"
+                  ]
+                }
+              ],
+              "data_refs": [
+                {
+                  "module": "market",
+                  "as_of": "2026-11-03T15:00:00+08:00",
+                  "period": "2026-11-03"
+                }
+              ]
+            }
+          ],
+          "caveats": [
+            "历史数据不代表未来表现。"
+          ],
+          "compliance": {
+            "policy_version": "2026.11.1",
+            "decision": "passed",
+            "reason_codes": []
+          },
+          "ai": {
+            "generated": true,
+            "label_version": "2026.11.1",
+            "content_version": "c-20261103",
+            "model_family": "analysis-a",
+            "prompt_version": "p-2026.11.1",
+            "policy_version": "2026.11.1"
+          },
+          "meta": {
+            "source": {
+              "source": "platform_eod",
+              "as_of": "2026-11-03T15:00:00+08:00",
+              "staleness_ms": 900000,
+              "source_id": "tushare"
+            },
+            "entitlement": {
+              "tier": "c_end_display",
+              "is_entitled": true
+            },
+            "adjustment": "none",
+            "disclaimer": {
+              "text": "本平台行情数据仅供参考，不构成任何投资建议。",
+              "version": "2026.11.1",
+              "closable": false
+            }
+          }
+        },
+        "meta": {
+          "source": {
+            "source": "platform_eod",
+            "as_of": "2026-11-03T15:00:00+08:00",
+            "staleness_ms": 900000,
+            "source_id": "tushare"
+          },
+          "entitlement": {
+            "tier": "c_end_display",
+            "is_entitled": true
+          },
+          "adjustment": "none",
+          "disclaimer": {
+            "text": "本平台行情数据仅供参考，不构成任何投资建议。",
+            "version": "2026.11.1",
+            "closable": false
+          }
+        }
+      }
+    },
+    {
+      "name": "分析进行中",
+      "status": 200,
+      "body": {
+        "data": {
+          "analysis_id": "an-20261103-0004",
+          "kind": "stock_interpretation",
+          "subject": {
+            "instrument_id": "SSE:600519"
+          },
+          "status": "running",
+          "as_of": "2026-11-03T15:00:00+08:00",
+          "sections": [],
+          "caveats": [
+            "分析进行中，请稍后刷新或订阅事件流。"
+          ],
+          "compliance": {
+            "policy_version": "2026.11.1",
+            "decision": "passed",
+            "reason_codes": []
+          },
+          "ai": {
+            "generated": true,
+            "label_version": "2026.11.1",
+            "content_version": "c-20261103",
+            "model_family": "analysis-a",
+            "prompt_version": "p-2026.11.1",
+            "policy_version": "2026.11.1"
+          },
+          "meta": {
+            "source": {
+              "source": "platform_eod",
+              "as_of": "2026-11-03T15:00:00+08:00",
+              "staleness_ms": 900000,
+              "source_id": "tushare"
+            },
+            "entitlement": {
+              "tier": "c_end_display",
+              "is_entitled": true
+            },
+            "adjustment": "none",
+            "disclaimer": {
+              "text": "本平台行情数据仅供参考，不构成任何投资建议。",
+              "version": "2026.11.1",
+              "closable": false
+            }
+          }
+        },
+        "meta": {
+          "source": {
+            "source": "platform_eod",
+            "as_of": "2026-11-03T15:00:00+08:00",
+            "staleness_ms": 900000,
+            "source_id": "tushare"
+          },
+          "entitlement": {
+            "tier": "c_end_display",
+            "is_entitled": true
+          },
+          "adjustment": "none",
+          "disclaimer": {
+            "text": "本平台行情数据仅供参考，不构成任何投资建议。",
+            "version": "2026.11.1",
+            "closable": false
+          }
+        }
+      }
+    },
+    {
+      "name": "id 格式非法",
+      "status": 400,
+      "body": {
+        "type": "about:blank",
+        "title": "请求无效",
+        "status": 400,
+        "code": "VALIDATION_ERROR",
+        "detail": "analysis_id 不匹配 pattern",
+        "trace_id": "trace-synthetic-ai"
+      }
+    },
+    {
+      "name": "未登录",
+      "status": 401,
+      "body": {
+        "type": "about:blank",
+        "title": "未认证",
+        "status": 401,
+        "code": "UNAUTHENTICATED",
+        "detail": "缺少登录态",
+        "trace_id": "trace-synthetic-ai"
+      }
+    },
+    {
+      "name": "授权受限",
+      "status": 403,
+      "body": {
+        "type": "about:blank",
+        "title": "授权受限",
+        "status": 403,
+        "code": "ENTITLEMENT_RESTRICTED",
+        "detail": "当前版权限不可用 AI 分析",
+        "trace_id": "trace-synthetic-ai"
+      }
+    },
+    {
+      "name": "分析不存在",
+      "status": 404,
+      "body": {
+        "type": "about:blank",
+        "title": "资源不存在",
+        "status": 404,
+        "code": "NOT_FOUND",
+        "detail": "分析不存在或已过期",
+        "trace_id": "trace-synthetic-ai"
+      }
+    }
+  ]
+}

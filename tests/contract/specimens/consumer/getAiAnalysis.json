@@ -1,0 +1,29 @@
+{
+  "operation_id": "getAiAnalysis",
+  "client": "web-h5 个股页 AI 解读",
+  "note": "轮询结果；依赖 status 与证据引用。",
+  "calls": [
+    {
+      "name": "查询已完成分析",
+      "request": {
+        "method": "GET",
+        "path": "/v1/ai/analyses/an-20261103-0001",
+        "headers": {
+          "authorization": "Bearer synthetic-token-for-contract-test"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "required_fields": [
+          "data.analysis_id",
+          "data.as_of",
+          "data.sections[].id",
+          "data.sections[].claims[].evidence_ids",
+          "data.compliance.decision",
+          "data.ai.policy_version",
+          "meta.disclaimer.text"
+        ]
+      }
+    }
+  ]
+}

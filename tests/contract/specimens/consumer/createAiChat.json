@@ -1,0 +1,28 @@
+{
+  "operation_id": "createAiChat",
+  "client": "web-h5 AI 对话抽屉",
+  "note": "对话流同样只断 200；引用展示由前端解析帧后自行校验。",
+  "calls": [
+    {
+      "name": "发起对话",
+      "request": {
+        "method": "POST",
+        "path": "/v1/ai/chat",
+        "headers": {
+          "authorization": "Bearer synthetic-token-for-contract-test"
+        },
+        "body": {
+          "messages": [
+            {
+              "role": "user",
+              "content": "最近这波行情怎么看？"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "status": 200
+      }
+    }
+  ]
+}

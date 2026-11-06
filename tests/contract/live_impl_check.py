@@ -168,6 +168,30 @@ def validate_response(
     if expected_status is not None and response.status != int(expected_status):
         fail("LIVE-10", f"consumer 期望 {expected_status}，实际 {response.status}")
 
+    contract_type = repo.response_content_type(op, response.status) or repo.response_content_type(
+        op, "default"
+    )
+    actual_type = response.content_type.split(";")[0].strip()
+
+    # SSE：契约声明 text/event-stream 时响应体是帧文本，不是 JSON；只校验媒体类型与帧文本非空。
+    if contract_type == "text/event-stream" and response.status < 400:
+        if actual_type != contract_type:
+            fail("LIVE-02", f"Content-Type 期望 {contract_type}，实际 {actual_type!r}")
+        try:
+            text = response.body.decode("utf-8")
+        except UnicodeDecodeError as error:
+            fail("LIVE-11", f"SSE 帧文本不是合法 UTF-8: {error}")
+            return failures
+        if not text.strip():
+            fail("LIVE-03", "SSE 响应体为空（至少应有一帧）")
+        schema = repo.response_schema(op, response.status)
+        if schema is not None:
+            for error in repo.validate(schema, text):
+                fail("LIVE-03", f"SSE 帧文本 schema 校验失败: {error}")
+        for dotted in (call.get("expect") or {}).get("required_fields") or []:
+            fail("LIVE-09", f"SSE 响应不应声明 JSON 依赖字段（{dotted}）；帧字段由 description 定义")
+        return failures
+
     body, json_failure = _json_body(response)
     if json_failure:
         fail(json_failure.rule, json_failure.detail)

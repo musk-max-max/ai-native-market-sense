@@ -109,14 +109,23 @@ def test_provider_bodies_match_contract(repo: ContractRepo, specimens):
             if schema is None:
                 problems.append(f"{where}: 契约未声明响应体，样本却给了 body（ADR-001 D4）")
                 continue
-            if content_type != media_type_for(status):
-                problems.append(f"{where}: 媒体类型应为 {media_type_for(status)}，契约实际 {content_type}")
-                continue
+            if content_type == "text/event-stream":
+                # SSE 帧文本：样本是字符串，schema 为 type: string；错误码语义不适用（错误走 4xx JSON）。
+                if not isinstance(body, str):
+                    problems.append(f"{where}: 契约声明 text/event-stream，样本 body 必须是帧文本字符串")
+                    continue
+            else:
+                if content_type != media_type_for(status):
+                    problems.append(f"{where}: 媒体类型应为 {media_type_for(status)}，契约实际 {content_type}")
+                    continue
+                if not isinstance(body, dict):
+                    problems.append(f"{where}: {content_type} 响应样本必须是 JSON 对象")
+                    continue
             errors = repo.validate(schema, body)
             if errors:
                 problems.append(f"{where}: 报文不符合契约:\n    " + "\n    ".join(errors))
                 continue
-            if status.startswith(("4", "5")):
+            if status.startswith(("4", "5")) and isinstance(body, dict):
                 code = (body or {}).get("code")
                 if code not in P0_ERROR_CODES:
                     problems.append(f"{where}: 错误码 {code!r} 不在 P0 冻结集合内（消费方无法兜底）")

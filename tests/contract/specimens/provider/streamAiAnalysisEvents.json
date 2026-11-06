@@ -1,0 +1,62 @@
+{
+  "operation_id": "streamAiAnalysisEvents",
+  "origin": "synthetic",
+  "recorded_at": "2026-11-06T09:10:00+08:00",
+  "note": "provider 侧 SSE 录播（合成帧文本）。帧形状按契约 description；16 分钟不重放真实上游。",
+  "cases": [
+    {
+      "name": "事件流-状态与分节与完成",
+      "status": 200,
+      "media_type": "text/event-stream",
+      "body": "event: status\ndata: {\"analysis_id\":\"an-20261103-0001\",\"status\":\"running\"}\n\nevent: section\ndata: {\"analysis_id\":\"an-20261103-0001\",\"section\":{\"id\":\"price-action\",\"title\":\"价格与量能\"}}\n\nevent: done\ndata: {\"analysis_id\":\"an-20261103-0001\",\"status\":\"succeeded\"}\n\n"
+    },
+    {
+      "name": "id 格式非法",
+      "status": 400,
+      "body": {
+        "type": "about:blank",
+        "title": "请求无效",
+        "status": 400,
+        "code": "VALIDATION_ERROR",
+        "detail": "analysis_id 不匹配 pattern",
+        "trace_id": "trace-synthetic-ai"
+      }
+    },
+    {
+      "name": "未登录",
+      "status": 401,
+      "body": {
+        "type": "about:blank",
+        "title": "未认证",
+        "status": 401,
+        "code": "UNAUTHENTICATED",
+        "detail": "缺少登录态",
+        "trace_id": "trace-synthetic-ai"
+      }
+    },
+    {
+      "name": "授权受限",
+      "status": 403,
+      "body": {
+        "type": "about:blank",
+        "title": "授权受限",
+        "status": 403,
+        "code": "ENTITLEMENT_RESTRICTED",
+        "detail": "当前版权限不可用 AI 分析",
+        "trace_id": "trace-synthetic-ai"
+      }
+    },
+    {
+      "name": "分析不存在",
+      "status": 404,
+      "body": {
+        "type": "about:blank",
+        "title": "资源不存在",
+        "status": 404,
+        "code": "NOT_FOUND",
+        "detail": "分析不存在或已过期",
+        "trace_id": "trace-synthetic-ai"
+      }
+    }
+  ]
+}

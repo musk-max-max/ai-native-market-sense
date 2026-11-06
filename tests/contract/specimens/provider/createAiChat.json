@@ -1,0 +1,50 @@
+{
+  "operation_id": "createAiChat",
+  "origin": "synthetic",
+  "recorded_at": "2026-11-06T09:10:00+08:00",
+  "note": "provider 侧 SSE 录播（合成帧文本）。含引用帧与结束帧；不调用真实模型。",
+  "cases": [
+    {
+      "name": "对话流-增量与引用与完成",
+      "status": 200,
+      "media_type": "text/event-stream",
+      "body": "event: delta\ndata: {\"delta\":\"该股近 20 日\"}\n\nevent: citation\ndata: {\"evidence_ids\":[\"ev-q-1\"]}\n\nevent: done\ndata: {\"status\":\"succeeded\"}\n\n"
+    },
+    {
+      "name": "消息为空",
+      "status": 400,
+      "body": {
+        "type": "about:blank",
+        "title": "请求无效",
+        "status": 400,
+        "code": "VALIDATION_ERROR",
+        "detail": "messages 至少 1 条",
+        "trace_id": "trace-synthetic-ai"
+      }
+    },
+    {
+      "name": "未登录",
+      "status": 401,
+      "body": {
+        "type": "about:blank",
+        "title": "未认证",
+        "status": 401,
+        "code": "UNAUTHENTICATED",
+        "detail": "缺少登录态",
+        "trace_id": "trace-synthetic-ai"
+      }
+    },
+    {
+      "name": "授权受限",
+      "status": 403,
+      "body": {
+        "type": "about:blank",
+        "title": "授权受限",
+        "status": 403,
+        "code": "ENTITLEMENT_RESTRICTED",
+        "detail": "当前版权限不可用 AI 对话",
+        "trace_id": "trace-synthetic-ai"
+      }
+    }
+  ]
+}

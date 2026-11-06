@@ -1,0 +1,61 @@
+{
+  "operation_id": "createAiAnalysis",
+  "client": "web-h5 个股页 AI 解读",
+  "note": "AI 解读卡：加载中/完成/拦截三态；SSE 不进 consumer JSON 依赖。",
+  "calls": [
+    {
+      "name": "创建个股解读",
+      "request": {
+        "method": "POST",
+        "path": "/v1/ai/analyses",
+        "headers": {
+          "authorization": "Bearer synthetic-token-for-contract-test"
+        },
+        "body": {
+          "kind": "stock_interpretation",
+          "subject": {
+            "instrument_id": "SSE:600519"
+          }
+        }
+      },
+      "expect": {
+        "status": 200,
+        "required_fields": [
+          "data.analysis_id",
+          "data.status",
+          "data.sections[].claims[].evidence_ids",
+          "data.compliance.decision",
+          "data.ai.generated",
+          "meta.disclaimer.closable",
+          "meta.entitlement.is_entitled"
+        ]
+      }
+    },
+    {
+      "name": "长任务受理后跳转",
+      "request": {
+        "method": "POST",
+        "path": "/v1/ai/analyses",
+        "headers": {
+          "authorization": "Bearer synthetic-token-for-contract-test"
+        },
+        "body": {
+          "kind": "post_market_review",
+          "subject": {
+            "universe": "market"
+          },
+          "options": {
+            "lookback_days": 5
+          }
+        }
+      },
+      "expect": {
+        "status": 202,
+        "required_fields": [
+          "analysis_id",
+          "status"
+        ]
+      }
+    }
+  ]
+}

@@ -27,7 +27,10 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 # 以证明「改坏契约 -> 红灯」且不触碰 A0 的真源。
 CONTRACTS_DIR = Path(os.environ.get("A11_CONTRACTS_DIR") or (REPO_ROOT / "contracts"))
 DATA_DIR = REPO_ROOT / "tests" / "data"
-DOMAINS = ("shared", "market", "fundamental", "watchlist")
+DOMAINS = ("shared", "market", "fundamental", "watchlist", "ai")
+# 契约版本 v1 冻结之后新增的域：v1 baseline 里没有它们，diff 门禁对其按「全域 additive」处理
+# （新增域不存在破坏性变更；一旦这些域写入 baseline，必须从本元组移除并重冻 manifest）。
+ADDED_AFTER_V1 = ("ai",)  # ai 域基线已在 baselines/v1/ai 首冻（2026-11-06），此常量仅作文档标记，不参与跳过。
 HTTP_METHODS = ("get", "put", "post", "delete", "options", "head", "patch", "trace")
 
 # P0 错误码集合（ADR-001 D4 / shared Problem description）。初始 7 个；2026-11-04 按 A3 实现需要

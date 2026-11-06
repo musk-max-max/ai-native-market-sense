@@ -383,3 +383,15 @@ fixture 排除、`services/market/src/**` 仍在扫描面）。C01 5 passed；`p
 - 补充（H4 m04155）：B 股/北交所无 bar 路径覆盖，新增独立单测 `tests/data/test_limit_prices_unit.py`（11 passed，不依赖 golden）：沪 B 900xxx 0.001 half-up、深 B 200xxx 0.01 half-up、北交所 920/43/83 涨停 floor/跌停 ceil、主板 S 股 5% 进位；证据 `tests/data/acceptance/artifacts/limit-prices-unit-20261105T1425Z.md` sha256 `0ac07a2d13d1c1bd309e66605318cb7dca12fbe63dc858034d88b27897715119`。`pytest tests/data` = 161 passed / 1 warning，全量 = 224 passed / 2 warnings。
 
 - **C01 红灯已闭合（2026-11-05T14:10Z）**：A1 `36f36ee` 曾在 `services/ingest/src/market_ingest/sync.py:1374` 用 `item.get('ts_code')` 拼 blocked 事件摘要，C01 判源格式泄漏（223 passed + 1 failed）。A1 按裁决 1 修复于 commit `5a9ee34`：适配层新增 `research.sanitize_consistency()` 归一为 canonical `{instrument_id:"EXCH:CODE", exchange, flags, known}`，`sync.py` 只读 canonical 字段；未申请豁免、未改扫描条件。复跑：C01 **3 passed**；`pytest tests/contract tests/data` = **224 passed / 2 warnings**（2026-11-05T14:10Z）。状态转绿。
+
+
+## §7.17 AI 域契约脚手架（KD-AI-INF-01 / A0 m04265，2026-11-06）
+
+- 覆盖：`contracts/ai/openapi.yaml` **4 个 operation**（`createAiAnalysis` / `getAiAnalysis` / `streamAiAnalysisEvents` / `createAiChat`），provider specimens 4 个、consumer specimens 4 个；全仓 operation 合计 14（shared 0 + market 5 + fundamental 1 + watchlist 4 + ai 4）。
+- `REQUIRED_META`：`ai:createAiAnalysis`/`ai:getAiAnalysis` = `{source, entitlement, disclaimer}`；两个 SSE operation = 空集（200 是帧文本，无 JSON 信封）。
+- `STREAMING_RESPONSES`：两个 SSE operation 的 200 必须 `text/event-stream` + schema `type: string`，不得套 `{data, meta}`；`NO_ENVELOPE_RESPONSES`：`createAiAnalysis` 202 只允许 `analysis_id + status`，禁止带 meta。
+- 基线：`tests/contract/baselines/v1/ai/openapi.yaml` 于 2026-11-06 首冻（A0 请求、A11 落；sha256 记入 `baseline_manifest.json` 的 `files["ai/openapi.yaml"]`，并在 `notes` 标注 ADDED_AFTER_V1）。v1 四域基线哈希未动；ai 之后的破坏性变更照常走 waiver（当前 `ALLOWED_ERRORS["ai"] = set()`）。
+- provider 契约测试支持 SSE：按契约 `response_content_type` 分支——SSE 样本必须是帧文本字符串并按 `type: string` 校验，错误仍是 `application/problem+json` + P0 错误码。
+- G-IMPL 实时门禁支持 SSE（LIVE-02/03/09）：文本帧只看媒体类型、非空、schema（string）；不允许 consumer 对 SSE 声明 JSON 依赖字段。
+- G-IMPL 自检 stub 修正：同一 operation 的多个 consumer call 共享 path 时（createAiAnalysis 的 200/202），按请求体精确匹配；SSE 响应按样本 `media_type` 回放帧文本。
+- 状态：`pytest tests/contract` = **67 passed / 1 warning**；`pytest tests/contract tests/data` = **228 passed / 2 warnings**（2026-11-06）。
