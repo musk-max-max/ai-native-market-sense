@@ -1658,3 +1658,20 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 **Open**：A7 采证结果待回；AI-1 签发待 H2/H3；tushare 授权 0/3、安全半 3/3、SEC-011 = owner/H3。
 
 **生效**：2026-11-06 21:39。影响席：A7（采证）、A6（渲染采证对齐）、H3（签发）。
+
+### L142 — AI-1 签发判定包（交 H2 判 request-id 头契约性，L0 备料不代判，2026-11-06 21:41）
+
+**AI-1 签发前置现状**：
+- 仓库级门禁已绿（L140：typecheck 10/10、pnpm -r test 全绿）→ H3 签 AI-1 的技术前置满足。
+- HTTP 层闭环证据已采（L139：commit 8c264e2，16/16 PASS，真实 POST /v1/ai/analyses -> audit.ai_generation_events 落行，request_id/analysis_id/hash 三向闭环）。
+
+**交 H2 判的契约点**：L0 改动 routes/analyses.ts request_id 改为优先取客户端 request-id 头（跨服务审计链锚点），回退 Fastify req.id。查 contracts/ai：
+- internal-generation-context.schema.json:10-14 仅定义 body 内 request_id（「一次生成尝试的稳定 id，重试必须新 id；写 event_key=ai|generation|<request_id>」）。
+- openapi.yaml /v1/ai/analyses **未定义 request-id 请求头约定**。
+- 即：从 request-id 头读取作为 request_id 是**新增语义**，openapi 未约定。须 H2 判：① 是否应把 request-id 头纳入 openapi（请求头参数 + 与 body request_id 的关系）；② 头值与 body request_id 冲突/缺失时的优先级与 fail-closed 口径；③ 客户端可控头作为审计 event_key 锚点是否引入伪造/碰撞风险（需否校验格式/归属）。
+
+**边界**：签发=H3 专属；契约判定=H2。L0 仅备料，不代判不代签。AI-1 元数据+留痕当前 SIGNOFF 状态=**不放行**（reviews/compliance/AI-CARD-SIGNOFF-2026-11-06.md:15，H3-C01/C02/C10+红线④，原因「无运行时真实响应/留痕样本」——该原因已由 L139 HTTP 证据补足，但放行与否仍 H3 定）。
+
+**Open**：H2 契约判定包待判；A7 采 AI-2/3 computed-style 证据在途；tushare 授权 0/3、安全半 3/3、SEC-011 = owner/H3。
+
+**生效**：2026-11-06 21:41。影响席：H2（判契约）、H3（签发）、A3（AI 域属）。
