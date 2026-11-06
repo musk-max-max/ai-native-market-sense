@@ -1,9 +1,9 @@
 {
   "schema": "a7.ai23.visual-evidence/v1",
-  "generatedAt": "2026-11-06T14:37:07.066Z",
+  "generatedAt": "2026-11-06T16:42:15.711Z",
   "anchors": {
-    "gitSha": "807fbaadab0eda2fef45ea18ba41d2d988c86c9a",
-    "scriptSha256": "dac6ba19a0687e478a571e82134756ae74c6436042f7cad986c23bdb8e71bd96",
+    "gitSha": "a4b5659564b6afbcabdbb9d73c12dc8838aa553f",
+    "scriptSha256": "820f94ef754ed1ad6a2a3de21fe0364eba3954c1d7186ae58502eb6866f15ceb",
     "evidenceFileNote": "sha256 见 RT-10 哈希锚清单"
   },
   "environment": {
@@ -18,6 +18,7 @@
       "dark"
     ],
     "methodology": "真实生产 DOM 自然渲染下读 computed-style；零 route 拦截；数据来自本地原生 api（c_end entitlement 正配置）真实 /v1 请求",
+    "fixtureRoute": "/dev/ai-card（A6 采证路由 a4b5659，页面自标注 Not an API response，零 /v1；badge 族 §1-§3 在此天然渲染，与生产同 class 结构）",
     "noInjection": true,
     "noRouteMock": true
   },
@@ -26,7 +27,7 @@
       "status": "ok",
       "service": "market-sense-api",
       "version": "0.1.0",
-      "uptime_s": 1474,
+      "uptime_s": 208,
       "domains": [
         "identity",
         "market",
@@ -108,6 +109,13 @@
         "themeBg": "#f4f6f8"
       },
       {
+        "scheme": "light",
+        "path": "/dev/ai-card",
+        "url": "http://127.0.0.1:3457/dev/ai-card",
+        "title": "Market Sense · A 股数据工具",
+        "themeBg": "#f4f6f8"
+      },
+      {
         "scheme": "dark",
         "path": "/stocks/SSE:600519",
         "url": "http://127.0.0.1:3457/stocks/SSE:600519",
@@ -118,6 +126,13 @@
         "scheme": "dark",
         "path": "/ai",
         "url": "http://127.0.0.1:3457/ai",
+        "title": "Market Sense · A 股数据工具",
+        "themeBg": "#0b0f14"
+      },
+      {
+        "scheme": "dark",
+        "path": "/dev/ai-card",
+        "url": "http://127.0.0.1:3457/dev/ai-card",
         "title": "Market Sense · A 股数据工具",
         "themeBg": "#0b0f14"
       }
@@ -140,10 +155,106 @@
       "[data-testid=\"ai-generated-badge\"]": {
         "list": "spec62",
         "minPx": 13,
-        "status": "ABSENT",
+        "status": "PASS",
         "instanceCount": 0,
         "renderedCount": 0,
-        "instances": [],
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(227,241,238)",
+            "contrast": 6.53,
+            "rect": {
+              "w": 280,
+              "h": 20,
+              "top": 865
+            },
+            "text": "AIAI generated (fixture)",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(227,241,238)",
+            "contrast": 6.53,
+            "rect": {
+              "w": 280,
+              "h": 20,
+              "top": 1203
+            },
+            "text": "AIAI generated (fixture)",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(227,241,238)",
+            "contrast": 6.53,
+            "rect": {
+              "w": 280,
+              "h": 20,
+              "top": 1540
+            },
+            "text": "AIAI generated (fixture)",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(227,241,238)",
+            "contrast": 6.53,
+            "rect": {
+              "w": 280,
+              "h": 20,
+              "top": 1878
+            },
+            "text": "AIAI generated (fixture)",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(227,241,238)",
+            "contrast": 6.53,
+            "rect": {
+              "w": 280,
+              "h": 20,
+              "top": 2216
+            },
+            "text": "AIAI generated (fixture)",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          }
+        ],
         "pages": [
           {
             "page": "/stocks/SSE:600519",
@@ -152,16 +263,116 @@
           {
             "page": "/ai",
             "status": "ABSENT"
+          },
+          {
+            "page": "/dev/ai-card",
+            "status": "PASS"
           }
         ]
       },
       "[data-testid=\"ai-disclaimer\"]": {
         "list": "spec62",
         "minPx": 13,
-        "status": "ABSENT",
+        "status": "PASS",
         "instanceCount": 0,
         "renderedCount": 0,
-        "instances": [],
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(20,23,28)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(227,241,238)",
+            "contrast": 15.47,
+            "rect": {
+              "w": 280,
+              "h": 60,
+              "top": 891
+            },
+            "text": "Fixture disclaimer for visual evidence collection. This samp",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(20,23,28)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(227,241,238)",
+            "contrast": 15.47,
+            "rect": {
+              "w": 280,
+              "h": 60,
+              "top": 1229
+            },
+            "text": "Fixture disclaimer for visual evidence collection. This samp",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(20,23,28)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(227,241,238)",
+            "contrast": 15.47,
+            "rect": {
+              "w": 280,
+              "h": 60,
+              "top": 1566
+            },
+            "text": "Fixture disclaimer for visual evidence collection. This samp",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(20,23,28)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(227,241,238)",
+            "contrast": 15.47,
+            "rect": {
+              "w": 280,
+              "h": 60,
+              "top": 1904
+            },
+            "text": "Fixture disclaimer for visual evidence collection. This samp",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(20,23,28)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(227,241,238)",
+            "contrast": 15.47,
+            "rect": {
+              "w": 280,
+              "h": 60,
+              "top": 2242
+            },
+            "text": "Fixture disclaimer for visual evidence collection. This samp",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          }
+        ],
         "pages": [
           {
             "page": "/stocks/SSE:600519",
@@ -170,6 +381,10 @@
           {
             "page": "/ai",
             "status": "ABSENT"
+          },
+          {
+            "page": "/dev/ai-card",
+            "status": "PASS"
           }
         ]
       },
@@ -198,6 +413,25 @@
             "ancestorIntervention": [],
             "violations": [],
             "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 15,
+            "color": "rgb(20,23,28)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 17.96,
+            "rect": {
+              "w": 358,
+              "h": 143,
+              "top": 2549
+            },
+            "text": "免责声明Fixture disclaimer for visual evidence collection. This ",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
           }
         ],
         "pages": [
@@ -208,6 +442,10 @@
           {
             "page": "/ai",
             "status": "ABSENT"
+          },
+          {
+            "page": "/dev/ai-card",
+            "status": "PASS"
           }
         ]
       },
@@ -236,6 +474,25 @@
             "ancestorIntervention": [],
             "violations": [],
             "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(20,23,28)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 17.96,
+            "rect": {
+              "w": 325,
+              "h": 65,
+              "top": 2588
+            },
+            "text": "Fixture disclaimer for visual evidence collection. This samp",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
           }
         ],
         "pages": [
@@ -246,6 +503,10 @@
           {
             "page": "/ai",
             "status": "ABSENT"
+          },
+          {
+            "page": "/dev/ai-card",
+            "status": "PASS"
           }
         ]
       },
@@ -274,6 +535,25 @@
             "ancestorIntervention": [],
             "violations": [],
             "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 7.58,
+            "rect": {
+              "w": 51,
+              "h": 16,
+              "top": 2661
+            },
+            "text": "fixture-1",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
           }
         ],
         "pages": [
@@ -284,6 +564,10 @@
           {
             "page": "/ai",
             "status": "ABSENT"
+          },
+          {
+            "page": "/dev/ai-card",
+            "status": "PASS"
           }
         ]
       },
@@ -297,11 +581,11 @@
           {
             "rendered": true,
             "fontSize": 13,
-            "color": "rgb(20,23,28)",
-            "colorClass": "allow(--text)",
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
             "opacity": "1",
             "effectiveBg": "rgb(255,255,255)",
-            "contrast": 17.96,
+            "contrast": 7.58,
             "rect": {
               "w": 177,
               "h": 16,
@@ -312,6 +596,25 @@
             "ancestorIntervention": [],
             "violations": [],
             "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 7.58,
+            "rect": {
+              "w": 179,
+              "h": 16,
+              "top": 318
+            },
+            "text": "2026-11-06T15:00:00+08:00",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
           }
         ],
         "pages": [
@@ -322,6 +625,10 @@
           {
             "page": "/ai",
             "status": "ABSENT"
+          },
+          {
+            "page": "/dev/ai-card",
+            "status": "PASS"
           }
         ]
       },
@@ -335,11 +642,11 @@
           {
             "rendered": true,
             "fontSize": 13,
-            "color": "rgb(20,23,28)",
-            "colorClass": "allow(--text)",
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
             "opacity": "1",
             "effectiveBg": "rgb(238,241,245)",
-            "contrast": 15.86,
+            "contrast": 6.69,
             "rect": {
               "w": 125,
               "h": 36,
@@ -350,6 +657,120 @@
             "ancestorIntervention": [],
             "violations": [],
             "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 6.69,
+            "rect": {
+              "w": 125,
+              "h": 36,
+              "top": 683
+            },
+            "text": "2026-11-06T15:00:00+08:00",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 6.69,
+            "rect": {
+              "w": 302,
+              "h": 19,
+              "top": 966
+            },
+            "text": "2026-11-06T15:00:00+08:00",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 6.69,
+            "rect": {
+              "w": 302,
+              "h": 19,
+              "top": 1304
+            },
+            "text": "2026-11-06T15:00:00+08:00",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 6.69,
+            "rect": {
+              "w": 302,
+              "h": 19,
+              "top": 1642
+            },
+            "text": "2026-11-06T15:00:00+08:00",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 6.69,
+            "rect": {
+              "w": 302,
+              "h": 19,
+              "top": 1980
+            },
+            "text": "2026-11-06T15:00:00+08:00",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 6.69,
+            "rect": {
+              "w": 302,
+              "h": 19,
+              "top": 2317
+            },
+            "text": "2026-11-06T15:00:00+08:00",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
           }
         ],
         "pages": [
@@ -360,16 +781,116 @@
           {
             "page": "/ai",
             "status": "ABSENT"
+          },
+          {
+            "page": "/dev/ai-card",
+            "status": "PASS"
           }
         ]
       },
       ".ai-badge": {
         "list": "main",
         "minPx": 13,
-        "status": "ABSENT",
+        "status": "PASS",
         "instanceCount": 0,
         "renderedCount": 0,
-        "instances": [],
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(227,241,238)",
+            "contrast": 6.53,
+            "rect": {
+              "w": 280,
+              "h": 20,
+              "top": 865
+            },
+            "text": "AIAI generated (fixture)",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(227,241,238)",
+            "contrast": 6.53,
+            "rect": {
+              "w": 280,
+              "h": 20,
+              "top": 1203
+            },
+            "text": "AIAI generated (fixture)",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(227,241,238)",
+            "contrast": 6.53,
+            "rect": {
+              "w": 280,
+              "h": 20,
+              "top": 1540
+            },
+            "text": "AIAI generated (fixture)",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(227,241,238)",
+            "contrast": 6.53,
+            "rect": {
+              "w": 280,
+              "h": 20,
+              "top": 1878
+            },
+            "text": "AIAI generated (fixture)",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(227,241,238)",
+            "contrast": 6.53,
+            "rect": {
+              "w": 280,
+              "h": 20,
+              "top": 2216
+            },
+            "text": "AIAI generated (fixture)",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          }
+        ],
         "pages": [
           {
             "page": "/stocks/SSE:600519",
@@ -378,16 +899,116 @@
           {
             "page": "/ai",
             "status": "ABSENT"
+          },
+          {
+            "page": "/dev/ai-card",
+            "status": "PASS"
           }
         ]
       },
       ".ai-disclaimer": {
         "list": "main",
         "minPx": 13,
-        "status": "ABSENT",
+        "status": "PASS",
         "instanceCount": 0,
         "renderedCount": 0,
-        "instances": [],
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(20,23,28)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(227,241,238)",
+            "contrast": 15.47,
+            "rect": {
+              "w": 280,
+              "h": 60,
+              "top": 891
+            },
+            "text": "Fixture disclaimer for visual evidence collection. This samp",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(20,23,28)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(227,241,238)",
+            "contrast": 15.47,
+            "rect": {
+              "w": 280,
+              "h": 60,
+              "top": 1229
+            },
+            "text": "Fixture disclaimer for visual evidence collection. This samp",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(20,23,28)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(227,241,238)",
+            "contrast": 15.47,
+            "rect": {
+              "w": 280,
+              "h": 60,
+              "top": 1566
+            },
+            "text": "Fixture disclaimer for visual evidence collection. This samp",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(20,23,28)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(227,241,238)",
+            "contrast": 15.47,
+            "rect": {
+              "w": 280,
+              "h": 60,
+              "top": 1904
+            },
+            "text": "Fixture disclaimer for visual evidence collection. This samp",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(20,23,28)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(227,241,238)",
+            "contrast": 15.47,
+            "rect": {
+              "w": 280,
+              "h": 60,
+              "top": 2242
+            },
+            "text": "Fixture disclaimer for visual evidence collection. This samp",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          }
+        ],
         "pages": [
           {
             "page": "/stocks/SSE:600519",
@@ -396,6 +1017,10 @@
           {
             "page": "/ai",
             "status": "ABSENT"
+          },
+          {
+            "page": "/dev/ai-card",
+            "status": "PASS"
           }
         ]
       },
@@ -424,6 +1049,25 @@
             "ancestorIntervention": [],
             "violations": [],
             "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 7.58,
+            "rect": {
+              "w": 325,
+              "h": 20,
+              "top": 2660
+            },
+            "text": "版本 fixture-1 · 不可关闭",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
           }
         ],
         "pages": [
@@ -434,6 +1078,10 @@
           {
             "page": "/ai",
             "status": "ABSENT"
+          },
+          {
+            "page": "/dev/ai-card",
+            "status": "PASS"
           }
         ]
       },
@@ -519,6 +1167,82 @@
             "ancestorIntervention": [],
             "violations": [],
             "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 7.58,
+            "rect": {
+              "w": 326,
+              "h": 20,
+              "top": 295
+            },
+            "text": "数据截止（北京时间）",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 7.58,
+            "rect": {
+              "w": 156,
+              "h": 20,
+              "top": 344
+            },
+            "text": "数据来源",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 7.58,
+            "rect": {
+              "w": 156,
+              "h": 20,
+              "top": 344
+            },
+            "text": "价格口径",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 7.58,
+            "rect": {
+              "w": 156,
+              "h": 20,
+              "top": 392
+            },
+            "text": "交易日",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
           }
         ],
         "pages": [
@@ -529,6 +1253,10 @@
           {
             "page": "/ai",
             "status": "ABSENT"
+          },
+          {
+            "page": "/dev/ai-card",
+            "status": "PASS"
           }
         ]
       },
@@ -542,11 +1270,11 @@
           {
             "rendered": true,
             "fontSize": 13,
-            "color": "rgb(20,23,28)",
-            "colorClass": "allow(--text)",
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
             "opacity": "1",
             "effectiveBg": "rgb(255,255,255)",
-            "contrast": 17.96,
+            "contrast": 7.58,
             "rect": {
               "w": 326,
               "h": 19,
@@ -561,11 +1289,11 @@
           {
             "rendered": true,
             "fontSize": 13,
-            "color": "rgb(20,23,28)",
-            "colorClass": "allow(--text)",
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
             "opacity": "1",
             "effectiveBg": "rgb(255,255,255)",
-            "contrast": 17.96,
+            "contrast": 7.58,
             "rect": {
               "w": 156,
               "h": 19,
@@ -580,11 +1308,11 @@
           {
             "rendered": true,
             "fontSize": 13,
-            "color": "rgb(20,23,28)",
-            "colorClass": "allow(--text)",
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
             "opacity": "1",
             "effectiveBg": "rgb(255,255,255)",
-            "contrast": 17.96,
+            "contrast": 7.58,
             "rect": {
               "w": 156,
               "h": 19,
@@ -599,11 +1327,11 @@
           {
             "rendered": true,
             "fontSize": 13,
-            "color": "rgb(20,23,28)",
-            "colorClass": "allow(--text)",
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
             "opacity": "1",
             "effectiveBg": "rgb(255,255,255)",
-            "contrast": 17.96,
+            "contrast": 7.58,
             "rect": {
               "w": 156,
               "h": 19,
@@ -614,6 +1342,82 @@
             "ancestorIntervention": [],
             "violations": [],
             "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 7.58,
+            "rect": {
+              "w": 326,
+              "h": 19,
+              "top": 317
+            },
+            "text": "2026-11-06T15:00:00+08:00",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 7.58,
+            "rect": {
+              "w": 156,
+              "h": 19,
+              "top": 365
+            },
+            "text": "平台行情快照",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 7.58,
+            "rect": {
+              "w": 156,
+              "h": 19,
+              "top": 365
+            },
+            "text": "—",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 7.58,
+            "rect": {
+              "w": 156,
+              "h": 19,
+              "top": 413
+            },
+            "text": "2026-11-06",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
           }
         ],
         "pages": [
@@ -624,6 +1428,10 @@
           {
             "page": "/ai",
             "status": "ABSENT"
+          },
+          {
+            "page": "/dev/ai-card",
+            "status": "PASS"
           }
         ]
       },
@@ -709,6 +1517,82 @@
             "ancestorIntervention": [],
             "violations": [],
             "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 6.69,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 613
+            },
+            "text": "最新价",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 6.69,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 613
+            },
+            "text": "涨跌幅",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 6.69,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 660
+            },
+            "text": "数据截止（北京时间）",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 6.69,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 660
+            },
+            "text": "数据来源",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
           }
         ],
         "pages": [
@@ -719,6 +1603,10 @@
           {
             "page": "/ai",
             "status": "ABSENT"
+          },
+          {
+            "page": "/dev/ai-card",
+            "status": "PASS"
           }
         ]
       },
@@ -732,11 +1620,11 @@
           {
             "rendered": true,
             "fontSize": 13,
-            "color": "rgb(20,23,28)",
-            "colorClass": "allow(--text)",
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
             "opacity": "1",
             "effectiveBg": "rgb(238,241,245)",
-            "contrast": 15.86,
+            "contrast": 6.69,
             "rect": {
               "w": 145,
               "h": 20,
@@ -751,11 +1639,11 @@
           {
             "rendered": true,
             "fontSize": 13,
-            "color": "rgb(20,23,28)",
-            "colorClass": "allow(--text)",
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
             "opacity": "1",
             "effectiveBg": "rgb(238,241,245)",
-            "contrast": 15.86,
+            "contrast": 6.69,
             "rect": {
               "w": 145,
               "h": 20,
@@ -770,11 +1658,11 @@
           {
             "rendered": true,
             "fontSize": 13,
-            "color": "rgb(20,23,28)",
-            "colorClass": "allow(--text)",
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
             "opacity": "1",
             "effectiveBg": "rgb(238,241,245)",
-            "contrast": 15.86,
+            "contrast": 6.69,
             "rect": {
               "w": 145,
               "h": 39,
@@ -789,11 +1677,11 @@
           {
             "rendered": true,
             "fontSize": 13,
-            "color": "rgb(20,23,28)",
-            "colorClass": "allow(--text)",
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
             "opacity": "1",
             "effectiveBg": "rgb(238,241,245)",
-            "contrast": 15.86,
+            "contrast": 6.69,
             "rect": {
               "w": 145,
               "h": 20,
@@ -804,6 +1692,82 @@
             "ancestorIntervention": [],
             "violations": [],
             "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 6.69,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 635
+            },
+            "text": "1680.00 元",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 6.69,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 635
+            },
+            "text": "+0.74%",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 6.69,
+            "rect": {
+              "w": 145,
+              "h": 39,
+              "top": 682
+            },
+            "text": "2026-11-06T15:00:00+08:00",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 6.69,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 682
+            },
+            "text": "平台行情快照",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
           }
         ],
         "pages": [
@@ -814,6 +1778,10 @@
           {
             "page": "/ai",
             "status": "ABSENT"
+          },
+          {
+            "page": "/dev/ai-card",
+            "status": "PASS"
           }
         ]
       },
@@ -928,6 +1896,10 @@
           {
             "page": "/ai",
             "status": "ABSENT"
+          },
+          {
+            "page": "/dev/ai-card",
+            "status": "ABSENT"
           }
         ]
       },
@@ -956,6 +1928,25 @@
             "ancestorIntervention": [],
             "violations": [],
             "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 7.58,
+            "rect": {
+              "w": 328,
+              "h": 42,
+              "top": 2434
+            },
+            "text": "缺口按受控类别显式标注，不用 0、样例值或推测值填充。",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
           }
         ],
         "pages": [
@@ -966,6 +1957,10 @@
           {
             "page": "/ai",
             "status": "ABSENT"
+          },
+          {
+            "page": "/dev/ai-card",
+            "status": "PASS"
           }
         ]
       },
@@ -994,6 +1989,25 @@
             "ancestorIntervention": [],
             "violations": [],
             "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 7.58,
+            "rect": {
+              "w": 328,
+              "h": 40,
+              "top": 2480
+            },
+            "text": "本段当前不含模型生成文本；AI 标识与免责仅在服务端注入后随内容展示。",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
           }
         ],
         "pages": [
@@ -1004,6 +2018,10 @@
           {
             "page": "/ai",
             "status": "ABSENT"
+          },
+          {
+            "page": "/dev/ai-card",
+            "status": "PASS"
           }
         ]
       },
@@ -1027,7 +2045,7 @@
               "h": 35,
               "top": 457
             },
-            "text": "延时数据 · 非实时（滞后约 8.7小时）",
+            "text": "延时数据 · 非实时（滞后约 10.8小时）",
             "ariaHiddenAncestor": false,
             "ancestorIntervention": [],
             "violations": [],
@@ -1042,16 +2060,116 @@
           {
             "page": "/ai",
             "status": "ABSENT"
+          },
+          {
+            "page": "/dev/ai-card",
+            "status": "ABSENT"
           }
         ]
       },
       ".ai-badge__mark": {
         "list": "mark",
         "minPx": 10,
-        "status": "ABSENT",
+        "status": "PASS",
         "instanceCount": 0,
         "renderedCount": 0,
-        "instances": [],
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 10,
+            "color": "rgb(255,255,255)",
+            "colorClass": "OUT_OF_SPEC_SCOPE",
+            "opacity": "1",
+            "effectiveBg": "rgb(11,99,87)",
+            "contrast": 7.15,
+            "rect": {
+              "w": 20,
+              "h": 20,
+              "top": 865
+            },
+            "text": "AI",
+            "ariaHiddenAncestor": true,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 10,
+            "color": "rgb(255,255,255)",
+            "colorClass": "OUT_OF_SPEC_SCOPE",
+            "opacity": "1",
+            "effectiveBg": "rgb(11,99,87)",
+            "contrast": 7.15,
+            "rect": {
+              "w": 20,
+              "h": 20,
+              "top": 1203
+            },
+            "text": "AI",
+            "ariaHiddenAncestor": true,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 10,
+            "color": "rgb(255,255,255)",
+            "colorClass": "OUT_OF_SPEC_SCOPE",
+            "opacity": "1",
+            "effectiveBg": "rgb(11,99,87)",
+            "contrast": 7.15,
+            "rect": {
+              "w": 20,
+              "h": 20,
+              "top": 1540
+            },
+            "text": "AI",
+            "ariaHiddenAncestor": true,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 10,
+            "color": "rgb(255,255,255)",
+            "colorClass": "OUT_OF_SPEC_SCOPE",
+            "opacity": "1",
+            "effectiveBg": "rgb(11,99,87)",
+            "contrast": 7.15,
+            "rect": {
+              "w": 20,
+              "h": 20,
+              "top": 1878
+            },
+            "text": "AI",
+            "ariaHiddenAncestor": true,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 10,
+            "color": "rgb(255,255,255)",
+            "colorClass": "OUT_OF_SPEC_SCOPE",
+            "opacity": "1",
+            "effectiveBg": "rgb(11,99,87)",
+            "contrast": 7.15,
+            "rect": {
+              "w": 20,
+              "h": 20,
+              "top": 2216
+            },
+            "text": "AI",
+            "ariaHiddenAncestor": true,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          }
+        ],
         "pages": [
           {
             "page": "/stocks/SSE:600519",
@@ -1060,6 +2178,10 @@
           {
             "page": "/ai",
             "status": "ABSENT"
+          },
+          {
+            "page": "/dev/ai-card",
+            "status": "PASS"
           }
         ]
       }
@@ -1074,10 +2196,106 @@
       "[data-testid=\"ai-generated-badge\"]": {
         "list": "spec62",
         "minPx": 13,
-        "status": "ABSENT",
+        "status": "PASS",
         "instanceCount": 0,
         "renderedCount": 0,
-        "instances": [],
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(18,49,44)",
+            "contrast": 7.35,
+            "rect": {
+              "w": 280,
+              "h": 20,
+              "top": 865
+            },
+            "text": "AIAI generated (fixture)",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(18,49,44)",
+            "contrast": 7.35,
+            "rect": {
+              "w": 280,
+              "h": 20,
+              "top": 1203
+            },
+            "text": "AIAI generated (fixture)",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(18,49,44)",
+            "contrast": 7.35,
+            "rect": {
+              "w": 280,
+              "h": 20,
+              "top": 1540
+            },
+            "text": "AIAI generated (fixture)",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(18,49,44)",
+            "contrast": 7.35,
+            "rect": {
+              "w": 280,
+              "h": 20,
+              "top": 1878
+            },
+            "text": "AIAI generated (fixture)",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(18,49,44)",
+            "contrast": 7.35,
+            "rect": {
+              "w": 280,
+              "h": 20,
+              "top": 2216
+            },
+            "text": "AIAI generated (fixture)",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          }
+        ],
         "pages": [
           {
             "page": "/stocks/SSE:600519",
@@ -1086,16 +2304,116 @@
           {
             "page": "/ai",
             "status": "ABSENT"
+          },
+          {
+            "page": "/dev/ai-card",
+            "status": "PASS"
           }
         ]
       },
       "[data-testid=\"ai-disclaimer\"]": {
         "list": "spec62",
         "minPx": 13,
-        "status": "ABSENT",
+        "status": "PASS",
         "instanceCount": 0,
         "renderedCount": 0,
-        "instances": [],
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(232,237,244)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(18,49,44)",
+            "contrast": 11.89,
+            "rect": {
+              "w": 280,
+              "h": 60,
+              "top": 891
+            },
+            "text": "Fixture disclaimer for visual evidence collection. This samp",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(232,237,244)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(18,49,44)",
+            "contrast": 11.89,
+            "rect": {
+              "w": 280,
+              "h": 60,
+              "top": 1229
+            },
+            "text": "Fixture disclaimer for visual evidence collection. This samp",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(232,237,244)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(18,49,44)",
+            "contrast": 11.89,
+            "rect": {
+              "w": 280,
+              "h": 60,
+              "top": 1566
+            },
+            "text": "Fixture disclaimer for visual evidence collection. This samp",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(232,237,244)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(18,49,44)",
+            "contrast": 11.89,
+            "rect": {
+              "w": 280,
+              "h": 60,
+              "top": 1904
+            },
+            "text": "Fixture disclaimer for visual evidence collection. This samp",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(232,237,244)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(18,49,44)",
+            "contrast": 11.89,
+            "rect": {
+              "w": 280,
+              "h": 60,
+              "top": 2242
+            },
+            "text": "Fixture disclaimer for visual evidence collection. This samp",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          }
+        ],
         "pages": [
           {
             "page": "/stocks/SSE:600519",
@@ -1104,6 +2422,10 @@
           {
             "page": "/ai",
             "status": "ABSENT"
+          },
+          {
+            "page": "/dev/ai-card",
+            "status": "PASS"
           }
         ]
       },
@@ -1132,6 +2454,25 @@
             "ancestorIntervention": [],
             "violations": [],
             "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 15,
+            "color": "rgb(232,237,244)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 14.89,
+            "rect": {
+              "w": 358,
+              "h": 143,
+              "top": 2549
+            },
+            "text": "免责声明Fixture disclaimer for visual evidence collection. This ",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
           }
         ],
         "pages": [
@@ -1142,6 +2483,10 @@
           {
             "page": "/ai",
             "status": "ABSENT"
+          },
+          {
+            "page": "/dev/ai-card",
+            "status": "PASS"
           }
         ]
       },
@@ -1170,6 +2515,25 @@
             "ancestorIntervention": [],
             "violations": [],
             "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(232,237,244)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 14.89,
+            "rect": {
+              "w": 325,
+              "h": 65,
+              "top": 2588
+            },
+            "text": "Fixture disclaimer for visual evidence collection. This samp",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
           }
         ],
         "pages": [
@@ -1180,6 +2544,10 @@
           {
             "page": "/ai",
             "status": "ABSENT"
+          },
+          {
+            "page": "/dev/ai-card",
+            "status": "PASS"
           }
         ]
       },
@@ -1208,6 +2576,25 @@
             "ancestorIntervention": [],
             "violations": [],
             "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 9.21,
+            "rect": {
+              "w": 51,
+              "h": 16,
+              "top": 2661
+            },
+            "text": "fixture-1",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
           }
         ],
         "pages": [
@@ -1218,6 +2605,10 @@
           {
             "page": "/ai",
             "status": "ABSENT"
+          },
+          {
+            "page": "/dev/ai-card",
+            "status": "PASS"
           }
         ]
       },
@@ -1231,11 +2622,11 @@
           {
             "rendered": true,
             "fontSize": 13,
-            "color": "rgb(232,237,244)",
-            "colorClass": "allow(--text)",
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
             "opacity": "1",
             "effectiveBg": "rgb(19,26,34)",
-            "contrast": 14.89,
+            "contrast": 9.21,
             "rect": {
               "w": 177,
               "h": 16,
@@ -1246,6 +2637,25 @@
             "ancestorIntervention": [],
             "violations": [],
             "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 9.21,
+            "rect": {
+              "w": 179,
+              "h": 16,
+              "top": 318
+            },
+            "text": "2026-11-06T15:00:00+08:00",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
           }
         ],
         "pages": [
@@ -1256,6 +2666,10 @@
           {
             "page": "/ai",
             "status": "ABSENT"
+          },
+          {
+            "page": "/dev/ai-card",
+            "status": "PASS"
           }
         ]
       },
@@ -1269,11 +2683,11 @@
           {
             "rendered": true,
             "fontSize": 13,
-            "color": "rgb(232,237,244)",
-            "colorClass": "allow(--text)",
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
             "opacity": "1",
             "effectiveBg": "rgb(27,36,48)",
-            "contrast": 13.31,
+            "contrast": 8.23,
             "rect": {
               "w": 125,
               "h": 36,
@@ -1284,6 +2698,120 @@
             "ancestorIntervention": [],
             "violations": [],
             "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 8.23,
+            "rect": {
+              "w": 125,
+              "h": 36,
+              "top": 683
+            },
+            "text": "2026-11-06T15:00:00+08:00",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 8.23,
+            "rect": {
+              "w": 302,
+              "h": 19,
+              "top": 966
+            },
+            "text": "2026-11-06T15:00:00+08:00",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 8.23,
+            "rect": {
+              "w": 302,
+              "h": 19,
+              "top": 1304
+            },
+            "text": "2026-11-06T15:00:00+08:00",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 8.23,
+            "rect": {
+              "w": 302,
+              "h": 19,
+              "top": 1642
+            },
+            "text": "2026-11-06T15:00:00+08:00",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 8.23,
+            "rect": {
+              "w": 302,
+              "h": 19,
+              "top": 1980
+            },
+            "text": "2026-11-06T15:00:00+08:00",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 8.23,
+            "rect": {
+              "w": 302,
+              "h": 19,
+              "top": 2317
+            },
+            "text": "2026-11-06T15:00:00+08:00",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
           }
         ],
         "pages": [
@@ -1294,16 +2822,116 @@
           {
             "page": "/ai",
             "status": "ABSENT"
+          },
+          {
+            "page": "/dev/ai-card",
+            "status": "PASS"
           }
         ]
       },
       ".ai-badge": {
         "list": "main",
         "minPx": 13,
-        "status": "ABSENT",
+        "status": "PASS",
         "instanceCount": 0,
         "renderedCount": 0,
-        "instances": [],
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(18,49,44)",
+            "contrast": 7.35,
+            "rect": {
+              "w": 280,
+              "h": 20,
+              "top": 865
+            },
+            "text": "AIAI generated (fixture)",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(18,49,44)",
+            "contrast": 7.35,
+            "rect": {
+              "w": 280,
+              "h": 20,
+              "top": 1203
+            },
+            "text": "AIAI generated (fixture)",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(18,49,44)",
+            "contrast": 7.35,
+            "rect": {
+              "w": 280,
+              "h": 20,
+              "top": 1540
+            },
+            "text": "AIAI generated (fixture)",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(18,49,44)",
+            "contrast": 7.35,
+            "rect": {
+              "w": 280,
+              "h": 20,
+              "top": 1878
+            },
+            "text": "AIAI generated (fixture)",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(18,49,44)",
+            "contrast": 7.35,
+            "rect": {
+              "w": 280,
+              "h": 20,
+              "top": 2216
+            },
+            "text": "AIAI generated (fixture)",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          }
+        ],
         "pages": [
           {
             "page": "/stocks/SSE:600519",
@@ -1312,16 +2940,116 @@
           {
             "page": "/ai",
             "status": "ABSENT"
+          },
+          {
+            "page": "/dev/ai-card",
+            "status": "PASS"
           }
         ]
       },
       ".ai-disclaimer": {
         "list": "main",
         "minPx": 13,
-        "status": "ABSENT",
+        "status": "PASS",
         "instanceCount": 0,
         "renderedCount": 0,
-        "instances": [],
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(232,237,244)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(18,49,44)",
+            "contrast": 11.89,
+            "rect": {
+              "w": 280,
+              "h": 60,
+              "top": 891
+            },
+            "text": "Fixture disclaimer for visual evidence collection. This samp",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(232,237,244)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(18,49,44)",
+            "contrast": 11.89,
+            "rect": {
+              "w": 280,
+              "h": 60,
+              "top": 1229
+            },
+            "text": "Fixture disclaimer for visual evidence collection. This samp",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(232,237,244)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(18,49,44)",
+            "contrast": 11.89,
+            "rect": {
+              "w": 280,
+              "h": 60,
+              "top": 1566
+            },
+            "text": "Fixture disclaimer for visual evidence collection. This samp",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(232,237,244)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(18,49,44)",
+            "contrast": 11.89,
+            "rect": {
+              "w": 280,
+              "h": 60,
+              "top": 1904
+            },
+            "text": "Fixture disclaimer for visual evidence collection. This samp",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(232,237,244)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(18,49,44)",
+            "contrast": 11.89,
+            "rect": {
+              "w": 280,
+              "h": 60,
+              "top": 2242
+            },
+            "text": "Fixture disclaimer for visual evidence collection. This samp",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          }
+        ],
         "pages": [
           {
             "page": "/stocks/SSE:600519",
@@ -1330,6 +3058,10 @@
           {
             "page": "/ai",
             "status": "ABSENT"
+          },
+          {
+            "page": "/dev/ai-card",
+            "status": "PASS"
           }
         ]
       },
@@ -1358,6 +3090,25 @@
             "ancestorIntervention": [],
             "violations": [],
             "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 9.21,
+            "rect": {
+              "w": 325,
+              "h": 20,
+              "top": 2660
+            },
+            "text": "版本 fixture-1 · 不可关闭",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
           }
         ],
         "pages": [
@@ -1368,6 +3119,10 @@
           {
             "page": "/ai",
             "status": "ABSENT"
+          },
+          {
+            "page": "/dev/ai-card",
+            "status": "PASS"
           }
         ]
       },
@@ -1453,6 +3208,82 @@
             "ancestorIntervention": [],
             "violations": [],
             "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 9.21,
+            "rect": {
+              "w": 326,
+              "h": 20,
+              "top": 295
+            },
+            "text": "数据截止（北京时间）",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 9.21,
+            "rect": {
+              "w": 156,
+              "h": 20,
+              "top": 344
+            },
+            "text": "数据来源",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 9.21,
+            "rect": {
+              "w": 156,
+              "h": 20,
+              "top": 344
+            },
+            "text": "价格口径",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 9.21,
+            "rect": {
+              "w": 156,
+              "h": 20,
+              "top": 392
+            },
+            "text": "交易日",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
           }
         ],
         "pages": [
@@ -1463,6 +3294,10 @@
           {
             "page": "/ai",
             "status": "ABSENT"
+          },
+          {
+            "page": "/dev/ai-card",
+            "status": "PASS"
           }
         ]
       },
@@ -1476,11 +3311,11 @@
           {
             "rendered": true,
             "fontSize": 13,
-            "color": "rgb(232,237,244)",
-            "colorClass": "allow(--text)",
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
             "opacity": "1",
             "effectiveBg": "rgb(19,26,34)",
-            "contrast": 14.89,
+            "contrast": 9.21,
             "rect": {
               "w": 326,
               "h": 19,
@@ -1495,11 +3330,11 @@
           {
             "rendered": true,
             "fontSize": 13,
-            "color": "rgb(232,237,244)",
-            "colorClass": "allow(--text)",
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
             "opacity": "1",
             "effectiveBg": "rgb(19,26,34)",
-            "contrast": 14.89,
+            "contrast": 9.21,
             "rect": {
               "w": 156,
               "h": 19,
@@ -1514,11 +3349,11 @@
           {
             "rendered": true,
             "fontSize": 13,
-            "color": "rgb(232,237,244)",
-            "colorClass": "allow(--text)",
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
             "opacity": "1",
             "effectiveBg": "rgb(19,26,34)",
-            "contrast": 14.89,
+            "contrast": 9.21,
             "rect": {
               "w": 156,
               "h": 19,
@@ -1533,11 +3368,11 @@
           {
             "rendered": true,
             "fontSize": 13,
-            "color": "rgb(232,237,244)",
-            "colorClass": "allow(--text)",
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
             "opacity": "1",
             "effectiveBg": "rgb(19,26,34)",
-            "contrast": 14.89,
+            "contrast": 9.21,
             "rect": {
               "w": 156,
               "h": 19,
@@ -1548,6 +3383,82 @@
             "ancestorIntervention": [],
             "violations": [],
             "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 9.21,
+            "rect": {
+              "w": 326,
+              "h": 19,
+              "top": 317
+            },
+            "text": "2026-11-06T15:00:00+08:00",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 9.21,
+            "rect": {
+              "w": 156,
+              "h": 19,
+              "top": 365
+            },
+            "text": "平台行情快照",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 9.21,
+            "rect": {
+              "w": 156,
+              "h": 19,
+              "top": 365
+            },
+            "text": "—",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 9.21,
+            "rect": {
+              "w": 156,
+              "h": 19,
+              "top": 413
+            },
+            "text": "2026-11-06",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
           }
         ],
         "pages": [
@@ -1558,6 +3469,10 @@
           {
             "page": "/ai",
             "status": "ABSENT"
+          },
+          {
+            "page": "/dev/ai-card",
+            "status": "PASS"
           }
         ]
       },
@@ -1643,6 +3558,82 @@
             "ancestorIntervention": [],
             "violations": [],
             "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 8.23,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 613
+            },
+            "text": "最新价",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 8.23,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 613
+            },
+            "text": "涨跌幅",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 8.23,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 660
+            },
+            "text": "数据截止（北京时间）",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 8.23,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 660
+            },
+            "text": "数据来源",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
           }
         ],
         "pages": [
@@ -1653,6 +3644,10 @@
           {
             "page": "/ai",
             "status": "ABSENT"
+          },
+          {
+            "page": "/dev/ai-card",
+            "status": "PASS"
           }
         ]
       },
@@ -1666,11 +3661,11 @@
           {
             "rendered": true,
             "fontSize": 13,
-            "color": "rgb(232,237,244)",
-            "colorClass": "allow(--text)",
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
             "opacity": "1",
             "effectiveBg": "rgb(27,36,48)",
-            "contrast": 13.31,
+            "contrast": 8.23,
             "rect": {
               "w": 145,
               "h": 20,
@@ -1685,11 +3680,11 @@
           {
             "rendered": true,
             "fontSize": 13,
-            "color": "rgb(232,237,244)",
-            "colorClass": "allow(--text)",
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
             "opacity": "1",
             "effectiveBg": "rgb(27,36,48)",
-            "contrast": 13.31,
+            "contrast": 8.23,
             "rect": {
               "w": 145,
               "h": 20,
@@ -1704,11 +3699,11 @@
           {
             "rendered": true,
             "fontSize": 13,
-            "color": "rgb(232,237,244)",
-            "colorClass": "allow(--text)",
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
             "opacity": "1",
             "effectiveBg": "rgb(27,36,48)",
-            "contrast": 13.31,
+            "contrast": 8.23,
             "rect": {
               "w": 145,
               "h": 39,
@@ -1723,11 +3718,11 @@
           {
             "rendered": true,
             "fontSize": 13,
-            "color": "rgb(232,237,244)",
-            "colorClass": "allow(--text)",
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
             "opacity": "1",
             "effectiveBg": "rgb(27,36,48)",
-            "contrast": 13.31,
+            "contrast": 8.23,
             "rect": {
               "w": 145,
               "h": 20,
@@ -1738,6 +3733,82 @@
             "ancestorIntervention": [],
             "violations": [],
             "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 8.23,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 635
+            },
+            "text": "1680.00 元",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 8.23,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 635
+            },
+            "text": "+0.74%",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 8.23,
+            "rect": {
+              "w": 145,
+              "h": 39,
+              "top": 682
+            },
+            "text": "2026-11-06T15:00:00+08:00",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 8.23,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 682
+            },
+            "text": "平台行情快照",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
           }
         ],
         "pages": [
@@ -1748,6 +3819,10 @@
           {
             "page": "/ai",
             "status": "ABSENT"
+          },
+          {
+            "page": "/dev/ai-card",
+            "status": "PASS"
           }
         ]
       },
@@ -1862,6 +3937,10 @@
           {
             "page": "/ai",
             "status": "ABSENT"
+          },
+          {
+            "page": "/dev/ai-card",
+            "status": "ABSENT"
           }
         ]
       },
@@ -1890,6 +3969,25 @@
             "ancestorIntervention": [],
             "violations": [],
             "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 9.21,
+            "rect": {
+              "w": 328,
+              "h": 42,
+              "top": 2434
+            },
+            "text": "缺口按受控类别显式标注，不用 0、样例值或推测值填充。",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
           }
         ],
         "pages": [
@@ -1900,6 +3998,10 @@
           {
             "page": "/ai",
             "status": "ABSENT"
+          },
+          {
+            "page": "/dev/ai-card",
+            "status": "PASS"
           }
         ]
       },
@@ -1928,6 +4030,25 @@
             "ancestorIntervention": [],
             "violations": [],
             "page": "/stocks/SSE:600519"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 9.21,
+            "rect": {
+              "w": 328,
+              "h": 40,
+              "top": 2480
+            },
+            "text": "本段当前不含模型生成文本；AI 标识与免责仅在服务端注入后随内容展示。",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
           }
         ],
         "pages": [
@@ -1938,6 +4059,10 @@
           {
             "page": "/ai",
             "status": "ABSENT"
+          },
+          {
+            "page": "/dev/ai-card",
+            "status": "PASS"
           }
         ]
       },
@@ -1961,7 +4086,7 @@
               "h": 35,
               "top": 457
             },
-            "text": "延时数据 · 非实时（滞后约 8.7小时）",
+            "text": "延时数据 · 非实时（滞后约 10.8小时）",
             "ariaHiddenAncestor": false,
             "ancestorIntervention": [],
             "violations": [],
@@ -1976,16 +4101,116 @@
           {
             "page": "/ai",
             "status": "ABSENT"
+          },
+          {
+            "page": "/dev/ai-card",
+            "status": "ABSENT"
           }
         ]
       },
       ".ai-badge__mark": {
         "list": "mark",
         "minPx": 10,
-        "status": "ABSENT",
+        "status": "PASS",
         "instanceCount": 0,
         "renderedCount": 0,
-        "instances": [],
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 10,
+            "color": "rgb(6,32,27)",
+            "colorClass": "OUT_OF_SPEC_SCOPE",
+            "opacity": "1",
+            "effectiveBg": "rgb(127,214,196)",
+            "contrast": 10.01,
+            "rect": {
+              "w": 20,
+              "h": 20,
+              "top": 865
+            },
+            "text": "AI",
+            "ariaHiddenAncestor": true,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 10,
+            "color": "rgb(6,32,27)",
+            "colorClass": "OUT_OF_SPEC_SCOPE",
+            "opacity": "1",
+            "effectiveBg": "rgb(127,214,196)",
+            "contrast": 10.01,
+            "rect": {
+              "w": 20,
+              "h": 20,
+              "top": 1203
+            },
+            "text": "AI",
+            "ariaHiddenAncestor": true,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 10,
+            "color": "rgb(6,32,27)",
+            "colorClass": "OUT_OF_SPEC_SCOPE",
+            "opacity": "1",
+            "effectiveBg": "rgb(127,214,196)",
+            "contrast": 10.01,
+            "rect": {
+              "w": 20,
+              "h": 20,
+              "top": 1540
+            },
+            "text": "AI",
+            "ariaHiddenAncestor": true,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 10,
+            "color": "rgb(6,32,27)",
+            "colorClass": "OUT_OF_SPEC_SCOPE",
+            "opacity": "1",
+            "effectiveBg": "rgb(127,214,196)",
+            "contrast": 10.01,
+            "rect": {
+              "w": 20,
+              "h": 20,
+              "top": 1878
+            },
+            "text": "AI",
+            "ariaHiddenAncestor": true,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 10,
+            "color": "rgb(6,32,27)",
+            "colorClass": "OUT_OF_SPEC_SCOPE",
+            "opacity": "1",
+            "effectiveBg": "rgb(127,214,196)",
+            "contrast": 10.01,
+            "rect": {
+              "w": 20,
+              "h": 20,
+              "top": 2216
+            },
+            "text": "AI",
+            "ariaHiddenAncestor": true,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          }
+        ],
         "pages": [
           {
             "page": "/stocks/SSE:600519",
@@ -1994,6 +4219,10 @@
           {
             "page": "/ai",
             "status": "ABSENT"
+          },
+          {
+            "page": "/dev/ai-card",
+            "status": "PASS"
           }
         ]
       }
@@ -2001,6 +4230,14 @@
   },
   "verdict": {
     "pass": [
+      {
+        "selector": "[data-testid=\"ai-generated-badge\"]",
+        "list": "spec62"
+      },
+      {
+        "selector": "[data-testid=\"ai-disclaimer\"]",
+        "list": "spec62"
+      },
       {
         "selector": "[data-testid=\"disclaimer\"]",
         "list": "spec62"
@@ -2020,6 +4257,14 @@
       {
         "selector": "[data-testid=\"ai-as-of\"]",
         "list": "spec62"
+      },
+      {
+        "selector": ".ai-badge",
+        "list": "main"
+      },
+      {
+        "selector": ".ai-disclaimer",
+        "list": "main"
       },
       {
         "selector": ".disclaimer__meta",
@@ -2056,46 +4301,14 @@
       {
         "selector": ".quote__stale",
         "list": "obs"
-      }
-    ],
-    "fail": [],
-    "absent": [
-      {
-        "selector": "[data-testid=\"ai-generated-badge\"]",
-        "list": "spec62",
-        "light": "ABSENT",
-        "dark": "ABSENT",
-        "reason": "同上：content=null → badge 不渲染"
-      },
-      {
-        "selector": "[data-testid=\"ai-disclaimer\"]",
-        "list": "spec62",
-        "light": "ABSENT",
-        "dark": "ABSENT",
-        "reason": "同上：content=null → 免责不渲染"
-      },
-      {
-        "selector": ".ai-badge",
-        "list": "main",
-        "light": "ABSENT",
-        "dark": "ABSENT",
-        "reason": "AiInterpretation.tsx:71 AiTextSlot content=null → 生产不渲染（A6 接线红项，需接通 /v1/ai/analyses 后复测）"
-      },
-      {
-        "selector": ".ai-disclaimer",
-        "list": "main",
-        "light": "ABSENT",
-        "dark": "ABSENT",
-        "reason": "同上：模型文本位 content=null，标识/免责随内容注入才渲染"
       },
       {
         "selector": ".ai-badge__mark",
-        "list": "mark",
-        "light": "ABSENT",
-        "dark": "ABSENT",
-        "reason": "同上：badge 未渲染则 mark 不存在"
+        "list": "mark"
       }
     ],
-    "status": "PASS_WITH_GAPS"
+    "fail": [],
+    "absent": [],
+    "status": "PASS"
   }
 }

@@ -1,20 +1,20 @@
 {
   "schema": "a7.rt10.hash-anchors/v1",
-  "generatedAt": "2026-11-06T14:40:04.848Z",
+  "generatedAt": "2026-11-06T16:42:45.264Z",
   "purpose": "RT-10 证据哈希锚清单（A11 红队 RT-01/RT-10：证据文件 sha256 + commit 锚）",
   "anchors": {
-    "gitSha": "807fbaadab0eda2fef45ea18ba41d2d988c86c9a",
-    "gitDescribe": "807fbaa 2026-11-06T22:16:17+08:00 docs(ai): AI-1 证据记录入库 + 增量补证（SSE/轮询证据、五字段、门禁、commit 锚）",
+    "gitSha": "a4b5659564b6afbcabdbb9d73c12dc8838aa553f",
+    "gitDescribe": "a4b5659 2026-11-07T00:33:18+08:00 feat(h5): AI 卡真实渲染路径——aiContent 注入 + /dev/ai-card 采证路由（解除 A7 badge 族 GAP）",
     "ciRunId": null,
     "ciNote": "本地独立端口自跑（L0 授权 m00262），无 CI run；等价锚 = gitSha + 本清单 + 跑批命令行 runCommand",
     "runCommand": "E2E_BASE_URL=http://127.0.0.1:3457 A7_API_BASE=http://127.0.0.1:8099 A7_GIT_SHA=<git rev-parse HEAD> node tests/e2e/scripts/ai23-visual-evidence.mjs",
-    "stack": "web PORT=3457 (web/h5/server.mjs 服务 dist of 9562a04+) + api PORT=8099 (services/api, ENTITLEMENT_TIER=c_end_display 正配置, DATABASE_URL=market_sense 库) + PG 55432 + audit.control_heartbeat(a7-visual-run) 每60s 保活（否则 15min 后 control_stale 403）"
+    "stack": "web PORT=3457 (web/h5/server.mjs 服务 dist of a4b5659, 新产物 index-B2BHMk1o.css/index-C67C1ECF.js) + api PORT=8099 (services/api, ENTITLEMENT_TIER=c_end_display + ENTITLEMENT_HOLD_CHECK=1, DATABASE_URL=market_sense 库) + PG 55432 + audit.control_heartbeat(a7-visual-run) 每60s 保活（否则 15min 后 control_stale 403）"
   },
   "files": [
     {
       "path": "tests/e2e/evidence/ai23-visual-computed-2026-11-06.json",
-      "bytes": 57649,
-      "sha256": "a3573264c90b00787a2fcf890386e8c7cdbbbee50874eb1d9a28372b2dd19eea",
+      "bytes": 124073,
+      "sha256": "854da954604f49ede9f5a26b1ab4367b15a9dd74956599b06fcd1c008cb8fd64",
       "exists": true
     },
     {
@@ -79,8 +79,8 @@
     },
     {
       "path": "tests/e2e/scripts/ai23-visual-evidence.mjs",
-      "bytes": 16632,
-      "sha256": "dac6ba19a0687e478a571e82134756ae74c6436042f7cad986c23bdb8e71bd96",
+      "bytes": 17675,
+      "sha256": "820f94ef754ed1ad6a2a3de21fe0364eba3954c1d7186ae58502eb6866f15ceb",
       "exists": true
     },
     {

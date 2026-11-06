@@ -20,6 +20,9 @@ const OUT = process.env.A7_OUT || path.join(ROOT, 'tests/e2e/evidence/ai23-visua
 const TOKEN_PATH = path.join(ROOT, 'tests/e2e/.state/a7-visual-token');
 const STOCK_PATH = '/stocks/SSE:600519';
 const AI_PATH = '/ai';
+// A6 badge 接线后采证入口（a4b5659）：fixture 路由自标注 Not an API response，零 /v1 请求；
+// badge 族（§1-§3：13px / mark≥10px / 字色）只在此路由天然渲染，与生产同 class 结构。
+const FIXTURE_PATH = '/dev/ai-card';
 const MIN_PX = 13;
 const MARK_MIN_PX = 10;
 const MIN_CONTRAST = 4.5;
@@ -48,7 +51,9 @@ const TARGETS = [
   { sel: '.ai-section__footnote', list: 'obs', min: MIN_PX },
   { sel: '.ai-section__meta', list: 'obs', min: MIN_PX, colorStrict: true },
   { sel: '.quote__stale', list: 'obs', min: MIN_PX },
-  { sel: '.ai-badge__mark', list: 'mark', min: MARK_MIN_PX, colorStrict: true }
+  // mark 判据按规格原文（reviews/compliance/ai-display-visual-spec-1.0.md）：:40 字形≥10px+底色 --accent（M1 暂 --accent），
+  // 未规定字色（--text 允许清单 :104 仅适用 §6.2 testid）；:35 mark 本体 aria-hidden=true 属设计（装饰字形），不作违例。
+  { sel: '.ai-badge__mark', list: 'mark', min: MARK_MIN_PX, ariaHiddenAllowed: true, specNote: 'spec:40 size>=10px + accent 底；spec:35 aria-hidden=true by design；spec:104 color allowlist scoped to §6.2 testids' }
 ];
 // 缺席原因（真实渲染判定，不注入）：AI 文本位 content=null → 生产不渲染（A6 接线红项）
 const ABSENT_REASONS = {
@@ -166,7 +171,8 @@ function measureInPage({ targets, minPx, markMinPx, minContrast }) {
       const violations = [];
       if (fontSize < min) violations.push('font-size ' + fontSize + 'px < ' + min + 'px');
       if (parseFloat(cs.opacity) !== 1 || opacityAncestor !== 1) violations.push('opacity 非 1（自身 ' + cs.opacity + ' / 祖先最小 ' + opacityAncestor + '）');
-      if (ariaHiddenAncestor) violations.push('存在 aria-hidden=true 祖先');
+      if (ariaHiddenAncestor && t.ariaHiddenAllowed) { /* spec:35 装饰字形按设计 aria-hidden，不判违例（记录于 note） */ }
+      else if (ariaHiddenAncestor) violations.push('存在 aria-hidden=true 祖先');
       if (intervention.length) violations.push('祖先 transform/zoom/filter 干预（RT-07）: ' + JSON.stringify(intervention));
       if (!colorCls.ok) violations.push('颜色违例 ' + colorCls.cls + ' ' + color);
       if (ct != null && ct < minContrast) violations.push('对比度 ' + ct.toFixed(2) + ' < ' + minContrast);
@@ -223,7 +229,7 @@ async function main() {
     });
     page.on('pageerror', (err) => { v1.push({ pageerror: String(err).slice(0, 200), scheme }); });
     const pageResults = {};
-    for (const p of [STOCK_PATH, AI_PATH]) {
+    for (const p of [STOCK_PATH, AI_PATH, FIXTURE_PATH]) {
       await page.goto(BASE + p, { waitUntil: 'domcontentloaded', timeout: 20000 });
       await page.waitForTimeout(2500);
       const m = await page.evaluate(measureInPage, { targets: TARGETS, minPx: MIN_PX, markMinPx: MARK_MIN_PX, minContrast: MIN_CONTRAST });
@@ -279,6 +285,7 @@ async function main() {
       baseURL: BASE, apiBase: API, viewport: VIEWPORT,
       schemes: ['light', 'dark'],
       methodology: '真实生产 DOM 自然渲染下读 computed-style；零 route 拦截；数据来自本地原生 api（c_end entitlement 正配置）真实 /v1 请求',
+      fixtureRoute: '/dev/ai-card（A6 采证路由 a4b5659，页面自标注 Not an API response，零 /v1；badge 族 §1-§3 在此天然渲染，与生产同 class 结构）',
       noInjection: true, noRouteMock: true
     },
     realStackProof: {
