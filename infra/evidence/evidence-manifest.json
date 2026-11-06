@@ -490,6 +490,48 @@
       ],
       "owner": "A13",
       "notes": "L108 落地取证：root 直登 Permission denied (publickey)（rc=255）；lyuddu 密钥登录 whoami=lyuddu + sudo -n whoami=root；sshd -T 为 permitrootlogin no/passwordauthentication no/maxauthtries 3；sshd_config 备份 .bak.20261105T015757Z；sshd -t rc=0、ssh active；巡检 sshd 三项 PASS（22/tcp Anywhere 仍 FAIL 属既有 ⑤ residual）。安装态 expected sha256=bfd967ec618b58e13721c50445fe4b17eef869ac9d01a91f9a606ec2255f446c（已更新为 PermitRootLogin no），script sha256=119277ab…。"
+    },
+    {
+      "path": "infra/evidence/stack-health-20261106T0724Z.txt",
+      "sha256": "465c45b9cd4e904e2eea1317133a9a426b155c4c95d8830edcf3897f6c926b4b",
+      "bytes": 1344,
+      "recompute": "sha256sum infra/evidence/stack-health-20261106T0724Z.txt",
+      "role": "stack-health-smoke",
+      "authority": "authoritative",
+      "phase": "post-fix",
+      "case_ids": [
+        "STACK-HEALTH-01"
+      ],
+      "owner": "A8",
+      "notes": "2026-11-06 重建基线真栈健康检查（本地 PG@55432/API@8081/Web@3000）：pg_isready accepting、API /healthz 200（data_ready=false/INGEST_REPORT_MISSING 与交接一致）、Web 200、监听进程仅 127.0.0.1/::1 无对外监听。A8 SRE 于重建会话执行（07:24Z）。"
+    },
+    {
+      "path": "infra/evidence/db-migration-local-20261106T0725Z.txt",
+      "sha256": "4a2b92504c9f8d9715a7c1dd6e32eb5112f9171c289cb2917bbd1fedc0ff75eb",
+      "bytes": 9205,
+      "recompute": "sha256sum infra/evidence/db-migration-local-20261106T0725Z.txt",
+      "role": "db-migration-execution",
+      "authority": "authoritative",
+      "phase": "post-fix",
+      "case_ids": [
+        "DB-MIGRATE-01"
+      ],
+      "owner": "A8",
+      "notes": "本地 dev 库迁移执行记录：sh infra/scripts/db-migrate.sh --env dev 幂等重放 6 个迁移（本次新应用 compliance/003_ai_generation_events + identity/001_identity，exit=0）；serving 视图重放 + 20_grants.sql 重授权 + 90_verify_privileges.sql 断言（market_app/warehouse_loader 越权=0、ai_app 仅列级 INSERT、entitlement 授权断言通过）；迁移后 ledger 含逐迁移 sha256。A8 SRE 执行（07:25Z）。"
+    },
+    {
+      "path": "infra/evidence/ecs-stack-health-20261106T0941Z.txt",
+      "sha256": "2188680104700229e142374c6e61da88c162eaa17d8e5a324e61529dbcf58be9",
+      "bytes": 2926,
+      "recompute": "sha256sum infra/evidence/ecs-stack-health-20261106T0941Z.txt",
+      "role": "ecs-deployment-stack-health",
+      "authority": "authoritative",
+      "phase": "post-fix",
+      "case_ids": [
+        "ECS-STACK-HEALTH-01"
+      ],
+      "owner": "A8",
+      "notes": "ECS 47.120.16.239 部署只读健康核验（lead 交办，A19 红线收窄后执行）：ssh lyuddu + sudo -n docker，仅 ps/inspect/主机只读事实；五容器 healthy/failing=0/rc=0/restarts=0；未测试未改动公网暴露面。A8 SRE 2026-11-06T09:41Z。"
     }
   ],
   "related_manifests": [
@@ -500,7 +542,7 @@
       "notes": "A3 证据包（含 #3 采样两档：internal_eval 短路 + c_end_display+hold_active）；A3 更新 MANIFEST 时必须同 commit 更新本 sha；历史自指哈希 errata 见其 MANIFEST 正文。"
     }
   ],
-  "amended_by": "a13-sre",
-  "amended_at": "2026-11-05T02:01:00Z",
-  "amend_note": "L108 root 禁登 + lyuddu 具名 sudo 主机证据入 manifest（case ⑤-3/root-login/L108）"
+  "amended_by": "a8-sre",
+  "amended_at": "2026-11-06T09:44:00Z",
+  "amend_note": "ECS 部署只读健康核验证据入 manifest（case ECS-STACK-HEALTH-01，20261106T0941Z）；分类待 H4 签认时复核。"
 }

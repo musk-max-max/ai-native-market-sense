@@ -6,7 +6,9 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   classifyChanges,
+  findRetiredSeatUsage,
   matchEntry,
+  normalizeActingId,
   parseRosterAgents,
   validateRegistry,
   validateRosterConsistency,
@@ -154,4 +156,49 @@ test('roster 一致性：owns 里形如 x/ 的 token 必须被 ownership 覆盖�
   const errors = validateRosterConsistency(agents, registry);
   assert.equal(errors.length, 1);
   assert.match(errors[0], /A13 owns "ops\/runbooks\/"/);
+});
+
+// ---- 2026-11-06 重建回归：L0 是已知主体，lead ≡ L0 同席 ----
+
+const l0Registry = {
+  unmatchedPolicy: 'deny',
+  paths: [{ path: 'agents/', owner: 'L0', reviewers: ['H1'], forbidden: ['*'] }],
+  rootFiles: [],
+};
+
+test('L0 是已知主体（17 席重建后 ownership/roster 用 L0）', () => {
+  assert.equal(validateRegistry(l0Registry).length, 0);
+});
+
+test('lead ≡ L0 同席：actor 与 owner 两种写法都不误判越界', () => {
+  assert.equal(classifyChanges(['agents/BOARD.md'], l0Registry, { actor: 'L0' }).violations.length, 0);
+  assert.equal(classifyChanges(['agents/BOARD.md'], l0Registry, { actor: 'lead' }).violations.length, 0);
+  const leadOwner = { ...l0Registry, paths: [{ path: 'agents/', owner: 'lead', reviewers: ['H1'], forbidden: ['*'] }] };
+  assert.equal(classifyChanges(['agents/BOARD.md'], leadOwner, { actor: 'L0' }).violations.length, 0);
+  // 真越界仍要拦：H1 不是 agents/ 的 owner
+  const out = classifyChanges(['agents/BOARD.md'], l0Registry, { actor: 'H1' });
+  assert.equal(out.violations[0].code, 'OUT_OF_SCOPE');
+});
+
+test('normalizeActingId 认识 L0（分支名 l0/<slug> 可推导操作者）', () => {
+  assert.equal(normalizeActingId('L0'), 'L0');
+  assert.equal(normalizeActingId('l0'), 'L0');
+});
+
+test('roster 解析覆盖 L0（agents: 段里的主 agent 同样做一致性检查）', () => {
+  const text = [
+    'agents:',
+    '  - id: L0',
+    '    permissions:',
+    '      write_scope: ["agents/"]',
+    '  - id: M1',
+    '    permissions:',
+    '      write_scope: ["design/"]',
+  ].join('\n');
+  assert.deepEqual(parseRosterAgents(text).map((a) => a.id), ['L0', 'M1']);
+});
+
+test('findRetiredSeatUsage 不再把现役 L0 误报为旧席残留', () => {
+  const usage = findRetiredSeatUsage(l0Registry);
+  assert.deepEqual(usage, []);
 });

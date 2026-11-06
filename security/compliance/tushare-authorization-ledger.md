@@ -1,6 +1,9 @@
 # H4 · tushare 授权三件台账 + 来源解耦核查（2026-11-06）
 
 > Owner：H4（数据负责人 + 安全运维）。对应任务板 `task-12`；写域 `security/`。
+> **修订 2026-11-06（H4 复核轮）**：①逐件补「状态/责任人/催办路径」表（§5.1）；②§4 安全半状态按 decisions.md
+> L102–L110 更新（root 禁登 CLOSED、SG=ACCEPTED-RISK，原「SEC-001 P1 公网 22/root 密码」表述已过时）；
+> ③门禁四条复跑 2026-11-06 全绿（§3.1）；④owner 材料/签认清单另出 [`owner-signoff-checklist.md`](owner-signoff-checklist.md)。
 > 依据口径：`agents/decisions.md` L118（mirror 边界）、L127（owner 口头声明被拦截）、L131（Open⑤ a/b 未答）、
 > L32（不落真实报文）、L100（授权三要件）、L91/L98（内网≠免授权）；`docs/HANDOFF-team-rebuild-2026-11-06.md:96,147`
 > （三件 11-12 到期）。
@@ -58,6 +61,9 @@
   L117 记「15000 套餐」且原句「15000 套餐 < 6000 阈值」自相矛盾（dc_index/doc 362、dc_member/doc 363 被判不可用）；
   HANDOFF A1 段记「owner 有 15000 积分」。⇒ 档位与「为什么 6000 分接口不可用」待 owner 权限表/官方页面确认，
   在拿到前不写具体档位，也不得据此判定「所有 2000 分接口均可用」。
+  **更新（L136.1，2026-11-06 18:37，A1 m00452 实测）**：dc_index(362)/dc_member(363) 在 15000 积分下**完全可用**
+  （code=0 有数据；dc_member 需 `.DC` 后缀如 BK1184.DC + trade_date 过滤返当日成分），L117「6000 分不可用」**作废**；
+  档位口径（10000 vs 15000）仍待 owner 权限表统一。
 
 ## 2. residual 表述（精确口径，禁止写「已解决」）
 
@@ -87,7 +93,7 @@
 
 - `pytest services/ingest/tests/test_boundaries.py` → **2 passed**（src 除 adapters 外不得出现源字样）。
 - `node infra/ci/check-source-vocabulary.mjs` → **PASS**（扫描 11 文件，无厂商标识；SourceRef.source 为平台词表 enum）。
-- `node infra/ci/check-internal-boundary.mjs` → 198 代码文件无越界 import；面客 ApiPaths 不含 14 条内部 path。
+- `node infra/ci/check-internal-boundary.mjs` → 202 代码文件无越界 import（11-06 复跑值；上轮记 198，文件数增长）；面客 ApiPaths 不含 14 条内部 path。
 - `python3 infra/ci/check_display_safe_failclosed.py` → ✅ 研究数据集不进 display root、不参与 display_safe、不进 C 端 ports。
 
 ### 3.2 缺陷（换源/取数控制面不全）
@@ -117,26 +123,47 @@
 
 - `services/market/src/config.ts` 默认 `internal_eval`、缺 `ENTITLEMENT_EXPIRES_AT`/指纹拒启 → 当前未翻档；
 - 红线③：无权展示一律 403 `EntitlementRestricted`，禁 200+`is_entitled=false`；
-- `c_end_display` 翻档是**三方门禁 H4+H5+H3**（H3 书面放行），缺一不翻。
+- `c_end_display` 翻档是**三方门禁 H4（含旧 H5 安全半）+ H3 + owner**（H3 书面放行、owner 最终放行），缺一不翻。
 
 **签字边界**：我的 veto 只覆盖「数据源授权 + 安全运维」两半；**不代 owner 签授权、不代 A8 执行生产**。
-安全半的 gate 仍 BLOCKED（SEC-001 P1，公网 22/root 密码），见 `security/gate/release-gate-block-2026-11-05.md`。
+安全半状态（2026-11-06 按 decisions.md L102–L110 更新，替代 11-05 gate 快照的旧表述）：
+root 禁登已完成（L108 `PermitRootLogin no` + 具名 sudo `lyuddu`，L109 root 登录 residual=**CLOSED**、门禁⑤-3 PASS）；
+密码登录已关（L102）；云 SG 80/8888 = **ACCEPTED-RISK**（用户 m05524 书面接受 + HOST-EXPOSURE-01 补偿控制，
+L110 书面确认「SG 与 root 两项不再作为 11-12 发布签核前提」）。11-12 发布安全半现卡三项：
+值班姓名/手机（BLOCKED）、真实寻呼通道（BLOCKED）、staging 15min 演练（NO-ENV），见 `security/gate/release-gate-block-2026-11-05.md`
+（11-05 快照）与 `docs/runbook/README.md` 值班表状态。**三项可验收口径已出**：`security/gate/security-half-acceptance-2026-11-12.md`（逐项 PASS/ACCEPTED-RISK/OPEN 判据 + 证据清单 + 签半记录模板；任一 OPEN → 安全半不签）。
 
 **即使三件齐，也不自动解除**：须 (a) 三要件逐条对上；(b) a/b 明确覆盖 mirror，或转官方端点方案并重拉全量；
-(c) 条款文本与真实报文样本的处置口径（SEC-010）；(d) H4 复核 + H5 认口径 + H3 对 C 端出具书面放行。
+(c) 条款文本与真实报文样本的处置口径（SEC-010）；(d) H4 复核（含旧 H5 职能） + H3 对 C 端出具书面放行 + owner 最终放行。
 
 ## 5. 催办清单
 
-**给 owner（用户）—— 3 条动作，11-12 前**：
+### 5.1 逐件催办路径（状态 / 责任人 / 催办路径——任务①交付口径）
+
+| # | 件 | 当前状态（11-06） | 责任人 | 催办路径（谁催谁 → 催不到怎么升级） | 下一节点 |
+|---|---|---|---|---|---|
+| ① | 官方书面回复 | **未闭环**（仓库零书面实体，11-06 复核 `git ls-files` 仍无 `*.pdf/*.eml/*.docx`） | **owner**（向 tushare 官方索取并作答 a/b）→ H4 归档复核 | H4 → owner（本清单 A1+B2）→ 11-09 无书面进展则 L0 出升级通报 → 11-12 不齐记「未闭环」、发布数据半不签、residual 保留并上呈 owner | 11-09 中期检查 / 11-12 到期 |
+| ② | 授权条款文本 | **未闭环**（机制就绪、内容缺；仓库内仅 `terms-synthetic.txt` 占位） | **owner**（提供全文+版本号+来源 URL）→ H4/A1 落 sha256 快照 | H4 → owner（清单 A2；不依赖 tushare 回复，可先行交付）→ 同上升级链 | 同上 |
+| ③ | 白名单 + 来源解耦 | **部分达标**（代码白名单/架构解耦 ✅；账号权限表、可展示字段清单缺；G1–G3 技术缺陷待 A1） | **owner**（权限表+档位+字段清单，清单 A3/A4）；技术缺口 **A1**（G1/G2/G3） | H4 → owner（A3/A4）；技术件 H4 → A1（修 G1–G3 后重跑 smoke 使 `endpoint_host` 可举证）→ 11-12 时点同上；技术缺口本体不阻塞三件计数但阻塞「可举证」 | 同上 |
+
+> 催办纪律：每次进展**追加**记录（§6），不改历史行；状态只认 sha256 实体，不认口头/转述；任何情况下不写「已解决」。
+>
+> **F1 同类 residual 并列跟踪**：SEC-012 AKshare/东方财富爬取（L136.3，2026-11-06 登记，见
+> `../findings/register.md` §12）——来源=爬取东方财富，限内部研究/展示域，C 端实时行情展示放行待 H3/H4 裁；
+> 与三件同在 11-12 节点盘点，催办口径并用本表纪律。
+
+### 5.2 给 owner（用户）—— 3 条动作，11-12 前
+
+> **完整版「需要什么材料 / 找谁签」清单已单列：[`owner-signoff-checklist.md`](owner-signoff-checklist.md)**（材料验收判据、签认矩阵、到期后果、常见误区）。
 
 1. **书面回复**：发 H4 官方书面回复（邮件/PDF/盖章截图任一），并明确回答 **a/b**：是否覆盖第三方 mirror（tuaremax.top）
    取数；若否，是否改为官方端点 `api.tushare.pro` 方案（需重拉全量）。含糊回复按「未覆盖」处理，C 端继续 403。
 2. **条款文本**：发 tushare 官方服务协议/授权条款**全文** + 版本号 + 来源 URL（含个人使用/不可转让/非商业/二次展示条款），
    H4 落 sha256 快照后回填台账；仅转述不算。
-3. **权限表**：发账号权限表/接口授权清单截图（哪些接口、字段、额度），并确认套餐档位（10000 vs 15000 积分口径统一，
-   及 dc_index/doc 362、dc_member/doc 363 不可用的真实原因）。
+3. **权限表**：发账号权限表/接口授权清单截图（哪些接口、字段、额度），并确认套餐档位（10000 vs 15000 积分口径统一；
+   dc_index/doc 362、dc_member/doc 363 已由 L136.1 实测可用，「不可用原因」一项作废）。
 
-**内部（不占 owner 时间）**：
+**内部（不占 owner 时间）**（操作级催办/到期处置流程见 [`docs/runbook/tushare-authorization-chase.md`](../../docs/runbook/tushare-authorization-chase.md)）：
 
 - **A1**：修 G1（变量统一 + 未配端点 fail-closed）、G2（默认 https + 证书校验）、G3（限流接线 ≤200/min）；
   修复后重跑 research smoke，使 `research_coverage.json` 的 `endpoint_host` 可举证 mirror。
@@ -167,7 +194,9 @@ git ls-files | grep -Ei "\.(pdf|eml|docx|msg)$"   # 预期空 → 无书面授�
 
 ## 附录 B：关联文档
 
-- `security/findings/register.md` — SEC-007/008/009（取数控制面缺陷）、SEC-010（真实报文样本入 git）
-- `security/gate/release-gate-block-2026-11-05.md` — 安全半 gate 判定（仍 BLOCKED）
-- `agents/decisions.md` L32 / L91 / L100 / L118 / L127 / L131；决策 #4 / #10
+- `security/compliance/owner-signoff-checklist.md` — owner 材料/签认清单（任务③交付物）
+- `security/findings/register.md` — SEC-011（F1 residual 显著登记）、SEC-007/008/009（取数控制面缺陷）、SEC-010（真实报文样本入 git）
+- `security/gate/release-gate-block-2026-11-05.md` — 安全半 gate 判定（11-05 快照；安全半现状见本文 §4 更新）
+- `docs/runbook/tushare-authorization-chase.md` — 催办/到期处置 runbook（六段式）
+- `agents/decisions.md` L32 / L91 / L98 / L100 / L102 / L108–L110 / L118 / L127 / L131；决策 #4 / #10
 - `services/ingest/README.md`（§条款快照、§mirror 批次 gate）；`docs/adr/ADR-004-source-vocabulary.md`

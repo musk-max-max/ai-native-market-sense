@@ -101,12 +101,23 @@ function parseArgs(argv) {
 // 已知主体 = 「可被注册表引用」的全集。刻意比现役 17 席宽：
 // 重映射是渐进过程（ownership.yaml / roster.yaml / allowlist 分批改），
 // 旧 id 留在注册表里只能告警、不能把 CI 判红（否则 L0 每次重映射都会误红）。
+// lead 与 L0 是同一席位的旧名/现役名（roster.yaml `- id: L0, codename: lead`），
+// 两个写法都要认；比较时用 seatKey() 归一。
 const KNOWN_PRINCIPALS = [
   'lead',
+  'L0',
   ...Array.from({ length: 24 }, (_, i) => `A${i}`), // A0–A23：含旧编制存量
   'M1', // 17 席新增：多模态设计（MiMo）
   ...DEFAULTS.humanSeats,
 ];
+
+/** 同席别名归一：lead ≡ L0（旧名/现役名）。其余主体按小写全等比较。 */
+export function seatKey(id) {
+  const text = String(id ?? '')
+    .trim()
+    .toLowerCase();
+  return text === 'lead' || text === 'l0' ? 'l0' : text;
+}
 
 // 现役 17 席（docs/HANDOFF-team-rebuild-2026-11-06.md）：L0 + H1–H4 + M1 + A1–A11。
 // 旧 id A0/A12–A23/H5/H6 已撤销；检测到残留只告警（见 findRetiredSeatUsage）。
@@ -127,6 +138,7 @@ export function normalizeActingId(raw) {
   const multi = text.match(/^(M\d{1,2})$/i);
   if (multi) return multi[1].toUpperCase();
   if (/^lead$/i.test(text)) return 'lead';
+  if (/^L0$/i.test(text)) return 'L0';
   return null;
 }
 
@@ -135,7 +147,7 @@ export function normalizeActingId(raw) {
  * 返回 [{ id, paths }]，用于 --validate-registry 输出提醒 L0 清理。
  */
 export function findRetiredSeatUsage(registry) {
-  const active = new Set(['lead', ...CURRENT_AGENT_SEATS, ...CURRENT_HUMAN_SEATS]);
+  const active = new Set(['lead', 'L0', ...CURRENT_AGENT_SEATS, ...CURRENT_HUMAN_SEATS]);
   const usage = new Map();
   const record = (id, path) => {
     if (!id || active.has(id)) return;
@@ -220,7 +232,7 @@ export function parseRosterAgents(text) {
       continue;
     }
     if (!inAgents) continue;
-    const agentMatch = /^\s{2}- id:\s*([AM]\d{1,2})\s*$/.exec(line);
+    const agentMatch = /^\s{2}- id:\s*([AML]\d{1,2})\s*$/.exec(line);
     if (agentMatch) {
       current = { id: agentMatch[1], writeScope: [], forbidden: [], owns: [] };
       agents.push(current);
@@ -313,7 +325,7 @@ export function validateRegistry(registry) {
     if (seen.has(entry.path)) errors.push(`重复登记 path: ${label}`);
     seen.add(entry.path);
     if (!KNOWN_PRINCIPALS.includes(entry.owner)) {
-      errors.push(`${label}: owner "${entry.owner}" 不是已知主体（lead / M1 / A0–A23 / H1–H6）`);
+      errors.push(`${label}: owner "${entry.owner}" 不是已知主体（lead/L0 / M1 / A0–A23 / H1–H6）`);
     }
     if (!Array.isArray(entry.reviewers) || entry.reviewers.length === 0) {
       errors.push(`${label}: 缺少 reviewers（必须至少一个人类席位）`);
@@ -372,7 +384,7 @@ export function classifyChanges(changedFiles, registry, options = {}) {
     }
     owners[entry.owner] = owners[entry.owner] ?? [];
     owners[entry.owner].push(file);
-    if (actor && entry.owner.toLowerCase() !== actor.toLowerCase()) {
+    if (actor && seatKey(entry.owner) !== seatKey(actor)) {
       violations.push({
         file,
         code: 'OUT_OF_SCOPE',

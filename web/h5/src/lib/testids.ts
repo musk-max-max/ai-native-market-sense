@@ -42,6 +42,8 @@ export const TID = {
   aiInterpretation: 'ai-interpretation',
   aiGeneratedBadge: 'ai-generated-badge',
   aiDisclaimer: 'ai-disclaimer',
+  // AI 卡 as_of（ai-display-visual-spec-1.0 §3：原样展示 source.asOf，不换算不格式化）。
+  aiAsOf: 'ai-as-of',
   aiSegmentValuation: 'ai-segment-valuation',
   aiSegmentGrowth: 'ai-segment-growth',
   aiSegmentEarningsQuality: 'ai-segment-earnings-quality',

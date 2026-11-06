@@ -20,7 +20,37 @@ export type ProblemCode =
   | 'RATE_LIMITED'
   | 'INTERNAL_ERROR'
   /** 外壳层：标识存在但无数据 / 路由不存在（契约 shared 0.2.x 已收录）。 */
-  | 'NOT_FOUND';
+  | 'NOT_FOUND'
+  /** 内部域 config/approval 专用（ADR-001 ⑨/D5）：版本/审批状态冲突；禁入 C 端契约。 */
+  | 'CONFLICT'
+  /** 内部域 config/approval 专用（ADR-001 ⑨/D5）：submit/publish expected_version 不符；禁入 C 端契约。 */
+  | 'PRECONDITION_FAILED';
+
+/** code → status 单一映射真源（H2 裁定：状态码由 code 唯一决定，防 409/412 错配）。 */
+export const STATUS_BY_CODE: Readonly<Record<ProblemCode, number>> = {
+  VALIDATION_ERROR: 400,
+  UNAUTHENTICATED: 401,
+  FORBIDDEN: 403,
+  INSTRUMENT_NOT_FOUND: 404,
+  NOT_FOUND: 404,
+  ENTITLEMENT_RESTRICTED: 403,
+  RATE_LIMITED: 429,
+  CONFLICT: 409,
+  PRECONDITION_FAILED: 412,
+  INTERNAL_ERROR: 500,
+};
+
+/**
+ * 内部域 problem 扩展字段（config/approval 409/412 专用，H2 裁定 typed 三键）：
+ * - diff：三点 diff（ConfigConflictProblem，形状见 contracts/config/openapi.yaml ThreeWayDiff）
+ * - approval_ref / current_status：ApprovalConflictProblem 可选字段
+ * 契约 additionalProperties:false 仅允许这三键；不做通用 Record 泄漏口。
+ */
+export interface ProblemExtensions {
+  readonly diff?: unknown;
+  readonly approval_ref?: string;
+  readonly current_status?: string;
+}
 
 export interface ProblemBody {
   type: string;
@@ -29,6 +59,9 @@ export interface ProblemBody {
   code: string;
   detail?: string;
   trace_id: string;
+  diff?: unknown;
+  approval_ref?: string;
+  current_status?: string;
 }
 
 /** 域插件表达「可预期的业务错误」时使用；未捕获异常一律映射为 500 INTERNAL_ERROR。 */
@@ -38,14 +71,25 @@ export class HttpProblem extends Error {
   readonly code: ProblemCode;
   readonly title: string;
   readonly detail?: string;
+  readonly extensions?: ProblemExtensions;
 
-  constructor(status: number, code: ProblemCode, title: string, detail?: string) {
+  constructor(
+    status: number,
+    code: ProblemCode,
+    title: string,
+    detail?: string,
+    extensions?: ProblemExtensions,
+  ) {
     super(detail ?? title);
+    // 状态码由 code 单一映射（STATUS_BY_CODE）；CONFLICT 必须 409、PRECONDITION_FAILED 必须 412。
     this.status = status;
     this.code = code;
     this.title = title;
     if (detail !== undefined) {
       this.detail = detail;
+    }
+    if (extensions !== undefined) {
+      this.extensions = extensions;
     }
   }
 }
@@ -56,6 +100,7 @@ export function problemBody(input: {
   title: string;
   detail?: string | undefined;
   traceId: string;
+  extensions?: ProblemExtensions | undefined;
 }): ProblemBody {
   const body: ProblemBody = {
     type: `${PROBLEM_TYPE_BASE}/${input.code.toLowerCase().replaceAll('_', '-')}`,
@@ -66,6 +111,16 @@ export function problemBody(input: {
   };
   if (input.detail !== undefined) {
     body.detail = input.detail;
+  }
+  const ext = input.extensions;
+  if (ext?.diff !== undefined) {
+    body.diff = ext.diff;
+  }
+  if (ext?.approval_ref !== undefined) {
+    body.approval_ref = ext.approval_ref;
+  }
+  if (ext?.current_status !== undefined) {
+    body.current_status = ext.current_status;
   }
   return body;
 }
@@ -93,6 +148,12 @@ function codeForStatus(status: number): ProblemCode {
       return 'FORBIDDEN';
     case 404:
       return 'NOT_FOUND';
+    case 409:
+      // 仅内部域 config/approval 会触发（ADR-001 ⑨/D5）；C 端契约禁用 409 CONFLICT。
+      return 'CONFLICT';
+    case 412:
+      // 仅内部域 config/approval 会触发（ADR-001 ⑨/D5）；C 端契约禁用 412 PRECONDITION_FAILED。
+      return 'PRECONDITION_FAILED';
     case 429:
       return 'RATE_LIMITED';
     default:
@@ -128,6 +189,7 @@ export function installErrorHandling(app: FastifyInstance): void {
           title: error.title,
           detail: error.detail,
           traceId,
+          extensions: error.extensions,
         }),
       );
     }

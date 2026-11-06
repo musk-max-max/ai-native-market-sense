@@ -14,6 +14,10 @@
 | 认证方式与主机加固提案（覆盖 H5 门禁 ⑤） | [`../auth/proposal-2026-11-05-authn-and-host-hardening.md`](../auth/proposal-2026-11-05-authn-and-host-hardening.md) | 已出（**待 H5 + 人类架构签字**） |
 | 越权用例集（含主机层/隧道两类新面） | [`test-cases/overreach-cases.md`](test-cases/overreach-cases.md) | 设计稿；执行方 A19/A12 |
 | tushare 授权三件到哪一步、card 端能否上线、换源成本多少 | [`compliance/tushare-authorization-ledger.md`](compliance/tushare-authorization-ledger.md) | **未闭环**（三件 0/3，11-12 到期；residual 口径见文档 §2） |
+| owner 要交什么材料、找谁签、到期不齐会怎样 | [`compliance/owner-signoff-checklist.md`](compliance/owner-signoff-checklist.md) | 已出（2026-11-06，交 owner 执行） |
+| F1 residual 登记与显著标注 | [`findings/register.md`](findings/register.md) SEC-011（页首 ⚠️） | **🔴 未闭环**（11-12 到期） |
+| 授权催办/到期处置操作流程 | [`../docs/runbook/tushare-authorization-chase.md`](../docs/runbook/tushare-authorization-chase.md) | 已出（六段式，过 `check-runbooks` 门禁） |
+| 安全半三项卡点（值班/寻呼/staging）怎么算过关 | [`gate/security-half-acceptance-2026-11-12.md`](gate/security-half-acceptance-2026-11-12.md) | 已出（2026-11-06，签半逐项判据；任一 OPEN 不签） |
 
 ## 2. 结论的三个来源（可复核）
 

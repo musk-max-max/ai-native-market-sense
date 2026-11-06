@@ -305,6 +305,8 @@ def test_research_datasets_registry() -> None:
         "fina_indicator",
         "index_classify",
         "index_member_all",
+        "dc_index",
+        "dc_member",
     }
     assert research.RESEARCH_DATASETS["top_inst"].points_min == 5000
     assert research.RESEARCH_DATASETS["index_daily"].requires_index_codes is True

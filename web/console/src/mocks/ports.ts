@@ -7,6 +7,7 @@ import type {
   ConfigState,
   ConfigValues,
   DraftConfig,
+  ImpactScope,
   PublishedConfig,
   Release,
   ValidationIssue,
@@ -41,6 +42,10 @@ export interface SaveDraftInput {
   expectedVersion: number;
   values: ConfigValues;
   actor: Actor;
+  /** 变更说明（契约 SubmitRequest.change_reason，8–200 字；HTTP 适配器使用）。 */
+  changeReason?: string;
+  /** 变更影响面（契约 impact_scope，1–6 个不重复枚举值；HTTP 适配器使用）。 */
+  impactScope?: readonly ImpactScope[];
 }
 
 export interface ConflictPayload {
@@ -79,6 +84,10 @@ export interface PublishInput {
   changeRequestId: string;
   actor: Actor;
   diffAcknowledged: boolean;
+  /** 灰度百分比（契约 canary_percent，1–10 必填；HTTP 适配器使用，缺省取 options.canaryPercent）。 */
+  canaryPercent?: number;
+  /** 发布说明（契约 release_notes，≤500 字，可选）。 */
+  releaseNotes?: string;
 }
 
 export interface RollbackInput {
@@ -88,6 +97,8 @@ export interface RollbackInput {
   actor: Actor;
   diffAcknowledged: boolean;
   reason: string;
+  /** T6 审批单号（契约 RollbackRequest.approval_ref 必填；HTTP 适配器使用）。 */
+  approvalRef?: string;
 }
 
 export interface ApproveInput {

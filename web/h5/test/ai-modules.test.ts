@@ -11,7 +11,8 @@
  * 运行：pnpm --filter @market-sense/h5 test
  */
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 
@@ -151,5 +152,94 @@ test('页面文案不越界：不写「我的持仓/真实持仓」，AI 标识�
   // 操作词禁区：龙头/接力/情绪/赚钱效应
   for (const word of ['龙头', '接力', '情绪', '赚钱效应']) {
     assert.equal(Object.values(copy.review.limits).some((v) => typeof v === 'string' && v.includes(word)), false, `limits copy 不得含「${word}」`);
+  }
+});
+
+// ---------- ai-display-visual-spec-1.0 §6.1 源码级（AI3-1） ----------
+
+const CSS = read('styles/app.css');
+const TOKENS = read('styles/tokens.css');
+
+/** 解析 app.css 的规则块（扁平 + @media 内层规则；注释先剥离）。 */
+function cssRuleBlocks(css: string): Array<{ selectors: string[]; body: string }> {
+  const clean = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  const blocks: Array<{ selectors: string[]; body: string }> = [];
+  const re = /([^{}]+)\{([^{}]*)\}/g;
+  for (let m = re.exec(clean); m !== null; m = re.exec(clean)) {
+    blocks.push({
+      selectors: m[1].split(',').map((s) => s.trim()).filter(Boolean),
+      body: m[2],
+    });
+  }
+  return blocks;
+}
+
+const CAPTION_PX = Number((TOKENS.match(/--fs-caption:\s*([\d.]+)px/) ?? [])[1] ?? NaN);
+
+/** font-size 声明值 → px 数值（var(--fs-caption) 按 tokens.css 解析；解析不了返回 null）。 */
+function fontSizePx(value: string): number | null {
+  const px = value.trim().match(/^([\d.]+)px$/);
+  if (px) return Number(px[1]);
+  if (value.trim() === 'var(--fs-caption)' && Number.isFinite(CAPTION_PX)) return CAPTION_PX;
+  return null;
+}
+
+test('规格 §6.1-4：合规文字九选择器 font-size ≥13px，且无 opacity/filter/animation 声明', () => {
+  const blocks = cssRuleBlocks(CSS);
+  for (const selector of [
+    '.ai-badge',
+    '.ai-disclaimer',
+    '.disclaimer__heading',
+    '.disclaimer__text',
+    '.disclaimer__meta',
+    '.quote__meta dt',
+    '.quote__meta dd',
+    '.ai-context__item dt',
+    '.ai-context__item dd',
+  ]) {
+    const own = blocks.filter((b) => b.selectors.includes(selector));
+    assert.ok(own.length > 0, `app.css 缺少 ${selector} 规则块`);
+    let sawFontSize = false;
+    for (const block of own) {
+      for (const m of block.body.matchAll(/font-size:\s*([^;]+);/g)) {
+        sawFontSize = true;
+        const px = fontSizePx(m[1]);
+        assert.ok(px !== null && px >= 13, `${selector} font-size 不合格: ${m[1].trim()}`);
+      }
+      assert.doesNotMatch(
+        block.body,
+        /\b(opacity|filter|animation|animation-delay)\s*:/,
+        `${selector} 不得含 opacity/filter/animation 声明`,
+      );
+    }
+    assert.ok(sawFontSize, `${selector} 必须显式声明 font-size（不得依赖继承）`);
+  }
+  // N4：label 字重 700、mark 字形 ≥10px（禁止 9px）；disclaimer line-height ≥1.55、颜色 --text
+  const badge = blocks.find((b) => b.selectors.includes('.ai-badge'));
+  assert.match(badge?.body ?? '', /font-weight:\s*700;/);
+  const mark = blocks.find((b) => b.selectors.includes('.ai-badge__mark'));
+  const markPx = fontSizePx((mark?.body.match(/font-size:\s*([^;]+);/) ?? [])[1] ?? '');
+  assert.ok(markPx !== null && markPx >= 10, '.ai-badge__mark 字形必须 ≥10px');
+  const disc = blocks.find((b) => b.selectors.includes('.ai-disclaimer'));
+  assert.match(disc?.body ?? '', /color:\s*var\(--text\);/);
+  const lh = Number((disc?.body.match(/line-height:\s*([\d.]+);/) ?? [])[1] ?? NaN);
+  assert.ok(lh >= 1.55, '.ai-disclaimer line-height 必须 ≥1.55');
+});
+
+test('规格 §6.1-3：AiInterpretation 的 ai-as-of 与 source.asOf 严格相等（dateTime+文本，不换算）', () => {
+  assert.equal(TID.aiAsOf, 'ai-as-of');
+  assert.match(
+    AI_SECTION,
+    /<time dateTime=\{source\.asOf\} data-testid=\{TID\.aiAsOf\}>\s*\{source\.asOf\}\s*<\/time>/,
+  );
+});
+
+test('规格 §6.1-5：源码不存在 disclaimer-close（免责不可关闭）', () => {
+  const srcRoot = fileURLToPath(new URL('../src/', import.meta.url));
+  for (const entry of readdirSync(srcRoot, { recursive: true })) {
+    const file = join(srcRoot, String(entry));
+    if (!statSync(file).isFile()) continue;
+    const text = readFileSync(file, 'utf8');
+    assert.ok(!text.includes('disclaimer-close'), `${entry} 不得出现 disclaimer-close`);
   }
 });

@@ -1,7 +1,6 @@
 {
   "extends": "../api/tsconfig.json",
   "compilerOptions": {
-    "rootDir": ".",
     "outDir": "dist",
     "noEmit": true,
     "types": ["node"]

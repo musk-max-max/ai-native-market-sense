@@ -38,8 +38,13 @@ HTTP_METHODS = ("get", "put", "post", "delete", "options", "head", "patch", "tra
 # 必须同时更新 ADR-001 D4 与本清单，否则 consumer 侧会漏处理未知码。
 # 404 语义：INSTRUMENT_NOT_FOUND=标识不存在/未收录；NOT_FOUND=资源无数据；
 # 判定顺序：存在性 404 INSTRUMENT_NOT_FOUND → entitlement 403 → 取数 404 NOT_FOUND（Lead m00443 / shared 0.2.1+）。
-# 2026-11-06 按 A0 config/approval 契约新增 CONFLICT（409：版本/审批冲突）与
-# PRECONDITION_FAILED（412：If-Match 不匹配）；H2 2026-11-06 追认，ADR-001 D4 已同步（shared 0.2.3）。
+# 2026-11-06 按 A0 config/approval 契约新增 CONFLICT（409）与 PRECONDITION_FAILED（412）；
+# 触发矩阵（H2 裁定，docs/adr/CONTRACT-REVIEW-2026-11-06-config-approval.md M1）：
+#   409 = PUT If-Match 与当前版本不符（ConfigConflictProblem + 三点 diff；对 RFC 9110
+#         「If-Match→412」的有意偏离，已记录）；approval 状态/绑定冲突（ApprovalConflictProblem）。
+#   412 = 前置条件不满足：submit/publish 的 expected_version 与当前版本不一致（PreconditionFailed）。
+#         PUT If-Match 不符不走 412。approval 域状态冲突禁 412。
+# ADR-001 D4 已同步（shared 0.2.3）。
 # 内部接口专用；consumer 侧新增分支仍需走契约变更声明。
 P0_ERROR_CODES = (
     "VALIDATION_ERROR",

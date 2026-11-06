@@ -29,7 +29,13 @@ FROM dim_instrument AS i;
 -- 2. 最新行情快照（Quote 契约：停牌时价格/涨跌幅为 NULL，禁止 0 冒充）
 --    * 活跃标的：最近一根 bar。
 --    * 停牌标的：最近一条停牌证据行（trade_date=停牌日，OHLC 全 NULL，suspended=true）。
---    * limit_status 口径 = docs/metrics/m04_limit_status.sql（按板块；主板 ST/*ST 5%）。
+--    * limit_status 口径 = warehouse/metrics/m04_limit_status.sql（docs/metrics/P0-metrics.md
+--      同步件；H4 2026-11-05 签发时点规则）：主板 ST 2026-07-06 起 10%、S 股 5%、首日/注册制
+--      新股前 5 交易日 NULL、历史 regime 时点档、未知板块 fail-closed。下方 base/priced 的
+--      limit_pct/limit_up_price/limit_down_price/limit_status 四段 CASE 与 M04 逐字同步，
+--      由 warehouse/tests/test_serving_limit_sync.py 门禁（静态逐字 + PG 行为矩阵）。
+--    * L135.6（L0 临时裁决，待 H4 追认）：limit_status NULL=「规则不适用/未知」（新股前 5/未知
+--      板块/停牌日/缺价日），展示层按「—/未知」不表态呈现，禁止渲染为「非涨停」。
 --    * 证据日取 GREATEST(最近 bar 日, 最近停牌日)，保证停牌覆盖旧 bar。
 -- --------------------------------------------------------------------------
 CREATE OR REPLACE VIEW serving.serving_quote_latest AS
@@ -50,6 +56,8 @@ joined AS (
     SELECT i.instrument_id,
            i.board,
            i.name,
+           i.exchange,
+           i.code,
            i.security_type,
            i.list_status,
            GREATEST(b.trade_date, s.trade_date) AS trade_date,
@@ -63,15 +71,61 @@ joined AS (
     LEFT JOIN last_bar AS b ON b.instrument_id = i.instrument_id
     LEFT JOIN last_susp AS s ON s.instrument_id = i.instrument_id
 ),
-priced AS (
+seq AS (
+    -- M04 trade_seq：全历史上按 instrument_id 的 bar 排行号（缺 bar 交易日按已有 bar 近似）
+    SELECT instrument_id,
+           trade_date AS seq_date,
+           ROW_NUMBER() OVER (PARTITION BY instrument_id ORDER BY trade_date) AS trade_seq
+    FROM dwd_stock_bar_daily
+),
+base AS (
     SELECT j.*,
+           s.trade_seq,
            CASE
-               WHEN j.board = 'main' AND (j.name LIKE 'ST%' OR j.name LIKE '*ST%') THEN 5.0
-               WHEN j.board = 'main' THEN 10.0
-               WHEN j.board IN ('gem', 'star') THEN 20.0
-               WHEN j.board = 'bse' THEN 30.0
+               WHEN board IS NULL THEN NULL
+               WHEN listed_at IS NULL THEN NULL
+               WHEN trade_date = listed_at THEN NULL
+               WHEN trade_seq <= 5 AND (
+                        (board = 'star' AND listed_at >= DATE '2019-07-22')
+                     OR (board = 'gem'  AND listed_at >= DATE '2020-08-24')
+                     OR (board = 'main' AND listed_at >= DATE '2023-04-10')
+               ) THEN NULL
+               WHEN board = 'main' AND name LIKE 'S%' AND name NOT LIKE 'ST%' THEN 5.0
+               WHEN board = 'main' AND (name LIKE 'ST%' OR name LIKE '*ST%') THEN
+                   CASE WHEN trade_date < DATE '2026-07-06' THEN 5.0 ELSE 10.0 END
+               WHEN board = 'main' THEN 10.0
+               WHEN board = 'gem' THEN
+                   CASE WHEN trade_date < DATE '2020-08-24' THEN 10.0 ELSE 20.0 END
+               WHEN board = 'star' THEN
+                   CASE WHEN trade_date < DATE '2019-07-22' THEN NULL ELSE 20.0 END
+               WHEN board = 'bse' THEN
+                   CASE WHEN trade_date < DATE '2021-11-15' THEN NULL ELSE 30.0 END
+               ELSE NULL
            END AS limit_pct
     FROM joined AS j
+    LEFT JOIN seq AS s ON s.instrument_id = j.instrument_id AND s.seq_date = j.trade_date
+),
+priced AS (
+    SELECT base.*,
+           CASE
+               WHEN limit_pct IS NULL THEN NULL
+               WHEN board = 'bse' AND (code LIKE '43%' OR code LIKE '83%' OR code LIKE '87%'
+                                       OR code LIKE '88%' OR code LIKE '92%')
+                   THEN FLOOR(prev_close * (1 + limit_pct / 100.0) * 100) / 100
+               WHEN exchange = 'SSE' AND code LIKE '900%'
+                   THEN ROUND(prev_close * (1 + limit_pct / 100.0), 3)
+               ELSE ROUND(prev_close * (1 + limit_pct / 100.0), 2)
+           END AS limit_up_price,
+           CASE
+               WHEN limit_pct IS NULL THEN NULL
+               WHEN board = 'bse' AND (code LIKE '43%' OR code LIKE '83%' OR code LIKE '87%'
+                                       OR code LIKE '88%' OR code LIKE '92%')
+                   THEN CEIL(prev_close * (1 - limit_pct / 100.0) * 100) / 100
+               WHEN exchange = 'SSE' AND code LIKE '900%'
+                   THEN ROUND(prev_close * (1 - limit_pct / 100.0), 3)
+               ELSE ROUND(prev_close * (1 - limit_pct / 100.0), 2)
+           END AS limit_down_price
+    FROM base
 )
 SELECT p.instrument_id,
        p.trade_date,
@@ -88,11 +142,13 @@ SELECT p.instrument_id,
        CASE WHEN p.suspended THEN NULL ELSE p.amount END AS amount,
        COALESCE(p.suspended, false) AS suspended,
        CASE
-           WHEN p.suspended THEN 'none'
-           WHEN p.prev_close IS NULL THEN 'none'
-           WHEN p.close >= ROUND(p.prev_close * (1 + p.limit_pct / 100.0), 2) THEN 'limit_up'
-           WHEN p.close <= ROUND(p.prev_close * (1 - p.limit_pct / 100.0), 2) THEN 'limit_down'
-           ELSE 'none'
+           WHEN p.suspended OR p.close IS NULL OR p.prev_close IS NULL THEN NULL
+           ELSE CASE
+               WHEN limit_pct IS NULL THEN NULL
+               WHEN close >= limit_up_price THEN 'limit_up'
+               WHEN close <= limit_down_price THEN 'limit_down'
+               ELSE 'none'
+           END
        END AS limit_status,
        p.source,
        p.as_of,
@@ -312,3 +368,63 @@ SELECT instrument_id, snapshot_date, name,
        in_date, out_date, is_new, source, as_of,
        GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
 FROM dwd_index_member_all;
+
+-- --------------------------------------------------------------------------
+-- 实时行情快照（AKshare 东方财富源，A1 P1）
+--    * 来源 = akshare_eastmoney（F1 residual / SEC-012：爬虫源仅限内部研究/展示）
+--    * **C 端实时行情展示未放行**（待 H3/H4 书面裁），source_internal_only=true 标记
+--      翻档前 C 端不可见（H4 核验闭环判据 §12.3-4）
+--    * 每个 instrument_id 取最新快照（DISTINCT ON）
+--    * limit_status 沿用 serving_quote_latest 逻辑：主板 10%/ST 5%/创业板科创板 20%/北交所 30%
+-- --------------------------------------------------------------------------
+CREATE OR REPLACE VIEW serving.serving_quote_realtime AS
+WITH latest AS (
+    SELECT DISTINCT ON (r.instrument_id)
+           r.instrument_id, r.as_of, r.last, r.prev_close, r.open, r.high, r.low,
+           r.volume, r.amount, r.pct_change, r.change, r.turnover_rate, r.volume_ratio,
+           r.source, r.fetched_at
+    FROM dwd_realtime_quote AS r
+    ORDER BY r.instrument_id, r.as_of DESC
+),
+priced AS (
+    SELECT l.*,
+           i.board,
+           i.name,
+           CASE
+               WHEN i.board = 'main' AND (i.name LIKE 'ST%' OR i.name LIKE '*ST%') THEN 5.0
+               WHEN i.board = 'main' THEN 10.0
+               WHEN i.board IN ('gem', 'star') THEN 20.0
+               WHEN i.board = 'bse' THEN 30.0
+           END AS limit_pct
+    FROM latest AS l
+    JOIN dim_instrument AS i ON i.instrument_id = l.instrument_id
+)
+SELECT p.instrument_id,
+       p.name,
+       p.as_of,
+       p.last AS close,
+       p.prev_close,
+       p.open,
+       p.high,
+       p.low,
+       CASE WHEN p.prev_close IS NULL OR p.prev_close = 0 THEN NULL
+            ELSE ROUND((p.last / p.prev_close - 1) * 100, 4) END AS change_pct,
+       CASE WHEN p.prev_close IS NULL THEN NULL
+            ELSE ROUND(p.last - p.prev_close, 2) END AS change,
+       p.volume,
+       p.amount,
+       p.turnover_rate,
+       p.volume_ratio,
+       CASE
+           WHEN p.prev_close IS NULL OR p.limit_pct IS NULL THEN 'none'
+           WHEN p.last >= ROUND(p.prev_close * (1 + p.limit_pct / 100.0), 2) THEN 'limit_up'
+           WHEN p.last <= ROUND(p.prev_close * (1 - p.limit_pct / 100.0), 2) THEN 'limit_down'
+           ELSE 'none'
+       END AS limit_status,
+       p.source,
+       p.as_of AS source_as_of,
+       -- SEC-012 / F1 residual：akshare 来源标记 internal-only，翻档前 C 端不可见
+       -- fail-closed：未知来源默认 true（保守策略，仅已确认安全来源可标 false）
+       (p.source IS DISTINCT FROM 'tushare') AS source_internal_only,
+       GREATEST(0, EXTRACT(EPOCH FROM (now() - p.as_of)) * 1000)::bigint AS staleness_ms
+FROM priced AS p;

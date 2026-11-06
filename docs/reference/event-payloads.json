@@ -9,13 +9,20 @@
     "ddl": [
       "services/compliance/migrations/001_audit_entitlement_events.sql",
       "services/compliance/migrations/002_audit_gap.sql",
-      "services/compliance/migrations/003_ai_generation_events.sql"
+      "services/compliance/migrations/003_ai_generation_events.sql",
+      "services/compliance/migrations/004_control_heartbeat_observed.sql"
     ],
     "event_key_function": "audit.entitlement_event_key(e audit.entitlement_events)；audit.ai_generation_event_key(e audit.ai_generation_events)（AI 独立表）",
     "method": "required 键集 = 001/002 的 CHECK 约束实际强制的 new_value/old_value 键；optional 键集 = 现有写入方（A3 runtime、A13 seed、hold 函数）实际会写、但 DB 未强制的键。event_key 分支只消费列字段，不额外强制 JSON 键（audit_gap 的 window_start 除外：event_key 分支本身 RAISE）。",
     "related_canonical": [
       "docs/reference/entitlement-reasons.json"
     ]
+  },
+  "control_heartbeat_semantics": {
+    "statement": "gate 语义 = 存活心跳门禁，对账完整性看 mark_reconciled / last_heartbeat_source",
+    "detail": "心跳刷新 last_reconciled_at（gate 15min 阈值只读此列，存活 = 有人在保活）；对账完整性结论只出自 audit.mark_reconciled（reconciler 核对链后落地）；一次刷新是心跳还是对账，看 last_heartbeat_source / heartbeat_count。",
+    "authorization": "L0 追认 L135.5（Lead 2026-11-06）：D1 语义照准，H4 安全半口径引用此句",
+    "ddl_anchor": "services/compliance/migrations/004_control_heartbeat_observed.sql（同文锚定）"
   },
   "validation_contract": {
     "required": "键必须存在（值可为 null；具体类型/枚举由 DDL CHECK 约束，见各 event_type 的 ddl_constraints）。缺失即 fail-closed 拒绝。",
@@ -42,9 +49,10 @@
         ]
       },
       "ddl_constraints": [
-        "entitlement_events_observed_required_chk（列级：deployment_uid/configured_tier/expires_at，非 JSON 键）"
+        "entitlement_events_observed_required_chk（列级：deployment_uid/configured_tier/expires_at，非 JSON 键）",
+        "entitlement_events_observed_seq_chk（004，列级：chain_seq/last_written_event_seq 触发器权威计算，非 JSON 键；应用传入值被覆盖，与 event_key 同口径）"
       ],
-      "note": "A3 plugin.ts:129-134 写 {effective_tier,configured_tier,expires_at} 到 old/new；expires_at 可为 null 但键存在。"
+      "note": "A3 plugin.ts:129-134 写 {effective_tier,configured_tier,expires_at} 到 old/new；expires_at 可为 null 但键存在。004 起本事件另有两个触发器权威列：chain_seq（全链写序环号，L63 #1 的 seq 来源，SEQUENCE 空洞=写入失败线索）与 last_written_event_seq（本行落库前最后一笔写进库的事=L63 窗口事实来源），均为 DB 侧元数据不进 hash（002 recorded_at 口径）。"
     },
     "entitlement_flip": {
       "new_value": {

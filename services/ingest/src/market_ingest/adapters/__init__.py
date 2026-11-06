@@ -14,6 +14,8 @@ from ..ports import MarketDataSource
 #: 逻辑名 → 工厂模块路径（模块内 ``create_adapter``）。
 _ADAPTER_FACTORIES: dict[str, str] = {
     "tushare": "market_ingest.adapters.tushare.adapter",
+    # AKshare 东方财富实时行情（A 股全市场快照）
+    "akshare": "market_ingest.adapters.akshare.adapter",
     # 交易所基础信息 CSV 导入（C 端白名单主数据；不是行情源）
     "csv": "market_ingest.adapters.csv.instruments",
 }

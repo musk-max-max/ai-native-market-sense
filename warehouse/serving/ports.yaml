@@ -53,6 +53,7 @@ semantics:
   as_of: "行级来源时点（+08:00 ISO8601），来自 DWD 的 as_of；A3 不得自行拼造"
   staleness_ms: "行级 (now() - as_of) 毫秒，serving SQL 计算且钳制 ≥0；A3 原样放进 meta.source"
   suspended: "停牌=证据行存在：suspended=true 且价格/涨跌幅为 null；禁止用 0 或上一日价冒充"
+  limit_status: "M04 时点规则（warehouse/metrics/m04_limit_status.sql，H4 2026-11-05 签发）判定；NULL=规则不适用/未知（首日/注册制新股前 5 交易日/无涨跌幅 regime/停牌日/缺价，L135.6 待 H4 追认）——展示层按「—/未知」不表态呈现，禁止渲染为「非涨停」"
   no_data: "无 bar 且无停牌证据 → getQuote 返回 null（标的存在但资源无数据，404 NOT_FOUND），不得推断为停牌"
   prices: "serving_bar_daily 直接给三口径价格（none/hfq/qfq），读侧按 adj_type 过滤；volume/amount 不随复权变"
 
@@ -85,7 +86,7 @@ row_types:
     volume: {type: integer, nullable: true}
     amount: {type: string, nullable: true}
     suspended: {type: boolean}
-    limit_status: {type: "enum[none, limit_up, limit_down]"}
+    limit_status: {type: "enum[none, limit_up, limit_down]", nullable: true}   # L135.6：NULL=规则不适用/未知
     source: {type: string}
     as_of: {type: string, format: date-time}
     staleness_ms: {type: integer, minimum: 0}

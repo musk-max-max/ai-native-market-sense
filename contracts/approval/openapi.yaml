@@ -14,6 +14,8 @@ info:
     硬约束（L51）：
     - approval_ref 形如 apr_<uuidv7>，只能由 A4 建单事务生成；CreateApprovalRequest 不接收
       approval_ref，申请人/A15 均不得预填/代填。
+    - approval_ref wire 形态（H2 终审 M3）：只走裸 apr_<uuidv7>（pattern 已锁 UUIDv7 版本位/变体位）；
+      跨环境分段前缀（prod:/staging:）仅 DB/审计内部形态，不上 wire；环境语义由 environment 字段承载。
     - 一单一对象：批量/一键通过不是 UI 约束而是 API 约束。
     - 人类审批人只能是 H3/user（identity 服务端强制）；agent 与 A15 永远不是审批主体。
     - 审批决定不可复用：撤回/驳回后重提必须新建单。
@@ -65,7 +67,7 @@ paths:
               description: 新建单的审批引用路径
               schema:
                 type: string
-                pattern: '^/v1/internal/approvals/apr_[0-9a-f-]{36}$'
+                pattern: '^/v1/internal/approvals/apr_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
           content:
             application/json:
               schema:
@@ -305,7 +307,7 @@ components:
       required: true
       schema:
         type: string
-        pattern: '^apr_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+        pattern: '^apr_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
     IdempotencyKeyHeader:
       name: Idempotency-Key
       in: header
@@ -510,7 +512,7 @@ components:
       properties:
         approval_ref:
           type: string
-          pattern: '^apr_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          pattern: '^apr_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
         decision:
           type: string
           enum: [approved, rejected]
@@ -529,7 +531,7 @@ components:
       properties:
         approval_ref:
           type: string
-          pattern: '^apr_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          pattern: '^apr_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
         application_id:
           type: string
           minLength: 1
@@ -567,7 +569,7 @@ components:
           minLength: 1
         approval_ref:
           type: string
-          pattern: '^apr_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          pattern: '^apr_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
         type:
           type: string
           enum: [created, evaluated, routed, auto_passed, approved, rejected, expired]

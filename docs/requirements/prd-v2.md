@@ -3,7 +3,7 @@
 - 文档编号：PRD-v2
 - 归属：H1 产品负责人（PM）
 - 面向读者：H5 / Console 开发、UI 设计、前端 QA、服务端接口负责人
-- 版本日期：2026-11-06（v2.1：回填 §8 BRD 映射、新增 §9 antd 产品影响）
+- 版本日期：2026-11-06（v2.1：回填 §8 BRD 映射、新增 §9 antd 产品影响；v2.1.1 勘误：AC-P15-2 两处笔误修正，见该行脚注与 `p1-acceptance-2026-11-06.md` §6）
 - 状态：可实施（实现级）。**C 端页面节已经 H1 按 BRD 数据就绪度重排批次，见 §8.3。**
 - 关联决策：ADR-007《AI 功能层》、`agents/decisions.md`、`docs/requirements/brd-c-end.md`（BRD-CEND-001 v1.0）、`docs/design/system-v2.md`、`docs/design/c-end-h5-v2.md`。
 - 上游关系：**BRD 定义业务需求与数据就绪度（P0/P1/P2 三级），本 PRD 定义交付批次（Now/Next/Later）与实现级交互。**两套口径不可混用，统一规则见 §8.0。
@@ -606,7 +606,7 @@ H1 只定「用户看到的交互与已写死的验收契约不能变」；版�
 | AC | 验收标准 | 验证方式 | 等级 | 责任 |
 | --- | --- | --- | --- | --- |
 | AC-P15-1 | 5 tab 文案与顺序固定：`行情 /`、`自选 /watchlist`、`组合 /review/portfolio`、`AI /ai`、`我的 /me`；5 路由直达均渲染对应页（非 404） | e2e 逐路由 + 断言 TabBar 5 项文案顺序 | B | A6 |
-| AC-P15-2 | 深链激活：任一路由直达/刷新后对应 tab `aria-selected="true"`；二级页归属 `tabKeyForRoute`：`/stocks/:id`→行情、`/review/limits`→组合 | `tabKeyForRoute` 单测 + e2e 断言 `[data-testid=tabbar] [aria-selected=true]` | B | A6 |
+| AC-P15-2 | 深链激活：任一路由直达/刷新后对应 tab 激活态 `aria-current="page"`（§5.3 nav 语义；**v2.1.1 勘误**：原文 `aria-selected="true"` 与 §5.3 冲突，链接式导航正确语义为 `aria-current`）；二级页归属 `tabKeyForRoute`：`/stocks/:id`→行情、`/review/limits`→行情（**v2.1.1 勘误**：原文「→组合」与 §9.1 #1 裁定冲突，以 §9.1 为准） | `tabKeyForRoute` 单测 + e2e 断言（锚点先用 nav 语义选择器 `nav [aria-current=page]`；A7 如需 testid 再在 `tests/e2e/testids.json` 注册 `tabbar` 由 A6 补挂；antd 落地时 §9.1 约束②包装层输出 testid 不变） | B | A6 |
 | AC-P15-3 | `/ai` 壳（§3.6 Now）：列表空态、每条 `AiGeneratedBadge`（文案「AI 生成 · 仅供参考」）、不可关闭 AI 免责（服务端注入，前端不硬编码）、`as_of` 展示位、`unavailable` 缺口卡；**不接生成、不出现任何模型生成可见内容** | e2e + `check-testids.mjs`；免责无关闭控件（`disclaimer-close` 不存在） | B | A6/A7 |
 | AC-P15-4 | `/me` 壳（§3.7 Now）：登录态、我的自选入口、**退订入口置顶且不可隐藏**（`unsubscribe.entry` 不可配项）、免责版本、数据来源说明 | e2e 断言元素存在且退订可点 | B | A6 |
 | AC-P15-5 | 小屏与深色：375×667 下 `document.documentElement.scrollWidth ≤ 375`（无横向滚动），5 tab 不换行不重叠；`prefers-color-scheme: dark` 下可用 | e2e 375 viewport + 深色 emulation | B（对比度部分见 AC-P14-6=C） | A6/A7 |

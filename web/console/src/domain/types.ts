@@ -37,6 +37,18 @@ export type ConfigValue = string | number | boolean | readonly string[] | null;
 /** 一份配置快照的字段值集合。 */
 export type ConfigValues = Readonly<Record<string, ConfigValue>>;
 
+/**
+ * 变更影响面枚举（契约 SubmitRequest.impact_scope，1–6 个不重复值）。
+ * PUT/validate/submit 必须携带；变更说明表单收集。
+ */
+export type ImpactScope =
+  | 'column_layout'
+  | 'content_copy'
+  | 'content_placement'
+  | 'ranking'
+  | 'rotation'
+  | 'visibility';
+
 export type ConfigFieldKind = 'text' | 'number' | 'boolean' | 'enum' | 'string-list';
 
 export interface ConfigFieldDef {

@@ -130,7 +130,7 @@ view 定义（幂等，由 A13 在 bootstrap 按 `warehouse/dwd/schema.sql` → 
 | view | 用途 | 关键口径 |
 | --- | --- | --- |
 | `serving.serving_instrument` | 证券维表 | dim 快照 + `source/as_of/staleness_ms`；`display_safe=false` 只能进内部评测态（L30） |
-| `serving.serving_quote_latest` | 最新行情 | 最近 bar；停牌时 `suspended=true`、价格/涨跌幅 NULL；`limit_status` 按板块（M04） |
+| `serving.serving_quote_latest` | 最新行情 | 最近 bar；停牌时 `suspended=true`、价格/涨跌幅 NULL；`limit_status` 按 M04 时点规则（与 `warehouse/metrics/m04_limit_status.sql` 逐字同步，test_serving_limit_sync.py 门禁）；NULL=规则不适用/未知（L135.6 不表态，禁渲染为「非涨停」） |
 | `serving.serving_bar_daily` | 日线三口径 | 每根 bar 三行 `adj_type ∈ none/hfq/qfq`，价格由 SQL 按因子固化（M01/M02）；volume/amount 不调整 |
 | `serving.serving_factor_latest` | 最新累计因子 | latest = 该标的全历史最新一条，与 `adjust.py` qfq 分母一致 |
 | `serving.serving_fundamental_summary` | 财务摘要最近一期 | reported/restated 双口径并存，按 `announced_at` 取；P0 无数据 → 0 行（A3 返 404） |
@@ -193,6 +193,7 @@ A1 把 7 个研究数据集写入 `<ODS_ROOT>/internal/<endpoint>/dt=<trade_date
 | `dwd_moneyflow` | `serving.serving_research_moneyflow` | 五档买卖 volume/amount + net_inflow_* |
 | `dwd_margin` | `serving.serving_research_margin` | 两融余额/买入/偿还/融券（PK exchange+trade_date，无 instrument_id） |
 | `dwd_hk_hold` | `serving.serving_research_hk_hold` | 北向持股 volume/ratio/channel |
+| `dwd_realtime_quote` | `serving.serving_quote_realtime` | AKshare 东方财富实时行情快照；**SEC-012 / F1 residual**：`source_internal_only=true` 标记，C 端翻档前不可见；fail-closed 未知来源默认 true |
 
 边界（不可越线）：
 

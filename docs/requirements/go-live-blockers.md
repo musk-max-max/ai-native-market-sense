@@ -52,7 +52,7 @@
 
 1. **G3 二选一**：授权覆盖 mirror（a），还是只覆盖官方端点（b）？（L127 未答项）
 2. **G1 授权主体与资质**：以哪个主体签、有无资质？（S0-STATUS §五.1 未决；决定 11-12 是否可达）
-3. **git remote 是否接入**：无 remote → CI 永远「未验证」，P0 记未发布（L78），发布签字不成立。
+3. **CI 发布状态待核**（**2026-11-06 L0 更正**：remote 在，origin=git@github.com:musk-max-max/ai-native-market-sense.git，已推 01e079e）：需核 CI 是否真跑/发布状态，发布签字以 CI 实跑留数为准（A8）。
 4. **200KB 首屏预算是否维持**：H1 建议维持（PRD §9.4，veto 项）；若要上调须 owner 书面指令。
 5. **AI 生成层（Next）是否在 G2 关闭前排期**：H1 不建议排期，避免「先展示后补签」（§8.3 范围纪律）。
 
@@ -63,7 +63,7 @@
 | 11-12 entitlement 8+4 门禁 | **PARTIAL**：PASS 4.5 / FAIL 1（no-store）/ BLOCKED 3（hold/stale、事件、限流） | A5/A3/A0 | `docs/release/S0-STATUS.md` §三（2026-11-04） |
 | audit/observed 迁移 004 | 进行中（p0-acceptance §0 R-1 的上游依赖） | A5（task-13） | `docs/p0-acceptance.md` §0 |
 | 红队 #7 | **PARTIAL**：44 BLOCKED / 1 LEAK（R4 已修）/ 1 INFO；原始 HTTP 日志 0 字节待重建；公网 ingress 缺 | A11/A13 | S0-STATUS「门禁 #7」 |
-| CI 真跑 | **FAIL/未验证**：从未在真实 runner 跑过（仓无 git remote），5 workflow 仅过 actionlint | A8（task-14） | S0-STATUS §二.3、L78 |
+| CI 真跑 | **未验证→发布状态待核**（**2026-11-06 L0 更正**：仓无 git remote 之说不成立，remote 在、已推 01e079e）：runner 实跑留数未验，5 workflow 仅过 actionlint（S0-STATUS 时点） | A8（task-14） | S0-STATUS §二.3（remote 前提已更正） |
 | E2E 基线 | 11 passed / 1 skipped（正常档，2026-11-04）；P1 后不得下降 | A7（task-9） | `tests/e2e/E2E-RUN-2026-11-04-native.md` §2c |
 | 契约测试基线 | `pytest tests/contract tests/data` = 193 passed / 0 failed / 2 warnings（2026-11-05 16:45）；不得下降 | A4/A7 | `tests/contract/CI_MOUNT.md` |
 | AC-10「3 秒可交互」 | **C 级：未测量**（无证据） | A7 | `docs/p0-acceptance.md` §4b |

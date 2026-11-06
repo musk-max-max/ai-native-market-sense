@@ -123,7 +123,10 @@ export function AiInterpretation({
             <div className="ai-context__item">
               <dt>{copy.quote.asOfLabel}</dt>
               <dd>
-                <time dateTime={source.asOf}>{source.asOf}</time>
+                {/* ai-as-of：值原样等于 source.asOf（含 +08:00），不换算不格式化（规格 §3）。 */}
+                <time dateTime={source.asOf} data-testid={TID.aiAsOf}>
+                  {source.asOf}
+                </time>
               </dd>
             </div>
             <div className="ai-context__item">

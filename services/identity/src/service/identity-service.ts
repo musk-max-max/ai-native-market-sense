@@ -22,7 +22,7 @@ import { signToken, verifyToken, type JwtClaims } from '../auth/jwt.js';
 import type { IdentityConfig } from '../config.js';
 import { INTERNAL_TIER_DEFAULT } from '../config.js';
 import { APPROVAL_REF_PATTERN, generateApprovalRef } from '../domain/approval-ref.js';
-import { IdentityError, type IdentityReason } from '../domain/errors.js';
+import { IdentityError, isIdentityError, type IdentityReason } from '../domain/errors.js';
 import {
   principalFromUser,
   tierForUser,
@@ -453,7 +453,20 @@ export class IdentityService {
    * 仅当 A4 审批 API 已在建单时生成并通过 `approvalRef` 传入时才复用；否则这里生成。
    */
   async approve(input: ApproveInput): Promise<ApprovalResult> {
-    const approvedBy = assertHumanApprover(input.approver);
+    let approvedBy: ApproverId;
+    try {
+      approvedBy = assertHumanApprover(input.approver);
+    } catch (error) {
+      if (isIdentityError(error)) {
+        await this.recordApprovalDenied({
+          actor: input.approver,
+          operation: 'approve',
+          applicationId: input.applicationId,
+          reason: error.reason,
+        });
+      }
+      throw error;
+    }
     const internalTier = assertInternalTier(input.internalTier ?? INTERNAL_TIER_DEFAULT);
     researchOnlyRequiresReason(internalTier, input.reason);
     const approvalRef = this.generateApprovalRef();
@@ -514,7 +527,20 @@ export class IdentityService {
 
   /** 审批拒绝：申请置 rejected，用户仍为 `internal_pending`（不签 token，可走 P1 重申请）。 */
   async reject(input: RejectInput): Promise<{ applicationId: string; status: 'rejected' }> {
-    const decidedBy = assertHumanApprover(input.approver);
+    let decidedBy: ApproverId;
+    try {
+      decidedBy = assertHumanApprover(input.approver);
+    } catch (error) {
+      if (isIdentityError(error)) {
+        await this.recordApprovalDenied({
+          actor: input.approver,
+          operation: 'reject',
+          applicationId: input.applicationId,
+          reason: error.reason,
+        });
+      }
+      throw error;
+    }
     const at = this.clock.now().toISOString();
     return this.store.runInTransaction(async (repos) => {
       const application = await this.loadPendingApplication(repos, input.applicationId);
@@ -585,7 +611,19 @@ export class IdentityService {
     approver: AuditActor;
     reason?: string;
   }): Promise<{ internalTier: InternalTier; sessionVersion: number }> {
-    assertHumanApprover(input.approver);
+    try {
+      assertHumanApprover(input.approver);
+    } catch (error) {
+      if (isIdentityError(error)) {
+        await this.recordApprovalDenied({
+          actor: input.approver,
+          operation: 'change_internal_tier',
+          userId: input.userId,
+          reason: error.reason,
+        });
+      }
+      throw error;
+    }
     const internalTier = assertInternalTier(input.internalTier);
     researchOnlyRequiresReason(internalTier, input.reason);
     const at = this.clock.now().toISOString();
@@ -661,6 +699,73 @@ export class IdentityService {
         actor: { kind: 'system', id: 'password-login' },
         subjectUserId: userId,
         reason,
+      }),
+    );
+  }
+
+  /**
+   * 审批/改档**被拒**也必须留痕（A4 system_prompt 硬规则 3：agent 不能批 agent，
+   * 但「谁试图批、为何被拒」必须有据）。`approval_denied` 本就在端口白名单
+   * `IDENTITY_AUDIT_EVENT_TYPES` 与 `identity.audit_events` 的 event_type CHECK 内，无需 DDL。
+   * 与 `recordLoginDenied` 同构：先记账，调用方再抛原错（审计写失败 fail-closed）。
+   *
+   * 两个约束决定了写法：
+   *   - 拒斥发生在读申请/用户之前，而 `subject_*` 是外键：先解析存在性，查不到则置 null、
+   *     被拒目标 id 放进 `after` 快照，避免审计写入把 403 变成 FK 违例 500；
+   *   - agent 缺 modelVersion 不满足 `ck_audit_events_agent_model`：改以 system 记录员入账，
+   *     被拒 actor 原样放 `after.attemptedActor`（不伪造 modelVersion）。
+   *
+   * 只覆盖事务前的审批人断言拒绝；事务内拒绝（application_not_pending 等）在同一事务里
+   * 记账会随 ROLLBACK 消失，需 out-of-txn 留痕，另行排期（见 G-03 判定材料）。
+   */
+  private async recordApprovalDenied(input: {
+    actor: AuditActor;
+    operation: 'approve' | 'reject' | 'change_internal_tier';
+    applicationId?: string;
+    userId?: string;
+    reason: IdentityReason;
+  }): Promise<void> {
+    const at = this.clock.now().toISOString();
+    const attempted: Record<string, unknown> = {
+      operation: input.operation,
+      attemptedActor: input.actor,
+    };
+    if (input.applicationId !== undefined) {
+      attempted['applicationId'] = input.applicationId;
+    }
+    if (input.userId !== undefined) {
+      attempted['userId'] = input.userId;
+    }
+    const actor: AuditActor =
+      input.actor.kind === 'agent' && (input.actor.modelVersion ?? '').trim() === ''
+        ? { kind: 'system', id: 'approval-denied-recorder' }
+        : input.actor;
+
+    let subjectUserId: string | null = null;
+    let subjectApplicationId: string | null = null;
+    if (input.applicationId !== undefined) {
+      const application = await this.store.applications.findById(input.applicationId);
+      if (application !== null) {
+        subjectApplicationId = application.applicationId;
+        subjectUserId = application.userId;
+      }
+    }
+    if (input.userId !== undefined && subjectUserId === null) {
+      const user = await this.store.users.findById(input.userId);
+      if (user !== null) {
+        subjectUserId = user.userId;
+      }
+    }
+
+    await this.store.audit.record(
+      auditEvent({
+        eventType: 'approval_denied',
+        at,
+        actor,
+        subjectUserId,
+        subjectApplicationId,
+        after: attempted,
+        reason: input.reason,
       }),
     );
   }

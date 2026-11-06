@@ -446,3 +446,33 @@ CREATE TABLE IF NOT EXISTS dwd_index_member_all (
     PRIMARY KEY (instrument_id, l1_code, l2_code, l3_code, snapshot_date)
 );
 COMMENT ON TABLE dwd_index_member_all IS '申万三级成分时点快照；保留 in_date/out_date/is_new，多日快照共存，支持任意 as-of 历史成分（防幸存者偏差）';
+
+-- --------------------------------------------------------------------------
+-- 实时行情快照（AKshare 东方财富源，A1 P1 任务）
+--    * 来源 = akshare_eastmoney（爬虫封装东方财富），合规标注 F1 residual
+--    * 快照 append-only，多时点共存，serving 层取最新
+--    * 单位：volume=股、amount=元（C09）
+--    * 涨跌幅/换手率为百分比数值（如 3.25 表示 3.25%）
+-- --------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS dwd_realtime_quote (
+    instrument_id   text        NOT NULL,
+    as_of           timestamptz NOT NULL,                           -- 快照市场时点 +08:00（C04）
+    last            numeric(18,2) NOT NULL,                         -- 最新价
+    prev_close      numeric(18,2) NOT NULL,                         -- 昨收
+    open            numeric(18,2) NOT NULL,                         -- 今开
+    high            numeric(18,2) NOT NULL,                         -- 最高
+    low             numeric(18,2) NOT NULL,                         -- 最低
+    volume          bigint      NOT NULL CHECK (volume >= 0),      -- 单位：股（C09）
+    amount          numeric(20,2) NOT NULL CHECK (amount >= 0),    -- 单位：元（C09）
+    pct_change      numeric(8,4),                                   -- 涨跌幅（%），如 3.25
+    change          numeric(18,2),                                  -- 涨跌额（元）
+    turnover_rate   numeric(8,4),                                   -- 换手率（%）
+    volume_ratio    numeric(8,4),                                   -- 量比
+    limit_status    text        CHECK (limit_status IS NULL OR limit_status IN ('limit_up','limit_down','none')),
+    source          text        NOT NULL,                           -- canonical 来源标识（C03）
+    fetched_at      timestamptz NOT NULL,                           -- 采集时间，仅审计（C04）
+    batch_id        text        NOT NULL,
+    ingested_at     timestamptz NOT NULL,
+    PRIMARY KEY (instrument_id, as_of)
+);
+COMMENT ON TABLE dwd_realtime_quote IS '实时行情快照（AKshare 东方财富源），append-only 多时点共存，serving 取最新（F1 residual / SEC-012：爬虫源仅限内部研究/展示，C 端实时行情展示未放行待 H3/H4 书面裁）';

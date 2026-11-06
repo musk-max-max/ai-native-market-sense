@@ -226,6 +226,34 @@ paths:
     reviewers: [H1]
     forbidden: ["*"]
 
+  # ---------- 2026-11-06 L134 补录（A8 核出 roster↔ownership 漂移；L0 落笔，H2 复核） ----------
+  - path: docs/decisions-2026-11-06-ui-round.md
+    owner: L0
+    reviewers: [H1]
+    forbidden: ["*"]
+
+  - path: docs/design/
+    owner: M1
+    reviewers: [H3]
+    forbidden: ["*"]
+
+  - path: design/
+    owner: M1
+    reviewers: [H1]
+    forbidden: ["*"]
+
+  - path: tests/
+    # A7 总测试域；tests/adversarial/（A11）按最长前缀优先切分。
+    owner: A7
+    reviewers: [H1]
+    forbidden: ["*"]
+
+  - path: crm/
+    # services/crm/（A4）按最长前缀优先切分。
+    owner: A9
+    reviewers: [H3]
+    forbidden: ["*"]
+
 notes:
   # CI path guard 默认策略：未匹配任何 entry 的路径一律拒绝写入（default-deny）；
   # 新增顶层目录必须同时在本文件登记，否则 CI 拒绝（A8 实现 guard 时按此语义）。

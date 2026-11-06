@@ -32,6 +32,7 @@
     "loading": "stock-page-loading",
     "aiGeneratedBadge": "ai-generated-badge",
     "aiDisclaimer": "ai-disclaimer",
+    "aiAsOf": "ai-as-of",
     "aiInterpretation": "ai-interpretation",
     "aiSegmentValuation": "ai-segment-valuation",
     "aiSegmentGrowth": "ai-segment-growth",
@@ -64,6 +65,7 @@
     "aiInterpretation": [
       "aiGeneratedBadge",
       "aiDisclaimer",
+      "aiAsOf",
       "aiInterpretation",
       "aiSegmentValuation",
       "aiSegmentGrowth",

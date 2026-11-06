@@ -60,9 +60,15 @@ importers:
       '@market-sense/compliance':
         specifier: workspace:*
         version: link:../compliance
+      '@types/pg':
+        specifier: 8.23.1
+        version: 8.23.1
       fastify:
         specifier: ^5.12.8
         version: 5.12.8
+      pg:
+        specifier: 8.23.1
+        version: 8.23.1
     devDependencies:
       '@types/node':
         specifier: ^22.10.0
@@ -91,6 +97,28 @@ importers:
     devDependencies:
       '@types/node':
         specifier: ^22.10.0
+        version: 22.20.5
+      '@types/pg':
+        specifier: ^8.15.5
+        version: 8.23.1
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  services/approval:
+    dependencies:
+      fastify:
+        specifier: ^5.12.8
+        version: 5.12.8
+      pg:
+        specifier: ^8.16.3
+        version: 8.23.1
+    devDependencies:
+      '@types/node':
+        specifier: ^22.18.0
         version: 22.20.5
       '@types/pg':
         specifier: ^8.15.5

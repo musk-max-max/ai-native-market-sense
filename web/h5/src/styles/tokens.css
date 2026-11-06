@@ -41,6 +41,11 @@
   --radius-sm: 10px;
   --radius-pill: 999px;
 
+  /* 合规文字最小字号（ai-display-visual-spec-1.0 §5）：免责正文/meta、AI label、as_of label+value。 */
+  --fs-caption: 13px;
+  /* AI 标识方块底色（M1 交付前暂 = --accent，见规格 §5 token 表）。 */
+  --brand-emphasis: var(--accent);
+
   --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', 'Hiragino Sans GB',
     'Microsoft YaHei', sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;

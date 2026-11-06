@@ -156,9 +156,12 @@ function toVerdict(result: PolicyResult, input: PostprocessDraftInput): PolicyVe
  * 注意：工厂在构造期加载策略（fail-fast）；文件不可读/JSON/结构非法直接抛
  * `AiPolicyConfigError`，调用方不得 catch 后继续启动请求路径。
  */
-export function createAiPolicyEvaluator(options: AiPolicyEvaluatorOptions = {}): PolicyEvaluator {
+export function createAiPolicyEvaluator(
+  options: AiPolicyEvaluatorOptions = {},
+): PolicyEvaluator & { readonly policyVersion: string } {
   const policy = options.policy ?? loadAiContentPolicy(options.policyPath);
   return {
+    policyVersion: policy.policy_version,
     async evaluate(input: unknown, context: PostprocessContext): Promise<PolicyVerdict> {
       if (context.policyVersion !== policy.policy_version) {
         throw new Error(

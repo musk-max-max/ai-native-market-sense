@@ -274,6 +274,31 @@ _COLUMNS: dict[str, tuple[ColumnSpec, ...]] = {
         _c("out_date", "out_date", "date_yyyymmdd", required=False),
         _c("is_new", "is_new", "text", required=False),
     ),
+    # ---- 第 3 批（KD-INGEST-CONCEPT，L117 修正）----
+    # dc_index：东方财富概念/行业/地域板块行情（doc_id=362，6000 分，实测 15000 积分可用）
+    "dc_index": (
+        _c("board_code", "ts_code", "text"),
+        _c("trade_date", "trade_date", "date_yyyymmdd"),
+        _c("board_name", "name", "text"),
+        _c("leading_name", "leading", "text", required=False),
+        _c("leading_code", "leading_code", "text", required=False),
+        _c("pct_change", "pct_change", "pct", required=False),
+        _c("leading_pct", "leading_pct", "pct", required=False),
+        _c("total_mv", "total_mv", "amount_yuan", required=False),
+        _c("turnover_rate", "turnover_rate", "pct", required=False),
+        _c("up_num", "up_num", "int", required=False),
+        _c("down_num", "down_num", "int", required=False),
+        _c("idx_type", "idx_type", "text", required=False),
+        _c("level", "level", "text", required=False),
+    ),
+    # dc_member：东方财富概念板块成分股（doc_id=363，6000 分，实测 15000 积分可用）
+    # ts_code 需带 .DC 后缀（如 BK1184.DC）；trade_date 过滤返回当日成分
+    "dc_member": (
+        _c("trade_date", "trade_date", "date_yyyymmdd"),
+        _c("board_code", "ts_code", "text"),
+        _c("instrument_id", "con_code", "instrument"),
+        _c("name", "name", "text", required=False),
+    ),
 }
 
 _DATASET_META: dict[str, tuple[str, int, int, bool, str]] = {
@@ -307,6 +332,9 @@ _DATASET_META: dict[str, tuple[str, int, int, bool, str]] = {
         False,
         "申万三级成分（时点成分；Y/N 两次调用拉全量含历史退出，保留 in_date/out_date）",
     ),
+    # ---- 第 3 批（KD-INGEST-CONCEPT，L117 修正：15000 积分实测可用）----
+    "dc_index": ("dc_index", 362, 6000, False, "东方财富概念/行业/地域板块行情（1058 板块，实测 15000 积分可用）"),
+    "dc_member": ("dc_member", 363, 6000, False, "东方财富概念板块成分股（需 .DC 后缀 + trade_date 过滤）"),
 }
 
 #: 数据集接入模式（研究接口形态决定，非业务策略）。
@@ -314,6 +342,8 @@ _DATASET_MODES: dict[str, str] = {
     "fina_indicator": "per_instrument",
     "index_classify": "snapshot",
     "index_member_all": "snapshot",
+    "dc_index": "daily",
+    "dc_member": "per_instrument",
 }
 
 #: snapshot 模式的分批参数（申万行业树按层级三次调用；成分表一次拉最新）。
@@ -357,6 +387,8 @@ DEFAULT_RESEARCH_DATASETS: tuple[str, ...] = (
     "fina_indicator",
     "index_classify",
     "index_member_all",
+    "dc_index",
+    "dc_member",
 )
 
 #: 金额/量换算倍数（Decimal 运算，禁止 float 误差）。

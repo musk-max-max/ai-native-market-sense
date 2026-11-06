@@ -16,6 +16,7 @@ import { test } from 'node:test';
 import { APPROVAL_REF_PATTERN } from '../src/domain/approval-ref.js';
 import { IdentityError } from '../src/domain/errors.js';
 import type { Principal } from '../src/domain/principal.js';
+import type { AuditActor } from '../src/ports/audit-sink.js';
 import {
   AGENT_ACTOR,
   HUMAN_APPROVER,
@@ -486,4 +487,108 @@ test('审计：注册/登录/审批事件均含 actor、时间、before-after、
   const approval = events.find((event) => event.eventType === 'internal_approval');
   assert.ok(approval?.before !== null && approval?.after !== null);
   assert.equal(approval?.reason, 'internal_approval');
+});
+
+// ---------------------------------------------------- 审批被拒留痕（approval_denied）
+
+test('审计：审批/改档被拒落 approval_denied（agent 原样入账；缺模型版本以 system 记录员入账）', async () => {
+  const ctx = makeContext();
+  const { applicationId, userId } = await registerInternalAndGetApplication(ctx);
+
+  // ① agent 带模型版本试图审批 → 403，被拒 actor 原样入账。
+  await expectIdentityError(
+    ctx.service.approve({ applicationId, approver: AGENT_ACTOR }),
+    403,
+    'approver_not_human',
+  );
+  // ② agent 缺 modelVersion → 403；ck_audit_events_agent_model 不允许空 model_version，
+  //    改以 system 记录员入账，被拒 actor 原样放 after.attemptedActor。
+  await expectIdentityError(
+    ctx.service.approve({ applicationId, approver: { kind: 'agent', id: 'A15' } }),
+    403,
+    'actor_model_version_required',
+  );
+  // ③ 人类但非审批席位（H5 账号管理员）→ 403 approver_not_allowed。
+  await expectIdentityError(
+    ctx.service.approve({ applicationId, approver: ACCOUNT_ADMIN }),
+    403,
+    'approver_not_allowed',
+  );
+  // ④ reject 同规则。
+  await expectIdentityError(
+    ctx.service.reject({ applicationId, approver: AGENT_ACTOR, reason: 'not applicable' }),
+    403,
+    'approver_not_human',
+  );
+  // ⑤ 改档同规则。
+  await expectIdentityError(
+    ctx.service.changeInternalTier({
+      userId,
+      internalTier: 'research_only',
+      approver: AGENT_ACTOR,
+      reason: 'probe',
+    }),
+    403,
+    'approver_not_human',
+  );
+
+  const denied = ctx.audit.list().filter((event) => event.eventType === 'approval_denied');
+  assert.equal(denied.length, 5);
+
+  const [agentDenied, missingModelDenied, humanDenied] = denied;
+  assert.ok(agentDenied !== undefined && missingModelDenied !== undefined && humanDenied !== undefined);
+  assert.equal(agentDenied.actor.kind, 'agent');
+  assert.equal(agentDenied.actor.id, 'A4');
+  assert.equal(agentDenied.actor.modelVersion, 'deepseek-flash');
+  assert.equal(agentDenied.reason, 'approver_not_human');
+  assert.equal(agentDenied.subjectApplicationId, applicationId);
+  assert.equal(agentDenied.subjectUserId, userId);
+  const agentAfter = agentDenied.after as Record<string, unknown>;
+  assert.equal(agentAfter['operation'], 'approve');
+  assert.equal((agentAfter['attemptedActor'] as AuditActor).id, 'A4');
+  assert.equal(agentAfter['applicationId'], applicationId);
+
+  assert.equal(missingModelDenied.actor.kind, 'system');
+  assert.equal(missingModelDenied.actor.id, 'approval-denied-recorder');
+  assert.equal(missingModelDenied.reason, 'actor_model_version_required');
+  const missingAfter = missingModelDenied.after as Record<string, unknown>;
+  const attempted = missingAfter['attemptedActor'] as AuditActor;
+  assert.equal(attempted.kind, 'agent');
+  assert.equal(attempted.modelVersion, undefined);
+
+  assert.equal(humanDenied.reason, 'approver_not_allowed');
+  assert.equal(humanDenied.actor.kind, 'human');
+  assert.equal(humanDenied.actor.id, 'H5');
+
+  const tierDenied = denied.find(
+    (event) => (event.after as Record<string, unknown>)['operation'] === 'change_internal_tier',
+  );
+  assert.ok(tierDenied !== undefined);
+  assert.equal(tierDenied.subjectUserId, userId);
+  assert.equal(tierDenied.subjectApplicationId, null);
+  assert.equal((tierDenied.after as Record<string, unknown>)['userId'], userId);
+
+  // 留痕不改变业务状态：申请仍 pending，账号未被动过。
+  const application = await ctx.store.applications.findById(applicationId);
+  assert.equal(application?.status, 'pending');
+});
+
+test('审计：审批被拒但申请不存在 → 403 照常、审计 subject 置 null（FK 守卫不把 403 变 500）', async () => {
+  const ctx = makeContext();
+  await expectIdentityError(
+    ctx.service.approve({ applicationId: 'app_does_not_exist', approver: AGENT_ACTOR }),
+    403,
+    'approver_not_human',
+  );
+
+  const denied = ctx.audit
+    .list()
+    .find((event) => event.eventType === 'approval_denied');
+  assert.ok(denied !== undefined);
+  assert.equal(denied.subjectApplicationId, null);
+  assert.equal(denied.subjectUserId, null);
+  assert.equal(denied.actor.kind, 'agent');
+  const after = denied.after as Record<string, unknown>;
+  assert.equal(after['applicationId'], 'app_does_not_exist');
+  assert.equal(after['operation'], 'approve');
 });

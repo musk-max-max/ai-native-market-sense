@@ -43,6 +43,8 @@ RESEARCH_VIEWS = {
     "serving_research_fina_indicator",
     "serving_research_index_classify",
     "serving_research_index_member_all",
+    # SEC-012 / F1 residual: akshare 实时行情，internal-only 不进 C 端
+    "serving_quote_realtime",
 }
 
 

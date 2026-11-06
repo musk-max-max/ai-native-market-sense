@@ -1,5 +1,15 @@
 # 高危漏洞与安全缺口登记（A9，只读结论）
 
+> ⚠️ **未闭环显著标注（2026-11-06 H4 复核）**：**F1 取数合规 residual = 厂商法律授权缺口——无 tuaremax.top 书面
+> 转售授权，未闭环**（P0 阻塞 C 端商用上线，release-blocking）。登记条目见 §1/§11 **SEC-011**；
+> 台账 `../compliance/tushare-authorization-ledger.md`（三件 0/3，11-12 到期）。
+> **禁止写法：「已获授权」「已解决」「合规」**；允许写法见台账 §2。在 SEC-011 闭环前，本登记任何「PASS/CLOSED」
+> 均不得被引用为「取数合规已解决」。
+>
+> ⚠️ **SEC-012（F1 同类，2026-11-06 H4 登记）**：AKshare = 爬虫封装东方财富，**无上游书面授权**，
+> 与 mirror（tuaremax.top）同类厂商法律授权缺口；用途限定**内部研究/展示域**，
+> **C 端实时行情展示未放行（待 H3/H4 裁）**——与 SEC-011 同禁「已获授权/已解决」写法。
+
 > 状态：**结论稿 v1，2026-11-05**。依据 A19 L91 复核 artifact（commit `370c6bb` + errata `0657fc1`）与仓库侧交叉验证；
 > A9 未做任何主动探测、未改任何配置、未碰真实主机。定级口径按 H5 2026-11-05 裁定：**P1 = release-blocking**。
 > 本登记只回答「是什么、证据在哪、影响什么、谁闭环」；修法在 `../gate/`、`../baselines/` 与 `../../auth/proposal-*`，
@@ -20,6 +30,8 @@
 | SEC-008 | 默认端点 `http://api.tushare.pro` 明文 + transport 无 TLS/证书校验，token 在 POST body 明文出网 | P2 High | —（H4 2026-11-06 新增） | A1 修 / H4 复核 | **OPEN（§10.2）** |
 | SEC-009 | 限流未接线：`TUSHARE_RATE_LIMIT_PER_MIN=200` 全仓无引用，实际按 `quota.calls_per_minute=500`（×0.8=400/min）打 mirror，超其 200/min 声明 | P3 Medium | —（H4 2026-11-06 新增） | A1 修 / H4 复核 | **OPEN（§10.3）** |
 | SEC-010 | 真实 tushare 报文样本 11 文件已入 git（`tests/fixtures/tushare/real-sample-20261105/`），与 L32「不得录真实报文」冲突；`m02923` 授权仅见 commit/README，`agents/decisions.md` 无留痕 | 合规事实（不定级） | —（H4 2026-11-06 新增） | 定性 H3 / 留痕 L0 / 处置 A1 | **OPEN（§10.4）** |
+| **SEC-011** | **F1 取数合规 residual：无 tuaremax.top 书面转售授权 = 厂商法律授权缺口**（三件 0/3：官方书面回复缺、条款全文缺、账号权限表缺；a/b 两问 owner 未答） | 合规事实（不定级）；**P0 阻塞 C 端商用上线（release-blocking）** | 红线①（H4.md §4）/ HANDOFF §4 P0-1/P0-3 | **owner**（三件材料+a/b）→ **H4** 复核归档 / L0 升级 | **🔴 未闭环（§11，11-12 到期）** |
+| **SEC-012** | **F1 同类 residual：AKshare=爬虫封装东方财富，无上游书面授权**（来源=akshare/东方财富爬取；stock_zh_a_spot_em 5927 只全市场快照 23 字段，适配器 `services/ingest/src/market_ingest/adapters/akshare/`） | 合规事实（不定级）；**C 端实时行情展示放行待 H3/H4 裁**（红线①同源） | L136『事实修正与授权三件』#3（`agents/decisions.md:1604`） | 定性 **H3** / 放行 **H3+H4 裁** / 材料 **owner**（上游授权） | **🔴 未闭环（§12，与三件并列跟踪）** |
 
 > 不在本登记内、且**不因本次复核重开**的两项：L98「④ PASS（L91 内网口径）」（口径本身成立，但须补注：PASS 是
 > 「当时无业务监听」，**网络层未拒绝**，见 SEC-002）；L99 已关闭的 P2 nginx 事件（不写「全清」，口径按 L99 台账）。
@@ -191,3 +203,87 @@ commit `5ea7e97`（脚本修复）/`9bc29fb`（自证）。
 ④若判定违规，历史清理需 L0 决策（git 历史改写不在 H4 写域）。
 
 **闭环判据**：decisions.md 有对应条目（授权或判定违规）；仓库内不再新增真实报文；发布材料包含该残留声明。
+
+## 11. SEC-011 F1 取数合规 residual（2026-11-06，H4 复核登记；追加，不改上文原判定）
+
+> 起因：任务②「F1 取数合规 residual 登记核对」。此前该 residual 只活在红线①与
+> `../compliance/tushare-authorization-ledger.md`，本登记册未单列——**本次补登并显著标注**（页首 ⚠️ + §1 行）。
+> 口径核对结论：台账 §2 表述与红线①一致（「无 tuaremax 书面转售授权 = 厂商法律授权缺口，记 residual，未闭环」），
+> 本条照录；**任何情况下不得写「已获授权/已解决/合规」**。
+
+### 11.1 事实（2026-11-06 复核，可复跑）
+
+- **书面授权实体=零**：`git ls-files | grep -Ei "\.(pdf|eml|docx|msg)$"` → 空（exit=1，11-06 复核确认）。
+- **取数链事实**：`services/ingest/.env:6` `TUSHARE_HTTP_URL=https://tuaremax.top`（第三方 mirror / reseller）；
+  但该键是死配置（SEC-007），仓库内**没有任何一次 mirror 真实取数的端点证据**（`research_coverage.json`
+  现为 `source_channel=replay`、`endpoint_host=null`）。
+- **权利链条缺口**：tushare 个人许可「不可转让/非商业/仅个人查看」（条款全文亦缺，三件②）；mirror 是 reseller，
+  其转售**不构成** tushare 的再许可授权（L118）；owner m06899 口头「已获授权」被 Lead 拦截（L127），
+  L131 Open⑤ 仍记「F1 取数合规 a/b owner 未答」。
+- **三要件（L100）未见任何书面覆盖**：①向非本人第三方（小范围、不收费）展示 ②上游/交易所权利再许可
+  ③书面写明用途/期限/范围。
+
+### 11.2 判定与口径
+
+- **判定**：**🔴 未闭环**——「无 tuaremax.top 书面转售授权 = 厂商法律授权缺口」。三件 0/3（11-06），
+  11-12 到期（P0 阻塞 C 端商用上线；11-12 发布数据半不签）。
+- **允许写法**：「取数合规=待确认；a/b 未答；mirror 通道 `authorization_status=unverified_third_party`」。
+- **禁止写法**：「已获授权」「已解决」「合规」「内网=自用」（L100：内网≠免授权）。
+- **C 端状态**：维持 `internal_eval` + 403 `EntitlementRestricted`（红线③）；`c_end_display` 翻档须
+  H4+H3+owner 三方门禁（AI 卡 AI-1/2/3 另由 H3 签，签认≠C 端放行）。
+
+### 11.3 闭环判据（all-of）
+
+1. 三件齐且逐条对上 L100 三要件（sha256 实体为准，见台账 §1）；2. a/b 两问书面答「覆盖 mirror」，或走 b 路径
+（切官方端点 + 重拉全量，授权基础变更另行排期）；3. 条款文本与 SEC-010 样本处置口径落定；4. H4 复核记录 +
+H3 书面放行 + owner 最终放行。**闭环前 residual 保持显著标注（页首 ⚠️）。**
+
+### 11.4 附：安全半登记续报（2026-11-05 晚间–11-06，依据 decisions.md L102–L110；原 §2/§3 判定行不改）
+
+- **SEC-001**：L102 密码登录关闭（`PasswordAuthentication no`）；L108 `PermitRootLogin no` + 具名 sudo `lyuddu`
+  （root 禁登，11-12 三硬条件完成）；L109 root 登录 residual 由 ACCEPTED-RISK 转 **CLOSED**、门禁⑤-3 PASS。
+  **22 白名单**=ACCEPTED-RISK（用户 m05441 不锁，出口 IP 不稳定），⑤-4 记 residual 不降级。
+- **SEC-002**：云 SG 80/8888 = **ACCEPTED-RISK**（用户 m05524 书面接受，L103/L108）+ 补偿控制
+  HOST-EXPOSURE-01 PASS（L106/L107 A19 复核）；L110 书面确认 SG+root 两项**不再作为 11-12 发布签核前提**。
+- **11-12 发布安全半现卡三项**：值班姓名/手机（BLOCKED）、真实寻呼通道（BLOCKED）、staging 15min 演练（NO-ENV）。
+  三项可验收口径见 `../gate/security-half-acceptance-2026-11-12.md`（2026-11-06 应 lead 要求出具；任一 OPEN → 安全半不签）。
+
+## 12. SEC-012 AKshare/东方财富爬取来源 residual（2026-11-06，H4 按 L136.3 登记；追加）
+
+> 依据：L136『事实修正与授权三件』第 3 条（`agents/decisions.md:1604`；**注意 L136 撞号**，另一条为「写域仲裁」
+> `agents/decisions.md:1576`，引用本条须写全标题）。系 HANDOFF P1「AKshare 实时行情」的合规伴生项。
+
+### 12.1 事实
+
+- **来源**：akshare（PyPI 第三方包）= **爬虫封装东方财富**公开页面/接口；本次取数为 `stock_zh_a_spot_em`
+  全市场快照（5927 只、23 字段）。适配器初稿 `services/ingest/src/market_ingest/adapters/akshare/`
+  （adapter.py / requirements.txt / __init__.py，11-06 落盘，A1）。
+- **权利链条缺口**：东方财富公开展示 ≠ 商用/再分发授权；上游权利归东财及交易所等，**爬取获取不产生授权**。
+  仓库内无任何东方财富/上游书面授权实体（与 SEC-011 同一核验口径：`git ls-files` 零 pdf/eml/docx）。
+- **与 mirror（tuaremax.top）同类**：均属「第三方通道取得数据、无上游书面授权」的 F1 家族风险（红线①同源）。
+
+### 12.2 判定与口径
+
+- **判定**：**🔴 未闭环**（F1 同类 residual）。**用途限定：内部研究/展示域**（L136.3 原文）。
+- **C 端实时行情展示：未放行**——放行待 **H3/H4 书面裁**（L136.3）；裁前任何 AKshare 来源数据不得进 C 端
+  实时行情展示，与 `c_end_display` 三方门禁（B5）同口径。
+- **允许写法**：「AKshare 来源=爬取东方财富，`authorization_status=unverified_scrape`，限内部研究/展示域，C 端放行待裁」。
+- **禁止写法**：「公开数据=可用」「东财免费=免责」「已获授权/已解决/合规」。
+- **注意**：东方财富页面「可免费查看」只解决访问方式，不解决**再分发/商用**权利（与 L100 三要件同一逻辑）。
+
+### 12.3 闭环判据（all-of）
+
+1. 上游（东方财富/数据权利方）**书面商用+再分发授权**，或改走持授权来源；书面件落 sha256 实体（同三件①口径）；
+2. 用途范围书面化（内部研究限定的确认，或扩展用途的授权）；
+3. **C 端实时行情展示放行**经 H3+H4 书面裁（红线④ AI 标识/免责/as_of 一并适用）；
+4. 技术侧防误放行：serving/display 对 akshare 来源标记 internal-only、翻档前不可见（归 A1/A2 实现，H4 核验）。
+
+### 12.4 跟踪
+
+- **与 tushare 授权三件并列跟踪**（lead m00182 指令）：同在 11-12 节点盘点，材料催办路径并入
+  `../compliance/tushare-authorization-ledger.md` §5.1 口径与 `../../docs/runbook/tushare-authorization-chase.md` 流程。
+- **知会 H3**：定性（爬取来源的权利基础）与 C 端放行归 H3+H4 裁，2026-11-06 已发消息。
+- 登记后仍属未闭环期间，AKshare 适配器可继续推进内部链路（dwd_realtime_quote+serving 内部域，L136.3），但 C 端展示闸门不动。
+- **进展追加**：A1 书面确认执行三条约束（m00249，2026-11-06 18:42）——①限内部研究/展示域；②serving 侧做
+  internal-only 标记（拟在 `serving_quote_realtime` 视图加 `source_internal_only` 字段，翻档前 C 端不可见）；
+  ③文档统一标 F1 residual/SEC-012。闭环判据 4 = **进行中**，待字段/闸门落盘后 H4 核验（查视图 DDL/迁移 + 翻档闸门用例）。

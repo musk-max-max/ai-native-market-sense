@@ -19,6 +19,8 @@ info:
 
     版本与冲突：version 是乐观锁（整数，从 1 开始）；PUT 必须带 If-Match（ETag "v<n>"），
     冲突返回 409 + 三点 diff（base/current/submitted）；成功后 version+1。
+    approval_ref wire 形态（H2 终审 M3）：只走裸 apr_<uuidv7>（pattern 已锁 UUIDv7 版本位/变体位）；
+    跨环境分段前缀（prod:/staging:）仅 DB/审计内部形态，不上 wire；环境语义由 environment 字段承载。
     发布灰度：canary_percent 固定 1–10，**全量参数不存在**（不是被忽略，是不在 schema 中；
     传入未知字段按 400 拒绝）。灰度桶算法由服务端实现，发布期内同一 config_id + 匿名会话桶稳定。
 
@@ -223,7 +225,7 @@ paths:
         对当前 draft 建审批单（T1 常规或 T3 文案），返回 A4 审批账本的 approval_ref。
         approval_ref 只能由 A4 审批建单事务生成，本接口不接收；申请人不得预填。
         T3 需带 policy_version，服务端校验与当前已签 policy 一致，否则 400。
-        draft 的 expected_version 必须与当前版本一致，否则 409。
+        draft 的 expected_version 必须与当前版本一致，否则 412 PRECONDITION_FAILED（刷新后重试）。
       requestBody:
         required: true
         content:
@@ -245,6 +247,8 @@ paths:
           $ref: '../shared/openapi.yaml#/components/responses/Forbidden'
         '409':
           $ref: '#/components/responses/ApprovalConflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
         '429':
           $ref: '../shared/openapi.yaml#/components/responses/TooManyRequests'
         '500':
@@ -263,8 +267,9 @@ paths:
       description: |
         需要可解析、且状态为 approved 的 approval_ref（A4 账本具名记录，L51：不得申请人预填）。
         服务端校验 approval_ref 与 config_id/version 的绑定、policy_version 与当前 rules 一致，
-        否则拒绝。canary_percent 必填且 1–10；服务端按 config_id + 匿名会话桶稳定分桶。
+        不满足则 409 ApprovalConflictProblem（approval_ref 不可解析/非 approved/绑定不符）。canary_percent 必填且 1–10；服务端按 config_id + 匿名会话桶稳定分桶。
         全量参数不存在：本 schema 没有全量字段，额外字段因 additionalProperties:false 被 400 拒绝。
+        expected_version 与当前版本不一致时返回 412 PreconditionFailed（刷新后重试）。
         成功后生成不可变 release（snapshot + sha256:...），并切换指针；version 不变（内容版本仍为
         已审批的 draft version）。回滚见 rollback 接口。
       requestBody:
@@ -525,7 +530,10 @@ components:
           schema:
             $ref: '#/components/schemas/ApprovalConflictProblem'
     PreconditionFailed:
-      description: If-Match 与当前版本不一致（412）。
+      description: |
+        前置条件不满足：submit/publish 的 expected_version 与当前版本不一致（412，刷新后重试）。
+        PUT 的 If-Match 不符不走 412——走 409 + ConfigConflictProblem 三点 diff（见 M1 矩阵，
+        对 RFC 9110「If-Match→412」的有意偏离）。
       content:
         application/problem+json:
           schema:
@@ -833,7 +841,7 @@ components:
           format: date-time
         approval_ref:
           type: string
-          pattern: '^apr_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          pattern: '^apr_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
         content_hash:
           type: string
           pattern: '^sha256:[0-9a-f]{64}$'
@@ -921,7 +929,7 @@ components:
       properties:
         approval_ref:
           type: string
-          pattern: '^apr_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          pattern: '^apr_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
         application_id:
           type: string
           minLength: 1
@@ -942,7 +950,7 @@ components:
       properties:
         approval_ref:
           type: string
-          pattern: '^apr_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          pattern: '^apr_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
         expected_version:
           type: integer
           minimum: 1
@@ -965,7 +973,7 @@ components:
           pattern: '^rel_[0-9a-z-]{8,40}$'
         approval_ref:
           type: string
-          pattern: '^apr_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          pattern: '^apr_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
         reason:
           type: string
           minLength: 8
@@ -1002,7 +1010,7 @@ components:
           format: date-time
         approval_ref:
           type: string
-          pattern: '^apr_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          pattern: '^apr_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
         canary_percent:
           type: integer
           minimum: 1
@@ -1030,7 +1038,7 @@ components:
           pattern: '^rel_[0-9a-z-]{8,40}$'
         approval_ref:
           type: string
-          pattern: '^apr_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          pattern: '^apr_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
         rolled_back_at:
           type: string
           format: date-time
