@@ -1706,3 +1706,20 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 
 **生效**：2026-11-06 22:16。影响席：A3（AI 域属）、H2（判契约）、H3（签发）。
 
+
+### L145 — AI-2/3 computed-style 采证（A7，PASS_WITH_GAPS，2026-11-06 22:47）
+
+**A7 交付**：真实生产 DOM 自然渲染下 computed-style 采证（390×844 浅+深，本地 web:3457 dist=9562a04 + api:8099 c_end 正档真栈，8×200 真实 /v1，零注入零拦截）。
+- verdict=**PASS_WITH_GAPS**：**14 PASS / 0 FAIL / 5 ABSENT GAP**。
+- PASS：§6.2 testid 5 个（disclaimer×3/quote-as-of/ai-as-of，逐字 as_of 含 +08:00）+ 主断言 5/7（.disclaimer__meta/.quote__meta dt,dd/.ai-context__item dt,dd 全 13px、字色 ∈{--text,--text-muted}）+ 观察 4/4（.ai-slot--pending/.ai-section__footnote/.ai-section__meta/.quote__stale 13px）。对比度 6.69–17.96、RT-07 祖先干预 0、N1 close 扫描空、主题 sanity 浅≠深。
+- **5 GAP（A6 接线红项，A7 不代修）**：ai-generated-badge/ai-disclaimer/.ai-badge/.ai-disclaimer/.ai-badge__mark——AiInterpretation.tsx:71 content=null → badge 族浅深均不渲染。需 A6 接通 /v1/ai/analyses 后复测。
+- 坑：本地无 reconciler，entitlement control 行 15min 后 control_stale→quote 403；跑 audit.control_heartbeat('a7-visual-run') 每 60s 保活。
+- 证据：tests/e2e/evidence/ai23-visual-computed-2026-11-06.json（sha256 a3573264…19eea，跑批 gitSha=807fbaa）、RT10-hash-anchors-2026-11-06.json（14 文件 sha256）。A7 请 L0 统一 commit probe 脚本 + 2 证据 JSON（A7 席 inactive）。
+
+**L0 动作**：commit A7 三文件（tests/e2e/scripts/ai23-visual-evidence.mjs + 2 evidence JSON）。
+
+**Open**：badge 族 5 GAP 待 A6 接线后 A7 复测；AI2-3/AI3-3/流式 E2E 用例欠；AI-1 契约判定 H2、签发 H3；tushare 授权 0/3、安全半 3/3、SEC-011 = owner/H3。
+
+**生效**：2026-11-06 22:47。影响席：A7（E2E 域属）、A6（badge 接线）、H3（签发）。
+
+
