@@ -1691,3 +1691,18 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 **Open**：A7 采 AI-2/3 computed-style 证据在途（L141 两阻塞：ECS web 容器陈旧 + injected probe 方法论）；AI-1 契约判定包待 H2（L142）；tushare 授权 0/3、安全半 3/3、SEC-011 = owner/H3；tushare per_board + sync 脚本待 owner 认领。
 
 **生效**：2026-11-06 21:48。影响席：A1（AKshare 源）、A3（ingest 域属）。
+
+
+### L144 — AI-1 运行时证据采全 + L0 亲验（2026-11-06 22:16）
+
+**A3 交付**：AI-1 生成链路 SSE/轮询运行时证据补全。
+- 证据：`tests/data/acceptance/artifacts/ai1-sse-evidence-2026-11-06.json`（18638B），**32/32 PASS**。链路 POST /v1/ai/analyses → GET 轮询 → GET /events SSE → 越权 404（Problem JSON 不建流）；SSE 帧 status→section×2→done，每帧 analysis_id 与 POST、audit 三闭环；五字段全非空（policy_version=ai-content-policy/1.1.2、content_version=2026.11.5.ac875c9d9237、model_family=fake-v1、as_of=2026-11-06T13:54:15+08:00、request_id）。
+- commit：152c017（SSE events 路由 + untracked 实现 plugin/generation/domain/analyses.test 入库 + JSON 证据）、807fbaa（证据 md 入库）。L0 亲验两 commit 在 HEAD 历史内、证据文件由 152c017 引入。
+- 前置：共享 PG audit.control_heartbeat 保活（15min control_stale 降档）；request_id 每次唯一防 event_key 23505 幂等吞行。
+
+**L0 亲验门禁（A3 落地后）**：node infra/ci/typecheck.mjs **10/10 EXIT0**；services/ai **42 pass / 0 fail**。A3 新增 1966 行（plugin/generation/domain/analyses.test）未破坏仓库级门禁。
+
+**Open**：AI-1 契约判定（request-id 头语义）待 H2（L142）；AI-1 元数据+留痕 SIGNOFF 放行待 H3；A7 采 AI-2/3 computed-style 在途（L0 已解除环境阻塞：起当前代码 serve-current.mjs:18000 + SSH 隧道 13001→ECS API）；tushare 授权 0/3、安全半 3/3、SEC-011 = owner/H3。
+
+**生效**：2026-11-06 22:16。影响席：A3（AI 域属）、H2（判契约）、H3（签发）。
+
