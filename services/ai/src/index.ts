@@ -27,6 +27,21 @@ export {
 } from './postprocess/host.js';
 export { createAiPolicyEvaluator, rewriteDraft } from './postprocess/policy-evaluator.js';
 export type { AiPolicyEvaluatorOptions, PostprocessDraftInput } from './postprocess/policy-evaluator.js';
+export {
+  AI_GENERATION_INSERT_SQL,
+  AI_GENERATION_KINDS,
+  assertValidAiGenerationAuditEvent,
+  createAiGenerationAuditWriter,
+  postprocessActionsFromViolations,
+} from './postprocess/audit.js';
+export type {
+  AiGenerationAuditEvent,
+  AiGenerationAuditWriter,
+  AiGenerationDecision,
+  AiGenerationKind,
+  AiGenerationPostprocessAction,
+  AuditQuery,
+} from './postprocess/audit.js';
 export type {
   DegradedDataCard,
   EntitlementSnapshot,

@@ -25,6 +25,7 @@ import type {
   PolicyVerdict,
   PostprocessContext,
 } from './host.js';
+import { postprocessActionsFromViolations } from './audit.js';
 
 /** 在线后处理的输入形态：模型草稿 + tool 层取到的、已按 allowlist 裁剪的证据。 */
 export interface PostprocessDraftInput {
@@ -76,12 +77,14 @@ export function rewriteDraft(draft: AiDraft, claims: readonly { text: string }[]
 }
 
 function toVerdict(result: PolicyResult, input: PostprocessDraftInput): PolicyVerdict {
+  const actions = postprocessActionsFromViolations(result.violations);
   if (result.decision === 'blocked') {
-    return { blocked: true, reasonCodes: result.reason_codes };
+    return { blocked: true, reasonCodes: result.reason_codes, actions };
   }
   return {
     blocked: false,
     reasonCodes: result.reason_codes,
+    actions,
     output: {
       ...input,
       draft: rewriteDraft(input.draft, result.claims),

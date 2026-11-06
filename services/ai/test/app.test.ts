@@ -107,6 +107,14 @@ const preContext: PostprocessContext = {
     internalAccessAllowed: false,
     blocked: false,
   },
+  requestId: 'req-1',
+  userId: 'user-hmac-1',
+  kind: 'stock_interpretation',
+  modelFamily: 'fake-v1',
+  promptVersion: 'prompt-1',
+  contentVersion: 'copy-1',
+  asOf: '2026-11-06T08:00:00.000Z',
+  inputEvidenceHash: 'a'.repeat(64),
 };
 
 test('postprocess host：授权阻断在策略/LLM 前短路', async () => {
@@ -170,6 +178,34 @@ test('postprocess host：策略拒绝返回确定性降级卡并审计', async (
   assert.deepEqual(result.reasonCodes, ['DATA_NOT_READY']);
   assert.deepEqual(result.output, { degraded: true, reasonCodes: ['DATA_NOT_READY'] });
   assert.equal(records.length, 1);
+  const record = records[0] as {
+    requestId: string;
+    decision: string;
+    outputHash: string;
+    postprocessActions: unknown[];
+  };
+  assert.equal(record.requestId, 'req-1');
+  assert.equal(record.decision, 'blocked');
+  assert.match(record.outputHash, /^[0-9a-f]{64}$/u);
+  assert.deepEqual(record.postprocessActions, []);
+});
+
+test('postprocess host：P8 元数据缺失 fail-closed，不写半条审计', async () => {
+  await assert.rejects(
+    () =>
+      runPostprocessHost(
+        { sections: [] },
+        { ...preContext, contentVersion: undefined },
+        {
+          policy: { evaluate: async () => ({ blocked: false, reasonCodes: [] }) },
+          audit: () => {
+            throw new Error('不应被调用');
+          },
+        },
+      ),
+    (error: unknown) =>
+      error instanceof PostprocessHostError && error.stage === 'P8' && /content_version/u.test(error.message),
+  );
 });
 
 test('postprocess host：审计失败 fail-closed', async () => {

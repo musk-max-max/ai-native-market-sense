@@ -31,8 +31,7 @@ test('ai-policy 装配：合规草稿通过并保留 draft/evidence 形态', asy
     draft: {
       sections: [
         {
-          title: '行情',
-          claims: [{ text: '数据显示，区间收益 3%', evidence_ids: ['e1'] }],
+          claims: [{ text: '数据显示，区间收益 3%', evidence_ids: ['e1'], class: 'metrics' }],
         },
       ],
     },
@@ -48,7 +47,7 @@ test('ai-policy 装配：合规草稿通过并保留 draft/evidence 形态', asy
 
 test('ai-policy 装配：P5 投资建议命中 → host 返回确定性降级卡，不返回原文', async () => {
   const input = {
-    draft: { claims: [{ text: '建议买入该股', evidence_ids: ['e1'] }] },
+    draft: { claims: [{ text: '建议买入该股', evidence_ids: ['e1'], class: 'objective_fields' }] },
     evidence: [{ id: 'e1', text: '收盘价 10.00 元', numbers: [10] }],
   };
   const result = await runPostprocessHost(input, context, { policy: evaluator });
@@ -59,9 +58,36 @@ test('ai-policy 装配：P5 投资建议命中 → host 返回确定性降级卡
   assert.doesNotMatch(JSON.stringify(result.output), /建议买入/);
 });
 
+test('ai-policy 装配：C 端 claim 缺省/不允许 class → P2 blocked', async () => {
+  const missingClass = await runPostprocessHost(
+    {
+      draft: { claims: [{ text: '数据显示，区间收益 3%', evidence_ids: ['e1'] }] },
+      evidence: [{ id: 'e1', text: '区间收益 3%', numbers: [3] }],
+    },
+    context,
+    { policy: evaluator },
+  );
+  assert.equal(missingClass.blocked, true);
+  assert.ok(missingClass.reasonCodes.includes('class_missing'));
+
+  const dataGapsOnCend = await runPostprocessHost(
+    {
+      draft: { claims: [{ text: '数据显示，区间收益 3%', evidence_ids: ['e1'], class: 'data_gaps' }] },
+      evidence: [{ id: 'e1', text: '区间收益 3%', numbers: [3] }],
+    },
+    context,
+    { policy: evaluator },
+  );
+  assert.equal(dataGapsOnCend.blocked, true);
+  assert.ok(
+    dataGapsOnCend.reasonCodes.includes('class_not_allowed') ||
+      dataGapsOnCend.reasonCodes.includes('data_gaps_not_allowed'),
+  );
+});
+
 test('ai-policy 装配：P6 非白名单前缀改写为「数据显示，…」', async () => {
   const input = {
-    draft: { claims: [{ text: '该股上涨 3%', evidence_ids: ['e1'] }] },
+    draft: { claims: [{ text: '该股上涨 3%', evidence_ids: ['e1'], class: 'metrics' }] },
     evidence: [{ id: 'e1', text: '收盘涨幅 3%', numbers: [3] }],
   };
   const result = await runPostprocessHost(input, context, { policy: evaluator });
@@ -72,7 +98,7 @@ test('ai-policy 装配：P6 非白名单前缀改写为「数据显示，…」'
 
 test('ai-policy 装配：P4 模型自算数字无证据 → blocked', async () => {
   const input = {
-    draft: { claims: [{ text: '数据显示，目标涨幅 8%', evidence_ids: ['e1'] }] },
+    draft: { claims: [{ text: '数据显示，目标涨幅 8%', evidence_ids: ['e1'], class: 'metrics' }] },
     evidence: [{ id: 'e1', text: '收盘涨幅 3%', numbers: [3] }],
   };
   const result = await runPostprocessHost(input, context, { policy: evaluator });

@@ -13,6 +13,15 @@
  *  - 用户可见文案由 api 注入，本层不写中文文案、不写供应商/模型名。
  */
 
+import { hashCanonicalJson } from '@market-sense/ai-policy';
+
+import {
+  assertValidAiGenerationAuditEvent,
+  type AiGenerationAuditEvent,
+  type AiGenerationKind,
+  type AiGenerationPostprocessAction,
+} from './audit.js';
+
 export type PostprocessAudience = 'c_end' | 'internal';
 
 export interface EntitlementSnapshot {
@@ -31,6 +40,24 @@ export interface PostprocessContext {
   readonly entitlement: EntitlementSnapshot;
   readonly analysisId?: string;
   readonly traceId?: string;
+
+  // P8 审计元数据（A5 1.1.0 DDL 必填）。只有注入 audit 时才强制校验，
+  // 未接审计的骨架/测试路径可缺省；请求路径一旦开审计，缺字段即 P8 失败。
+  /** 统一请求 id，P8 event_key 身份（chat/analyses 共用）。 */
+  readonly requestId?: string;
+  /** HMAC(subject_ref)；系统触达用 `system`。 */
+  readonly userId?: string;
+  readonly kind?: AiGenerationKind;
+  readonly modelFamily?: string;
+  readonly modelId?: string;
+  readonly promptVersion?: string;
+  /** P7 注入的文案版本。 */
+  readonly contentVersion?: string;
+  readonly labelVersion?: string;
+  /** 数据业务时点（ISO-8601），不是 occurred_at。 */
+  readonly asOf?: string;
+  /** 输入证据集的 `hashCanonicalJson()`；由取数方计算，host 不复算 canonical。 */
+  readonly inputEvidenceHash?: string;
 }
 
 /** A5 `packages/ai-policy/` 的实现由外部注入；本层不复制其逻辑。 */
@@ -39,6 +66,8 @@ export interface PolicyVerdict {
   readonly blocked: boolean;
   readonly reasonCodes: readonly string[];
   readonly output?: unknown;
+  /** P2–P6 命中/改写记录，供 P8 `postprocess_actions` 留痕；不含用户文案。 */
+  readonly actions?: readonly AiGenerationPostprocessAction[];
 }
 
 export interface PolicyEvaluator {
@@ -50,15 +79,7 @@ export interface DegradedDataCard {
   readonly reasonCodes: readonly string[];
 }
 
-export interface PostprocessAuditRecord {
-  readonly analysisId?: string;
-  readonly traceId?: string;
-  readonly audience: PostprocessAudience;
-  readonly policyVersion: string;
-  readonly blocked: boolean;
-  readonly degraded: boolean;
-  readonly reasonCodes: readonly string[];
-}
+export interface PostprocessAuditRecord extends AiGenerationAuditEvent {}
 
 export interface PostprocessHostOptions {
   /** 未注入 = 配置错误，必须 fail-closed（不允许"空过滤直接透传"跑在生产请求路径）。 */
@@ -133,19 +154,68 @@ export async function runPostprocessHost<T>(
   // P8 审计：失败即请求失败（不能"生成完但没留痕"）。
   if (options.audit !== undefined) {
     try {
-      await options.audit({
-        ...(context.analysisId !== undefined ? { analysisId: context.analysisId } : {}),
-        ...(context.traceId !== undefined ? { traceId: context.traceId } : {}),
-        audience: context.audience,
-        policyVersion: context.policyVersion,
-        blocked,
-        degraded: blocked,
-        reasonCodes,
-      });
+      await options.audit(buildAuditEvent(context, verdict, output, blocked));
     } catch (error) {
+      if (error instanceof PostprocessHostError) {
+        // 已在 buildAuditEvent 内标明具体缺失字段/非法结构；不要用泛化文案覆盖。
+        throw error;
+      }
       throw new PostprocessHostError('P8', 'postprocess 审计写入失败', { cause: error });
     }
   }
 
   return { output, blocked, degraded: blocked, reasonCodes };
+}
+
+function requiredAuditField<T>(value: T | undefined, field: string): T {
+  if (value === undefined || (typeof value === 'string' && value.trim() === '')) {
+    throw new PostprocessHostError('P8', `P8 审计缺少必填字段 ${field}`);
+  }
+  return value;
+}
+
+/** 组装 A5 1.1.0 的 P8 事件；字段缺失/结构非法先在应用侧失败，不把 23514 留到 DB。 */
+function buildAuditEvent<T>(
+  context: PostprocessContext,
+  verdict: PolicyVerdict,
+  output: T | DegradedDataCard,
+  blocked: boolean,
+): AiGenerationAuditEvent {
+  const requestId = requiredAuditField(context.requestId, 'request_id');
+  const userId = requiredAuditField(context.userId, 'user_id');
+  const kind = requiredAuditField(context.kind, 'kind');
+  const modelFamily = requiredAuditField(context.modelFamily, 'model_family');
+  const promptVersion = requiredAuditField(context.promptVersion, 'prompt_version');
+  const contentVersion = requiredAuditField(context.contentVersion, 'content_version');
+  const asOf = requiredAuditField(context.asOf, 'as_of');
+  const inputEvidenceHash = requiredAuditField(context.inputEvidenceHash, 'input_evidence_hash');
+
+  let outputHash: string;
+  try {
+    outputHash = hashCanonicalJson(output);
+  } catch (error) {
+    throw new PostprocessHostError('P8', 'postprocess 输出无法 canonical 序列化', { cause: error });
+  }
+
+  const event: AiGenerationAuditEvent = {
+    requestId,
+    ...(context.analysisId !== undefined ? { analysisId: context.analysisId } : {}),
+    audience: context.audience,
+    userId,
+    kind,
+    modelFamily,
+    ...(context.modelId !== undefined ? { modelId: context.modelId } : {}),
+    promptVersion,
+    policyVersion: context.policyVersion,
+    contentVersion,
+    ...(context.labelVersion !== undefined ? { labelVersion: context.labelVersion } : {}),
+    inputEvidenceHash,
+    outputHash,
+    postprocessActions: verdict.actions ?? [],
+    decision: blocked ? 'blocked' : 'passed',
+    ...(context.traceId !== undefined ? { traceId: context.traceId } : {}),
+    asOf,
+  };
+  assertValidAiGenerationAuditEvent(event);
+  return event;
 }
