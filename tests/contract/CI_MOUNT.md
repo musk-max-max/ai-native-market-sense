@@ -238,6 +238,19 @@ file-level 窄豁免且 H2 签，不给目录级）。扫描强度与全量数�
 「上游只读接口要求原始代码字段必填」。`pytest tests/contract/test_c01_source_format.py` = 3 passed；
 当日在 `97c8f3e` 上 `pytest tests/contract tests/data` = **193 passed / 2 warnings**。
 
+2026-11-06 **L83 盲区修正**（H2 签、Lead m04212 / KD-C01-SINGULAR-TEST）：旧 `excluded()` 只匹配 `"/tests/"`（复数），
+服务侧单数 `services/*/test/**` 属测试宿主却未排除。现将判据扩为同时匹配 `"/test/"`；`EXEMPT_TREES` 正向清单
+**不动**（单数目录是「测试宿主排除项」，不是 L81 的「测试宿主正向清单」）。ADR-002:142 的 `excluded()` 定义同步。
+回归：`test_singular_test_dir_is_excluded_but_src_leak_is_still_caught`（tmp 树 `services/svc/test/fixture.ts`
+排除、`services/svc/src/leak.ts` 仍抓）、`test_real_service_singular_test_hosts_are_excluded`（真实 market/api
+fixture 排除、`services/market/src/**` 仍在扫描面）。C01 5 passed；`pytest tests/contract` = 65 passed；
+全量 = **226 passed / 2 warnings**（2026-11-06T00:12Z）。
+
+边界说明（避免把两套门禁混为一谈）：C01 只匹配 `ts_code` 与 `600519.SH` 这类**源格式**；`source: 'tushare'`
+属 D2b 厂商标识门禁（`infra/ci/check-source-vocabulary.mjs`，ADR-004），其排除面本就含实现代码与测试夹具。
+本次修的是 C01 的目录判据定义（H2 认定与 ADR 不一致），不是把 tushare 引用纳入 C01 扫描；改后单数 test 目录的
+实际 C01 命中仍为 0（改判据前也未被 PATTERN 命中），修的是「定义与 ADR 不一致」而不是「已漏报的 C01 违规」。
+
 ### 7.11 证据包防竞态门禁（H4 m03197 / H5 m03202）
 
 规则：**证据包必须可追溯到单一 commit，打包后不得再以工作树为准。**
