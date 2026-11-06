@@ -13,7 +13,11 @@
  *  - 用户可见文案由 api 注入，本层不写中文文案、不写供应商/模型名。
  */
 
-import { computeOutputHash, type AuditOutputClaim } from '@market-sense/ai-policy';
+import {
+  computeBlockedDraftHash,
+  computeOutputHash,
+  type AuditOutputClaim,
+} from '@market-sense/ai-policy';
 
 import {
   assertValidAiGenerationAuditEvent,
@@ -41,7 +45,7 @@ export interface PostprocessContext {
   readonly analysisId?: string;
   readonly traceId?: string;
 
-  // P8 审计元数据（A5 1.1.1 DDL 必填）。只有注入 audit 时才强制校验，
+  // P8 审计元数据（A5 DDL 必填）。只有注入 audit 时才强制校验，
   // 未接审计的骨架/测试路径可缺省；请求路径一旦开审计，缺字段即 P8 失败。
   /** 统一请求 id，P8 event_key 身份（chat/analyses 共用）。 */
   readonly requestId?: string;
@@ -70,6 +74,8 @@ export interface PolicyVerdict {
   readonly actions?: readonly AiGenerationPostprocessAction[];
   /** P2–P6 后的最终 claim（P6 改写后文本），供 A5 `computeOutputHash`；blocked 时为被阻断候选。 */
   readonly outputClaims?: readonly AuditOutputClaim[];
+  /** decision=blocked 时必填：被阻断的完整 draft（原模型 draft，不是 matched 片段）。 */
+  readonly blockedDraft?: unknown;
 }
 
 export interface PolicyEvaluator {
@@ -194,7 +200,7 @@ function requiredAuditField<T>(value: T | undefined, field: string): T {
   return value;
 }
 
-/** 组装 A5 1.1.1 的 P8 事件；字段缺失/结构非法先在应用侧失败，不把 23514 留到 DB。 */
+/** 组装 A5 P8 事件；字段缺失/结构非法先在应用侧失败，不把 23514 留到 DB。 */
 function buildAuditEvent(
   context: PostprocessContext,
   verdict: PolicyVerdict,
@@ -209,12 +215,19 @@ function buildAuditEvent(
   const asOf = requiredAuditField(context.asOf, 'as_of');
   const inputEvidenceHash = requiredAuditField(context.inputEvidenceHash, 'input_evidence_hash');
 
+  const blockedDraft = blocked ? verdict.blockedDraft : undefined;
+  if (blocked && (blockedDraft === undefined || blockedDraft === null)) {
+    throw new PostprocessHostError('P8', 'P8 blocked 事件缺少完整 blocked_draft');
+  }
   let outputHash: string;
   try {
-    // A5 1.1.1：模型输出/被阻断候选 claim 的 hash，不是降级卡/最终展示结构。
-    outputHash = computeOutputHash([...(verdict.outputClaims ?? [])]);
+    // A5 P8 契约：passed 用 P2–P6 后 claims；blocked 必须与 P5 原文 hash 指向同一份 draft。
+    outputHash =
+      blocked && blockedDraft !== undefined
+        ? computeBlockedDraftHash(blockedDraft)
+        : computeOutputHash([...(verdict.outputClaims ?? [])]);
   } catch (error) {
-    throw new PostprocessHostError('P8', 'postprocess 输出 claims 无法 canonical 序列化', { cause: error });
+    throw new PostprocessHostError('P8', 'postprocess 输出无法 canonical 序列化', { cause: error });
   }
 
   const event: AiGenerationAuditEvent = {
@@ -232,6 +245,7 @@ function buildAuditEvent(
     inputEvidenceHash,
     outputHash,
     postprocessActions: verdict.actions ?? [],
+    ...(blocked ? { blockedDraft } : {}),
     decision: blocked ? 'blocked' : 'passed',
     ...(context.traceId !== undefined ? { traceId: context.traceId } : {}),
     asOf,

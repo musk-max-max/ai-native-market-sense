@@ -165,7 +165,11 @@ test('postprocess host：策略拒绝返回确定性降级卡并审计', async (
     {
       policy: {
         async evaluate() {
-          return { blocked: true, reasonCodes: ['DATA_NOT_READY'] };
+          return {
+            blocked: true,
+            blockedDraft: { sections: [] },
+            reasonCodes: ['DATA_NOT_READY'],
+          };
         },
       },
       audit: (record) => {
@@ -182,10 +186,12 @@ test('postprocess host：策略拒绝返回确定性降级卡并审计', async (
     requestId: string;
     decision: string;
     outputHash: string;
+    blockedDraft?: unknown;
     postprocessActions: unknown[];
   };
   assert.equal(record.requestId, 'req-1');
   assert.equal(record.decision, 'blocked');
+  assert.deepEqual(record.blockedDraft, { sections: [] });
   assert.match(record.outputHash, /^[0-9a-f]{64}$/u);
   assert.deepEqual(record.postprocessActions, []);
 });

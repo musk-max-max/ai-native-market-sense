@@ -9,7 +9,7 @@
  *
  * input_evidence_hash / output_hash 由 `@market-sense/ai-policy` 的
  * `computeInputEvidenceHash()` / `computeOutputHash()` 计算，禁止在本文件里另写
- * canonical 序列化（A5 1.1.1）。
+ * canonical 序列化（A5 P8 契约）。
  */
 
 import type { PolicyViolation } from '@market-sense/ai-policy';
@@ -62,6 +62,11 @@ export interface AiGenerationAuditEvent {
   readonly inputEvidenceHash: string;
   readonly outputHash: string;
   readonly postprocessActions: readonly AiGenerationPostprocessAction[];
+  /**
+   * P5/P6 阻断时的完整 draft（受限列，只落 audit 表，不得进 C 端/SSE/日志/缓存/provider）。
+   * decision=blocked 必填；decision=passed 必须省略（DB CHECK：passed 时 NULL）。
+   */
+  readonly blockedDraft?: unknown;
   readonly decision: AiGenerationDecision;
   readonly traceId?: string;
   /** 数据业务时点（非 occurred_at）；ISO-8601。 */
@@ -145,6 +150,18 @@ export function assertValidAiGenerationAuditEvent(event: AiGenerationAuditEvent)
   if (typeof event.asOf !== 'string' || Number.isNaN(Date.parse(event.asOf))) {
     throw new Error('ai_generation 审计字段 as_of 必须是可解析的 ISO-8601 时间');
   }
+  if (event.decision === 'blocked') {
+    if (event.blockedDraft === undefined || event.blockedDraft === null) {
+      throw new Error('ai_generation 审计字段 blocked_draft 在 decision=blocked 时必填');
+    }
+    try {
+      JSON.stringify(event.blockedDraft);
+    } catch {
+      throw new Error('ai_generation 审计字段 blocked_draft 必须可 JSON 序列化');
+    }
+  } else if (event.blockedDraft !== undefined) {
+    throw new Error('ai_generation 审计字段 blocked_draft 在 decision=passed 时必须省略');
+  }
   if (!Array.isArray(event.postprocessActions)) {
     throw new Error('ai_generation 审计字段 postprocess_actions 必须是数组');
   }
@@ -155,11 +172,11 @@ export function assertValidAiGenerationAuditEvent(event: AiGenerationAuditEvent)
 export const AI_GENERATION_INSERT_SQL = `INSERT INTO audit.ai_generation_events (
   request_id, analysis_id, audience, user_id, kind, model_family, model_id,
   prompt_version, policy_version, content_version, label_version,
-  input_evidence_hash, output_hash, postprocess_actions, decision, trace_id, as_of
+  input_evidence_hash, output_hash, postprocess_actions, blocked_draft, decision, trace_id, as_of
 ) VALUES (
   $1, $2, $3, $4, $5, $6, $7,
   $8, $9, $10, $11,
-  $12, $13, $14::jsonb, $15, $16, $17::timestamptz
+  $12, $13, $14::jsonb, $15::jsonb, $16, $17, $18::timestamptz
 )`;
 
 export type AiGenerationAuditWriter = (event: AiGenerationAuditEvent) => Promise<void>;
@@ -199,6 +216,7 @@ export function createAiGenerationAuditWriter(query: AuditQuery): AiGenerationAu
         event.inputEvidenceHash,
         event.outputHash,
         JSON.stringify(event.postprocessActions),
+        event.blockedDraft === undefined ? null : JSON.stringify(event.blockedDraft),
         event.decision,
         event.traceId ?? null,
         event.asOf,

@@ -89,7 +89,7 @@ function outputClaimsFromResult(result: PolicyResult, draft: AiDraft): AuditOutp
     if (source === undefined) {
       throw new Error(`runAiPolicy 返回未知 claim_index=${index}，拒绝生成审计 hash`);
     }
-    // P2 class_missing 时原 claim 没有 class：审计如实记 null（A5 1.1.1 起
+    // P2 class_missing 时原 claim 没有 class：审计如实记 null（A5 P8 契约起
     // AuditOutputClaim.class 允许 null），不得用任何真实白名单类占位。
     return {
       text,
@@ -122,10 +122,19 @@ function outputClaimsFromResult(result: PolicyResult, draft: AiDraft): AuditOutp
 
 function toVerdict(result: PolicyResult, input: PostprocessDraftInput): PolicyVerdict {
   const actions = postprocessActionsFromViolations(result.violations);
-  const outputClaims = outputClaimsFromResult(result, input.draft);
   if (result.decision === 'blocked') {
-    return { blocked: true, reasonCodes: result.reason_codes, actions, outputClaims };
+    // P8 blocked_draft：完整原模型 draft（P6 改写前的输入），不是命中片段。
+    // blocked 的 output_hash 由 host 用 computeBlockedDraftHash(blockedDraft) 计算，
+    // 因此这里不生成 outputClaims：P2 structure_invalid 时原 draft 本身无法 collectClaims，
+    // 强行回填会抛错并把“应留痕的阻断”变成 500。
+    return {
+      blocked: true,
+      reasonCodes: result.reason_codes,
+      actions,
+      blockedDraft: input.draft,
+    };
   }
+  const outputClaims = outputClaimsFromResult(result, input.draft);
   return {
     blocked: false,
     reasonCodes: result.reason_codes,

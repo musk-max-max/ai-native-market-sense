@@ -20,7 +20,7 @@
 - provider/模型标识只用于内部日志与 `ai.model_family`，不得写进对外契约或响应文案；厂商名禁止出现在契约/生成产物。
 - `/v1/ai/*` 的 no-store/限流/鉴权在 `services/api` 外壳；本服务假定上游已认证。
 - P8 审计元数据（`request_id`/`user_id`/`content_version`/`as_of`/证据 hash 等）由 API 请求路径注入；缺失时 host 在写库前以 P8 失败拒绝请求。
-- 策略 `/1.1.1` 生产门禁归 A5/compliance loader；生产环境未签策略启动即拒，CI 只用 FakeProvider。
+- 策略版本 pin 的生产门禁归 A5/compliance loader；生产环境未签策略启动即拒，CI 只用 FakeProvider。
 
 ## 命令
 

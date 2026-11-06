@@ -2,9 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  computeBlockedDraftHash,
   computeInputEvidenceHash,
   computeOutputHash,
 } from '@market-sense/ai-policy';
+import { loadAiContentPolicy } from '@market-sense/compliance';
 
 import {
   AI_GENERATION_INSERT_SQL,
@@ -14,6 +16,7 @@ import {
   type AiGenerationAuditEvent,
 } from '../src/postprocess/audit.js';
 import { runPostprocessHost, type PostprocessContext } from '../src/postprocess/host.js';
+import { createAiPolicyEvaluator } from '../src/postprocess/policy-evaluator.js';
 
 const inputEvidenceHash = computeInputEvidenceHash({
   kind: 'stock_interpretation',
@@ -43,7 +46,7 @@ function validEvent(): AiGenerationAuditEvent {
   };
 }
 
-test('P8 writer：17 列 INSERT 与参数顺序，不写触发器计算列', async () => {
+test('P8 writer：18 列 INSERT 与参数顺序，不写触发器计算列', async () => {
   const calls: { sql: string; values: readonly unknown[] | undefined }[] = [];
   const writer = createAiGenerationAuditWriter({
     async query(sql, values) {
@@ -68,14 +71,15 @@ test('P8 writer：17 列 INSERT 与参数顺序，不写触发器计算列', asy
   assert.equal(calls[0]?.sql, AI_GENERATION_INSERT_SQL);
   assert.doesNotMatch(calls[0]?.sql ?? '', /event_key|prev_hash|occurred_at/u);
   const values = calls[0]?.values ?? [];
-  assert.equal(values.length, 17);
+  assert.equal(values.length, 18);
   assert.equal(values[0], 'req-1');
   assert.equal(values[1], 'analysis-1');
   assert.equal(values[2], 'c_end');
   assert.equal(values[3], 'hmac-user-1');
   assert.equal(values[4], 'stock_interpretation');
-  assert.equal(values[14], 'passed');
-  assert.equal(values[16], '2026-11-06T08:00:00.000Z');
+  assert.equal(values[14], null);
+  assert.equal(values[15], 'passed');
+  assert.equal(values[17], '2026-11-06T08:00:00.000Z');
   assert.deepEqual(JSON.parse(String(values[13])), event.postprocessActions);
 });
 
@@ -212,6 +216,9 @@ test('P8 集成：host 把策略 actions 写进审计事件（经 writer 落库�
     asOf: '2026-11-06T08:00:00.000Z',
     inputEvidenceHash,
   };
+  const blockedDraft = {
+    claims: [{ text: '建议买入', class: 'objective_fields', evidence_ids: ['e1'] }],
+  };
   const result = await runPostprocessHost(
     { draft: { claims: [] }, evidence: [] },
     context,
@@ -220,6 +227,7 @@ test('P8 集成：host 把策略 actions 写进审计事件（经 writer 落库�
         async evaluate() {
           return {
             blocked: true,
+            blockedDraft,
             reasonCodes: ['investment_advice'],
             outputClaims: [
               { text: '建议买入', class: 'objective_fields', evidence_ids: ['e1'] },
@@ -243,13 +251,9 @@ test('P8 集成：host 把策略 actions 写进审计事件（经 writer 落库�
   assert.equal(calls.length, 1);
   const values = calls[0]?.values ?? [];
   assert.equal(values[0], 'req-p8-host');
-  assert.equal(values[14], 'blocked');
-  assert.equal(
-    values[12],
-    computeOutputHash([
-      { text: '建议买入', class: 'objective_fields', evidence_ids: ['e1'] },
-    ]),
-  );
+  assert.equal(values[15], 'blocked');
+  assert.equal(values[12], computeBlockedDraftHash(blockedDraft));
+  assert.deepEqual(JSON.parse(String(values[14])), blockedDraft);
   assert.deepEqual(JSON.parse(String(values[13])), [
     {
       stage: 'P5',
@@ -259,4 +263,133 @@ test('P8 集成：host 把策略 actions 写进审计事件（经 writer 落库�
       original_text: '建议买入',
     },
   ]);
+});
+
+
+test('P8 writer：blocked 必须带完整 draft，passed 必须不带', () => {
+  const blocked = {
+    ...validEvent(),
+    decision: 'blocked' as const,
+    blockedDraft: { claims: [{ text: '建议买入', evidence_ids: ['e1'] }] },
+  };
+  assert.doesNotThrow(() => assertValidAiGenerationAuditEvent(blocked));
+  assert.throws(
+    () => assertValidAiGenerationAuditEvent({ ...blocked, blockedDraft: undefined }),
+    /blocked_draft/u,
+  );
+  assert.throws(
+    () => assertValidAiGenerationAuditEvent({ ...blocked, decision: 'passed' }),
+    /passed/u,
+  );
+});
+
+test('P8 host：blocked 的 output_hash 用完整 draft，passed 用 claims', async () => {
+  const records: AiGenerationAuditEvent[] = [];
+  const draft = { claims: [{ text: '建议买入', class: 'objective_fields', evidence_ids: ['e1'] }] };
+  const context: PostprocessContext = {
+    audience: 'c_end',
+    policyVersion: 'ai-content-policy/1.1.1',
+    entitlement: {
+      audience: 'c_end',
+      displayAllowed: true,
+      internalAccessAllowed: false,
+      blocked: false,
+    },
+    requestId: 'req-hash-blocked',
+    userId: 'hmac-user-1',
+    kind: 'stock_interpretation',
+    modelFamily: 'fake-v1',
+    promptVersion: 'prompt-1',
+    contentVersion: 'copy-1',
+    asOf: '2026-11-06T08:00:00.000Z',
+    inputEvidenceHash,
+  };
+  await runPostprocessHost(
+    { draft, evidence: [] },
+    context,
+    {
+      policy: {
+        async evaluate() {
+          return {
+            blocked: true,
+            blockedDraft: draft,
+            reasonCodes: ['investment_advice'],
+            outputClaims: [
+              { text: '建议买入', class: 'objective_fields', evidence_ids: ['e1'] },
+            ],
+          };
+        },
+      },
+      audit: (record) => {
+        records.push(record);
+      },
+    },
+  );
+  assert.equal(records[0]?.blockedDraft !== undefined, true);
+  assert.deepEqual(records[0]?.blockedDraft, draft);
+  assert.equal(records[0]?.outputHash, computeBlockedDraftHash(draft));
+
+  records.length = 0;
+  await runPostprocessHost(
+    { draft, evidence: [] },
+    { ...context, requestId: 'req-hash-passed' },
+    {
+      policy: {
+        async evaluate() {
+          return {
+            blocked: false,
+            reasonCodes: [],
+            outputClaims: [{ text: '数据显示，区间收益 3%', class: 'metrics', evidence_ids: ['e1'] }],
+          };
+        },
+      },
+      audit: (record) => {
+        records.push(record);
+      },
+    },
+  );
+  assert.equal(records[0]?.blockedDraft, undefined);
+  assert.equal(records[0]?.outputHash, computeOutputHash([
+    { text: '数据显示，区间收益 3%', class: 'metrics', evidence_ids: ['e1'] },
+  ]));
+});
+
+
+test('P8 blocked_draft：P2 structure_invalid 也写原始完整 draft', async () => {
+  const calls: { values: readonly unknown[] | undefined }[] = [];
+  const writer = createAiGenerationAuditWriter({
+    async query(_sql, values) {
+      calls.push({ values });
+    },
+  });
+  const draft = { claims: 'not-an-array' };
+  const context: PostprocessContext = {
+    audience: 'c_end',
+    policyVersion: loadAiContentPolicy().policy_version,
+    entitlement: {
+      audience: 'c_end',
+      displayAllowed: true,
+      internalAccessAllowed: false,
+      blocked: false,
+    },
+    requestId: 'req-p2-structure',
+    userId: 'hmac-user-1',
+    kind: 'stock_interpretation',
+    modelFamily: 'fake-v1',
+    promptVersion: 'prompt-1',
+    contentVersion: 'copy-1',
+    asOf: '2026-11-06T08:00:00.000Z',
+    inputEvidenceHash,
+  };
+  const result = await runPostprocessHost(
+    { draft, evidence: [] },
+    context,
+    { policy: createAiPolicyEvaluator(), audit: writer },
+  );
+  assert.equal(result.blocked, true);
+  const values = calls[0]?.values ?? [];
+  assert.equal(values.length, 18);
+  assert.equal(values[15], 'blocked');
+  assert.deepEqual(JSON.parse(String(values[14])), draft);
+  assert.equal(values[12], computeBlockedDraftHash(draft));
 });
