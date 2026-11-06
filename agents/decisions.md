@@ -1505,16 +1505,20 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 
 **依赖**：A4 补 contracts/approval schema 预授权字段（valid_from/valid_until/confirm_deadline/signoff_state/incident_id）+break_glass/event_key 语义（A15 依赖）。
 
-### L129 — L83 C01 范围 latent 关闭：定义已修 + 测试数据从未命中 PATTERN（Lead 亲验，2026-11-06）
 
-**背景**：H2 两次催 Lead 二选一——(a) 按原裁定改范围→H2 签；(b) 记「已规避、未修定义」。**两描述均不准确**，Lead 亲验后记第三种事实。
+### L129 — L83 C01 范围 latent 关闭：定义已修（aa2ba32）+ 曾以改测试数据规避（7c177c6），非漏报（2026-11-06）
 
-**亲验四点**：
-1. **定义已修**：`ADR-002-datasource-port.md:139-145` `excluded()` 现为 `return '/tests/' in rel or '/test/' in rel or rel.endswith('.md')`，`/test/` 单数已扩入。A11 `aa2ba32` 已落（2026-11-05）。
-2. **测试数据从未命中 PATTERN**：`services/market/test/market-plugin.test.ts` 始终用 canonical `instrument_id: 'SSE:600519'` + `source: 'tushare'`，**没有 `ts_code`、没有 `600519.SH` 源格式**。C01 PATTERN（`openapi_lib.py:283`）只抓源格式；`source: 'tushare'` 属 D2b 厂商标识门禁（ADR-004），排除面本就含测试夹具。
-3. **CI_MOUNT:249-252 已正确记**：「改后单数 test 目录的实际 C01 命中仍为 0（改判据前也未被 PATTERN 命中），修的是「定义与 ADR 不一致」而不是「已漏报的 C01 违规」。」——这段话已经把事实说清了。
-4. **不存在 `not-an-instrument-id` 替换**：H2 说「测试数据换成 not-an-instrument-id 规避掉」——**未见**。测试文件里没有任何此类替换。
+**背景**：H2 两次催 Lead 二选一——(a) 按原裁定改范围→H2 签；(b) 记「已规避、未修定义」。**Lead 首版 L129 写错**（误判「测试数据从未命中 PATTERN / 不存在 not-an-instrument-id 替换」），H2 驳回并附 `7c177c6` 证据，Lead 亲验确认，撤稿重写。
 
-**裁定**：L83 C01 范围 latent **关闭**，状态=**「定义已修（A11 aa2ba32）+ 测试数据从未命中 PATTERN，非规避非漏报」**。不需要改范围（定义已到位），也不需要记「已规避」（测试数据从未用源格式写）。CI_MOUNT:249-252 的边界说明即为权威记录。H2 无需再签（定义已在 ADR-002:142 落地，与 L83 原裁定一致）。
+**真实时序（Lead 亲验）**：
+- **2026-11-04 14:00:55 `7c177c6`**：提交信息原句「C01: replace 600519.SH literals with not-an-instrument-id in negative tests」。diff 恰两行：`:411`（`/v1/instruments/600519.SH/quote` → `/v1/instruments/not-an-instrument-id/quote`）+ `:578`（`instrument_id: '600519.SH'` → `instrument_id: 'not-an-instrument-id'`）。**两处替换前就是当时 C01 门的 2 条 violation**（与 Lead 自己派单时「签字前门禁保持红」一致）。
+- **2026-11-06 08:02:20 `aa2ba32`**：A11 修 `excluded()` 定义，`/test/` 单数扩入（ADR-002:139-145 现为 `return '/tests/' in rel or '/test/' in rel or rel.endswith('.md')`）。
+- **真实状态**：**先改测试数据规避（7c177c6，11-04）→ 两天后修定义（aa2ba32，11-06）**。非「从未命中、非规避」。
 
-**教训**：H2 转述的「测试数据换成 not-an-instrument-id 规避掉」是印象非亲验——**裁定材料不得出现未经亲验的量化事实**（L75 教训重演）。Lead 接到催办应先亲验再下结论，不接 H2 的二选一框架盲选。
+**CI_MOUNT:249-252 加时间窗**：「改判据前也未被 PATTERN 命中」只在 7c177c6 **之后**成立；无时间窗会与 11-04 的事实冲突。限定为「2026-11-04 14:00 替换后至 aa2ba32 之前」。
+
+**裁定**：L83 C01 范围 latent **关闭**，状态=**「定义已修（aa2ba32，2026-11-06）+ 曾以改测试数据规避（7c177c6，2026-11-04），非漏报」**。两个条件现在都成立（定义到位 + 测试数据已非源格式）。**H2 无需再签**（定义已在 ADR-002:142 落地，与 L83 原裁定一致）。
+
+**署名更正**：`ADR-002-datasource-port.md:142` + `tests/contract/test_c01_source_format.py:58` 注释写「L83（H2 签）」——**L83 H2 从未签**（当时明确拒绝、只给条件）。**转 A0/A11 改为「L83 裁定（Lead）；H2 未签」**，避免后来者以为这条判据有 H2 背书。
+
+**教训（与首版恰好相反）**：H2 引用的正是 repo 亲验过的事实（`7c177c6` 提交信息+diff 可直接复跑），**是「亲验四点」里有两处没回仓库**（Lead 只 grep 当前文件，未查 `7c177c6^` 历史，也未核对 aa2ba32 日期）。**L75 教训重演：裁定材料不得出现未经亲验的量化事实；亲验不只看现状，要看历史时序**。
