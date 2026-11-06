@@ -1613,3 +1613,20 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 **追查**：18:35-18:45 做过 git stash 基线验证的席位（A4、A2、ea4bf474 会话均有记录）请自报时间线；未自报前按流程事故处理，非恶意定性。
 **仓库卫生三规**：①**禁**对全仓执行 git reset/checkout/clean/stash——基线验证用 `git worktree add` 或复制目录；②tracked 改动属主**及时本地 commit 锚定**（不 push 亦可，批 H4 m00519 请求③）；③裁决编号落账前 grep 占号，撞号**后写者改号**（本次 L136 双占：18:35 并行条先占，L0 18:37 条改 L137）。
 **并行条协调**（回应 :1576「L136 写域仲裁」条）：被观察的「旧编制残存会话」非僵尸——是**本会话（用户指令直达主会话，goal-d1f523cd）16 席在编团队**的在途工作（ea4bf474=本会话 A3 子代理 18:34 完结出件 AI-1 证据；services/approval=A4 席；tests/e2e/lib/ai-mock.js=A7 席子代理；web/console/src/adapters/=A6 席）。故：①「静默 15min 后接管」条款**冻结作废**；②四目录写权归本会话 owns 席（services/ai/=A3、services/approval/=A4、tests/e2e/=A7、web/console/src/adapters/=A6），维持「禁止双写、禁止回滚他人产出」；③并行条作者请在本文件回条自证（会话 id/创建时间/teammate target），建议承担只读复核域。
+
+### L139 — AI-1 HTTP 层闭环证据补齐（L0 亲跑，2026-11-06 19:57，commit 8c264e2）
+
+**背景**：四 teammate 席（A3/A4/A6/A7）自 19:45 起对接管令无响应（inactive），L0 按 HANDOFF §5 P0 顺序亲跑 AI-1 证据链关键路径，避免 P0 阻塞。
+
+**修复三处（services/ai/，L0 owns 待 A3 认领）**：
+1. `services/ai/src/evidence.ts` `AnalysisSubjectLike` 增 `as_of?: string`（D2：客户端期望数据截止时点，不替代审计业务时点）。
+2. `services/ai/src/routes/analyses.ts` `requestId` 改优先取客户端 `request-id` 头（跨服务审计链锚点），缺省回退 Fastify `req.id`——**修真实审计链缺口**：原用 `String(request.id)` 写 audit.request_id/trace_id/event_key=ai|generation|<req.id>，客户端头丢失，跨服务 trace 断链。新增 `readClientRequestId()` 助手。
+3. `services/ai/test/evidence-ai1.ts` 修类型错 4 处（HttpEvidenceSource→httpEvidenceSource 工厂、subject as_of、rows[0]! 非空断言、补 `DEPLOYMENT_UID` env——缺省 APP_PROFILE=prod 强制该键 L65）。
+
+**环境依赖**：PG55432 需应用 `services/compliance/migrations/004_control_heartbeat_observed.sql`（须 ms 超级用户，market_app 无 DDL 权），并 seed `audit.control_heartbeat('ai1-http-evidence')`——否则 entitlement gate 降 internal_eval，AI 全 403。
+
+**证据**：`tests/data/acceptance/artifacts/ai1-http-evidence-2026-11-06.json`（sha256 前缀 ebef330316fbea93），HTTP 层真栈 POST /v1/ai/analyses → audit.ai_generation_events 落行，16/16 check PASS（request_id↔请求头闭环、trace_id、analysis_id、event_key、audience=c_end、as_of=源业务时点、content/label_version、policy_version=1.1.2、decision=passed、prev_hash/hash 64hex、input_evidence_hash 复算、output_hash 复算）。services/ai typecheck EXIT0、42/42 test PASS。
+
+**Open**：①A3 席接管后需复核 request-id 头改动是否合 contracts/ai（internal-generation-context request_id 语义=「重试必须新 id」，客户端头 vs 服务端生成待 H2 判）；②AI-1 四判据余项（SSE 两 op、commit/CI 锚已部分补）；③仓库级门禁仍红（A4 域 services/approval 待修 8 errors，L135 ②）。
+
+**生效**：2026-11-06 19:57。影响席：A3（域属）、H2（契约判定）、H3（AI-1 签发）。
