@@ -157,7 +157,18 @@ async function installMarketPlugin(
         })
       : null;
 
-  const gate = new EntitlementGate(config, controlRepo, clock);
+  const gate = new EntitlementGate(config, controlRepo, clock, {
+    ...(config.audienceGateMode !== undefined ? { audienceGateMode: config.audienceGateMode } : {}),
+    // S3 起才交付审计；A5 的 internal_access 事件契约尚未落地前，先写结构化 stderr，
+    // 由 A13 日志链路接（待 A5 加 event_type 后替换为 audit.entitlement_events 写入）。
+    ...(config.audienceGateMode === 'enforce'
+      ? {
+          onInternalAccess: (record: unknown): void => {
+            process.stderr.write(`${JSON.stringify({ event: 'internal_access', ...(record as object) })}\n`);
+          },
+        }
+      : {}),
+  });
   healthState.gate = gate;
   // 确定性配置错误（表不存在/无权限）→ 启动失败；瞬态故障只降级，不 crash（L27）。
   await gate.probeStartup();

@@ -82,6 +82,13 @@ function watchlistStub(): WatchlistRepo {
   };
 }
 
+/** 测试专用：数据路由到达 market gate；watchlist 无凭据仍 401。 */
+function shellAuthenticator(request: { url: string; headers: Record<string, unknown> }) {
+  // E2E_AUTH_TOKEN=''：本测试矩阵内不存在有效凭据，watchlist 一律 401。
+  if (request.url.startsWith('/v1/watchlist')) return null;
+  return { userId: 'user-1', userType: 'c_end' as const, tier: 'c_end_display' as const, sessionVersion: 0 };
+}
+
 const E2E_ENV: NodeJS.ProcessEnv = {
   APP_PROFILE: 'e2e',
   E2E_MODE: '1',
@@ -112,6 +119,7 @@ describe('H5 m02614：E2E profile 无 token 旁路回归', () => {
         createMarketPlugin({ config, servingRepo: guardedServing(calls), watchlistRepo: watchlistStub() }),
       ],
       logger: false,
+      authenticator: async (request) => shellAuthenticator(request as never),
     });
 
     for (const path of [
@@ -141,6 +149,7 @@ describe('H5 m02614：E2E profile 无 token 旁路回归', () => {
         createMarketPlugin({ config, servingRepo: guardedServing([]), watchlistRepo: watchlistStub() }),
       ],
       logger: false,
+      authenticator: async (request) => shellAuthenticator(request as never),
     });
 
     for (const headers of [
@@ -230,6 +239,7 @@ describe('H5 m02614 / R1-R3：E2E_MODE 不再豁免 hold/audit/指纹', () => {
         }),
       ],
       logger: false,
+      authenticator: async (request) => shellAuthenticator(request as never),
     });
     const res = await app.inject({ method: 'GET', url: '/v1/instruments/SSE:600519/quote' });
     assert.equal(res.statusCode, 200);
@@ -267,6 +277,7 @@ describe('H5 m02614 / R1-R3：E2E_MODE 不再豁免 hold/audit/指纹', () => {
         }),
       ],
       logger: false,
+      authenticator: async (request) => shellAuthenticator(request as never),
     });
     const res = await app.inject({ method: 'GET', url: '/v1/instruments/SSE:600519/quote' });
     assert.equal(res.statusCode, 403);

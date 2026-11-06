@@ -241,6 +241,13 @@ function marketConfig(overrides: Partial<MarketConfig> = {}): MarketConfig {
 
 const appConfig: AppConfig = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent' } as NodeJS.ProcessEnv);
 
+/** 测试专用：数据路由到达 market gate；watchlist 无凭据仍由 shell 401（生产 shell 默认拒绝）。 */
+function shellAuthenticator(request: { url: string; headers: Record<string, unknown> }) {
+  if (request.url.startsWith('/v1/watchlist') && request.headers.authorization === undefined) return null;
+  if (request.url.startsWith('/v1/watchlist') && /^Bearer\s*$/.test(String(request.headers.authorization ?? ''))) return null;
+  return { userId: 'user-1', userType: 'c_end' as const, tier: 'c_end_display' as const, sessionVersion: 0 };
+}
+
 interface Harness {
   readonly app: ReturnType<typeof buildApp>;
   readonly serving: FakeServing;
@@ -255,7 +262,12 @@ function createHarness(overrides: Partial<MarketConfig> = {}): Harness {
     servingRepo: serving,
     watchlistRepo: watchlist,
   });
-  const app = buildApp({ config: appConfig, domainPlugins: [plugin], logger: false });
+  const app = buildApp({
+    config: appConfig,
+    domainPlugins: [plugin],
+    logger: false,
+    authenticator: async (request) => shellAuthenticator(request as never),
+  });
   return { app, serving, watchlist };
 }
 
@@ -791,7 +803,12 @@ describe('market 插件：fail-open 默认值（H5 P0 卡点）', () => {
         eventRepo: repo,
         bootId,
       });
-      const app = buildApp({ config: appConfig, domainPlugins: [plugin], logger: false });
+      const app = buildApp({
+    config: appConfig,
+    domainPlugins: [plugin],
+    logger: false,
+    authenticator: async (request) => shellAuthenticator(request as never),
+  });
       const response = await app.inject({ method: 'GET', url: '/v1/instruments/SSE:600519/quote' });
       assert.equal(response.statusCode, 403);
       await app.close();
@@ -830,7 +847,12 @@ describe('market 插件：fail-open 默认值（H5 P0 卡点）', () => {
       eventRepo: repo,
       bootId: '55555555-5555-4555-8555-555555555555',
     });
-    const app = buildApp({ config: appConfig, domainPlugins: [plugin], logger: false });
+    const app = buildApp({
+    config: appConfig,
+    domainPlugins: [plugin],
+    logger: false,
+    authenticator: async (request) => shellAuthenticator(request as never),
+  });
     const health = await app.inject({ method: 'GET', url: '/healthz' });
     assert.equal(health.statusCode, 200);
     const body = json<{ entitlement_degraded?: boolean; entitlement_degraded_reason?: string }>(health);
@@ -856,7 +878,12 @@ describe('market 插件：fail-open 默认值（H5 P0 卡点）', () => {
       eventRepo: repo,
       bootId: '66666666-6666-4666-8666-666666666666',
     });
-    const app = buildApp({ config: appConfig, domainPlugins: [plugin], logger: false });
+    const app = buildApp({
+    config: appConfig,
+    domainPlugins: [plugin],
+    logger: false,
+    authenticator: async (request) => shellAuthenticator(request as never),
+  });
     await app.inject({ method: 'GET', url: '/healthz' });
     const record = observed.find((event) => event.eventType === 'tier_state_observed');
     assert.ok(record);
@@ -1099,7 +1126,12 @@ async function makeApp(
     watchlistRepo: watchlist,
     ...(options.controlRepo !== undefined ? { controlRepo: options.controlRepo } : {}),
   });
-  const app = buildApp({ config: appConfig, domainPlugins: [plugin], logger: false });
+  const app = buildApp({
+    config: appConfig,
+    domainPlugins: [plugin],
+    logger: false,
+    authenticator: async (request) => shellAuthenticator(request as never),
+  });
   return { app, serving, watchlist };
 }
 
@@ -1181,7 +1213,12 @@ describe('market 插件：响应缓存头与 C 端受众（L30/L36）', () => {
       watchlistRepo: new FakeWatchlist(),
       controlRepo: never,
     });
-    const app = buildApp({ config: appConfig, domainPlugins: [plugin], logger: false });
+    const app = buildApp({
+    config: appConfig,
+    domainPlugins: [plugin],
+    logger: false,
+    authenticator: async (request) => shellAuthenticator(request as never),
+  });
     await app.ready();
     const bootElapsed = Date.now() - started;
     assert.ok(bootElapsed < 2500, `启动探测必须 ~1s 超时返回（实际 ${bootElapsed}ms）`);

@@ -1,0 +1,28 @@
+{
+  "name": "@market-sense/ai",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AI 功能层骨架（INF-02）：provider 抽象、FakeProvider、tool registry、postprocess 空管线、health。",
+  "exports": {
+    ".": "./src/index.ts",
+    "./provider": "./src/provider.ts",
+    "./tools": "./src/tools.ts",
+    "./postprocess": "./src/postprocess/pipeline.ts",
+    "./app": "./src/app.ts"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "node --import tsx src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test test/app.test.ts"
+  },
+  "dependencies": {
+    "fastify": "^5.12.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  }
+}

@@ -29,6 +29,7 @@ import {
   platformEntitlement,
 } from './domain/build.js';
 import { type EntitlementGate, type GateDecision } from './domain/entitlement-gate.js';
+import { principalStateFromShell } from './auth.js';
 import {
   dataNotFound,
   entitlementRestricted,
@@ -149,7 +150,8 @@ export function registerMarketRoutes(app: FastifyInstance, deps: MarketRouteDeps
   // display_safe=false 由 repo 层（audience='c_end'）过滤掉 → 对外表现为不存在（L30）。
   const audience = 'c_end' as const;
 
-  const evaluate = (): Promise<GateDecision> => deps.entitlement.evaluate();
+  const evaluate = (request: FastifyRequest): Promise<GateDecision> =>
+    deps.entitlement.evaluate(principalStateFromShell(request));
 
   /**
    * 存在性确认 + fail-closed：gate 已判 blocked 时若 serving 读失败（例如 PG 不可达），
@@ -173,7 +175,7 @@ export function registerMarketRoutes(app: FastifyInstance, deps: MarketRouteDeps
   app.get('/instruments/:instrument_id', async (request) => {
     const instrumentId = parseInstrumentId(request);
     return withDegradation(deps, `instrument:${instrumentId}`, clock(), async () => {
-      const decision = await evaluate();
+      const decision = await evaluate(request);
       let row;
       try {
         row = await deps.serving.getInstrument(instrumentId, audience);
@@ -190,7 +192,7 @@ export function registerMarketRoutes(app: FastifyInstance, deps: MarketRouteDeps
   app.get('/instruments/:instrument_id/quote', async (request, reply) => {
     const instrumentId = parseInstrumentId(request);
     return withDegradation(deps, `quote:${instrumentId}`, clock(), async () => {
-      const decision = await evaluate();
+      const decision = await evaluate(request);
       // L77/A13 #3：gate blocked → 先 403，不付 serving 读的 1s 超时代价。
       requireEntitled(decision, reply);
       const instrument = await loadInstrument(instrumentId);
@@ -220,7 +222,7 @@ export function registerMarketRoutes(app: FastifyInstance, deps: MarketRouteDeps
     const key = `bars:${instrumentId}:${adjustment}:${from ?? ''}:${to ?? ''}:${limit}`;
 
     return withDegradation(deps, key, clock(), async () => {
-      const decision = await evaluate();
+      const decision = await evaluate(request);
       requireEntitled(decision, reply);
       const instrument = await loadInstrument(instrumentId);
       if (instrument === null) throw instrumentNotFound(instrumentId);
@@ -250,7 +252,7 @@ export function registerMarketRoutes(app: FastifyInstance, deps: MarketRouteDeps
   app.get('/instruments/:instrument_id/fundamental-summary', async (request, reply) => {
     const instrumentId = parseInstrumentId(request);
     return withDegradation(deps, `fundamental:${instrumentId}`, clock(), async () => {
-      const decision = await evaluate();
+      const decision = await evaluate(request);
       requireEntitled(decision, reply);
       const instrument = await loadInstrument(instrumentId);
       if (instrument === null) throw instrumentNotFound(instrumentId);

@@ -212,7 +212,12 @@ function configFor(tier: 'internal_eval' | 'c_end_display'): MarketConfig {
   return loadMarketConfig(baseEnv);
 }
 
-function createApp(tier: 'internal_eval' | 'c_end_display', authenticate: () => { userId: string } | null = () => ({ userId: 'user-1' })) {
+function createApp(tier: 'internal_eval' | 'c_end_display', authenticate: () => { userId: string; userType: 'c_end'; tier: 'c_end_display'; sessionVersion: number } | null = () => ({
+    userId: 'user-1',
+    userType: 'c_end' as const,
+    tier: 'c_end_display' as const,
+    sessionVersion: 0,
+  })) {
   const plugin = createMarketPlugin({
     config: { ...configFor(tier), now: () => NOW },
     servingRepo: new FakeServing(),
@@ -222,7 +227,21 @@ function createApp(tier: 'internal_eval' | 'c_end_display', authenticate: () => 
     bootId: `11111111-1111-4111-8111-${tier === 'c_end_display' ? '111111111111' : '222222222222'}`,
     authenticate,
   });
-  return buildApp({ domainPlugins: [plugin], logger: false });
+  return buildApp({
+    domainPlugins: [plugin],
+    logger: false,
+    // A0 shell installAuth 默认拒绝非公开 /v1/*；测试注入已认证 principal（ADR-008 D6.4）。
+    authenticator: async (request) =>
+      request.url.startsWith('/v1/watchlist') &&
+      (request.headers.authorization === undefined || /^Bearer\s*$/.test(String(request.headers.authorization)))
+        ? null
+        : {
+            userId: 'user-1',
+            userType: 'c_end',
+            tier: 'c_end_display',
+            sessionVersion: 0,
+          },
+  });
 }
 
 describe('B1 路由（watchlist review / limit-ladder / page-summary）', () => {

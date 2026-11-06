@@ -13,7 +13,7 @@
  */
 
 import type { MarketComponents, WatchlistComponents } from '@market-sense/api-client';
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 
 import {
   disclaimerMeta,
@@ -26,6 +26,7 @@ import { buildPageSummary } from './domain/page-summary.js';
 import { buildPortfolioReview } from './domain/portfolio-review.js';
 import { stalenessMs, toCstIso } from './domain/time.js';
 import { entitlementRestricted, instrumentNotFound, unauthenticated, validationError } from './errors.js';
+import { principalStateFromShell } from './auth.js';
 import type { MarketRouteDeps } from './routes.js';
 import { isCalendarDate, parseInstrumentId } from './routes.js';
 import type { SourceInfo } from './ports/serving-repo.js';
@@ -86,7 +87,8 @@ function latestSource(rows: ReadonlyArray<SourceInfo>, now: Date, tradeDate: str
 export function registerB1Routes(app: FastifyInstance, deps: MarketRouteDeps): void {
   const clock = (): Date => (deps.config.now ?? (() => new Date()))();
   const audience = 'c_end' as const;
-  const evaluate = (): Promise<GateDecision> => deps.entitlement.evaluate();
+  const evaluate = (request: FastifyRequest): Promise<GateDecision> =>
+    deps.entitlement.evaluate(principalStateFromShell(request));
   const checkEntitled = (decision: GateDecision): void => {
     if (decision.resolution.blocked) throw entitlementRestricted();
   };
@@ -97,7 +99,7 @@ export function registerB1Routes(app: FastifyInstance, deps: MarketRouteDeps): v
     const requestedDate = optionalDate(query, 'trade_date');
     const lookback = parseLookback(query);
 
-    const decision = await evaluate();
+    const decision = await evaluate(request);
     checkEntitled(decision);
     const now = clock();
     const dates = await deps.serving.listTradeDates(Math.max(lookback, 2), requestedDate);
@@ -150,7 +152,7 @@ export function registerB1Routes(app: FastifyInstance, deps: MarketRouteDeps): v
   // GET /v1/instruments/{instrument_id}/page-summary
   app.get('/instruments/:instrument_id/page-summary', async (request) => {
     const instrumentId = parseInstrumentId(request);
-    const decision = await evaluate();
+    const decision = await evaluate(request);
     const now = clock();
 
     // 存在性先判（契约：instrument 不存在才 404），再决定骨架的受限形态。
@@ -199,7 +201,7 @@ export function registerB1Routes(app: FastifyInstance, deps: MarketRouteDeps): v
 
     const principal = await deps.authenticate(request);
     if (principal === null) throw unauthenticated();
-    const decision = await evaluate();
+    const decision = await evaluate(request);
     checkEntitled(decision);
     const now = clock();
 

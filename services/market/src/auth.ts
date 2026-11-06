@@ -13,8 +13,71 @@ import type { FastifyRequest } from 'fastify';
 
 import type { MarketConfig } from './config.js';
 
+export type SignedInUserType = 'c_end' | 'internal_active';
+export type UserTier = 'c_end_display' | 'internal_eval' | 'research_only';
+
+/** ADR-008 D1/D2：外壳注入的已认证主体；gate 只消费这四个字段，不解析 token。 */
 export interface Principal {
   readonly userId: string;
+  readonly userType: SignedInUserType;
+  readonly tier: UserTier;
+  readonly sessionVersion: number;
+}
+
+export type PrincipalParse =
+  | { readonly kind: 'absent' }
+  | { readonly kind: 'invalid'; readonly reason: string }
+  | { readonly kind: 'present'; readonly principal: Principal };
+
+function isUserTier(value: unknown): value is UserTier {
+  return value === 'c_end_display' || value === 'internal_eval' || value === 'research_only';
+}
+
+/**
+ * claim 轴一致性（ADR-008 D3.2 / H2 L125）：
+ *  - c_end ↔ c_end_display；
+ *  - internal_active ↔ internal_eval | research_only；
+ *  - 只有“完全没有 user_type”的旧 token 才按 c_end 兼容；有 user_type 但档位非法一律拒绝，
+ *    不得降级成 c_end。返回 invalid 而不是回退，调用方必须 fail-closed。
+ */
+export function principalStateFromShell(request: FastifyRequest): PrincipalParse {
+  const candidate = (request as unknown as { user?: unknown }).user;
+  if (candidate === undefined) return { kind: 'absent' };
+  if (typeof candidate !== 'object' || candidate === null) {
+    return { kind: 'invalid', reason: 'principal_not_object' };
+  }
+  const record = candidate as Record<string, unknown>;
+  const userId = record.userId ?? record.id;
+  if (typeof userId !== 'string' || userId.length === 0) {
+    return { kind: 'invalid', reason: 'principal_missing_user_id' };
+  }
+  const rawType = record.userType;
+  const rawTier = record.tier;
+  const rawSession = record.sessionVersion;
+  if (rawSession !== undefined && (typeof rawSession !== 'number' || !Number.isInteger(rawSession) || rawSession < 0)) {
+    return { kind: 'invalid', reason: 'invalid_session_version' };
+  }
+  const sessionVersion = rawSession === undefined ? 0 : rawSession;
+  if (rawType === undefined) {
+    // S4 兼容：旧 token 无 user_type → 按 c_end；但若同时带了非法 tier，不得猜成 c_end。
+    if (rawTier !== undefined && rawTier !== 'c_end_display') {
+      return { kind: 'invalid', reason: 'legacy_tier_axis_mismatch' };
+    }
+    return { kind: 'present', principal: { userId, userType: 'c_end', tier: 'c_end_display', sessionVersion } };
+  }
+  if (rawType !== 'c_end' && rawType !== 'internal_active') {
+    return { kind: 'invalid', reason: 'unknown_user_type' };
+  }
+  if (!isUserTier(rawTier)) {
+    return { kind: 'invalid', reason: 'invalid_tier' };
+  }
+  if (rawType === 'c_end' && rawTier !== 'c_end_display') {
+    return { kind: 'invalid', reason: 'tier_axis_mismatch' };
+  }
+  if (rawType === 'internal_active' && (rawTier === 'internal_eval' || rawTier === 'research_only') === false) {
+    return { kind: 'invalid', reason: 'tier_axis_mismatch' };
+  }
+  return { kind: 'present', principal: { userId, userType: rawType, tier: rawTier, sessionVersion } };
 }
 
 export type Authenticate = (request: FastifyRequest) => Promise<Principal | null> | Principal | null;
@@ -25,12 +88,10 @@ function safeEqual(a: string, b: string): boolean {
   return left.length === right.length && timingSafeEqual(left, right);
 }
 
-function principalFromShell(request: FastifyRequest): Principal | null {
-  const candidate = (request as unknown as { user?: unknown }).user;
-  if (typeof candidate !== 'object' || candidate === null) return null;
-  const record = candidate as Record<string, unknown>;
-  const userId = record.userId ?? record.id;
-  return typeof userId === 'string' && userId.length > 0 ? { userId } : null;
+/** 兼容入口：absent/invalid 都返回 null（401）；需要区分时用 principalStateFromShell。 */
+export function principalFromShell(request: FastifyRequest): Principal | null {
+  const parsed = principalStateFromShell(request);
+  return parsed.kind === 'present' ? parsed.principal : null;
 }
 
 export function createAuthenticator(config: MarketConfig): Authenticate {
@@ -47,6 +108,7 @@ export function createAuthenticator(config: MarketConfig): Authenticate {
 
     if (!config.allowDevAuth || config.devAuthToken === undefined) return null;
     if (!safeEqual(token, config.devAuthToken)) return null;
-    return { userId: config.devAuthUserId };
+    // 开发静态 token 固定按 C 端发布档位；生产无此后门。
+    return { userId: config.devAuthUserId, userType: 'c_end', tier: 'c_end_display', sessionVersion: 0 };
   };
 }

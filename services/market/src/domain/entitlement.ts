@@ -12,6 +12,23 @@ import { createHash } from 'node:crypto';
 
 import type { DataTier } from '../config.js';
 
+/** ADR-008 D3：发布轴档位；platform_user_data 正交、不参与发布比较。 */
+export type ReleaseTier = Exclude<DataTier, 'platform_user_data'>;
+
+/** 发布轴唯一排序真源（ADR-008 D3 / Lead m03143）：internal_eval(0) < research_only(1) < c_end_display(2)。 */
+export const RELEASE_RANK: Readonly<Record<ReleaseTier, number>> = {
+  internal_eval: 0,
+  research_only: 1,
+  c_end_display: 2,
+};
+
+/** 取发布轴最小档（越靠前授权越窄）；空集 fail-closed 回 internal_eval。 */
+export function minReleaseTier(...tiers: readonly ReleaseTier[]): ReleaseTier {
+  if (tiers.length === 0) return 'internal_eval';
+  return tiers.reduce((lowest, tier) => (RELEASE_RANK[tier] < RELEASE_RANK[lowest] ? tier : lowest));
+}
+
+
 /**
  * 响应 meta 必须回显「实际生效的层级」而非配置原文：
  * 授权到期后即使配置 c_end_display，实际生效的是最小授权 internal_eval（is_entitled=false）。

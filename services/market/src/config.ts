@@ -69,12 +69,23 @@ export interface MarketConfig {
   readonly releaseId?: string;
   /** E2E/单测模式：仅用于 dev-auth/自动迁移；不再豁免 hold/audit/指纹自检（H5 R1/R3）。 */
   readonly e2eMode?: boolean;
+  /**
+   * ADR-008 D9 受众闸门阶段：off（默认，保持 S0/S1 行为）/ shadow（S2，只记录不执行）/
+   * enforce（S3，内部受众强制）。S3 前不得改响应，fail-closed 顺序不变。
+   */
+  readonly audienceGateMode?: 'off' | 'shadow' | 'enforce';
 
 }
 
 function readTrimmed(env: NodeJS.ProcessEnv, key: string): string | undefined {
   const value = env[key]?.trim();
   return value === undefined || value === '' ? undefined : value;
+}
+
+function parseAudienceGateMode(raw: string | undefined): 'off' | 'shadow' | 'enforce' | undefined {
+  if (raw === undefined) return undefined;
+  if (raw === 'off' || raw === 'shadow' || raw === 'enforce') return raw;
+  throw new MarketConfigError(`AUDIENCE_GATE_MODE 必须是 off|shadow|enforce 之一，收到: ${JSON.stringify(raw)}`);
 }
 
 function parseTier(raw: string | undefined): DataTier {
@@ -260,6 +271,7 @@ export function loadMarketConfig(env: NodeJS.ProcessEnv = process.env): MarketCo
   const entitlementExpiresAt = parseExpiresAt(readTrimmed(env, 'ENTITLEMENT_EXPIRES_AT'));
   const entitlementExpectedSha256 = parseSha256(env, 'ENTITLEMENT_CONFIG_EXPECTED_SHA256');
   const releaseId = readTrimmed(env, 'RELEASE_ID');
+  const audienceGateMode = parseAudienceGateMode(readTrimmed(env, 'AUDIENCE_GATE_MODE'));
 
   const config: MarketConfig = {
     entitlementTier: tier,
@@ -280,6 +292,7 @@ export function loadMarketConfig(env: NodeJS.ProcessEnv = process.env): MarketCo
     ...(entitlementExpectedSha256 !== undefined ? { entitlementExpectedSha256 } : {}),
     ...(deploymentUid !== undefined ? { deploymentUid } : {}),
     ...(releaseId !== undefined ? { releaseId } : {}),
+    ...(audienceGateMode !== undefined ? { audienceGateMode } : {}),
     ...(e2eMode ? { e2eMode: true } : {}),
   };
 
