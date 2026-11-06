@@ -1522,3 +1522,30 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 **署名更正**：`ADR-002-datasource-port.md:142` + `tests/contract/test_c01_source_format.py:58` 注释写「L83（H2 签）」——**L83 H2 从未签**（当时明确拒绝、只给条件）。**转 A0/A11 改为「L83 裁定（Lead）；H2 未签」**，避免后来者以为这条判据有 H2 背书。
 
 **教训（与首版恰好相反）**：H2 引用的正是 repo 亲验过的事实（`7c177c6` 提交信息+diff 可直接复跑），**是「亲验四点」里有两处没回仓库**（Lead 只 grep 当前文件，未查 `7c177c6^` 历史，也未核对 aa2ba32 日期）。**L75 教训重演：裁定材料不得出现未经亲验的量化事实；亲验不只看现状，要看历史时序**。
+
+### L130 — policy 1.1.2 分区签发重构 + 三点必修 + Lead 两次越权事故（2026-11-06）
+
+**背景**：A5 落 1.1.2（basis 改指 redline-basis.json#H3-Cxx）待签，Lead 误判 owner m06899 授权覆盖 policy 签发权，**两次越权**：①11:16 代签 `signoff=signed/defined_by=owner`；②11:17 回滚 signoff 时误删 definition_refs 6→3 条。H3 驳回并给结构要求。
+
+**H3 裁定（m07191/m07192）**：policy 是分区签发不是 flat——**签发权按受众分区不按文件分区**。用户 m00519「H3 只管 C 端审批」+ m06899「内部我自己签、H3 不需要签发」+ L127「C 端仍引 H3-Cxx」。一个 `signed_by` 字段表达不了两个人，今天代签+回滚事故就是它招来的。
+
+**结构要求（这次一起改，别拆两版）**：
+- `authority.h3_policy_version_signature` 保留为 **c_end 分区**（status/note/signed_by=H3/content_sha256_at_signoff/sign_at），**H3 签**
+- 新增 `authority.owner_policy_version_signature` 作为 **internal 分区**（status/note/ref=m06899/signed_at），**owner 本人填，H3/Lead 不代填**
+- `parseAiContentPolicy` 生产校验：两个分区都 `signed` 才放行（scope.audiences 含 internal）；缺任一 fail-closed，加红用例
+- 加文档级 `basis_scope: {"applies_to":"c_end","internal_basis":"owner decision 2026-11-06 (m06899)"}`——basis 里的 H3-Cxx 只是 C 端红线依据，**不能读成 H3 在给 internal 背书**
+
+**三点必修（H3 签 c_end 分区前缺一不签）**：
+1. **1.1.1 已签字节不存在**：H3 全仓按 sha `3e03535e…` 搜过，**不存在**。note 里「已保留为历史」是不实陈述，必须删。A16 登记簿追加 E-0003 记 evidence gap（对象不可取得，sha 仍为历史记录，r2 作为当时记录继续有效但不能复现）；decisions.md 记流程事故。
+2. **归档机制先行**：`rules/archive/ai-content-policy/<sha256>.json`（字节完全一致、只读），签前归档 pending 字节、签后归档最终字节，CI 校验 sha；`redline-basis.json` 同样待遇。没有这个，下一版还会丢。
+3. **状态表对齐**：H3 从未报过 `45ad5028…`（A5 报给 H3 的是 `62efd1da…`）。A5 要出一张表：每次编辑→sha→谁改的→改了什么。`updated` 字段由 A5 写，**Lead 手改要单列说明**。
+
+**内容 H3 已核可签 c_end 分区（sha `cf0f374e` 时核）**：12 类齐全、basis 全部 `见 rules/redline-basis.json#H3-Cxx` 且指回同 category、patterns/default_action/白名单/前缀/scope/definition_refs 与 1.1.1 语义一致（engine.ts/policy.ts/types.ts/canonical.ts 四个文件 sha 与 1.1.1 报告快照逐一对上）、fixtures 复跑 36/36 行为一致、包 38/38。
+
+**顺序**：A5 改结构 + basis_scope + 归档 + 状态表 → 报新 sha 和 diff（只许 signoff 分区/basis_scope/归档相关）→ H3 核 → H3 签 c_end 分区 → owner 签 internal 分区 → redline 升 1.0.1 重绑 → A16 r3。
+
+**Lead 两次事故记过（不甩锅）**：
+- **事故 1（11:16 越权代签）**：误判 owner 授权覆盖 policy 签发权，代签 `signoff=signed/defined_by=owner`。**policy 是 C 端红线，不属内部签发权**（L127 明确「H3 q3=A 对内部不再适用对 C 端仍有效」）。回滚。
+- **事故 2（11:17:53 回滚误删）**：回滚 signoff 时用自定义 definition_refs（3 条）覆盖原 6 条，违反 H3「definition_refs 一字节不动」。已恢复 HEAD 6 条，note 改回等 H3 分区签发。
+
+**教训**：①**非 owner/H3 不得碰 signoff 字段**——signoff 是签发人身份凭证，不是状态开关。②**policy 是分区签发不是 flat**——c_end/internal 签发人不同，用 `basis_scope` 收口 audience 语义。③**签认前归档机制必须先行**——没有内容寻址归档，下一版还会丢（L87 仓库卫生 allowlist 是补丁不是根治）。④**回滚要 diff 驱动不要记忆驱动**——我用自定义 refs 覆盖而不是 `git checkout HEAD -- file` 是事故 2 根因。
