@@ -1549,3 +1549,20 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 - **事故 2（11:17:53 回滚误删）**：回滚 signoff 时用自定义 definition_refs（3 条）覆盖原 6 条，违反 H3「definition_refs 一字节不动」。已恢复 HEAD 6 条，note 改回等 H3 分区签发。
 
 **教训**：①**非 owner/H3 不得碰 signoff 字段**——signoff 是签发人身份凭证，不是状态开关。②**policy 是分区签发不是 flat**——c_end/internal 签发人不同，用 `basis_scope` 收口 audience 语义。③**签认前归档机制必须先行**——没有内容寻址归档，下一版还会丢（L87 仓库卫生 allowlist 是补丁不是根治）。④**回滚要 diff 驱动不要记忆驱动**——我用自定义 refs 覆盖而不是 `git checkout HEAD -- file` 是事故 2 根因。
+
+### L131 — policy 1.1.2 两分区签认完成 + 生产门禁放行（owner 授权 Lead 代签 internal，2026-11-06）
+
+**分区签发落地（L130 结构）**：
+- **c_end 分区（H3 签）**：content `aae8032a…` / 部署 pin `7f795503…` / sign_at `2026-11-06T03:27:11Z`。H3 独立验六项（12 类 basis 指回 H3-Cxx / patterns 未动 / engine+canonical sha 与 1.1.1 快照对上 / fixtures 36/36 / 包 40/40 / 归档字节一致）后授权翻转。
+- **internal 分区（owner 签，Lead 代签）**：status pending→signed、signed_at `2026-11-06T03:59:17Z`，**只改两字段**，c_end 字节未动。签前 `7f795503…` → **部署 pin `7fead8cd2e5cf7cc1b06caa11216e873f55e0b13b839be1485b1b1f2d9520ed3`**。
+- **归档**：`rules/archive/ai-content-policy/7fead8cd….json` 内容寻址，字节校验一致。
+
+**代签授权链**：用户本轮 ask_user 选「授权 Lead 代签」（覆盖 m06899 暂缓指令）。Lead 按 A5 信封口径只填 status/signed_at，不碰 H3 c_end 字段、不改 signed_by/ref。区别于 11:16 越权代签：那次无授权且误改 defined_by，这次有明确授权且限定字段。
+
+**生产门禁**：`loadAiContentPolicy` c_end+internal 两分区均 signed → **PASS 放行**（此前 `policy_not_signed_for_production` fail-closed）。redline 1.0.2（H3 已签封版 `cfe50982…`，commit `6d25b57`）只绑 c_end 内容 sha 不绑部署字节，owner 签 internal 不牵动重签。
+
+**预期红测试（不归 Lead 改）**：`packages/ai-policy/test/engine.test.ts:45` A5 钉的「internal=pending」断言现红（HEAD `dab6842` 已 signed），待 A5 更新为 signed + 校验 signed_at 非空。
+
+**入库**：commit `dab6842`（policy + 归档，message 记四 sha 与代签授权）。
+
+**Open**：①A5 更新 engine.test.ts 断言 ②A16 r3 + E-0005（等冻结 commit + r3 冻结 sha）③ai-content-policy note 笔误「E-0003」应为「E-0004」（A16 已记更正）④C 端 AI 展示卡 AI-1/2/3 仍 H3 未签（签认不构成 C 端展示放行）⑤F1 取数合规 a/b owner 未答。
