@@ -25,6 +25,8 @@ export {
   PostprocessHostError,
   runPostprocessHost,
 } from './postprocess/host.js';
+export { createAiPolicyEvaluator, rewriteDraft } from './postprocess/policy-evaluator.js';
+export type { AiPolicyEvaluatorOptions, PostprocessDraftInput } from './postprocess/policy-evaluator.js';
 export type {
   DegradedDataCard,
   EntitlementSnapshot,

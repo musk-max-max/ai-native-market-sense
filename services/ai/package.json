@@ -15,9 +15,11 @@
     "dev": "tsx watch src/server.ts",
     "start": "node --import tsx src/server.ts",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test test/app.test.ts"
+    "test": "node --import tsx --test test/*.test.ts"
   },
   "dependencies": {
+    "@market-sense/ai-policy": "workspace:*",
+    "@market-sense/compliance": "workspace:*",
     "fastify": "^5.12.8"
   },
   "devDependencies": {
