@@ -169,6 +169,10 @@ jobs:
         run: |
           node infra/ci/path-guard.mjs --validate-registry
           node infra/ci/path-guard.mjs --self-test
+      - name: 内部域客户端边界（config/approval 不得进面客 ApiPaths）
+        run: |
+          node infra/ci/check-internal-boundary.mjs --self-test
+          node infra/ci/check-internal-boundary.mjs
       - name: PR 写域检查（越界写直接 fail）
         if: github.event_name == 'pull_request'
         env:

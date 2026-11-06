@@ -20,6 +20,9 @@ const steps = [
   ['证据包 manifest（H5-R19）', ['infra/ci/check-evidence-manifest.mjs']],
   ['容器内 POSIX 可执行性（ECS db-migrate）', ['infra/ci/check-posix-scripts.mjs']],
   ['契约词表（厂商标识）', ['infra/ci/check-source-vocabulary.mjs']],
+  // 内部域（config/approval）客户端边界：只许 web/console 走 @market-sense/api-client/internal/*。
+  ['内部域客户端边界（config/approval）', ['infra/ci/check-internal-boundary.mjs']],
+  ['内部域客户端边界自检（12 项）', ['infra/ci/check-internal-boundary.mjs', '--self-test']],
   // 研究数据集（display_safe）隔离门禁：A2 交付、零依赖 Python；第三列指定 runner，默认 node。
   ['display_safe 隔离门禁（研究数据集）', ['infra/ci/check_display_safe_failclosed.py'], 'python3'],
   ['契约 lint + 破坏性 diff', ['infra/ci/contract-diff.mjs']],
