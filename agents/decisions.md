@@ -1485,3 +1485,36 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 - **第 3 点五席模型迁移**：A6/A8/A14/A15/A16 删除重建，model 切 sensenova-6.8-flash（原 deepseek-flash），命名不变。历史上下文落盘 `agents/handoff/` 五份（用户 m06917「你把历史上下文存储，初始化模型时作为第一次会话发过去」，commit `78fd9f7`），roster 补 `model:` 字段（commit `e7129d6`）。A16 保留 `reviews/compliance/` 历史产出（已入库 6ddeedc，不重建）。
 - **五席在岗转活跃**：A8 拿 KD-CONSOLE-001（脚手架+设计系统底座，go 同步并行去 A10 token+A0 config/approval 契约）；A14 拿 KD-OPS-001（运营配置 schema，已完成草案见下）；A15 拿 KD-APPROVAL-001（审批规则引擎 T1-T7 阈值，前置声明「只映射已有裁定不立法，T6 免审批 vs L20 未留痕即回退冲突标 must_escalate 交 H5」）；A6 自荐先出 CRM 契约设计稿（services/crm/docs/crm-domain-contract-draft.md，六资源+触达双闸，复用 packages/ai-policy 不另写）；A16 确认 3 项 pending 全等 H3 签 1.1.2，保持只读。
 - **Open**：① owner 答 F1 取数合规 a/b ② A5 升 policy 1.1.2（basis 改指 owner decision）③ A0 处理 configs/ops/ ownership.yaml paths 激活（A14 KD-OPS-001 已完成但 path-guard UNMATCHED）④ A8 脚手架+A10 token+A0 Config/Approval 契约 ⑤ A15 审批规则引擎（T6/L20 冲突交 H5）⑥ A6 CRM 契约设计稿交 A0 评审。
+
+### L128 — H5 裁 T6 三处冲突（C-01/C-02/C-13）+ 生效范围 + 两条风险台账（2026-11-06）
+
+**编号说明**：H5 要求记 L111，但 §12 L111 已占（decisions.md:1269 两类用户分层裁定），顺延记 L128（H5 在岗，Lead 裁定避免编号冲突）。
+
+**三条裁定**：
+- **C-01 = b+a+c**：T6「唯一免审批」**只免事前逐单，不免审批人/approval_ref**。方案 b：A4 建预授权单（H5 批、ref 建单生成）；方案 a：范围/触发条件/执行者/kill switch/≤7 天；方案 c：触发即执行，H5 事后 2h/4h 签收（confirm_at 不倒填），24h 未签收→升级 user+阻塞下次发布但不追溯为未授权。无预授权→逐次 H5。H5 ≥10min 不可达→A13 不执行只读降级（宁停机不越权）。
+- **C-02 = i**：先写 deploy 事件再回滚（带 deployment_uid/approval_ref/executor=A13/approver=H5/incident_id/target_revision/target_tier）。失败不自动重试。observed 与 deploy 不符由 L20 落 internal_eval。审批者禁 SYSTEM_ROLLBACK/空值。break-glass 仅 P1+审计库不可用且预授权允许，N=15min 回写。不可逆迁移仍禁 helm rollback。
+- **C-13 = 否**：T6 **不覆盖紧急前滚**，冻结窗口内前滚仍需 H5 书面+approval_ref。
+
+**生效范围**：prod=b/a/c+i，staging 同 prod，dev/preview 免事前但 deploy 事件须挂 A4 dev 预授权。
+
+**H5 两条风险台账**：
+1. A4 审批 API 未落地→生成不了 ref→T6 自动化/绿档继续不可用，prod 回滚仍 RB-REL-001 人审+只读降级。**不得临时 ref 绕 DB CHECK**（deploy/tier_switch 的 NOT NULL+形态 CHECK 是硬的）。
+2. L20 与回滚的振荡面靠「先留痕后执行+失败不自动重试」消解；break-glass 窗口内 P1 豁免需 A13 runbook 写死（别口头）。
+
+**A15 落地（b87a971 v0.1.3 / fe0ba2f v0.1.4）**：approval-rule-engine.md 458 行+H5-T6-conflict-brief.md 101 行。预授权单加 valid_from/valid_until/confirm_deadline/signoff_state/incident_id（24h 未签收=now > confirm_deadline + 24h && signoff_state=pending，A15 直接判定）。事件表 append-only+event_key 唯一，正常路径 deploy 事件在 helm rollback 前只写一次写完即最终（判据=target_revision/target_tier 与 boot 后 observed 一致），break-glass 在 15min 内补写这一条（event_key=deploy|<deployment_uid>、break_glass:true、原 approval_ref、同一 deployment_uid）不写第二条不改写。超时 L20 生效+A15 报 P1。**矩阵 T6 绿档保持「不可用（C-09 未解除）」没写成「待实现」当可用**。
+
+**依赖**：A4 补 contracts/approval schema 预授权字段（valid_from/valid_until/confirm_deadline/signoff_state/incident_id）+break_glass/event_key 语义（A15 依赖）。
+
+### L129 — L83 C01 范围 latent 关闭：定义已修 + 测试数据从未命中 PATTERN（Lead 亲验，2026-11-06）
+
+**背景**：H2 两次催 Lead 二选一——(a) 按原裁定改范围→H2 签；(b) 记「已规避、未修定义」。**两描述均不准确**，Lead 亲验后记第三种事实。
+
+**亲验四点**：
+1. **定义已修**：`ADR-002-datasource-port.md:139-145` `excluded()` 现为 `return '/tests/' in rel or '/test/' in rel or rel.endswith('.md')`，`/test/` 单数已扩入。A11 `aa2ba32` 已落（2026-11-05）。
+2. **测试数据从未命中 PATTERN**：`services/market/test/market-plugin.test.ts` 始终用 canonical `instrument_id: 'SSE:600519'` + `source: 'tushare'`，**没有 `ts_code`、没有 `600519.SH` 源格式**。C01 PATTERN（`openapi_lib.py:283`）只抓源格式；`source: 'tushare'` 属 D2b 厂商标识门禁（ADR-004），排除面本就含测试夹具。
+3. **CI_MOUNT:249-252 已正确记**：「改后单数 test 目录的实际 C01 命中仍为 0（改判据前也未被 PATTERN 命中），修的是「定义与 ADR 不一致」而不是「已漏报的 C01 违规」。」——这段话已经把事实说清了。
+4. **不存在 `not-an-instrument-id` 替换**：H2 说「测试数据换成 not-an-instrument-id 规避掉」——**未见**。测试文件里没有任何此类替换。
+
+**裁定**：L83 C01 范围 latent **关闭**，状态=**「定义已修（A11 aa2ba32）+ 测试数据从未命中 PATTERN，非规避非漏报」**。不需要改范围（定义已到位），也不需要记「已规避」（测试数据从未用源格式写）。CI_MOUNT:249-252 的边界说明即为权威记录。H2 无需再签（定义已在 ADR-002:142 落地，与 L83 原裁定一致）。
+
+**教训**：H2 转述的「测试数据换成 not-an-instrument-id 规避掉」是印象非亲验——**裁定材料不得出现未经亲验的量化事实**（L75 教训重演）。Lead 接到催办应先亲验再下结论，不接 H2 的二选一框架盲选。
