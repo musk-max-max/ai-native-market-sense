@@ -1,4 +1,4 @@
-# KD-APPROVAL-001 · 审批规则引擎：分类与机器判定阈值（设计稿 v0.1）
+# KD-APPROVAL-001 · 审批规则引擎：分类与机器判定阈值（设计稿 v0.1.2）
 
 > **状态：设计稿，未生效。** 本文是「已有裁定的映射表 + 判定模型 + 缺口清单」，不是新立法，也不是可加载的规则配置。
 > 本文**不被任何规则引擎加载**：无 `policy_version`、无 JSON schema、不在 `rules/` 下，不构成放行依据。规则引擎实现前，任何审批单一律按人审处理。
@@ -14,9 +14,9 @@
 ## 0. 结论摘要（TL;DR）
 
 1. **当前「可绿」集合 = ∅（空集）。** H6 七类审批流只有名称级裁定（`decisions.md:147`），没有每类的判定阈值；16 项配置边界只有「5 级分类 C0–C4 + 6 类不可配」的摘要（`:146`），没有级别表；「七道闸防误配」只有名字（`:181`）。缺判据的类一律不猜、不可绿。
-2. **P0 运行态只能全黄**：规则引擎未实现、通用审批流/审批单 API 未建（A4 的 `approve` 只覆盖 identity 的 `internal_application`，`services/identity/src/plugin.ts` 未暴露审批路由），因此**在引擎落地前所有审批单都路由给人类**，A15 只做预审/填单/路由/催办。
+2. **P0 运行态只能全黄**：规则引擎未实现；通用审批契约已落（`contracts/approval/openapi.yaml` 0.1.0，commit b73c293，6 operations），但 **A4 建单/账本实现未落**（identity 的 `approve` 只覆盖内部员工申请，`services/identity/src/plugin.ts` 未暴露审批路由）。因此**在引擎落地前所有审批单都路由给人类**，A15 只做预审/填单/路由/催办。
 3. **两类永不绿（硬门，先于任何规则判定）**：T5 权限类（含 agent 身份/角色/数据授权）与 ADR-008 内部员工转正 + internal tier 改档。前者依据 README 硬约束（`agents/README.md:65,67`）与 H5-1（`decisions.md:90`），后者依据 ADR-008 D1/D2 与用户裁定（`decisions.md:1269-1320`）。即使未来规则引擎判定「绿」，这两个硬门也必须把结果覆盖为黄/红。
-4. **T6 存在两处必须先由 H5 裁定的冲突**（Lead 点名项）：T6「唯一免审批」（`:147`）vs 生产回滚须 H5 书面 `APPROVAL_REF`（`docs/runbook/release-rollback.md` RB-REL-001）；以及 T6 回滚 vs L20「未留痕 tier 变更立即 fail-closed 回 `internal_eval`」（`:236`）的时序。详见 C-01 / C-02。
+4. **T6 三处冲突已由 H5 于 2026-11-06 裁定**（C-01=b 预授权单 / C-02=i 先写 deploy 事件 + break-glass N=15 / C-13=否），细则见 §2.6 与 `H5-T6-conflict-brief.md` §7；但 **A4 审批建单能力未落地 → 无 `approval_ref` → T6 绿档仍不可用**（C-09）。
 5. **本次交付边界**：只写本设计文档；不建 `approvals/` 账本、不实现规则引擎、不写代码、不产生任何生效规则。每类审批的「绿」在对应来源补齐并经审阅前一律标记 **不可用**。
 
 ---
@@ -150,22 +150,22 @@ A4 的审批 API 尚未提供通用建单：本表是**对 A4 建单契约的输
 - [已签] 允许结论前缀仅「数据显示」（需 numeric 证据）/「历史统计上」（需 historical_statistical 证据）；白名单按 audience（internal 7 类含 `data_gaps`；C 端 6 类）。
 - [已签] AI 生成内容必须带「AI 生成·仅供参考」标识；AI 首字角标、红线意图 100% 拦截（H3 §2.3 `:142`）。
 - [已签] 6 类不可配含「AI 标识 / 免责 / 风险提示 / 话术白名单」，文案侧不产生「修改这些」的审批单，出现即红（`:146`）。
-- [已签] C 端红线归 H3（q3=C 端=A：不放开 AI 荐股，`decisions.md:1322-1330`）；内部功能签发归 owner（L127，`agents/decisions-L127.md`，尚未入库）。
+- [已签] C 端红线归 H3（q3=C 端=A：不放开 AI 荐股，`decisions.md:1322-1330`）；内部员工功能签发权归 owner（L127，`agents/decisions.md:1479-1487`，commit 76a7e03）；ADR-008 D8 由 `OWNER-DECISION-PENDING` 翻为 `ACTIVE-INTERNAL-ONLY`，内部 AI 荐股由 owner 直签放开、仍带「AI 生成·仅供参考」标识；H3 的 q3=A 对内部不再适用。
 - [缺口] `policy 1.1.2` 尚未签：internal 12 条 basis 将从 H3-Cxx 改为 owner decision；签之前内部白名单依据仍是 1.1.1。
-- [缺口] C 端 go-live 的 H3 三条件（AI-1/2/3）与 F1 授权/mirror 合规 a/b 未闭环（L127「未解」）。F1 已声明获授权，但 mirror 取数是否被覆盖未答 → C 端文案/展示的合规前提不确定。
+- [缺口] C 端 go-live 的 H3 三条件（AI-1/2/3）仍未签；F1 对外授权已落地（L127 `:1484`），但取数链走第三方 mirror，「官方授权是否覆盖 mirror 端点」a/b 仍未答 → C 端文案/展示的合规前提不确定。
 
 **风险等级**：[提案] 中（内部）、高（C 端对外），待 H3/H5 确认。
 
 **三档**
-- **绿**：**不可用**。内部：等 1.1.2 签字 + owner/H5 确认白名单适用；C 端：等 H3 的 AI-1/2/3 与 mirror a/b 闭环。
-- **黄**：C 端 → H3；内部 AI/内部功能 → owner（L127，待入库确认）或 H5；规则/词表/类别变更 → H3 立法 + 法务会签，A5 实现，A15 无权改规则（H3 §2.4 `:143`）。
+- **绿**：**不可用**。内部：等 A5 签 1.1.2（basis 改指 owner decision，L127 `:1483`）+ owner 确认白名单适用；C 端：等 H3 的 AI-1/2/3 与 mirror a/b 闭环。
+- **黄**：C 端 → H3；内部 AI/内部功能 → owner（L127 已裁）；规则/词表/类别变更：C 端 → H3 立法 + 法务会签（H3 §2.4 `:143`），内部 basis → owner decision（L127），A5 实现，A15 无权改规则。
 - **红**：① policy 未签/版本不符/加载失败；② 命中 12 类任一 redline category；③ C 端展示 AI 方向性内容（q3=C 端=A 不动）；④ 缺 AI 标识；⑤ 试图改话术白名单/免责/AI 标识/as_of/风险提示/退订（不可配）；⑥ 内部样本复用到 C 端或被外部看到（L115 外溢边界）。
 
-**路由目标**：C 端 [已签] H3；内部 [待 L127 入库] owner / H5；规则变更 [已签] H3（A5 实现）。
+**路由目标**：C 端 [已签] H3；内部 [已签] owner（L127）；规则变更：C 端 H3（A5 实现）、内部 basis 归 owner decision。
 
 **必须升级**：1.1.2 签字、C 端 go-live 条件、mirror a/b、内部白名单依据、1.1.2 与 `redline-basis.json` 双 sha 一致性。
 
-**来源**：`:142,143,146`；`rules/ai-content-policy.json`；`rules/redline-basis.json`；`decisions.md:1317-1338`；L127；ADR-008 D8。
+**来源**：`:142,143,146`；`rules/ai-content-policy.json`；`rules/redline-basis.json`；`decisions.md:1317-1338`；L127 `:1479-1487`；ADR-008 D8。
 
 ---
 
@@ -224,28 +224,30 @@ A4 的审批 API 尚未提供通用建单：本表是**对 A4 建单契约的输
 ### 2.6 T6 紧急回滚（唯一免审批）
 
 **机器可判定条件**
-- [已签] T6 是七类中「**唯一免审批**」（`:147`）。
-- [已签] runbook：A13 唯一执行者，H5 唯一批准人；生产回滚必须先取得 **H5 书面确认（`APPROVAL_REF`）**；`rollback.sh` 缺失直接拒绝；A13 不自批（`docs/runbook/release-rollback.md` RB-REL-001）。
-- [已签] 触发立即回滚：`RollbackExceededFiveMinutes` / `ServiceDown` / 发布后 30min 错误预算燃烧率 >14.4×。
-- [已签] 含不可逆迁移（DB schema / 回填）→ **禁止 helm rollback**，转前滚修复并升级 H5。
-- [已签] 冻结窗口：交易日 9:15–15:00 禁止非紧急发布；紧急发布需 H5 明确批准并记录原因。
-- [已签] 灰度 1%→10%→50%→100%，每档 ≥30min；5min 未恢复 → 升级 H5+lead，切只读降级（`READ_ONLY_MODE=1`）。
-- [已签] L20：部署事件必须分「执行者/审批者」两字段（`:236`）。
+- [已签] T6 是七类中「**唯一免审批**」（`:147`）；**H5 2026-11-06 裁定**：「免审批」= 免**事前逐单**审批，**不免审批人、不免 `approval_ref`**（C-01 选 b）。
+- [已签] **预授权单**：由 A4 审批 API 建单、H5 批准，`approval_ref` 建单即生成（`prod:apr_<uuidv7>`）；范围必须写死：env、服务、from→to revision（仅限回滚到**已部署过的 known-good**）、三类已签触发条件、执行者 A13、kill switch、有效期 ≤7 天或本次发布被取代即失效。
+- [已签] 触发即执行，**不再建单**；deploy 事件引用该预授权 ref。执行后 H5 在事故单**事后签收**（`confirm_at` 单列，**不倒填** `approved_at`）：交易时段 2h、非交易 4h；24h 未签收 → A15 升级 user + **阻塞下一次生产发布**，但本次回滚不追溯为未授权（在预授权范围内）。
+- [已签] 无有效预授权：prod 回滚按 (c) 逐次 H5 书面 ref；**H5 ≥10min 不可达 → A13 不执行**，Lead→user 升级，先 `READ_ONLY_MODE` 降级；宁可延长故障不越权。
+- [已签] **事件先写**（C-02 选 i；break-glass N=15）：`deployment_uid`（回滚目标用新 uid、不复用旧）、`approval_ref`、`executor=A13`、`approver=H5`（真人主体）、`incident_id`、`target_revision`、`target_tier`；回滚改 tier 另写 `tier_switch`（同 `approval_ref`）；**写完再 helm rollback**。执行失败不自动重试；observed 与 deploy 对不上 → L20 落 `internal_eval`，由 H5 决定前滚/再回滚（不振荡）。
+- [已签] break-glass：仅 `ServiceDown`/P1 **且审计库不可用**、且预授权单明确允许；执行后 **15min 内**回写 deploy 事件，超时 L20 生效 + P1 升级。审批者字段必须填预授权单上的 H5，**禁止 `SYSTEM_ROLLBACK`/空值**；没有人类审批人就不执行需要 deploy 事件的变更（dev 一样，除非有 A4 出的 dev 预授权单）。
+- [已签] 不可逆迁移：仍禁 `helm rollback`；顺序 = 先权限面 fail-closed（`internal_eval`），再前滚修复并写 deploy（H5 紧急发布批准），**不得走 T6**。
+- [已签] C-13：T6 只覆盖「回滚到上一已知可用版本」，**不覆盖紧急前滚发布**；冻结窗口内紧急前滚须 H5 书面批准并记录原因，`approval_ref` 由 A4 建单生成，T6 预授权不得用于前滚。
+- [已签] 禁止：A13 自批、A15 代填/造 ref、事后补发预授权覆盖已发生回滚、预授权用于不可逆迁移/前滚/扩权/改 `c_end_display`、跨环境复用。
+- [已签] runbook 一般约束：A13 唯一执行者、H5 唯一批准人、`rollback.sh` 缺失拒绝；触发立即回滚 = `RollbackExceededFiveMinutes` / `ServiceDown` / 发布后 30min 错误预算燃烧率 >14.4×；冻结窗口交易日 9:15–15:00；灰度 1/10/50/100% 每档 ≥30min；5min 未恢复 → 升级 H5+lead + `READ_ONLY_MODE=1`。
+- [前置缺口] **A4 建单实现未落地（契约 `contracts/approval/openapi.yaml` 0.1.0 已落，b73c293；实现待 A4）→ 生成不了 `approval_ref` → T6 自动化/绿档继续不可用**（C-09）；prod 回滚仍按 RB-REL-001 人审 + 只读降级兜底，**不得用「临时 ref」绕 DB CHECK**。
 
 **风险等级**：[已签] 高（紧急 + 生产回滚）。
 
 **三档**
-- **绿**：**不可用（冲突未裁，C-01）**。「唯一免审批」与 runbook「生产回滚必须 H5 书面 `APPROVAL_REF`」直接矛盾；在 H5 裁定前按最严执行：生产回滚一律要 H5 书面确认，不按免审批放行。
-- **黄**：H5（书面确认 + `APPROVAL_REF`）；A13 执行；A15 只记录/通知/留痕，不审批、不执行。
-- **红**：① 含不可逆迁移仍试图 helm rollback；② 无 `rollback.sh`；③ 执行者非 A13；④ 冻结窗口内无 H5 批准；⑤ 5min 未恢复未升级；⑥ 回滚动作无法留痕（见 C-02）。
+- **绿**：**暂不可用（前置缺口 C-09，不是冲突）**。H5 裁定已出，但 `approval_ref` 生成点（A4 建单事务）未落地；预授权单建单能力就绪前 T6 只能黄。
+- **黄**：H5 预授权单（b）或逐次书面 ref（c）；A13 执行；A15 只校验预授权 ref/范围/有效期/执行者/`incident_id`，**不合格即红**；不审批、不代填、不造单。
+- **红**：① A13 自批；② A15 代填/造 ref；③ 无有效预授权且 H5 不可达仍执行；④ 事后补发预授权覆盖已发生回滚；⑤ 预授权用于不可逆迁移/前滚/扩权/改 `c_end_display`；⑥ 跨环境复用；⑦ 24h 未签收未升级/未阻塞下一次生产发布；⑧ break-glass 超 15min 未回写；⑨ observed 与 deploy 对不上却掩盖；⑩ 审批者字段为 `SYSTEM_ROLLBACK`/空；⑪ 回滚失败自动重试或反复振荡；⑫ 冻结窗口内用 T6 预授权做前滚。
 
-**路由目标**：[已签] H5；执行 A13。
+**路由目标**：H5（批准/事后签收）；执行 A13；A15 校验 + 催签收 + 超时升级 user/Lead。
 
-**必须升级（Lead 点名）**：
-- **C-01 免审批 vs H5 书面确认**：若 T6 真免审批，则没有申请人、没有审批人、没有 `APPROVAL_REF`；但 L51 + identity/compliance 迁移的 CHECK 与 `tier_switch` 唯一索引都要求 `approval_ref`，L20 还要求部署事件有「审批者」字段。三种可能解释必须 H5 选一：(a) 免的是「申请人审批」，H5 事后追签；(b) H5 预授权 kill switch，触发即执行、事后补单；(c) 仅 dev/preview 免审批，prod 仍需 H5。
-- **C-02 T6 回滚 vs L20 时序**：L20 要求「未留痕 tier 变更 → 立即 fail-closed 回 `internal_eval`」。T6 回滚本身会改部署/tier 状态；若回滚动作写不出 `deploy` 事件（或事件与 `tier_state_observed` 对不上），L20 会把 T6 判成「未授权变更」并再次回退，形成回滚与回退互相打架。谁先谁后（安全回退优先？服务恢复优先？）、回滚事件如何与 L20 的两字段对齐、T6 无审批人时「审批者」字段填什么——必须 H5 裁定；本文 [提案] 顺序为 ① 先做 L20 权限面安全回退 ② 再做服务回滚 ③ 回滚也必须写 deploy 事件，但该提案不生效。
+**必须升级**：C-09（A4 建单能力，T6 绿档前置）；预授权单 schema 归 A4 + ADR；`confirm_at`/break-glass 字段与 15min 回写归 A13/A4；H5 ≥10min 不可达 → Lead→user；24h 未签收 → user + 阻塞下一次生产发布。
 
-**来源**：`:147,236,254`；RB-REL-001；L51。
+**来源**：H5 2026-11-06 回执（C-01=b / C-02=i+N=15 / C-13=否，摘要见 `configs/rbac/H5-T6-conflict-brief.md` §7）；`:147,236,254`；RB-REL-001；L51。
 
 ---
 
@@ -270,7 +272,7 @@ A4 的审批 API 尚未提供通用建单：本表是**对 A4 建单契约的输
 
 **路由目标**：[已签] H5（会签未完成）；C 端/外溢 [已签] H3。
 
-**必须升级**：导出阈值与字段分级（C-08）、水印/审计归属（ADR-008 H5 会签）、mirror 数据合规（L127 a/b）、T7 审批人。
+**必须升级**：导出阈值与字段分级（C-08）、水印/审计归属（ADR-008 H5 会签）、mirror 数据合规（L127 `:1484` a/b）、T7 审批人。
 
 **来源**：`:1288,1317-1338`；L114/L115；ADR-008；H3-C12。
 
@@ -315,32 +317,33 @@ A4 的审批 API 尚未提供通用建单：本表是**对 A4 建单契约的输
 
 ## 4. 冲突与必须升级项（C 清单）
 
-> 全部为 `must_escalate`：本文不裁定、不猜。编号将带入 `approvals/` 第二步与规则引擎常量。
+> 除 C-01/C-02/C-13 已由 H5 裁定（2026-11-06，细则见 §2.6）外，其余均为 `must_escalate`：本文不裁定、不猜。编号将带入 `approvals/` 第二步与规则引擎常量。
 
 | ID | 冲突/缺口 | 双方来源（事实） | 影响 | 裁决人 | 当前临时处置（fail-closed） |
 |---|---|---|---|---|---|
-| **C-01** | T6「唯一免审批」vs 生产回滚必须 H5 书面 `APPROVAL_REF` | `decisions.md:147` vs `docs/runbook/release-rollback.md` RB-REL-001 | T6 无法建单/留 `approval_ref`；与 L51 CHECK 冲突 | **H5** | 生产回滚一律要 H5 书面确认；不按免审批放行 |
-| **C-02** | T6 紧急回滚 vs L20 未留痕 tier 变更 fail-closed 的时序 | `decisions.md:147,236`；RB-REL-001 | 回滚可能触发 L20 二次回退；回滚事件与 deploy 事件对不上；不可逆迁移禁止回滚又要求「紧急恢复」 | **H5** | 不自动回滚；按 runbook 人审；先权限面安全回退再服务回滚（提案不生效） |
+| **C-01** | T6「唯一免审批」vs 生产回滚必须 H5 书面 `APPROVAL_REF` | `decisions.md:147` vs RB-REL-001 | **已裁（H5 2026-11-06，选 b）**：免事前逐单、不免审批人/`approval_ref`；预授权单范围写死、事后签收 | **H5（已裁）** | 按 §2.6；A4 建单未落地前 T6 仍全黄 |
+| **C-02** | T6 回滚 vs L20 未留痕 tier 变更 fail-closed 的时序 | `decisions.md:147,236`；RB-REL-001 | **已裁（H5 2026-11-06，选 i）**：先写 deploy 事件再回滚；break-glass N=15；不一致由 H5 决定前滚/再回滚 | **H5（已裁）** | 按 §2.6；无人类审批人不执行需 deploy 事件的变更 |
 | **C-03** | T1 缺 C0–C4 五级分类定义与「级别 → 绿/黄」映射 | `decisions.md:146`（只有摘要） | T1 绿阈值无法计算 | **H6** | T1 全黄 |
-| **C-04** | T3 C 端 go-live：AI-1/2/3 未签 + F1 授权后 mirror a/b 未答 | ADR-008 状态；L127「未解」；`rules/` 1.1.1 | C 端文案/展示不能判绿；内部白名单依据待 1.1.2 | **H3 + owner** | C 端全黄；内部全黄 |
+| **C-04** | T3 C 端 go-live：AI-1/2/3 未签 + F1 对外授权已落地但 mirror a/b 未答 | ADR-008 状态；L127 `:1484`；`rules/` 1.1.1 | C 端文案/展示不能判绿；内部 1.1.2 basis 待 A5 改指 owner decision | **H3（C 端）+ owner（F1/内部）** | C 端全黄；内部全黄 |
 | **C-05** | T4 日/周/月窗口口径、时区、同素材定义缺失 | `:148` 只给数值 | 频次判据不可机器判定 | **H6** | 触达全黄 |
 | **C-06** | 「双人确认」= 两名人类 or 人+agent？ | `agents/README.md:65`、H5-1 `:90`、A15 system_prompt | 权限类审批路径分叉；可能设计出 agent 审批 | **H5** | 按两名人类 + agent 仅自动化核对 |
 | **C-07** | 「批量授权/批量审批」的数量定义 | `:90,1464` 只禁批量，无阈值 | 无法机器识别批量 | **H5** | 任何多对象提交 → 红 |
 | **C-08** | T7 导出阈值：行数/字段/敏感度/批量定义缺失 | `:1288,1317-1338` 只有原则 | T7 无绿阈值 | **H5 + H3** | 导出全黄；批量一律升级 |
-| **C-09** | 通用审批流/审批单建单 API 未建：A4 `approve` 只覆盖 identity 申请，T2–T7 无建单入口 | `services/identity/src/plugin.ts`；L51 要求「A4 建单事务生成」 | T2–T7 无 `approval_ref` 可发，L51 无法满足 | **A4 + Lead** | 不产生 T2–T7 自动单；人工纸质/工单 + 补录待裁 |
+| **C-09** | 通用审批契约已落、建单/账本实现未落：A4 `approve` 只覆盖 identity 申请，T2–T7 无建单实现 | `contracts/approval/openapi.yaml` 0.1.0（b73c293，6 ops：create/list/get/evaluate/decide/events）；`services/identity/src/plugin.ts`；L51 | T2–T7 仍无 `approval_ref` 可发，L51 无法满足 | **A4 + Lead** | 按契约 mock/评审；不产生 T2–T7 自动单；人工工单 + 补录待裁 |
 | **C-10** | 每类的人类审批人/路由目标表缺失（T1/T4/T7 尤其） | 无来源 | 黄档无法确定送谁 | **H6 + H5** | 送 H5 兜底，同时升级 Lead |
 | **C-11** | H6 七类的具体判据、16 项边界的级别表、七道闸内容均未落仓库 | `:146,147,181` 只有摘要 | 除已单列的 L104/触达数值外，七类判据整体不足 | **H6** | 七类全黄 |
 | **C-12** | 规则引擎运行时未实现，且实现归属未定（A4/A8/A11？） | 仓库无 engine；A15 写域只有配置/账本 | 「绿」无法产生 | **Lead** | 全黄 |
-| **C-13** | 紧急发布（冻结窗口）vs T6 免审批边界 | RB-REL-001：紧急发布需 H5 明确批准；T6 只讲回滚 | 「免审批」可能被误读为覆盖紧急发布 | **H5** | 紧急发布按 runbook 要 H5；不按 T6 放行 |
-| **C-14** | L127 owner 直签内部功能 vs ADR-008 `approved_by ∈ {H3,user}`；L127 尚未入库，D8 状态待翻 | `agents/decisions-L127.md`（untracked）；ADR-008 D8 | 内部类审批路由/依据可能变；policy 1.1.2 未签 | **Lead + H5** | 内部类送 owner 并同时抄 H5；以入库版本为准 |
+| **C-13** | 紧急发布（冻结窗口）vs T6 免审批边界 | RB-REL-001；`decisions.md:147` | **已裁（H5 2026-11-06：否）**：T6 只覆盖回滚，紧急前滚仍需 H5 书面批准 + `approval_ref`，T6 预授权不得用于前滚 | **H5（已裁）** | 紧急前滚按 runbook，不按 T6 放行 |
 | **C-15** | A15 写 `configs/rbac/`（权限相关配置）由谁复核？A15 不能自批 | roster 写域 vs R3/README:65 | 规则配置可能成为自我授权通道 | **H5** | 本文件仅为设计稿；任何生效型 rbac 配置须 H5 复核 + 非 A15 审阅 |
+
+> **C-14 已裁（2026-11-06）**：L127（`agents/decisions.md:1479-1487`，commit 76a7e03）明确 owner 持最高授权签发权、内部员工功能签发权从 H3 收归 owner、ADR-008 D8 翻 `ACTIVE-INTERNAL-ONLY`，C 端 q3=A 不变，故从 must_escalate 划出。实现跟进（非冲突）：`services/identity` 的 `HUMAN_APPROVERS` 目前只有 `H3`/`user`；若 owner 以独立身份签发，需 A4 在 ADR 更新时扩展枚举，本轮不改代码。
 
 ---
 
 ## 5. 待裁清单（按裁决人分）
 
 **H5（阻断项最多）**
-1. C-01 / C-02 / C-13：T6 免审批 × runbook × L20 的三角（Lead 点名）。
+0. **[已裁 2026-11-06]** C-01 / C-02 / C-13：T6 三角，H5 回执（b / i+N=15 / 否），细则见 §2.6 与 `H5-T6-conflict-brief.md` §7；剩余前置缺口 C-09（A4 建单 API）。
 2. C-06：双人确认语义。
 3. C-07：批量阈值。
 4. C-08：导出阈值（与 H3 共裁）。
@@ -359,12 +362,11 @@ A4 的审批 API 尚未提供通用建单：本表是**对 A4 建单契约的输
 3. T7 外溢边界援引（L115）。
 
 **A4 / Lead**
-1. C-09：通用审批单建单 API + `approval_ref` 生成点（必须由 A4 建单事务，不能 A15 代填）。
+1. C-09：通用审批单建单**实现** + `approval_ref` 生成点（契约 0.1.0 已落，实现未落；必须由 A4 建单事务，不能 A15 代填）。
 2. C-12：规则引擎实现归属。
 
 **Lead（跨域）**
-1. L127 入库与 D8 状态、owner 直签范围的最终口径（C-14）。
-2. 本设计稿的审阅/转签（H5 + H6 + H3 会签后才可进入「规则生效」阶段）。
+1. 本设计稿的审阅/转签（H5 + H6 + H3 会签后才可进入「规则生效」阶段）；C-14 已由 L127 裁定（D8 = `ACTIVE-INTERNAL-ONLY`），无需再裁。
 
 ---
 
@@ -377,7 +379,7 @@ A4 的审批 API 尚未提供通用建单：本表是**对 A4 建单契约的输
 | T3 文案 | 是（rules 已签 1.1.1） | 提案中/高 | 不可用 | C 端 H3 / 内部 owner+H5 | 可判 | 已签 | C-04、1.1.2 |
 | T4 触达 | 数值已签、口径缺失 | 提案中 | 不可用 | 待裁 | 部分可判 | 待裁 | C-05/C-10 |
 | T5 权限 | 硬规则已签 | 已签高 | **禁止** | H3/user+H5 | 可判 | 已签 | C-06 |
-| T6 回滚 | 部分（runbook） | 已签高 | **不可用（C-01）** | H5 | 可判 | H5 | C-01/C-02 |
+| T6 回滚 | 部分（runbook + H5 裁定） | 已签高 | **不可用（C-09）** | H5（预授权或逐次） | 可判 | H5 | C-09 |
 | T7 导出 | 原则已签、阈值缺失 | 提案中高 | 不可用 | H5(+H3) | 部分可判 | 部分 | C-08 |
 | 员工转正 | 是（identity 实现+D2） | 已签高 | **禁止** | H3/user | 可判 | 已签 | — |
 | tier 改档 | 是（L20+ADR） | 已签高 | **禁止** | H3/user | 可判 | 已签 | C-02 |
@@ -389,9 +391,9 @@ A4 的审批 API 尚未提供通用建单：本表是**对 A4 建单契约的输
 ## 7. 实施状态与顺序（本文件不越界）
 
 1. **现在（本文）**：规则映射 + 判定模型 + 缺口清单。**不产生生效配置**。
-2. **待裁后**：H5/H6/H3 对 C 清单出裁定 → 把裁定写成本文件的 v0.2（逐条标注签字 ref）。
+2. **裁定推进**：H5 已对 C-01/C-02/C-13 出裁定（2026-11-06，§2.6）；其余 C 清单待 H5/H6/H3/Lead 裁定 → 把裁定写成本文件 v0.2（逐条标注签字 ref）。
 3. **第二步（A15 另一任务，未开工）**：`approvals/` 账本 append-only 结构，字段按 §1.3 投影；仍不写引擎。
-4. **依赖他人**：A4 通用审批建单 API（C-09）；规则引擎实现归属（C-12）；A8 审批界面（P0 入口未开）。
+4. **依赖他人**：A4 通用审批建单实现（契约 0.1.0 已落，C-09）；规则引擎实现归属（C-12）；A8 审批界面（P0 入口未开）。
 5. **在此之前**：任何审批单只能人工处理；A15 只做预审/填单/路由/催办；「绿」不存在。
 
 ---
@@ -417,9 +419,11 @@ A4 的审批 API 尚未提供通用建单：本表是**对 A4 建单契约的输
 | L111/L112/L113/L114/L115 | `agents/decisions.md:1269-1348` | 内部员工、q3、外溢边界、评测台八条件 |
 | L125 / ADR-008 会签 | `agents/decisions.md:1457-1468` | H2 会签条件、`internal_active` CHECK |
 | 内部访问风险提示 | `agents/decisions.md:1288` | 内部水印/访问日志/导出审计 |
-| L127（未入库） | `agents/decisions-L127.md` | owner 直签内部功能、D8、mirror a/b 未解 |
+| L127 | `agents/decisions.md:1479-1487`（commit 76a7e03） | owner 持最高签发权、D8→ACTIVE-INTERNAL-ONLY、mirror a/b 未解 |
 | ADR-008 | `docs/adr/ADR-008-user-tiers-and-entitlement.md` D1/D2/D3 | 两类用户、审批人、tier 语义 |
 | RB-REL-001 | `docs/runbook/release-rollback.md` | T6 唯一执行者/批准人、冻结窗口、不可逆迁移 |
+| H5 T6 裁定（2026-11-06） | `configs/rbac/H5-T6-conflict-brief.md` §7（A15 收件；正式入库待 Lead） | 预授权单/事后签收/事件先写/break-glass/前滚否 |
+| 通用审批契约 | `contracts/approval/openapi.yaml` 0.1.0（commit b73c293） | 6 operations、create 不收 approval_ref、decide 仅人类、events append-only、evaluate 可 yellow |
 | 规则真源 | `rules/README.md`；`rules/ai-content-policy.json`（1.1.1）；`rules/redline-basis.json`（1.0.0） | T3/T7 判据与 fail-closed |
 | 审批 id 实现 | `services/identity/src/domain/approval-ref.ts`；`migrations/001_identity.sql:32-58` | 形态、生成点、CHECK |
 | 审批服务 | `services/identity/src/service/identity-service.ts:147-162,455+`；`plugin.ts` | 人类审批人、路由未暴露 |
@@ -448,3 +452,7 @@ A4 的审批 API 尚未提供通用建单：本表是**对 A4 建单契约的输
 | 版本 | 日期 | 作者 | 变更 |
 |---|---|---|---|
 | v0.1 | 2026-11-06 | A15 | 首版：七类 + ADR-008 两类映射、判定模型、C-01..C-15 缺口、覆盖矩阵。**未生效**。 |
+| v0.1.1 | 2026-11-06 | A15 | C-14 按 L127 划出 must_escalate；T3/C-04 同步 owner 签发；C-01/C-02/C-13 整理为一页交 H5。 |
+| v0.1.2 | 2026-11-06 | A15 | 落 H5 T6 裁定（C-01=b / C-02=i+N=15 / C-13=否）：§2.6 重写、C 表与 §5 标注已裁、矩阵 T6 行与 §7 更新、附录加裁定来源。 |
+| v0.1.3 | 2026-11-06 | A15 | A0 通用审批契约落盘（`contracts/approval/openapi.yaml` 0.1.0，b73c293）：C-09 改为「契约已落、A4 实现未落」，T6 绿档前置不变。 |
+| v0.1.1 | 2026-11-06 | A15 | L127 入库后更新：C-14 划出 must_escalate（owner 签发权 + D8 翻 ACTIVE-INTERNAL-ONLY）；T3 内部 basis 改指 owner decision、C 端 q3=A 不变；F1 对外授权落地、mirror a/b 仍未答。 |
