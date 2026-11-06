@@ -1,0 +1,90 @@
+# 运营配置示例（draft 态，非线上真值）
+#
+# 用途：KD-OPS-001 草案的可校验样例，同时给 A8 中后台表单与 A0 Config Service 契约提供字段形态。
+# 说明：
+#   - 这只是 staging 上的一份 draft 示例，不代表任何已批准 / 已发布配置；
+#   - 所有对外文案（title / subtitle / display_title / summary / metric_label / title_template）
+#     即使在本示例中已中性化，仍需走 T3 文案审批 + H3 话术白名单过审后才能发布；
+#   - meta 段是服务端 readOnly 字段，draft 文件不写；publish 后由 release 生成。
+
+schema_version: "0.1"
+config_id: ops_home_columns
+environment: staging
+version: 3
+status: draft
+change_reason: 首页栏目新增涨跌幅排序位；内容位改为引用已审图文；轮播间隔由 10s 收紧到 8s
+impact_scope:
+  - column_layout
+  - content_copy
+  - content_placement
+  - ranking
+
+spec:
+  columns:
+    - id: market_overview
+      title: 市场概览
+      subtitle: 收盘后数据
+      order: 0
+      visible: true
+      max_items: 10
+    - id: my_watchlist
+      title: 我的自选
+      subtitle: 自选股行情与事件
+      order: 1
+      visible: true
+      max_items: 20
+    - id: pct_ranking
+      title: 涨跌幅排序
+      subtitle: 按收盘涨跌幅
+      order: 2
+      visible: true
+      max_items: 10
+
+  content_items:
+    - id: ci_close_brief
+      kind: editorial
+      column_id: market_overview
+      order: 0
+      visible: true
+      content_ref: cnt_close_brief_01
+      asset_ref: ast_cover_0001
+      display_title: 收盘速览
+      summary: 当日市场数据回顾
+    - id: ci_index_card
+      kind: data_card
+      column_id: market_overview
+      order: 1
+      visible: true
+      content_ref: cnt_index_card_01
+      display_title: 主要指数收盘
+    - id: ci_banner_watch
+      kind: banner
+      column_id: my_watchlist
+      order: 0
+      visible: true
+      content_ref: cnt_banner_watch_01
+      asset_ref: ast_banner_0002
+      display_title: 自选股行情已更新
+      target_route: /watchlist
+      display_window:
+        start_at: 2026-11-06T15:30:00+08:00
+        end_at: 2026-11-13T15:30:00+08:00
+        timezone: Asia/Shanghai
+
+  strategies:
+    - type: ranking
+      id: st_pct_rank
+      metric_id: M08
+      metric_label: 涨跌幅
+      universe: all_a
+      window: 1d
+      limit: 10
+      title_template: 「{metric_label}排序 · 截至 {as_of}」
+      schedule: eod
+      personalized: false
+      enabled: true
+    - type: rotation
+      id: st_rank_rotation
+      max_items: 5
+      interval_seconds: 8
+      enabled: true

@@ -1,0 +1,27 @@
+{
+  "name": "@market-sense/console",
+  "private": true,
+  "version": "0.0.0",
+  "description": "market-sense-h5 中后台（A8）：运营/合规/管理/CRM 四合一控制台，共用一套设计系统与配置状态机。",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test test/*.test.ts"
+  },
+  "dependencies": {
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "5.2.0",
+    "jsdom": "27.0.1",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vite": "7.3.7"
+  }
+}

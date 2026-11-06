@@ -1,0 +1,38 @@
+/**
+ * data-testid 集中登记（E2E 与组件测试共用，避免字符串散落）。
+ * 命名约定：区域-元素。
+ */
+export const TESTIDS = {
+  appShell: 'app-shell',
+  navItem: (route: string) => `nav-${route}`,
+  actorBadge: 'actor-badge',
+  statusBadge: 'status-badge',
+  dataTable: 'data-table',
+  dataTableRow: (key: string) => `row-${key}`,
+  emptyState: 'empty-state',
+  formField: (key: string) => `field-${key}`,
+  formError: (key: string) => `field-error-${key}`,
+  diffViewer: 'diff-viewer',
+  diffModeToggle: 'diff-mode-toggle',
+  diffOnlyChanges: 'diff-only-changes',
+  diffRow: (key: string) => `diff-row-${key}`,
+  diffAck: 'diff-ack',
+  diffSubmit: 'diff-submit',
+  diffCancel: 'diff-cancel',
+  conflictChoiceMine: (key: string) => `conflict-mine-${key}`,
+  conflictChoiceTheirs: (key: string) => `conflict-theirs-${key}`,
+  impactPanel: 'impact-panel',
+  doubleConfirm: 'double-confirm',
+  doubleConfirmNext: 'double-confirm-next',
+  doubleConfirmInput: 'double-confirm-input',
+  doubleConfirmSubmit: 'double-confirm-submit',
+  doubleConfirmCancel: 'double-confirm-cancel',
+  configItemSelect: (itemId: string) => `config-item-${itemId}`,
+  saveDraft: 'save-draft',
+  validateDraft: 'validate-draft',
+  submitApproval: 'submit-approval',
+  approvalItem: (id: string) => `approval-${id}`,
+  approvalApprove: 'approval-approve',
+  approvalReject: 'approval-reject',
+  releaseRow: (id: string) => `release-${id}`,
+} as const;

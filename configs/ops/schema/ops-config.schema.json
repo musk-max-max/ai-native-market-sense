@@ -1,0 +1,544 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://config.market-sense.invalid/ops/ops-config.schema.json",
+  "title": "market-sense-h5 · 运营配置文档（KD-OPS-001 v0.1 草案）",
+  "description": "运营配置（栏目 / 内容 / 策略）的结构唯一真源草案，owner A14，待 A0 收敛为 Config Service 契约。\n\n边界：\n- 只覆盖可配的运营字段；不可配项（免责声明 / AI 标识 / as_of / 退订入口 / 风险提示 / 话术白名单 / 任何合规类字段）不在本 schema 中定义，并靠每一层的 additionalProperties:false 硬拒绝。理由与真源见 field-catalog.md §6。\n- 本 schema 不定义数据口径、数据值或授权：metric_id 只引用 H4/A2 已签口径（docs/metrics/P0-metrics.md），entitlement 由 Config Service 读侧注入（ADR-008）。\n- 一致性语义见 agents/decisions.md #6（L6）：version + If-Match 乐观锁、冲突 409 + 三点 diff、draft/published 双态、publish 生成不可变 release。\n- 任何新增字段 / 新增枚举值都属契约变更：先经 A0（H2 会签）改 schema 与契约，再实现；不得由运营侧先改文件后补契约。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "config_id",
+    "environment",
+    "version",
+    "status",
+    "change_reason",
+    "impact_scope",
+    "spec"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.1",
+      "description": "运营配置文档结构版本（不是 ai-content-policy 的 policy_version，也不是 release 的 content_hash）。"
+    },
+    "config_id": {
+      "type": "string",
+      "pattern": "^ops_[a-z0-9_]{3,48}$",
+      "description": "配置集标识，稳定不变；同一环境内唯一。例如 ops_home_columns（首页栏目编排）。",
+      "examples": ["ops_home_columns", "ops_watchlist_module"]
+    },
+    "environment": {
+      "type": "string",
+      "enum": ["dev", "staging", "prod"],
+      "description": "目标环境。prod 发布额外需要 H5 人类确认（发布主体不是 A14）；灰度上限与回滚见 README。"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "乐观锁版本（L6）。每次草稿保存 +1；提交/发布时客户端必须带 If-Match=<读取时 version>，冲突服务端返 409 + 三点 diff。发布后版本只增不改。"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "published"],
+      "description": "L6 双态：draft 可编辑；published 不可原地修改，publish 生成不可变 release。审批子状态（validated / pending_approval / approved / rejected）在 approvals/ 账本（A15 域），不进本字段，避免双源。"
+    },
+    "change_reason": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 200,
+      "description": "为什么改（内部字段，不对 C 端展示）。变更单模板见 templates/change-request.md；预期影响与回滚方案写在变更单，本字段只存摘要。"
+    },
+    "impact_scope": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 6,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "column_layout",
+          "content_copy",
+          "content_placement",
+          "ranking",
+          "rotation",
+          "visibility"
+        ]
+      },
+      "description": "影响面枚举，用于 gates「变更必须带 diff 与影响范围」的机器校验；与变更单的影响面字段必须一致。"
+    },
+    "spec": {
+      "$ref": "#/$defs/OpsSpec"
+    },
+    "meta": {
+      "$ref": "#/$defs/SystemMeta"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "published"
+          }
+        },
+        "required": ["status"]
+      },
+      "then": {
+        "required": ["meta"],
+        "properties": {
+          "meta": {
+            "type": "object",
+            "properties": {
+              "published_release": {
+                "type": "object"
+              }
+            },
+            "required": ["published_release"]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "OpsSpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "运营配置主体。columns / content_items / strategies 的引用完整性由服务端语义校验（field-catalog.md §8），JSON Schema 只做结构校验。",
+      "required": ["columns", "content_items", "strategies"],
+      "properties": {
+        "columns": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "$ref": "#/$defs/Column"
+          },
+          "description": "栏目定义。数组顺序不承载展示顺序，展示顺序一律由 order 字段决定，避免双源。"
+        },
+        "content_items": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/ContentItem"
+          },
+          "description": "内容编排位。运营只决定「放什么、放哪、何时展示」，素材与正文的创作/审核在内容服务与 H3 域。"
+        },
+        "strategies": {
+          "type": "array",
+          "maxItems": 10,
+          "items": {
+            "$ref": "#/$defs/Strategy"
+          },
+          "description": "非合规类策略配置。新增策略类型 = schema 版本升级 + A0 契约变更，不得在运营侧扩展。"
+        }
+      }
+    },
+    "Column": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "栏目。id 首次创建后不可变（published 后改 id 视为新栏目 + 迁移，不能原地改）。",
+      "required": ["id", "title", "order"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{2,31}$",
+          "description": "栏目稳定标识。published 后不可原地修改；改名/改语义 = 新建 id + 迁移旧内容。"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20,
+          "description": "栏目标题（对外文案，T3 文案审批 + H3 过审）。中性表述：不得含「主力 / 抢筹 / 值得关注 / 榜单 / 排名 / 龙头 / 主线」等 rules/ai-content-policy.json 禁用词（L12）。"
+        },
+        "subtitle": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "description": "栏目副标题（对外文案，T3 文案审批 + H3 过审）。可省略。"
+        },
+        "order": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 999,
+          "description": "展示顺序，同一配置集内唯一（语义校验 V-02）。重排属 T1 常规审批。"
+        },
+        "visible": {
+          "type": "boolean",
+          "default": true,
+          "description": "栏目是否展示。隐藏属 T1 常规审批；不得用于绕过 H3 已过审文案的上下线（下架文案走内容可见性）。"
+        },
+        "max_items": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50,
+          "default": 10,
+          "description": "栏目内最多展示内容条数（展示行为，T1 常规审批；不改变内容本身的审核状态）。"
+        }
+      }
+    },
+    "ContentItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "内容编排项。正文 / 素材的创作与合规审核不在运营配置内，运营只引用已存在的 content_ref / asset_ref。",
+      "required": ["id", "kind", "column_id", "order"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^ci_[a-z0-9_]{3,40}$",
+          "description": "编排项标识。published 后不可复用给不同内容（回滚以 release 为单位，不靠 id 复用）。"
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["editorial", "data_card", "banner"],
+          "description": "内容位类型：editorial 图文 / data_card 数据卡 / banner 首页横幅。类型决定必填引用（见下方 allOf）。"
+        },
+        "column_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{2,31}$",
+          "description": "所属栏目 id，必须存在于同文档 columns（语义校验 V-03）。一个编排项只属于一个栏目（多栏目投放列为开放问题）。"
+        },
+        "order": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 999,
+          "description": "栏目内顺序，同一 column_id 内唯一（语义校验 V-04）。"
+        },
+        "visible": {
+          "type": "boolean",
+          "default": true,
+          "description": "是否展示。属 T1 常规审批；隐藏不等于合规下架，合规下架由内容服务 / H3 执行。"
+        },
+        "content_ref": {
+          "type": "string",
+          "pattern": "^cnt_[a-z0-9_]{6,40}$",
+          "description": "内容服务中的内容实体 id（A3 services/content，具体命名空间待 A0/A3 确认）。正文与素材审核状态由内容服务保证，运营只引用已过审内容。"
+        },
+        "asset_ref": {
+          "type": "string",
+          "pattern": "^ast_[a-z0-9_]{6,40}$",
+          "description": "素材库素材 id（A10 / A3 资产域，具体命名空间待确认）。禁止外链 URL：运营配置不得承载任意外部地址（安全与版权边界）。"
+        },
+        "display_title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 30,
+          "description": "编排位展示标题（对外文案，T3 文案审批 + H3 过审）。省略时由内容服务返回标题，此时以内容服务的已审文案为准。"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "编排位摘要（对外文案，T3 文案审批 + H3 过审）。省略时不展示摘要。"
+        },
+        "target_route": {
+          "type": "string",
+          "pattern": "^\\/(?:[a-z0-9_-]+)(?:\\/[a-z0-9_{}-]+)*$",
+          "description": "站内跳转路由（如 /stock/{instrument_id}），必须命中 A7 路由白名单（语义校验 V-05）。禁止 http(s) 外链、协议相对地址与 javascript: 等 scheme。"
+        },
+        "display_window": {
+          "$ref": "#/$defs/DisplayWindow"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "enum": ["editorial", "banner"]
+              }
+            },
+            "required": ["kind"]
+          },
+          "then": {
+            "required": ["content_ref", "asset_ref"],
+            "properties": {
+              "content_ref": {
+                "type": "string"
+              },
+              "asset_ref": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "data_card"
+              }
+            },
+            "required": ["kind"]
+          },
+          "then": {
+            "required": ["content_ref"],
+            "properties": {
+              "content_ref": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "DisplayWindow": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "展示时段。注意：这是运营编排的可见时间窗，不是数据的 as_of（as_of 由 SourceRef 契约产出，运营不可配，见 field-catalog.md §6）。",
+      "required": ["start_at", "end_at"],
+      "properties": {
+        "start_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "开始展示时刻（RFC 3339，必须带 +08:00 时区）。必须早于 end_at（语义校验 V-06）。"
+        },
+        "end_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "结束展示时刻（RFC 3339，+08:00）。过期后自动隐藏，不需要运营手工下线。"
+        },
+        "timezone": {
+          "const": "Asia/Shanghai",
+          "description": "固定 A 股市场时区，避免跨时区歧义。"
+        }
+      }
+    },
+    "Strategy": {
+      "description": "非合规类策略。只允许下方两种类型；新增类型必须升 schema 版本并经 A0 契约变更。personalized=false 为 L12 硬裁定（不做个性化推送），不可配。",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/RankingStrategy"
+        },
+        {
+          "$ref": "#/$defs/RotationStrategy"
+        }
+      ]
+    },
+    "RankingStrategy": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "排序/榜单策略（L12 中性化）：标题必须写口径与截止时间，禁「主力 / 抢筹 / 值得关注」，不做个性化。metric 口径归 H4/A2，运营只引用已签署指标，不定义算法。",
+      "required": [
+        "type",
+        "id",
+        "metric_id",
+        "metric_label",
+        "universe",
+        "window",
+        "limit",
+        "title_template",
+        "personalized"
+      ],
+      "properties": {
+        "type": {
+          "const": "ranking"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^st_[a-z0-9_]{2,32}$",
+          "description": "策略标识，配置集内唯一（语义校验 V-07）。"
+        },
+        "metric_id": {
+          "type": "string",
+          "pattern": "^M[0-9]{2}$",
+          "description": "A2/H4 指标注册表 id（docs/metrics/P0-metrics.md）。只允许引用已签署且状态 executable 的口径；当前可执行：M01 / M02 / M04 / M08；M03 / M05 / M06 / M07 为 pending-data，不得用于对外榜单（语义校验 V-08）。"
+        },
+        "metric_label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 12,
+          "description": "口径中文标签（对外文案，T3 文案审批 + H3 过审），如「涨跌幅」。必须与 metric_id 口径一致，不得改写口径含义。"
+        },
+        "universe": {
+          "type": "string",
+          "enum": ["all_a", "main_board"],
+          "description": "统计范围。P0 只允许全 A / 主板；扩展指数成分需 M07 口径落地并经 H4 会签。"
+        },
+        "window": {
+          "type": "string",
+          "enum": ["1d", "5d", "20d"],
+          "description": "统计窗口。必须与 metric_id 的口径支持范围匹配（语义校验 V-08）；P0 主口径为 1d（C2 不做盘中实时）。"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50,
+          "default": 10,
+          "description": "展示条数（T1 常规审批）。"
+        },
+        "title_template": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 40,
+          "description": "榜单标题模板（对外文案，T3 文案审批 + H3 过审）。必须同时包含 {metric_label} 与 {as_of} 占位符（L12：标题写口径与截止时间）；占位符由服务端用已签口径与数据 as_of 填充，运营只能选择模板、不能填值时点。渲染结果同样受禁用词预检。"
+        },
+        "schedule": {
+          "type": "string",
+          "enum": ["eod", "manual"],
+          "default": "eod",
+          "description": "更新时机。P0 只允许收盘后（eod）或人工触发（manual）；盘中实时不在 P0 范围（C2）。"
+        },
+        "personalized": {
+          "const": false,
+          "description": "L12 硬裁定：榜单不做个性化推送。const false，运营无法开启；如需变更须 H6/H3 重新裁定并升 schema 版本。"
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "策略是否生效（T1 常规审批）。关闭后对应模块不展示，不得用于规避已批准的文案审核。"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "title_template": {
+                "type": "string"
+              }
+            },
+            "required": ["title_template"]
+          },
+          "then": {
+            "properties": {
+              "title_template": {
+                "allOf": [
+                  {
+                    "pattern": "\\{metric_label\\}"
+                  },
+                  {
+                    "pattern": "\\{as_of\\}"
+                  }
+                ],
+                "type": "string"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "RotationStrategy": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "轮播/切换策略（展示行为，T1 常规审批）。不承载文案，不改变内容审核状态。",
+      "required": ["type", "id", "max_items", "interval_seconds"],
+      "properties": {
+        "type": {
+          "const": "rotation"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^st_[a-z0-9_]{2,32}$",
+          "description": "策略标识，配置集内唯一（语义校验 V-07）。"
+        },
+        "max_items": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20,
+          "default": 5,
+          "description": "同时参与轮播的最大条数。"
+        },
+        "interval_seconds": {
+          "type": "integer",
+          "minimum": 3,
+          "maximum": 30,
+          "default": 8,
+          "description": "轮播间隔秒数。过快会触发可访问性问题，上限 30s / 下限 3s 为建议值（A10 设计系统确认后可能收紧，属 T1）。"
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "是否启用轮播；关闭后退化为静态列表。"
+        }
+      }
+    },
+    "SystemMeta": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "系统字段（readOnly）：由 Config Service / 审批 API / 身份层写入，运营不得在请求体提交。请求体中携带即 400 INVALID_SYSTEM_FIELD（具体错误码待 A0 定义）。来源：actor 取自身份 token（A4 AuditSink actor{kind,id,model_version} 唯一真源，ADR-006 / L51）。",
+      "properties": {
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        },
+        "created_by": {
+          "$ref": "#/$defs/Actor",
+          "readOnly": true
+        },
+        "published_release": {
+          "$ref": "#/$defs/ReleaseMeta"
+        }
+      }
+    },
+    "Actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "操作者身份。必须能区分「这次是 A14 改的还是张三改的」（agents/README.md 可区分来源要求）。",
+      "required": ["kind", "id"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["human", "agent"]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "description": "人类员工 id 或 agent id（如 A14）。"
+        },
+        "model_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "description": "agent 必填：模型版本 / 运行 id（如 sensenova-6.8-flash），用于留痕与漂移排查。"
+        }
+      }
+    },
+    "ReleaseMeta": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "发布产物（readOnly，L6：publish 生成不可变 release）。一旦写入不可修改；回滚 = 新 release 指向旧版本内容，不删旧 release。",
+      "required": [
+        "release_id",
+        "published_at",
+        "approval_ref",
+        "content_hash",
+        "schema_version",
+        "policy_version"
+      ],
+      "properties": {
+        "release_id": {
+          "type": "string",
+          "pattern": "^rel_[0-9a-z-]{8,40}$",
+          "description": "release 标识（A4/Config Service 生成，申请人不得预填）。"
+        },
+        "published_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "approval_ref": {
+          "type": "string",
+          "pattern": "^apr_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "description": "审批账本回指（L51：apr_<uuidv7>，由 A4 审批 API 建单事务内生成，申请人不得预填）。必须可解析到具名审批记录。"
+        },
+        "content_hash": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "description": "发布内容规范化后的 sha256，用于「线上生效配置唯一回指」与不可变校验。"
+        },
+        "schema_version": {
+          "const": "0.1",
+          "description": "发布时的运营配置 schema 版本。"
+        },
+        "policy_version": {
+          "type": "string",
+          "pattern": "^ai-content-policy\\/[0-9]+\\.[0-9]+\\.[0-9]+$",
+          "description": "发布时用于文案预检的 rules/ai-content-policy.json policy_version（A5 持有，H3 签字）。T3 文案审批必须以该版本为准，版本变化后需重新预检。"
+        }
+      }
+    }
+  }
+}
