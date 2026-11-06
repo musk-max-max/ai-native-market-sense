@@ -1,0 +1,251 @@
+{
+  "run_at": "2026-11-06T11:56:23.904Z",
+  "stack": "进程内 buildApp(壳)+marketPlugin(serving 真库)+aiPlugin(audit 真库)，PG 55432 market_sense",
+  "request": {
+    "request_id": "ai1-http-req-0001",
+    "body": {
+      "kind": "stock_interpretation",
+      "subject": {
+        "instrument_id": "SSE:600519",
+        "as_of": "2026-11-06T15:30:00+08:00"
+      },
+      "options": {
+        "include_evidence": true
+      },
+      "idempotency_key": "ai1-http-evidence-01"
+    }
+  },
+  "response": {
+    "data": {
+      "analysis_id": "an-a990f2f7-9a63-46f4-b663-71611202ece1",
+      "kind": "stock_interpretation",
+      "subject": {
+        "instrument_id": "SSE:600519",
+        "as_of": "2026-11-06T15:30:00+08:00"
+      },
+      "status": "succeeded",
+      "as_of": "2026-11-06T13:54:15+08:00",
+      "sections": [
+        {
+          "id": "market_quote",
+          "title": "market_quote",
+          "claims": [
+            {
+              "text": "数据显示，market_quote|as_of=2026-11-06T13:54:15+08:00|{\"instrument_id\":\"SSE:600519\",\"trade_date\":\"2026-11-05\",\"last_price\":1510,\"prev_close\":1495,\"change\":15,\"change_pct\":1.0033,\"volume\":1000000,\"amount\":1510000000,\"suspended\":false,\"open\":1500,\"high\":1520,\"low\":1490,\"limit_status\":\"none\"}",
+              "evidence_ids": [
+                "ev:market_quote"
+              ]
+            }
+          ],
+          "data_refs": [
+            {
+              "module": "market_quote",
+              "as_of": "2026-11-06T13:54:15+08:00"
+            }
+          ]
+        },
+        {
+          "id": "fundamental_summary",
+          "title": "fundamental_summary",
+          "claims": [
+            {
+              "text": "数据显示，fundamental_summary|as_of=2024-10-25T15:00:00+08:00|{\"instrument_id\":\"SSE:600519\",\"report_period\":\"2024Q3\",\"report_end_date\":\"2024-09-30\",\"announced_at\":\"2024-10-25T15:00:00+08:00\",\"statement_basis\":\"reported\",\"currency\":\"CNY\",\"revenue\":123000000,\"net_profit\":45000000,\"revenue_yoy_pct\":10,\"net_profit_yoy_pct\":8,\"eps\":1,\"roe_pct\":12,\"gross_margin_pct\":45}",
+              "evidence_ids": [
+                "ev:fundamental_summary"
+              ]
+            }
+          ],
+          "data_refs": [
+            {
+              "module": "fundamental_summary",
+              "as_of": "2024-10-25T15:00:00+08:00"
+            }
+          ]
+        }
+      ],
+      "caveats": [],
+      "compliance": {
+        "policy_version": "ai-content-policy/1.1.2",
+        "decision": "passed",
+        "reason_codes": [
+          "conclusion_unqualified"
+        ]
+      },
+      "ai": {
+        "generated": true,
+        "label_version": "2026.11.5.ac875c9d9237",
+        "content_version": "2026.11.5.ac875c9d9237",
+        "model_family": "fake-v1",
+        "prompt_version": "analyses-v1",
+        "policy_version": "ai-content-policy/1.1.2"
+      },
+      "meta": {
+        "source": {
+          "source": "platform_eod",
+          "as_of": "2026-11-06T13:54:15+08:00",
+          "staleness_ms": 21728215,
+          "source_id": "fixture"
+        },
+        "entitlement": {
+          "tier": "c_end_display",
+          "is_entitled": true
+        },
+        "disclaimer": {
+          "text": "本内容由 AI 生成，基于页面标注时点的市场数据整理，仅供参考，不构成投资建议，也不构成任何买卖依据。",
+          "version": "2026.11.5",
+          "closable": false
+        }
+      }
+    },
+    "meta": {
+      "source": {
+        "source": "platform_eod",
+        "as_of": "2026-11-06T13:54:15+08:00",
+        "staleness_ms": 21728215,
+        "source_id": "fixture"
+      },
+      "entitlement": {
+        "tier": "c_end_display",
+        "is_entitled": true
+      },
+      "disclaimer": {
+        "text": "本内容由 AI 生成，基于页面标注时点的市场数据整理，仅供参考，不构成投资建议，也不构成任何买卖依据。",
+        "version": "2026.11.5",
+        "closable": false
+      }
+    }
+  },
+  "audit_row": {
+    "request_id": "ai1-http-req-0001",
+    "trace_id": "ai1-http-req-0001",
+    "analysis_id": "an-a990f2f7-9a63-46f4-b663-71611202ece1",
+    "audience": "c_end",
+    "user_id": "862cc130aea73912aacfa960b5feeb91411d37a39733c276ac0a2cd3498f247c",
+    "kind": "stock_interpretation",
+    "model_family": "fake-v1",
+    "prompt_version": "analyses-v1",
+    "policy_version": "ai-content-policy/1.1.2",
+    "content_version": "2026.11.5.ac875c9d9237",
+    "label_version": "2026.11.5.ac875c9d9237",
+    "input_evidence_hash": "bbedc28ef6e8af5397e1b779196d76afd02e13f1ef0df91ef20d34d291e4207d",
+    "output_hash": "24b2afd39e6adccc985b5e42614496661394c4ddbc7acbbbdb430974e8ca3914",
+    "decision": "passed",
+    "as_of": "2026-11-06T13:54:15+08:00",
+    "event_key": "ai|generation|ai1-http-req-0001",
+    "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "hash": "d7a7404c7db8a1451d43be7bea22f5bcd6b70a9451b5db1065ed0a72516881be"
+  },
+  "recomputed": {
+    "input_evidence_hash": "bbedc28ef6e8af5397e1b779196d76afd02e13f1ef0df91ef20d34d291e4207d",
+    "output_hash": "24b2afd39e6adccc985b5e42614496661394c4ddbc7acbbbdb430974e8ca3914"
+  },
+  "checks": [
+    {
+      "label": "POST /v1/ai/analyses → 200",
+      "passed": true,
+      "detail": "status=200"
+    },
+    {
+      "label": "analysis_id 形态（8..128 ^[A-Za-z0-9_-]+$）",
+      "passed": true,
+      "detail": "an-a990f2f7-9a63-46f4-b663-71611202ece1"
+    },
+    {
+      "label": "data.ai 六字段齐 + generated=true",
+      "passed": true,
+      "detail": "[\"generated\",\"label_version\",\"content_version\",\"model_family\",\"prompt_version\",\"policy_version\"]"
+    },
+    {
+      "label": "data.as_of = 源业务时点 ≠ 客户端 subject.as_of（D2 审计 as_of 口径）",
+      "passed": true,
+      "detail": "data.as_of=2026-11-06T13:54:15+08:00；subject.as_of=2026-11-06T15:30:00+08:00"
+    },
+    {
+      "label": "顶层 meta 与 data.meta 同形（契约两处同形）",
+      "passed": true,
+      "detail": "deepEqual"
+    },
+    {
+      "label": "meta.disclaimer 不可关闭（closable=false）",
+      "passed": true,
+      "detail": "meta.disclaimer"
+    },
+    {
+      "label": "幂等重放同 analysis_id",
+      "passed": true,
+      "detail": "second=an-a990f2f7-9a63-46f4-b663-71611202ece1"
+    },
+    {
+      "label": "GET 本人可取",
+      "passed": true,
+      "detail": "status=200"
+    },
+    {
+      "label": "GET 越权/非本人 404（不泄露存在性）",
+      "passed": true,
+      "detail": "status=404"
+    },
+    {
+      "label": "audit.request_id ↔ 请求头 request-id 闭环",
+      "passed": true,
+      "detail": "audit.request_id=ai1-http-req-0001；sent=ai1-http-req-0001"
+    },
+    {
+      "label": "audit.trace_id = requestId（跨服务调用链锚点）",
+      "passed": true,
+      "detail": "ai1-http-req-0001"
+    },
+    {
+      "label": "audit.analysis_id ↔ data.analysis_id 闭环",
+      "passed": true,
+      "detail": "an-a990f2f7-9a63-46f4-b663-71611202ece1"
+    },
+    {
+      "label": "audit.event_key = ai|generation|<request_id>（003 契约约定）",
+      "passed": true,
+      "detail": "ai|generation|ai1-http-req-0001"
+    },
+    {
+      "label": "audience=c_end（按路径判定）",
+      "passed": true,
+      "detail": "c_end"
+    },
+    {
+      "label": "audit.as_of = data.as_of = 源业务时点",
+      "passed": true,
+      "detail": "audit.as_of=2026-11-06T13:54:15+08:00"
+    },
+    {
+      "label": "content_version/label_version = COPY_VERSION.derived（2026.11.5.ac875c9d9237）",
+      "passed": true,
+      "detail": "2026.11.5.ac875c9d9237"
+    },
+    {
+      "label": "policy_version = ai-content-policy/1.1.2（rules 真源）",
+      "passed": true,
+      "detail": "ai-content-policy/1.1.2"
+    },
+    {
+      "label": "decision=passed 且 response status=succeeded",
+      "passed": true,
+      "detail": "passed"
+    },
+    {
+      "label": "prev_hash/hash 64hex（003 触发器权威生成）",
+      "passed": true,
+      "detail": "d7a7404c7db8a1451d43be7bea22f5bcd6b70a9451b5db1065ed0a72516881be"
+    },
+    {
+      "label": "input_evidence_hash 复算一致（重探测证据集）",
+      "passed": true,
+      "detail": "recomputed=bbedc28ef6e8af5397e1b779196d76afd02e13f1ef0df91ef20d34d291e4207d"
+    },
+    {
+      "label": "output_hash 复算一致（用户可见 claim canonical sha256）",
+      "passed": true,
+      "detail": "recomputed=24b2afd39e6adccc985b5e42614496661394c4ddbc7acbbbdb430974e8ca3914"
+    }
+  ],
+  "all_passed": true
+}
+ALL_PASSED: True
