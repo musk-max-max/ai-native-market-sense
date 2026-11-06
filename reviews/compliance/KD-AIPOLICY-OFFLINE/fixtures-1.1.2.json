@@ -1,0 +1,1299 @@
+{
+  "fixture_set": "KD-AIPOLICY-OFFLINE/4",
+  "authored_by": "A16 compliance-reviewer",
+  "created": "2026-11-06",
+  "policy_path": "rules/ai-content-policy.json",
+  "policy_version_expected": "ai-content-policy/1.1.2",
+  "purpose": "离线抽样复核用样本集（对齐 ai-content-policy/1.1.2 = c_end 分区 H3 签认 + internal 分区 owner 签认后的部署版；basis 引用 rules/redline-basis.json v1.0.2 H3-C01–C12）。正样本（客观字段/指标/分位/统计/历史事实/时间戳/数据缺口）、负样本（12 类默认 block）、边界样本（允许前缀、data_gap caveat、causal 豁免、audience 缺省抛错、非白名单前缀 redact、P6 证据类型不匹配、class 白名单、P2/P3 畸形、未声明 audience、日期/时刻 token 排除、skip_p6_classes、model_generated_title、证据外数字）。期望值来自 rules/ai-content-policy.json 1.1.2 与 H3 m00298/m01300/m01470/m01502 裁定；1.1.1 签署轮次见 r2（fixtures.json 保留不动）。",
+  "decision_note": "1.1.2 行为要点（与 1.1.1 相同）：audience 必须显式传入（缺省 throw AiPolicyConfigError(audience_required)，F3）；claim.class 必填并按 audience 白名单校验（H3 S1）；P5 命中即 block（H3 m00298，禁止自动改写）；P6 只在无 block 时执行，非允许前缀需「证据类型匹配」才 redact，否则 block（H3 S2）；data_gaps 跳过 P6 由策略 scope.rewrite_rules.skip_p6_classes 声明（H3 m01502）；P4 数字提取排除日期/时刻 token，证据外数字仍 block（F4）；decision 由 decision_mapping 消费（H3 S3）。1.1.2 的 category.basis 改为引用 rules/redline-basis.json H3-C01–C12（1.0.2 起绑定 policy_version + c_end 内容 sha，不再绑定部署字节）；本 fixture 绑定两分区签认后的部署文件 sha（7fead8cd…），并以 policy_content_sha256_at_signoff 绑 c_end 签认内容 sha（aae8032a…）。",
+  "samples": [
+    {
+      "id": "POS-01",
+      "class": "positive",
+      "covers": "metrics（内部白名单）",
+      "audience": "internal",
+      "draft": {
+        "sections": [
+          {
+            "claims": [
+              {
+                "text": "数据显示，贵州茅台收盘价 1523.00 元，较前收盘 1501.00 元上涨 1.47%。",
+                "evidence_ids": [
+                  "e1"
+                ],
+                "class": "metrics"
+              }
+            ]
+          }
+        ]
+      },
+      "evidence": [
+        {
+          "id": "e1",
+          "text": "贵州茅台 2026/11/05 收盘价 1523.00 元，前收盘 1501.00 元，涨跌幅 1.47%",
+          "numbers": [
+            1523,
+            1501,
+            1.47
+          ]
+        }
+      ],
+      "expected": {
+        "decision": "passed",
+        "claim_actions": [
+          "allow"
+        ],
+        "reason_codes": [],
+        "caveats": []
+      },
+      "note": "允许前缀「数据显示」+ 数字全部可在证据中找到；section.title 由 copy.ts 常驻，模型不得生成（H3 m01470），本样本不携带 title。"
+    },
+    {
+      "id": "POS-02",
+      "class": "positive",
+      "covers": "quantiles（内部白名单）",
+      "audience": "internal",
+      "draft": {
+        "claims": [
+          {
+            "text": "历史统计上，近一年市盈率分位 32.5%，处于低分位区间。",
+            "evidence_ids": [
+              "e1"
+            ],
+            "class": "quantiles"
+          }
+        ]
+      },
+      "evidence": [
+        {
+          "id": "e1",
+          "text": "市盈率分位 32.5%",
+          "numbers": [
+            32.5
+          ]
+        }
+      ],
+      "expected": {
+        "decision": "passed",
+        "claim_actions": [
+          "allow"
+        ],
+        "reason_codes": [],
+        "caveats": []
+      },
+      "note": "允许前缀「历史统计上」。"
+    },
+    {
+      "id": "POS-03",
+      "class": "positive",
+      "covers": "statistics（内部白名单，P6 redact 路径）",
+      "audience": "internal",
+      "draft": {
+        "claims": [
+          {
+            "text": "存在成交额分布右偏特征，近 20 日日均成交额 12.34 亿元。",
+            "evidence_ids": [
+              "e1"
+            ],
+            "class": "statistics"
+          }
+        ]
+      },
+      "evidence": [
+        {
+          "id": "e1",
+          "text": "近 20 日日均成交额 12.34 亿元",
+          "numbers": [
+            20,
+            12.34
+          ]
+        }
+      ],
+      "expected": {
+        "decision": "passed",
+        "claim_actions": [
+          "redact"
+        ],
+        "reason_codes": [
+          "conclusion_unqualified"
+        ],
+        "caveats": [],
+        "claim_texts": [
+          "数据显示，存在成交额分布右偏特征，近 20 日日均成交额 12.34 亿元。"
+        ]
+      },
+      "note": "1.1.0 移除「存在」前缀（H3 m01300）；证据含数字 → 补「数据显示，」后 redact→passed。"
+    },
+    {
+      "id": "POS-04",
+      "class": "positive",
+      "covers": "historical_facts（内部白名单）",
+      "audience": "internal",
+      "draft": {
+        "claims": [
+          {
+            "text": "历史统计上，2020 至 2025 年营收同比增速分别为 8.10% 和 9.20%。",
+            "evidence_ids": [
+              "e1"
+            ],
+            "class": "historical_facts"
+          }
+        ]
+      },
+      "evidence": [
+        {
+          "id": "e1",
+          "text": "2020 至 2025 年营收同比增速 8.10% 和 9.20%",
+          "numbers": [
+            2020,
+            2025,
+            8.1,
+            9.2
+          ]
+        }
+      ],
+      "expected": {
+        "decision": "passed",
+        "claim_actions": [
+          "allow"
+        ],
+        "reason_codes": [],
+        "caveats": []
+      },
+      "note": "历史事实 + 数字复算绑定。"
+    },
+    {
+      "id": "POS-05",
+      "class": "positive",
+      "covers": "data_gaps（内部白名单 + caveat）",
+      "audience": "internal",
+      "draft": {
+        "claims": [
+          {
+            "text": "数据显示，北向资金明细数据缺失。",
+            "evidence_ids": [
+              "e1"
+            ],
+            "class": "data_gaps"
+          }
+        ]
+      },
+      "evidence": [
+        {
+          "id": "e1",
+          "text": "北向资金明细数据缺失",
+          "numbers": []
+        }
+      ],
+      "expected": {
+        "decision": "passed",
+        "claim_actions": [
+          "caveat"
+        ],
+        "reason_codes": [
+          "data_gap"
+        ],
+        "caveats": [
+          "data_gap"
+        ]
+      },
+      "note": "data_gaps 为缺口声明：1.1.1 起由策略 scope.rewrite_rules.skip_p6_classes 声明跳过 P6（H3 m01502）；本样本验证「数据显示」前缀 + caveat 组合。"
+    },
+    {
+      "id": "POS-06",
+      "class": "positive",
+      "covers": "timestamps（内部白名单）",
+      "audience": "internal",
+      "draft": {
+        "claims": [
+          {
+            "text": "数据显示，数据截至 2026/11/05 收盘。",
+            "evidence_ids": [
+              "e1"
+            ],
+            "class": "timestamps"
+          }
+        ]
+      },
+      "evidence": [
+        {
+          "id": "e1",
+          "text": "数据截至 2026/11/05 收盘",
+          "numbers": [
+            2026,
+            11,
+            5
+          ]
+        }
+      ],
+      "expected": {
+        "decision": "passed",
+        "claim_actions": [
+          "allow"
+        ],
+        "reason_codes": [],
+        "caveats": []
+      },
+      "note": "斜杠日期可被 P4 数字绑定（对照 BND-12 的 ISO 日期）。"
+    },
+    {
+      "id": "POS-07",
+      "class": "positive",
+      "covers": "objective_fields（C 端白名单）",
+      "audience": "c_end",
+      "draft": {
+        "claims": [
+          {
+            "text": "数据显示，申万一级行业：食品饮料，成分股数量 118 只。",
+            "evidence_ids": [
+              "e1"
+            ],
+            "class": "objective_fields"
+          }
+        ]
+      },
+      "evidence": [
+        {
+          "id": "e1",
+          "text": "食品饮料 成分股数量 118 只",
+          "numbers": [
+            118
+          ]
+        }
+      ],
+      "expected": {
+        "decision": "passed",
+        "claim_actions": [
+          "allow"
+        ],
+        "reason_codes": [],
+        "caveats": []
+      },
+      "note": "C 端白名单无 data_gaps；本样本验证 C 端正常路径。"
+    },
+    {
+      "id": "NEG-01",
+      "class": "negative",
+      "covers": "investment_advice",
+      "audience": "c_end",
+      "draft": {
+        "claims": [
+          {
+            "text": "建议买入贵州茅台。",
+            "evidence_ids": [
+              "e1"
+            ],
+            "class": "metrics"
+          }
+        ]
+      },
+      "evidence": [
+        {
+          "id": "e1",
+          "text": "贵州茅台 2026/11/05 收盘价 1523.00 元",
+          "numbers": [
+            1523
+          ]
+        }
+      ],
+      "expected": {
+        "decision": "blocked",
+        "claim_actions": [
+          "block"
+        ],
+        "reason_codes": [
+          "investment_advice"
+        ],
+        "caveats": []
+      },
+      "note": "L3 买卖建议（内部 AI 建议决策 pending，本样本不依赖该决策）；P5 命中即 block，不进入 P6。"
+    },
+    {
+      "id": "NEG-02",
+      "class": "negative",
+      "covers": "directional_conclusion",
+      "audience": "c_end",
+      "draft": {
+        "claims": [
+          {
+            "text": "看空后市。",
+            "evidence_ids": [
+              "e1"
+            ],
+            "class": "metrics"
+          }
+        ]
+      },
+      "evidence": [
+        {
+          "id": "e1",
+          "text": "沪深 300 指数 2026/11/05 收盘 4000.00 点",
+          "numbers": [
+            4000
+          ]
+        }
+      ],
+      "expected": {
+        "decision": "blocked",
+        "claim_actions": [
+          "block"
+        ],
+        "reason_codes": [
+          "directional_conclusion"
+        ],
+        "caveats": []
+      },
+      "note": "L3 方向性结论。"
+    },
+    {
+      "id": "NEG-03",
+      "class": "negative",
+      "covers": "rating",
+      "audience": "c_end",
+      "draft": {
+        "claims": [
+          {
+            "text": "维持增持评级。",
+            "evidence_ids": [
+              "e1"
+            ],
+            "class": "metrics"
+          }
+        ]
+      },
+      "evidence": [
+        {
+          "id": "e1",
+          "text": "评级记录：增持（2026/11/05）",
+          "numbers": []
+        }
+      ],
+      "expected": {
+        "decision": "blocked",
+        "claim_actions": [
+          "block"
+        ],
+        "reason_codes": [
+          "rating"
+        ],
+        "caveats": []
+      },
+      "note": "评级；用「增持评级」隔离 rating 命中。"
+    },
+    {
+      "id": "NEG-04",
+      "class": "negative",
+      "covers": "target_price + P4 自算数字",
+      "audience": "c_end",
+      "draft": {
+        "claims": [
+          {
+            "text": "目标价 2000 元，较现价有 10% 上行空间。",
+            "evidence_ids": [
+              "e1"
+            ],
+            "class": "metrics"
+          }
+        ]
+      },
+      "evidence": [
+        {
+          "id": "e1",
+          "text": "现价 1800.00 元",
+          "numbers": [
+            1800
+          ]
+        }
+      ],
+      "expected": {
+        "decision": "blocked",
+        "claim_actions": [
+          "block"
+        ],
+        "reason_codes": [
+          "numeric_mismatch",
+          "target_price"
+        ],
+        "caveats": []
+      },
+      "note": "目标价 + 模型自算的新数字（ADR-007 P4 禁止）。"
+    },
+    {
+      "id": "NEG-05",
+      "class": "negative",
+      "covers": "market_timing",
+      "audience": "c_end",
+      "draft": {
+        "claims": [
+          {
+            "text": "现在买入，不要错过。",
+            "evidence_ids": [
+              "e1"
+            ],
+            "class": "metrics"
+          }
+        ]
+      },
+      "evidence": [
+        {
+          "id": "e1",
+          "text": "沪深 300 指数 4000 点",
+          "numbers": [
+            4000
+          ]
+        }
+      ],
+      "expected": {
+        "decision": "blocked",
+        "claim_actions": [
+          "block"
+        ],
+        "reason_codes": [
+          "market_timing"
+        ],
+        "caveats": []
+      },
+      "note": "L3 时机性结论。"
+    },
+    {
+      "id": "NEG-06",
+      "class": "negative",
+      "covers": "position_advice",
+      "audience": "c_end",
+      "draft": {
+        "claims": [
+          {
+            "text": "建议仓位五成。",
+            "evidence_ids": [
+              "e1"
+            ],
+            "class": "metrics"
+          }
+        ]
+      },
+      "evidence": [
+        {
+          "id": "e1",
+          "text": "组合仓位记录：五成",
+          "numbers": []
+        }
+      ],
+      "expected": {
+        "decision": "blocked",
+        "claim_actions": [
+          "block"
+        ],
+        "reason_codes": [
+          "position_advice"
+        ],
+        "caveats": []
+      },
+      "note": "仓位建议（L114 白名单外）。"
+    },
+    {
+      "id": "NEG-07",
+      "class": "negative",
+      "covers": "causal_attribution",
+      "audience": "c_end",
+      "draft": {
+        "claims": [
+          {
+            "text": "资金流入导致股价上涨。",
+            "evidence_ids": [
+              "e1"
+            ],
+            "class": "metrics"
+          }
+        ]
+      },
+      "evidence": [
+        {
+          "id": "e1",
+          "text": "主力资金净流入 1.20 亿元，股价上涨 2.30%",
+          "numbers": [
+            1.2,
+            2.3
+          ]
+        }
+      ],
+      "expected": {
+        "decision": "blocked",
+        "claim_actions": [
+          "block"
+        ],
+        "reason_codes": [
+          "causal_attribution"
+        ],
+        "caveats": []
+      },
+      "note": "因果归因（无 data_gap 语境，不豁免）。"
+    },
+    {
+      "id": "NEG-08",
+      "class": "negative",
+      "covers": "guarantee",
+      "audience": "c_end",
+      "draft": {
+        "claims": [
+          {
+            "text": "保证收益 20%。",
+            "evidence_ids": [
+              "e1"
+            ],
+            "class": "metrics"
+          }
+        ]
+      },
+      "evidence": [
+        {
+          "id": "e1",
+          "text": "历史年化收益 20%",
+          "numbers": [
+            20
+          ]
+        }
+      ],
+      "expected": {
+        "decision": "blocked",
+        "claim_actions": [
+          "block"
+        ],
+        "reason_codes": [
+          "guarantee"
+        ],
+        "caveats": []
+      },
+      "note": "L3 收益承诺。"
+    },
+    {
+      "id": "NEG-09",
+      "class": "negative",
+      "covers": "selection_solicitation（1.1.0 新增）",
+      "audience": "c_end",
+      "draft": {
+        "claims": [
+          {
+            "text": "值得关注：贵州茅台。",
+            "evidence_ids": [
+              "e1"
+            ],
+            "class": "metrics"
+          }
+        ]
+      },
+      "evidence": [
+        {
+          "id": "e1",
+          "text": "贵州茅台 2026/11/05 收盘价 1523.00 元",
+          "numbers": [
+            1523
+          ]
+        }
+      ],
+      "expected": {
+        "decision": "blocked",
+        "claim_actions": [
+          "block"
+        ],
+        "reason_codes": [
+          "selection_solicitation"
+        ],
+        "caveats": []
+      },
+      "note": "H3 m01300 新增：禁选股/榜单式招揽。"
+    },
+    {
+      "id": "NEG-10",
+      "class": "negative",
+      "covers": "future_prediction（1.1.0 新增）",
+      "audience": "c_end",
+      "draft": {
+        "claims": [
+          {
+            "text": "预计下一季度营收将增长 15%。",
+            "evidence_ids": [
+              "e1"
+            ],
+            "class": "metrics"
+          }
+        ]
+      },
+      "evidence": [
+        {
+          "id": "e1",
+          "text": "上一季度营收同比 15%",
+          "numbers": [
+            15
+          ]
+        }
+      ],
+      "expected": {
+        "decision": "blocked",
+        "claim_actions": [
+          "block"
+        ],
+        "reason_codes": [
+          "future_prediction"
+        ],
+        "caveats": []
+      },
+      "note": "H3 m01300 新增：禁未来预测（无「已披露/时点」豁免语境）。"
+    },
+    {
+      "id": "NEG-11",
+      "class": "negative",
+      "covers": "suitability_advice（1.1.0 新增）",
+      "audience": "c_end",
+      "draft": {
+        "claims": [
+          {
+            "text": "该产品适合稳健型投资者。",
+            "evidence_ids": [
+              "e1"
+            ],
+            "class": "metrics"
+          }
+        ]
+      },
+      "evidence": [
+        {
+          "id": "e1",
+          "text": "产品风险等级记录：稳健型",
+          "numbers": []
+        }
+      ],
+      "expected": {
+        "decision": "blocked",
+        "claim_actions": [
+          "block"
+        ],
+        "reason_codes": [
+          "suitability_advice"
+        ],
+        "caveats": []
+      },
+      "note": "H3 m01300 新增：禁适当性匹配建议（L3）。"
+    },
+    {
+      "id": "NEG-12",
+      "class": "negative",
+      "covers": "nonpublic_information（1.1.0 新增）",
+      "audience": "c_end",
+      "draft": {
+        "claims": [
+          {
+            "text": "根据内部消息，该公司即将重组。",
+            "evidence_ids": [
+              "e1"
+            ],
+            "class": "metrics"
+          }
+        ]
+      },
+      "evidence": [
+        {
+          "id": "e1",
+          "text": "公司公告索引：重组（未披露）",
+          "numbers": []
+        }
+      ],
+      "expected": {
+        "decision": "blocked",
+        "claim_actions": [
+          "block"
+        ],
+        "reason_codes": [
+          "nonpublic_information"
+        ],
+        "caveats": []
+      },
+      "note": "H3 m01300 新增：禁未公开信息。"
+    },
+    {
+      "id": "BND-01",
+      "class": "boundary",
+      "covers": "允许前缀 pass",
+      "audience": "internal",
+      "draft": {
+        "claims": [
+          {
+            "text": "数据显示，成交额 8.90 亿元。",
+            "evidence_ids": [
+              "e1"
+            ],
+            "class": "metrics"
+          }
+        ]
+      },
+      "evidence": [
+        {
+          "id": "e1",
+          "text": "成交额 8.90 亿元",
+          "numbers": [
+            8.9
+          ]
+        }
+      ],
+      "expected": {
+        "decision": "passed",
+        "claim_actions": [
+          "allow"
+        ],
+        "reason_codes": [],
+        "caveats": []
+      },
+      "note": "P6 白名单前缀直接通过。"
+    },
+    {
+      "id": "BND-02",
+      "class": "boundary",
+      "covers": "data_gap → caveat（internal）",
+      "audience": "internal",
+      "draft": {
+        "claims": [
+          {
+            "text": "数据显示，龙虎榜数据缺失。",
+            "evidence_ids": [
+              "e1"
+            ],
+            "class": "data_gaps"
+          }
+        ]
+      },
+      "evidence": [
+        {
+          "id": "e1",
+          "text": "龙虎榜数据缺失",
+          "numbers": []
+        }
+      ],
+      "expected": {
+        "decision": "passed",
+        "claim_actions": [
+          "caveat"
+        ],
+        "reason_codes": [
+          "data_gap"
+        ],
+        "caveats": [
+          "data_gap"
+        ]
+      },
+      "note": "缺口显式：ADR-007 P5。"
+    },
+    {
+      "id": "BND-03",
+      "class": "boundary",
+      "covers": "audience 缺省 → 抛 AiPolicyConfigError(audience_required)（H3 F3 整改后）",
+      "draft": {
+        "claims": [
+          {
+            "text": "数据显示，成交额 8.90 亿元。",
+            "evidence_ids": [
+              "e1"
+            ],
+            "class": "metrics"
+          }
+        ]
+      },
+      "evidence": [
+        {
+          "id": "e1",
+          "text": "成交额 8.90 亿元",
+          "numbers": [
+            8.9
+          ]
+        }
+      ],
+      "expected": {
+        "throws": {
+          "name": "AiPolicyConfigError",
+          "code": "audience_required"
+        }
+      },
+      "note": "H3 m00298 F3：禁止静默默认 c_end，必须抛错。1.1.1 engine runAiPolicy 已实现。"
+    },
+    {
+      "id": "BND-04",
+      "class": "boundary",
+      "covers": "非白名单前缀 → redact 补「数据显示，」（证据含数字）",
+      "audience": "internal",
+      "draft": {
+        "claims": [
+          {
+            "text": "成交额 8.90 亿元。",
+            "evidence_ids": [
+              "e1"
+            ],
+            "class": "metrics"
+          }
+        ]
+      },
+      "evidence": [
+        {
+          "id": "e1",
+          "text": "成交额 8.90 亿元",
+          "numbers": [
+            8.9
+          ]
+        }
+      ],
+      "expected": {
+        "decision": "passed",
+        "claim_actions": [
+          "redact"
+        ],
+        "reason_codes": [
+          "conclusion_unqualified"
+        ],
+        "caveats": [],
+        "claim_texts": [
+          "数据显示，成交额 8.90 亿元。"
+        ]
+      },
+      "note": "ADR-007 P6 允许前缀改写；decision_mapping redact→passed。"
+    },
+    {
+      "id": "BND-05",
+      "class": "boundary",
+      "covers": "P6 无证据不补出处（被 P3 先拦）",
+      "audience": "internal",
+      "draft": {
+        "claims": [
+          {
+            "text": "成交额 8.90 亿元。",
+            "evidence_ids": [],
+            "class": "metrics"
+          }
+        ]
+      },
+      "evidence": [
+        {
+          "id": "e1",
+          "text": "成交额 8.90 亿元",
+          "numbers": [
+            8.9
+          ]
+        }
+      ],
+      "expected": {
+        "decision": "blocked",
+        "claim_actions": [
+          "block"
+        ],
+        "reason_codes": [
+          "evidence_binding_failed",
+          "numeric_mismatch"
+        ],
+        "caveats": []
+      },
+      "note": "S2 的「无证据不 redact」分支在 runAiPolicy 中先被 P3 拦截（不可达），属防御性代码。"
+    },
+    {
+      "id": "BND-06",
+      "class": "boundary",
+      "covers": "P6 证据类型与允许前缀不匹配 → block（H3 S2）",
+      "audience": "internal",
+      "draft": {
+        "claims": [
+          {
+            "text": "估值处于合理区间。",
+            "evidence_ids": [
+              "e1"
+            ],
+            "class": "metrics"
+          }
+        ]
+      },
+      "evidence": [
+        {
+          "id": "e1",
+          "text": "估值数据",
+          "numbers": []
+        }
+      ],
+      "expected": {
+        "decision": "blocked",
+        "claim_actions": [
+          "block"
+        ],
+        "reason_codes": [
+          "conclusion_unqualified"
+        ],
+        "caveats": []
+      },
+      "note": "证据无数字、无历史统计词 → 不能补「数据显示」/「历史统计上」，block。"
+    },
+    {
+      "id": "BND-07",
+      "class": "boundary",
+      "covers": "C 端 class=data_gaps → 白名单拒绝（H3 S1）",
+      "audience": "c_end",
+      "draft": {
+        "claims": [
+          {
+            "text": "数据显示，北向资金数据缺失。",
+            "evidence_ids": [
+              "e1"
+            ],
+            "class": "data_gaps"
+          }
+        ]
+      },
+      "evidence": [
+        {
+          "id": "e1",
+          "text": "北向资金数据缺失",
+          "numbers": []
+        }
+      ],
+      "expected": {
+        "decision": "blocked",
+        "claim_actions": [],
+        "reason_codes": [
+          "class_not_allowed"
+        ],
+        "caveats": []
+      },
+      "note": "C 端白名单不含 data_gaps（缺口文案由 API copy 常驻）；P2 直接 blocked。"
+    },
+    {
+      "id": "BND-08",
+      "class": "boundary",
+      "covers": "claim.class 缺失 → P2 blocked（H3 S1）",
+      "audience": "internal",
+      "draft": {
+        "claims": [
+          {
+            "text": "数据显示，成交额 8.90 亿元。",
+            "evidence_ids": [
+              "e1"
+            ]
+          }
+        ]
+      },
+      "evidence": [
+        {
+          "id": "e1",
+          "text": "成交额 8.90 亿元",
+          "numbers": [
+            8.9
+          ]
+        }
+      ],
+      "expected": {
+        "decision": "blocked",
+        "claim_actions": [],
+        "reason_codes": [
+          "class_missing"
+        ],
+        "caveats": []
+      },
+      "note": "class 必填；白名单必须可执行。"
+    },
+    {
+      "id": "BND-09",
+      "class": "boundary",
+      "covers": "未声明 audience → 抛 AiPolicyConfigError(unsupported_audience)",
+      "audience": "public",
+      "draft": {
+        "claims": [
+          {
+            "text": "数据显示，成交额 8.90 亿元。",
+            "evidence_ids": [
+              "e1"
+            ],
+            "class": "metrics"
+          }
+        ]
+      },
+      "evidence": [
+        {
+          "id": "e1",
+          "text": "成交额 8.90 亿元",
+          "numbers": [
+            8.9
+          ]
+        }
+      ],
+      "expected": {
+        "throws": {
+          "name": "AiPolicyConfigError",
+          "code": "unsupported_audience"
+        }
+      },
+      "note": "fail-closed：调用方应阻断，不得回退无过滤。"
+    },
+    {
+      "id": "BND-10",
+      "class": "boundary",
+      "covers": "P2 结构：既无 sections 也无 claims",
+      "audience": "internal",
+      "draft": {},
+      "evidence": [],
+      "expected": {
+        "decision": "blocked",
+        "claim_actions": [],
+        "reason_codes": [
+          "structure_invalid"
+        ],
+        "caveats": []
+      },
+      "note": "P2 失败直接 blocked，不进入后续阶段。"
+    },
+    {
+      "id": "BND-11",
+      "class": "boundary",
+      "covers": "causal 在 data_gap 语境豁免（H3 m01300）",
+      "audience": "internal",
+      "draft": {
+        "claims": [
+          {
+            "text": "数据显示，北向资金明细数据缺失，导致该维度无法统计。",
+            "evidence_ids": [
+              "e1"
+            ],
+            "class": "data_gaps"
+          }
+        ]
+      },
+      "evidence": [
+        {
+          "id": "e1",
+          "text": "北向资金明细数据缺失",
+          "numbers": []
+        }
+      ],
+      "expected": {
+        "decision": "passed",
+        "claim_actions": [
+          "caveat"
+        ],
+        "reason_codes": [
+          "data_gap"
+        ],
+        "caveats": [
+          "data_gap"
+        ]
+      },
+      "note": "同一 claim 命中 data_gap → causal_attribution 豁免；对比 NEG-07。"
+    },
+    {
+      "id": "BND-12",
+      "class": "boundary",
+      "covers": "ISO 日期时间戳 → P4 排除日期 token 后通过（H3 F4 整改后）",
+      "audience": "internal",
+      "draft": {
+        "claims": [
+          {
+            "text": "数据显示，数据截至 2026-11-05。",
+            "evidence_ids": [
+              "e1"
+            ],
+            "class": "timestamps"
+          }
+        ]
+      },
+      "evidence": [
+        {
+          "id": "e1",
+          "text": "数据截至 2026-11-05",
+          "numbers": []
+        }
+      ],
+      "expected": {
+        "decision": "passed",
+        "claim_actions": [
+          "allow"
+        ],
+        "reason_codes": [],
+        "caveats": []
+      },
+      "note": "H3 m00298 F4：P4 数字提取排除 ISO 8601 日期 token；证据与 claim 文本一致时 timestamps 正例应通过。"
+    },
+    {
+      "id": "BND-13",
+      "class": "boundary",
+      "covers": "data_gaps 无允许前缀 + 无数字证据（skip_p6_classes 策略声明）",
+      "audience": "internal",
+      "draft": {
+        "claims": [
+          {
+            "text": "北向资金明细数据缺失。",
+            "evidence_ids": [
+              "e1"
+            ],
+            "class": "data_gaps"
+          }
+        ]
+      },
+      "evidence": [
+        {
+          "id": "e1",
+          "text": "北向资金明细数据缺失",
+          "numbers": []
+        }
+      ],
+      "expected": {
+        "decision": "passed",
+        "claim_actions": [
+          "caveat"
+        ],
+        "reason_codes": [
+          "data_gap"
+        ],
+        "caveats": [
+          "data_gap"
+        ]
+      },
+      "note": "H3 m01502：data_gaps 跳过 P6 已写入策略 scope.rewrite_rules.skip_p6_classes（不再只存在于 engine 实现）；本样本同时由 run-samples.ts 机读断言该声明存在且含 data_gaps。"
+    },
+    {
+      "id": "BND-14",
+      "class": "boundary",
+      "covers": "日期+时刻（HH:mm）token 排除 → timestamps 通过",
+      "audience": "internal",
+      "draft": {
+        "claims": [
+          {
+            "text": "数据显示，数据更新于 2026-11-05 14:30。",
+            "evidence_ids": [
+              "e1"
+            ],
+            "class": "timestamps"
+          }
+        ]
+      },
+      "evidence": [
+        {
+          "id": "e1",
+          "text": "数据更新于 2026-11-05 14:30",
+          "numbers": []
+        }
+      ],
+      "expected": {
+        "decision": "passed",
+        "claim_actions": [
+          "allow"
+        ],
+        "reason_codes": [],
+        "caveats": []
+      },
+      "note": "H3 m00298 F4：HH:mm 时刻 token 不计入 P4 数字一致性。"
+    },
+    {
+      "id": "BND-15",
+      "class": "boundary",
+      "covers": "YYYY年M月D日 token 排除 → timestamps 通过",
+      "audience": "internal",
+      "draft": {
+        "claims": [
+          {
+            "text": "数据显示，数据截至 2026年11月5日。",
+            "evidence_ids": [
+              "e1"
+            ],
+            "class": "timestamps"
+          }
+        ]
+      },
+      "evidence": [
+        {
+          "id": "e1",
+          "text": "数据截至 2026年11月5日",
+          "numbers": []
+        }
+      ],
+      "expected": {
+        "decision": "passed",
+        "claim_actions": [
+          "allow"
+        ],
+        "reason_codes": [],
+        "caveats": []
+      },
+      "note": "H3 m00298 F4：中文日期 token 不计入 P4 数字一致性。"
+    },
+    {
+      "id": "BND-16",
+      "class": "boundary",
+      "covers": "证据外数字仍 block（P4 未被日期排除削弱）",
+      "audience": "internal",
+      "draft": {
+        "claims": [
+          {
+            "text": "数据显示，成交额 8.90 亿元。",
+            "evidence_ids": [
+              "e1"
+            ],
+            "class": "metrics"
+          }
+        ]
+      },
+      "evidence": [
+        {
+          "id": "e1",
+          "text": "成交额 9.90 亿元",
+          "numbers": [
+            9.9
+          ]
+        }
+      ],
+      "expected": {
+        "decision": "blocked",
+        "claim_actions": [
+          "block"
+        ],
+        "reason_codes": [
+          "numeric_mismatch"
+        ],
+        "caveats": []
+      },
+      "note": "H3 F4 的反向验证：仅排除日期/时刻 token，普通数字仍须在证据中找到；claim 数字 8.90 不在证据中 → numeric_mismatch。"
+    },
+    {
+      "id": "BND-17",
+      "class": "boundary",
+      "covers": "模型生成 section.title → P2 blocked（H3 m01470 词表旁路）",
+      "audience": "internal",
+      "draft": {
+        "sections": [
+          {
+            "title": "投资建议",
+            "claims": [
+              {
+                "text": "数据显示，成交额 8.90 亿元。",
+                "evidence_ids": [
+                  "e1"
+                ],
+                "class": "metrics"
+              }
+            ]
+          }
+        ]
+      },
+      "evidence": [
+        {
+          "id": "e1",
+          "text": "成交额 8.90 亿元",
+          "numbers": [
+            8.9
+          ]
+        }
+      ],
+      "expected": {
+        "decision": "blocked",
+        "claim_actions": [],
+        "reason_codes": [
+          "model_generated_title_not_allowed"
+        ],
+        "caveats": []
+      },
+      "note": "H3 m01470：section.title 是词表旁路（可藏「投资建议」等），标题由 services/api/src/copy.ts 常驻，schema 禁止模型生成。"
+    }
+  ],
+  "report_date": "2026-11-06",
+  "report_generated_at": "2026-11-06T00:00:00Z",
+  "policy_deployed_file_sha256_expected": "7fead8cd2e5cf7cc1b06caa11216e873f55e0b13b839be1485b1b1f2d9520ed3",
+  "policy_content_sha256_at_signoff": "aae8032a1423566d7d3f0355326a891ee88d8236959ebe5605557da57291a2bd"
+}

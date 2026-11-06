@@ -1,0 +1,23 @@
+{
+  "fixture_set": "KD-AIPOLICY-OFFLINE/4",
+  "policy_version": "ai-content-policy/1.1.2",
+  "policy_file_sha256": "7fead8cd2e5cf7cc1b06caa11216e873f55e0b13b839be1485b1b1f2d9520ed3",
+  "fixtures_sha256": "6f9365adc200345aba95d9dfffc457f82e6169e5a1fc11888ba5db5523bc8d87",
+  "runner_sha256": "4e1234eed6952fdd152a9ca591e243de5fbee2817f226a6670df56ffeec72ed8",
+  "report_files": {
+    "md": "report-samples-1.1.2-2026-11-06.md",
+    "json": "report-samples-1.1.2-2026-11-06.json"
+  },
+  "runs": [
+    {
+      "md": "a68cdca6fc3ddf71e09200d1672b89423774bce523ed18685f5237ad930f49bc",
+      "json": "bac06cf017d06a87ad387669f6c2d91f613c1e74e874d9df79f566d2c96dea74"
+    },
+    {
+      "md": "a68cdca6fc3ddf71e09200d1672b89423774bce523ed18685f5237ad930f49bc",
+      "json": "bac06cf017d06a87ad387669f6c2d91f613c1e74e874d9df79f566d2c96dea74"
+    }
+  ],
+  "identical": true,
+  "note": "时间戳固定取 fixtures.report_generated_at/report_date（不取系统时钟）、键顺序固定、固定换行；两次连续执行输出字节一致。"
+}

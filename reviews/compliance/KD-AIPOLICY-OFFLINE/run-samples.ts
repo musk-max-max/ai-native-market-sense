@@ -45,7 +45,11 @@ type Fixtures = {
   fixture_set: string;
   policy_path: string;
   policy_version_expected: string;
+  // 1.1.2 起：绑定「两分区签认后的部署文件 sha」，命名与语义一致（旧名 policy_content_sha256_expected 仅 1.1.1 轮次兼容）。
+  policy_deployed_file_sha256_expected?: string;
   policy_content_sha256_expected?: string;
+  // 1.1.2 起：绑定 c_end 分区 H3 签认内容 sha，与 policy.authority.h3_policy_version_signature.content_sha256_at_signoff 对齐。
+  policy_content_sha256_at_signoff?: string;
   report_date?: string;
   report_generated_at?: string;
   samples: Sample[];
@@ -69,14 +73,24 @@ if (policy.policy_version !== fixtures.policy_version_expected) {
     `policy_version 不一致：fixtures=${fixtures.policy_version_expected} 文件=${policy.policy_version}`,
   );
 }
-const expectedSha = fixtures.policy_content_sha256_expected;
+const expectedSha =
+  fixtures.policy_deployed_file_sha256_expected ?? fixtures.policy_content_sha256_expected;
 if (expectedSha && expectedSha !== policySha) {
   throw new Error(
-    `policy content sha256 不一致：fixtures=${expectedSha} 文件=${policySha}`,
+    `policy deployed file sha256 不一致：fixtures=${expectedSha} 文件=${policySha}`,
   );
 }
-
 const signature = policy.authority.h3_policy_version_signature;
+const ownerSignature = policy.authority.owner_policy_version_signature;
+const signedContentSha = signature.content_sha256_at_signoff;
+if (
+  fixtures.policy_content_sha256_at_signoff &&
+  signedContentSha !== fixtures.policy_content_sha256_at_signoff
+) {
+  throw new Error(
+    `c_end 签认内容 sha256 不一致：fixtures=${fixtures.policy_content_sha256_at_signoff} policy=${signedContentSha}`,
+  );
+}
 if (signature.status !== "signed") {
   console.warn(
     `[warn] h3_policy_version_signature.status=${signature.status}：本报告为待签版复核实测（provisional），不构成放行结论。`,
@@ -385,10 +399,11 @@ lines.push(`# A16 离线抽样复核报告（KD-AIPOLICY-OFFLINE）`);
 lines.push("");
 lines.push(`- 生成时间：${stamp}`);
 lines.push(`- 复核对象：\`${fixtures.policy_path}\` / \`@market-sense/ai-policy\` 的 \`runAiPolicy\`（P2–P6）`);
-lines.push(`- policy_version：\`${policy.policy_version}\`；H3 签认状态：**已生效（ref m01561）**（翻转前内容 sha 与当前文件 diff 仅 status/note/definition_refs[2]）`);
-lines.push(`- **签认内容 sha256**（H3 m01561 签字绑定，翻转前）：\`eee14c6228151197dd751ecb2c47cc279c39afd80a0eb952860dc2989af63293\``);
-lines.push(`- **最终文件 sha256**（翻转 status 后、进部署 pin；fixtures 绑定此值）：\`${policySha}\``);
-lines.push(`- 生效状态：H3 签认已生效（ref m01561）；A16 仍不写「合规通过/放行」结论。`);
+lines.push(`- policy_version：\`${policy.policy_version}\`；签名分区：**c_end（H3 签，${signature.status}）** + **internal（owner 签，${ownerSignature.status}）**`);
+lines.push(`- **c_end 签认内容 sha256**（H3 签字绑定）：\`${signedContentSha}\`；sign_at=${signature.sign_at}；签字 ref 跨席不可解析（ref_resolvable=false，以 sha 绑定为准）`);
+lines.push(`- **internal 签认**：owner ref=\`${ownerSignature.ref}\`；signed_at=${ownerSignature.signed_at}；依据 \`${policy.basis_scope.internal_basis}\``);
+lines.push(`- **最终文件 sha256**（两分区签认后、进部署 pin；fixtures 绑定此值）：\`${policySha}\``);
+lines.push(`- 生效状态：两分区均 signed（生产加载门禁 PASS）；A16 仍不写「合规通过/放行」结论。`);
 lines.push(`- 运行命令：\`${runCommand}\``);
 lines.push(`- 样本集：\`${fixtures.fixture_set}\`，共 ${counts.total} 条（正 ${fixtures.samples.filter((s) => s.class === "positive").length} / 负 ${fixtures.samples.filter((s) => s.class === "negative").length} / 边界 ${fixtures.samples.filter((s) => s.class === "boundary").length}）`);
 lines.push(`- 覆盖度：负样本已覆盖 12 类 reason_code${missingCategories.length === 0 ? "（全部命中）" : `（缺 ${missingCategories.join(",")}）`}；正样本已覆盖白名单 7 类${missingOutputClasses.length === 0 ? "（objective_fields 由 C 端样本 POS-07 覆盖）" : `（缺 ${missingOutputClasses.join(",")}）`}。`);
@@ -439,7 +454,7 @@ lines.push(`## 复核发现（实现行为 vs 书面口径）`);
 lines.push("");
 const findings = rows.filter((entry) => entry.note.includes("【复核发现】"));
 if (findings.length === 0) {
-  lines.push(`- 本轮未发现实现行为与 1.1.1 策略文本 / H3 m00298 签认范围的新增不一致（36/36、8/8）。`);
+  lines.push(`- 本轮未发现实现行为与 ${policy.policy_version} 策略文本 / H3 m00298 签认范围的新增不一致（${counts.pass}/${counts.total}、${counts.config.pass}/${counts.config.total}）。`);
 } else {
   for (const row of findings) {
     lines.push(`- \`${row.id}\`：${row.note}`);
@@ -474,20 +489,21 @@ lines.push("");
 lines.push(`## 样本设计说明`);
 lines.push("");
 lines.push(`- 正样本覆盖白名单类别：内部 audience 覆盖 6 类客观类别 + data_gaps，C 端覆盖 6 类（无 data_gaps）；每条带 evidence 与数字/历史统计绑定。`);
-lines.push(`- 负样本覆盖 policy 1.1.1 全部 12 类默认 block（含 H3 m01300 新增 selection_solicitation / future_prediction / suitability_advice / nonpublic_information）。`);
+lines.push(`- 负样本覆盖 policy ${policy.policy_version} 全部 ${allCategories.length} 类默认 block（含 H3 m01300 新增 selection_solicitation / future_prediction / suitability_advice / nonpublic_information）。`);
 lines.push(`- 边界样本覆盖：允许前缀 pass、data_gap→caveat、causal 在 data_gap 语境豁免、audience 缺省抛错（F3）、非白名单前缀 redact、P6 证据类型不匹配、class 白名单（缺失/C 端 data_gaps）、P2 结构畸形、未声明 audience、ISO 日期与 YYYY年M月D日/HH:mm 时刻 token 排除（F4）、证据外数字仍 block、模型生成 section.title 拒绝（H3 m01470）、skip_p6_classes 策略声明（F2）。`);
 lines.push("");
 lines.push(`## 待签文本（H3 m00298 签认范围；最终 sha 以本报告头为准）`);
 lines.push("");
-lines.push(`> H3 m01561 签认内容 sha256=\`eee14c6228151197dd751ecb2c47cc279c39afd80a0eb952860dc2989af63293\`（翻转前）；最终文件 sha256=\`${policySha}\`（翻转 status 仅改 sig.status/note/definition_refs[2]，经 H3 m00367 复核 diff 后生效）。`);
-lines.push(`> 签认范围：audience 分档白名单、H3-C01–C12 词表与依据、允许前缀仅「数据显示/历史统计上」且与证据类型绑定、`);
+lines.push(`> c_end 分区（H3 签）签认内容 sha256=\`${signedContentSha}\`，sign_at=${signature.sign_at}；最终文件 sha256=\`${policySha}\`（两分区签认后部署 pin）。`);
+lines.push(`> internal 分区（owner 签）ref=\`${ownerSignature.ref}\`，signed_at=${ownerSignature.signed_at}，依据 \`${policy.basis_scope.internal_basis}\`；`);
+lines.push(`> 签认范围：audience 分档白名单、H3-C01–C12 词表与依据（basis 引用 \`rules/redline-basis.json\` v1.0.2）、允许前缀仅「数据显示/历史统计上」且与证据类型绑定、`);
 lines.push(`> P6 改写后重跑 P5、P5 命中即 block、data_gaps 豁免经策略声明。**不构成对 C 端 AI 生成内容展示的放行**：`);
 lines.push(`> AI-1（隐式标识 + 3 年留痕机制）/AI-2/AI-3 未闭环前不得展示。`);
 lines.push("");
 lines.push(`## 签署栏（由 H3 填写；A16 不出结论）`);
 lines.push("");
 lines.push(`- 复核结论（通过 / 不通过 / 附条件，由 H3 填写）：________________`);
-lines.push(`- 依据：本报告 36/36 样本实测 + 8/8 配置 fail-closed 检查 + mapping（H3-C01–C12）。`);
+lines.push(`- 依据：本报告 ${counts.pass}/${counts.total} 样本实测 + ${counts.config.pass}/${counts.config.total} 配置 fail-closed 检查 + mapping（H3-C01–C12）。`);
 lines.push(`- H3 签字：________________　日期：________________`);
 lines.push(`- 备注：A16 无终审权；本报告样本为离线抽检，不替代 H3 对策略内容的签认。`);
 lines.push("");
@@ -500,9 +516,18 @@ writeFileSync(
       generated_at: stamp,
       policy_version: policy.policy_version,
       signature_status: signature.status,
-      signed_content_sha256: "eee14c6228151197dd751ecb2c47cc279c39afd80a0eb952860dc2989af63293",
+      signature_effective:
+        signature.status === "signed" && ownerSignature.status === "signed"
+          ? "c_end_and_internal_signed"
+          : "not_fully_signed",
+      signed_content_sha256: signedContentSha,
       final_file_sha256: policySha,
-      signature_effective: "effective_m01561",
+      owner_signature: {
+        status: ownerSignature.status,
+        ref: ownerSignature.ref,
+        signed_at: ownerSignature.signed_at,
+        internal_basis: policy.basis_scope.internal_basis,
+      },
       fixture_set: fixtures.fixture_set,
       snapshot,
       coverage: { categories_total: allCategories.length, categories_missing: missingCategories, output_classes_missing: missingOutputClasses },
