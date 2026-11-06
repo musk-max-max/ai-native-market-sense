@@ -196,3 +196,16 @@ python3 tests/e2e/scripts/run_f1_dom_evidence_batch.py
   tar 37 文件 = 36 条 + manifest 自身；coverage 仅包级。三条 residual 随 PASS 保留。
 - **台账规约**：manifest 是 repo-relative path、tar 内是包相对 path，集合比对先去掉 `run_root/` 前缀
   （builder 即按此校验；A11 v4 整包沿用）。v2 之后任何改动开新目录新文件名，不覆盖已签包；v1 的 rejected 记录保持。
+
+## 8. ADR-008 S1 认证后复跑（2026-11-06，A12）
+
+S1（api 外壳 identity preHandler）后 `dev-token` 失效，`E2E_AUTH_TOKEN` 必须是真实 identity JWT；
+E2E 侧由 `scripts/seed_e2e_identity.py` + `E2E_AUTH_AUTOSEED=1` 供给（restricted 矩阵写隔离库存量
+`internal_eval` 夹具用户，再走真实 `/v1/auth/login` 拿 token；测试不伪造 token）。
+
+- 匿名 401（`E2E-AUTH-01`，新 api build、`internal_eval` 栈）：**2 passed**（AUTH-01 + AUTH-02，1.8s）。
+- 已授权档全量（`c_end_display` + expiry 2030，S1 build）：**11 passed / 4 skipped**（5.6s）；
+  skip = P0-10（本机 replay 未起）、P0-11（未开 `E2E_HOLD_ENABLED`）、P0-12（仅受限档）、AUTH-02（仅 restricted）。
+- 401/403 语义：匿名 7 端点为 401 `UNAUTHENTICATED`；`internal_eval` 认证后 quote/bars/fundamental-summary/
+  limit-ladder 为 403 `ENTITLEMENT_RESTRICTED`，instrument 200+`is_entitled=false`（不含行情数值）。
+- 注意：该复跑是**原生进程、非 docker 真栈**；identity 夹具用户是 E2E 种子，不构成审批链证据。
