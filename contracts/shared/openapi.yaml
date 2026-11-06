@@ -187,7 +187,7 @@ components:
             CONFLICT、PRECONDITION_FAILED。
             CONFLICT（409）= 版本/审批状态冲突（config 的 If-Match/审批冲突；approval 的重复决定），
             PRECONDITION_FAILED（412）= If-Match/前置条件不满足；两码仅内部接口使用，
-            不用于 C 端展示，属 D5 非破坏性新增错误码（2026-11-06，待 H2 追认）。
+            不用于 C 端展示，属 D5 非破坏性新增错误码（2026-11-06，H2 已书面追认）。
             404 语义：标识本身不存在 → INSTRUMENT_NOT_FOUND；标识存在但请求的资源无数据
             （如无行情快照/无财报），或路由不存在 → NOT_FOUND。
             判定顺序（Lead m00443；A3 封版复核补受限档例外）：
