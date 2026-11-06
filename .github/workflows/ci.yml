@@ -307,6 +307,14 @@ jobs:
     # 未验证声明：本机无 docker，该 job 从未在本地跑过；首次 GitHub 绿之前不得当成可信门禁。
     # 首次连续 3 次绿后取消 continue-on-error，并在周会记录。见 infra/ci/README.md §e2e 验证状态。
     continue-on-error: true
+    env:
+      CI: "1"
+      # ADR-008 S1：api 只认 identity JWT（无 dev-token 旁路）。global-setup 在 playwright 前
+      # 自动签发真实 token（restricted 矩阵会往隔离库写 internal_eval 夹具用户），不再使用静态 token。
+      E2E_AUTH_AUTOSEED: "1"
+      # 与 tests/e2e/scripts/seed_e2e_identity.py 的 compose 回退项目名对齐；up.sh 用同一项目名起栈。
+      # 不设 E2E_PG_DSN：postgres 未发布宿主端口，脚本回退到 `docker compose -p ... exec postgres psql`。
+      E2E_COMPOSE_PROJECT: market-sense-e2e
     steps:
       - name: 标记「未验证」
         run: |
@@ -336,8 +344,6 @@ jobs:
       - name: 起真栈（含 preflight；SKIP 不会失败）
         run: bash tests/e2e/scripts/up.sh
       - name: 跑 P0 E2E（不注入 TUSHARE_TOKEN）
-        env:
-          CI: "1"
         run: |
           cd tests/e2e
           pnpm exec playwright test
@@ -345,7 +351,7 @@ jobs:
         if: failure()
         run: |
           cd tests/e2e
-          docker compose -f docker-compose.yml logs --no-color --tail=300 > stack.log || true
+          docker compose -p "${E2E_COMPOSE_PROJECT:-market-sense-e2e}" -f docker-compose.yml logs --no-color --tail=300 > stack.log || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -360,7 +366,7 @@ jobs:
         if: always()
         run: |
           cd tests/e2e
-          docker compose -f docker-compose.yml down -v --remove-orphans || true
+          docker compose -p "${E2E_COMPOSE_PROJECT:-market-sense-e2e}" -f docker-compose.yml down -v --remove-orphans || true
 
   iac:
     name: iac（terraform + helm + promtool + actionlint）
