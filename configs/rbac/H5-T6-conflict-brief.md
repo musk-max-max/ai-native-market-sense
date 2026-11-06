@@ -99,3 +99,5 @@ C-13: T6 是否覆盖紧急前滚发布（是/否）+ 是否仍需 APPROVAL_REF
 **生效范围**：prod = (b) + 事后签收、无预授权按 (c)、L20 按 (i)；staging 同 prod（预授权可 2h 异步确认）；dev/preview 免事前审批，但 deploy 事件若写必须挂 A4 dev 预授权单。
 
 **前置事实（H5 点名）**：A4 建单实现未落地（契约 `contracts/approval/openapi.yaml` 0.1.0 已于 b73c293 落盘，实现待 A4）→ 生成不了 `approval_ref` → **T6 自动化/绿档继续不可用**；prod 回滚仍按 RB-REL-001 人审 + 只读降级兜底，不得用「临时 ref」绕 DB CHECK。A15 只校验预授权 ref/范围/有效期/执行者/`incident_id`，不合格即红；不审批、不代填、不造单。
+
+**机器可判字段（H5 2026-11-06 补充）**：预授权单须带 `valid_from` / `valid_until` / `confirm_deadline`（执行时刻 + 2h/4h，按交易时段规则）/ `signoff_state ∈ {pending,signed}` / `incident_id`；「24h 未签收」= `now > confirm_deadline + 24h && signoff_state=pending`。事件表 **append-only + `event_key` 唯一**：正常路径 deploy 事件在 rollback 前只写一次、写完即最终；break-glass 15min 内补写**这一条**（`event_key=deploy|<deployment_uid>`、`break_glass: true`、原 `approval_ref`、同一 `deployment_uid`），不写第二条、不改写；超时 L20 生效 + A15 报 P1。
