@@ -504,6 +504,7 @@ input {
 
 .quote__meta dd {
   margin: 2px 0 0;
+  color: var(--text-muted); /* as_of 等 meta 值按规格 §2 用 --text-muted（M1 as_of 字色轻偏差） */
   font-size: var(--fs-caption);
   line-height: 1.45;
   overflow-wrap: anywhere;
@@ -1325,6 +1326,7 @@ input {
 
 .ai-context__item dd {
   margin: 2px 0 0;
+  color: var(--text-muted); /* as_of 等 meta 值按规格 §2 用 --text-muted（M1 as_of 字色轻偏差） */
   font-size: var(--fs-caption);
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
@@ -1431,6 +1433,15 @@ input {
   margin: 8px 0 0;
   font-size: 13px;
   line-height: 1.7;
+}
+
+/* 块内 ai-as-of：原样展示 AI 响应时点（规格 §3），字号/字色同 meta 口径。 */
+.ai-slot__as-of {
+  display: block;
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: var(--fs-caption);
+  line-height: 1.45;
 }
 
 .ai-section__footnote {

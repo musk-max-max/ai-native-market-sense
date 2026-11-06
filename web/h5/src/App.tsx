@@ -8,6 +8,7 @@ import { NotFoundPage } from './pages/NotFoundPage';
 import { StockPage } from './pages/StockPage';
 import { WatchlistPage } from './pages/WatchlistPage';
 import { AiHomePage } from './pages/AiHomePage';
+import { AiCardFixturePage } from './pages/AiCardFixturePage';
 import { MePage } from './pages/MePage';
 import { TabBar } from './components/TabBar';
 import { Link, useRoute } from './lib/router';
@@ -16,7 +17,7 @@ export function App() {
   const route = useRoute();
 
   useEffect(() => {
-    if (route.name !== 'stock' && route.name !== 'notFound') {
+    if (route.name !== 'stock' && route.name !== 'notFound' && route.name !== 'aiCardFixture') {
       track('page_view', { route: route.name });
     }
   }, [route]);
@@ -48,6 +49,7 @@ export function App() {
         {route.name === 'ai' && <AiHomePage />}
         {route.name === 'me' && <MePage />}
         {route.name === 'stock' && <StockPage instrumentId={route.instrumentId} />}
+        {route.name === 'aiCardFixture' && <AiCardFixturePage />}
         {route.name === 'notFound' && <NotFoundPage />}
       </main>
 

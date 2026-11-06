@@ -6,8 +6,11 @@
  *  - 成长、盈利质量：展示已接入的确定性财报字段（revenue_yoy / net_profit_yoy /
  *    gross_margin / roe / eps），并标注来自财报、与行情时点不同；
  *  - 估值、资金、风险：无数据来源，**用缺口卡显式占位**，不编造、不放假 AI 文案；
- *  - 五段的 AI 文本位一律走 AiTextSlot，本批传 null → 仅展示「待接入」；
- *    因此页面不会出现「像 AI 的话」。
+ *  - 五段的 AI 文本位一律走 AiTextSlot；生产路径未注入 aiContent 时传 null →
+ *    仅展示「待接入」，因此页面不会出现「像 AI 的话」；
+ *  - aiContent 为按段注入的模型文本入口（仅 /dev/ai-card 采证路由注入；
+ *    生产接线待 /v1/ai 客户端生成域就绪后由调用方传入），AiTextSlot 对
+ *    缺失或非法 as_of 仍走 null 占位 fail-closed。
  *
  * 合规：
  *  - 只有 granted 且合规的个股页才渲染本节（受限页零数值，调用方负责门禁）；
@@ -28,7 +31,7 @@ import {
   formatRatioPct,
 } from '../lib/format';
 import { TID } from '../lib/testids';
-import { AiTextSlot } from './AiTextSlot';
+import { AiTextSlot, type AiGeneratedContent } from './AiTextSlot';
 import { DataGapCard } from './DataGapCard';
 
 export interface AiInterpretationProps {
@@ -36,7 +39,19 @@ export interface AiInterpretationProps {
   source: SourceInfo | null;
   fundamental: FundamentalInfo | null;
   fundamentalState: FundamentalState;
+  /**
+   * 按段注入的模型文本（缺省/undefined → 每段走 AiTextSlot 的 null 占位）。
+   * 仅供 /dev/ai-card 视觉采证路由注入 fixture；生产接线由 /v1/ai 客户端承担。
+   */
+  aiContent?: Readonly<Partial<Record<AiSegmentKey, AiGeneratedContent>>> | null;
 }
+
+export type AiSegmentKey =
+  | 'valuation'
+  | 'growth'
+  | 'earnings-quality'
+  | 'capital-flow'
+  | 'risk';
 
 type SegmentStatus = 'filled' | 'gap';
 
@@ -44,11 +59,13 @@ function Segment({
   testId,
   title,
   status,
+  content,
   children,
 }: {
   testId: string;
   title: string;
   status: SegmentStatus;
+  content?: AiGeneratedContent | null;
   children: ReactNode;
 }) {
   const headingId = `${testId}-heading`;
@@ -68,7 +85,7 @@ function Segment({
         </span>
       </div>
       {children}
-      <AiTextSlot content={null} />
+      <AiTextSlot content={content ?? null} />
     </section>
   );
 }
@@ -93,6 +110,7 @@ export function AiInterpretation({
   source,
   fundamental,
   fundamentalState,
+  aiContent,
 }: AiInterpretationProps) {
   const hasFundamental = fundamental !== null;
   const fundamentalGapReason = fundamentalState === 'error' ? 'upstream_missing' : 'no_coverage';
@@ -138,7 +156,7 @@ export function AiInterpretation({
       ) : null}
 
       <div className="ai-segments" aria-label={copy.ai.segmentsAria}>
-        <Segment testId={TID.aiSegmentValuation} title={copy.ai.segments.valuation} status="gap">
+        <Segment testId={TID.aiSegmentValuation} title={copy.ai.segments.valuation} status="gap" content={aiContent?.valuation}>
           <DataGapCard
             gapKey="valuation"
             title={copy.ai.segments.valuation}
@@ -146,7 +164,7 @@ export function AiInterpretation({
           />
         </Segment>
 
-        <Segment testId={TID.aiSegmentGrowth} title={copy.ai.segments.growth} status={hasFundamental ? 'filled' : 'gap'}>
+        <Segment testId={TID.aiSegmentGrowth} title={copy.ai.segments.growth} status={hasFundamental ? 'filled' : 'gap'} content={aiContent?.growth}>
           {fundamental ? (
             <dl className="ai-metrics">
               <Metric label={copy.fundamental.metrics.revenueYoy} value={formatChangePct(fundamental.revenueYoyPct)} />
@@ -161,6 +179,7 @@ export function AiInterpretation({
           testId={TID.aiSegmentEarningsQuality}
           title={copy.ai.segments.earningsQuality}
           status={hasFundamental ? 'filled' : 'gap'}
+          content={aiContent?.['earnings-quality']}
         >
           {fundamental ? (
             <dl className="ai-metrics">
@@ -177,11 +196,11 @@ export function AiInterpretation({
           )}
         </Segment>
 
-        <Segment testId={TID.aiSegmentCapitalFlow} title={copy.ai.segments.capitalFlow} status="gap">
+        <Segment testId={TID.aiSegmentCapitalFlow} title={copy.ai.segments.capitalFlow} status="gap" content={aiContent?.['capital-flow']}>
           <DataGapCard gapKey="capital-flow" title={copy.ai.segments.capitalFlow} reason="pending_batch" />
         </Segment>
 
-        <Segment testId={TID.aiSegmentRisk} title={copy.ai.segments.risk} status="gap">
+        <Segment testId={TID.aiSegmentRisk} title={copy.ai.segments.risk} status="gap" content={aiContent?.risk}>
           <DataGapCard gapKey="risk" title={copy.ai.segments.risk} reason="pending_batch" />
         </Segment>
       </div>

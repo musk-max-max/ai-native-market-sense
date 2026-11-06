@@ -10,6 +10,7 @@
  *  - /review/limits            B1-02 涨跌停梯队
  *  - /ai                       「AI」Tab：AI 解读聚合入口（docs/design/c-end-h5-v2.md §1.1）
  *  - /me                       「我的」Tab：账户 / 权限 / 退订（置顶）/ 免责全文
+ *  - /dev/ai-card              AI 卡视觉采证 fixture（A6；非产品路由，页面自标注）
  *
  * 5 个底部 Tab 的路由映射见 components/TabBar.tsx（/review/limits 与个股页归「行情」）。
  *
@@ -26,6 +27,7 @@ export type Route =
   | { name: 'ai' }
   | { name: 'me' }
   | { name: 'stock'; instrumentId: string }
+  | { name: 'aiCardFixture' }
   | { name: 'notFound'; path: string };
 
 const NAVIGATE_EVENT = 'app:navigate';
@@ -56,6 +58,9 @@ export function parseRoute(pathname: string): Route {
     return { name: 'limitLadder' };
   if (pathname === '/ai' || pathname === '/ai/') return { name: 'ai' };
   if (pathname === '/me' || pathname === '/me/') return { name: 'me' };
+  // 视觉采证 fixture 路由：静态数据、零请求；页面上显式标注非 API 响应（m00346）。
+  if (pathname === '/dev/ai-card' || pathname === '/dev/ai-card/')
+    return { name: 'aiCardFixture' };
 
   const stockMatch = /^\/(?:stocks|stock)\/([^/]+)\/?$/.exec(pathname);
   if (stockMatch && stockMatch[1]) {

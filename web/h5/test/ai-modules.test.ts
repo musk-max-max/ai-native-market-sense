@@ -82,8 +82,19 @@ test('五段 AI 骨架：固定 testid + 受控段状态，估值/资金/风险�
   for (const key of ['valuation', 'growth', 'earnings-quality', 'capital-flow', 'risk']) {
     assert.ok(AI_SECTION.includes(`gapKey="${key}"`), `缺少 gapKey=${key}`);
   }
-  // 本批无模型生成文本：所有 AI 文本位都是 null
-  assert.match(AI_SECTION, /<AiTextSlot content=\{null\} \/>/);
+  // AI 文本位统一走 AiTextSlot；生产未注入 aiContent 时 content ?? null → null 占位（守卫不变）
+  assert.match(AI_SECTION, /<AiTextSlot content=\{content \?\? null\} \/>/);
+  assert.doesNotMatch(AI_SECTION, /<AiTextSlot content=\{null\} \/>/);
+  // 五段各自接收按段注入（缺省即 null）
+  for (const expr of [
+    'content={aiContent?.valuation}',
+    'content={aiContent?.growth}',
+    "content={aiContent?.['earnings-quality']}",
+    "content={aiContent?.['capital-flow']}",
+    'content={aiContent?.risk}',
+  ]) {
+    assert.ok(AI_SECTION.includes(expr), `缺少按段注入：${expr}`);
+  }
 });
 
 test('B1-01 自选组合复盘：文案口径、状态 id 与指标业务键锚定 A12 契约', () => {
