@@ -34,7 +34,7 @@ const claim = (text: string, cls: Claim["class"] = "metrics", ids = ["e1"]): Cla
 // 除专门的 F3 缺省 audience 用例外，测试统一显式传 c_end。
 const run = (input: Parameters<typeof runAiPolicy>[0]) => runAiPolicy({ audience: "c_end", ...input });
 
-test("策略文件：1.1.2 / 12 类 / 2 个允许前缀 / c_end 已签、internal 待 owner", () => {
+test("策略文件：1.1.2 / 12 类 / 2 个允许前缀 / c_end 与 internal 均已签", () => {
   assert.equal(policy.policy_version, "ai-content-policy/1.1.2");
   assert.equal(policy.categories.length, 12);
   assert.deepEqual(policy.allowed_conclusion_prefixes, ["数据显示", "历史统计上"]);
@@ -42,8 +42,12 @@ test("策略文件：1.1.2 / 12 类 / 2 个允许前缀 / c_end 已签、interna
   assert.equal(policy.authority.h3_policy_version_signature.signed_by, "H3");
   assert.equal(policy.authority.h3_policy_version_signature.content_sha256_at_signoff, "aae8032a1423566d7d3f0355326a891ee88d8236959ebe5605557da57291a2bd");
   assert.ok(policy.authority.h3_policy_version_signature.sign_at);
-  assert.equal(policy.authority.owner_policy_version_signature.status, "pending");
+  assert.equal(policy.authority.owner_policy_version_signature.status, "signed");
   assert.equal(policy.authority.owner_policy_version_signature.ref, "m06899");
+  assert.match(
+    policy.authority.owner_policy_version_signature.signed_at ?? "",
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/,
+  );
   assert.equal(policy.basis_scope.applies_to, "c_end");
   assert.equal(policy.basis_scope.internal_basis, "owner decision 2026-11-06 (m06899)");
   assert.deepEqual(policy.scope.content_whitelist.audiences.internal, [
