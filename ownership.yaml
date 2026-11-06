@@ -14,7 +14,7 @@
 # 本文件只登记「已创建目录」。尚未激活的 P2/P3 写域见文件末尾 notes.reserved_paths。
 
 schema_version: "0.1"
-updated_at: "2026-11-05"
+updated_at: "2026-11-06"
 owner: A0
 
 paths:
@@ -22,6 +22,11 @@ paths:
   - path: contracts/
     owner: A0
     reviewers: [H2]
+    forbidden: ["*"]
+
+  - path: contracts/ai/
+    owner: A0
+    reviewers: [H2, H3]
     forbidden: ["*"]
 
   - path: docs/adr/
@@ -54,6 +59,11 @@ paths:
   - path: services/api/
     owner: A0
     reviewers: [H2]
+    forbidden: ["*"]
+
+  - path: services/ai/
+    owner: A3
+    reviewers: [H2, H3]
     forbidden: ["*"]
 
   - path: services/market/
@@ -127,6 +137,11 @@ paths:
   - path: packages/api-client/
     owner: A0
     reviewers: [H2]
+    forbidden: ["*"]
+
+  - path: packages/ai-policy/
+    owner: A5
+    reviewers: [H3]
     forbidden: ["*"]
 
   - path: packages/design-tokens/

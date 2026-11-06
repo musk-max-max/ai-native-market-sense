@@ -20,12 +20,14 @@
     "check:manifest": "tsx scripts/copy-manifest.mjs --check"
   },
   "dependencies": {
+    "@market-sense/identity": "workspace:*",
     "fastify": "^5.12.8",
     "ioredis": "^5.4.2",
     "pg": "^8.16.3"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
+    "@types/pg": "^8.15.5",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3"
   }

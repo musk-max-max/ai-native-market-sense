@@ -1,9 +1,18 @@
 /**
- * 进程入口：加载配置 → buildApp → listen；SIGINT/SIGTERM 优雅关闭。
+ * 进程入口：加载配置 → 构造 identity authenticator → buildApp → listen；
+ * SIGINT/SIGTERM 优雅关闭。
  * 只做进程生命周期管理，不含业务逻辑。
  */
 
+import {
+  createIdentityAuthenticator,
+  createIdentityService,
+  loadIdentityConfig,
+  PgIdentityStore,
+} from '@market-sense/identity';
+
 import { buildApp } from './app.js';
+import type { Authenticator } from './auth.js';
 import { loadConfig, type AppConfig } from './config.js';
 import { domainPlugins } from './domains.js';
 
@@ -21,14 +30,40 @@ function loadConfigOrExit(): AppConfig {
   }
 }
 
+interface IdentityBootstrap {
+  readonly authenticator: Authenticator;
+  readonly close: () => Promise<void>;
+}
+
+/** identity 认证器：缺凭据/配置非法时拒绝启动，绝不降级为匿名放行。 */
+function bootstrapIdentityOrExit(): IdentityBootstrap {
+  try {
+    const identityConfig = loadIdentityConfig(process.env);
+    const store = new PgIdentityStore({ connectionString: process.env.DATABASE_URL });
+    const service = createIdentityService({ store, config: identityConfig });
+    return {
+      authenticator: createIdentityAuthenticator(service),
+      close: async () => {
+        await store.close();
+      },
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[identity] 拒绝启动：${message}`);
+    process.exit(1);
+  }
+}
+
 const config = loadConfigOrExit();
-const app = buildApp({ config, domainPlugins });
+const identity = bootstrapIdentityOrExit();
+const app = buildApp({ config, domainPlugins, authenticator: identity.authenticator });
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, () => {
     app.log.info({ signal }, 'shutting down');
     void app
       .close()
+      .then(() => identity.close())
       .then(() => process.exit(0))
       .catch((err: unknown) => {
         app.log.error({ err }, 'shutdown failed');

@@ -5,11 +5,13 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import type { FastifyRequest } from 'fastify';
 
 import { buildApp } from '../src/app.js';
 import type { AppConfig } from '../src/config.js';
 import { HttpProblem } from '../src/errors.js';
 import type { DomainPlugin } from '../src/plugin.js';
+import type { Principal } from '@market-sense/identity';
 
 const config: AppConfig = {
   serviceName: 'market-sense-api',
@@ -19,6 +21,14 @@ const config: AppConfig = {
   port: 0,
   logLevel: 'silent',
 };
+
+/** 外壳测试的默认身份；只用于验证「认证已通过」后的壳体行为。 */
+const allowAll = async (): Promise<Principal> => ({
+  userId: 'test-user',
+  userType: 'c_end',
+  tier: 'c_end_display',
+  sessionVersion: 0,
+});
 
 function fakePlugin(domain: string, register: (app: Parameters<DomainPlugin>[0]) => void): DomainPlugin {
   return Object.assign(
@@ -30,7 +40,7 @@ function fakePlugin(domain: string, register: (app: Parameters<DomainPlugin>[0])
 }
 
 test('/healthz 返回 200、服务名与已注册域列表', async () => {
-  const app = buildApp({ config, logger: false });
+  const app = buildApp({ authenticator: allowAll, config, logger: false });
   try {
     const res = await app.inject({ method: 'GET', url: '/healthz' });
     assert.equal(res.statusCode, 200);
@@ -43,11 +53,54 @@ test('/healthz 返回 200、服务名与已注册域列表', async () => {
   }
 });
 
+test('默认拒绝：无 authenticator 时非公开 /v1 一律 401；公开路径不被 401 拦截', async () => {
+  const app = buildApp({ config, logger: false });
+  try {
+    const denied = await app.inject({ method: 'GET', url: '/v1/anything' });
+    assert.equal(denied.statusCode, 401);
+    assert.equal((denied.json() as { code: string }).code, 'UNAUTHENTICATED');
+
+    // 公开白名单放行到路由层：没有该路由时是 404，而不是 401。
+    const register = await app.inject({ method: 'POST', url: '/v1/auth/register' });
+    assert.equal(register.statusCode, 404);
+
+    const health = await app.inject({ method: 'GET', url: '/healthz' });
+    assert.equal(health.statusCode, 200);
+  } finally {
+    await app.close();
+  }
+});
+
+test('注入 authenticator 后写入 principal；/v1/internal/* 的 audience 由路径决定，不读 header', async () => {
+  const plugin = fakePlugin('market', (app) => {
+    const whoami = async (request: FastifyRequest) => ({
+      userId: request.user?.userId ?? null,
+      audience: request.audience,
+    });
+    app.get('/whoami', whoami);
+    app.get('/internal/whoami', whoami);
+  });
+  const app = buildApp({ authenticator: allowAll, config, domainPlugins: [plugin], logger: false });
+  try {
+    const cEnd = await app.inject({ method: 'GET', url: '/v1/whoami' });
+    assert.deepEqual(cEnd.json(), { userId: 'test-user', audience: 'c_end' });
+
+    const internal = await app.inject({
+      method: 'GET',
+      url: '/v1/internal/whoami',
+      headers: { 'x-audience': 'c_end' },
+    });
+    assert.deepEqual(internal.json(), { userId: 'test-user', audience: 'internal' });
+  } finally {
+    await app.close();
+  }
+});
+
 test('域插件按 /v1 前缀注册，healthz 暴露域列表', async () => {
   const plugin = fakePlugin('market', (app) => {
     app.get('/ping', async () => ({ pong: true }));
   });
-  const app = buildApp({ config, domainPlugins: [plugin], logger: false });
+  const app = buildApp({ authenticator: allowAll, config, domainPlugins: [plugin], logger: false });
   try {
     const res = await app.inject({ method: 'GET', url: '/v1/ping' });
     assert.equal(res.statusCode, 200);
@@ -66,7 +119,7 @@ test('HttpProblem 原样映射为 problem+json（含 trace_id）', async () => {
       throw new HttpProblem(403, 'ENTITLEMENT_RESTRICTED', '无权展示', '未授权该行情等级');
     });
   });
-  const app = buildApp({ config, domainPlugins: [restrictedPlugin], logger: false });
+  const app = buildApp({ authenticator: allowAll, config, domainPlugins: [restrictedPlugin], logger: false });
   try {
     const res = await app.inject({ method: 'GET', url: '/v1/restricted' });
     assert.equal(res.statusCode, 403);
@@ -95,7 +148,7 @@ test('403 响应头不得携带授权原因（X-Entitlement-Cause 及 expired/ho
       throw new HttpProblem(403, 'ENTITLEMENT_RESTRICTED', '无权展示');
     });
   });
-  const app = buildApp({ config, domainPlugins: [plugin], logger: false });
+  const app = buildApp({ authenticator: allowAll, config, domainPlugins: [plugin], logger: false });
   try {
     const res = await app.inject({ method: 'GET', url: '/v1/restricted-with-cause' });
     assert.equal(res.statusCode, 403);
@@ -129,7 +182,7 @@ test('schema 校验失败 → 400 VALIDATION_ERROR；未知路由 → 404 NOT_FO
       throw new Error('unexpected');
     });
   });
-  const app = buildApp({ config, domainPlugins: [plugin], logger: false });
+  const app = buildApp({ authenticator: allowAll, config, domainPlugins: [plugin], logger: false });
   try {
     const invalid = await app.inject({ method: 'GET', url: '/v1/needs-id' });
     assert.equal(invalid.statusCode, 400);
@@ -154,7 +207,7 @@ test('重复 domain 注册在启动期快速失败', () => {
   const one = fakePlugin('market', () => undefined);
   const two = fakePlugin('market', () => undefined);
   assert.throws(
-    () => buildApp({ config, domainPlugins: [one, two], logger: false }),
+    () => buildApp({ authenticator: allowAll, config, domainPlugins: [one, two], logger: false }),
     /重复注册 domain: market/,
   );
 });
@@ -170,7 +223,7 @@ test('/healthz 合并域插件 health 贡献字段，单个贡献者失败不影
       throw new Error('report missing');
     },
   });
-  const app = buildApp({ config, domainPlugins: [okPlugin, badPlugin], logger: false });
+  const app = buildApp({ authenticator: allowAll, config, domainPlugins: [okPlugin, badPlugin], logger: false });
   try {
     const res = await app.inject({ method: 'GET', url: '/healthz' });
     assert.equal(res.statusCode, 200);
@@ -202,7 +255,7 @@ test('客户端可达出口不含内部标识/英文原文（H3 文案门禁）'
       throw new Error('unexpected internal failure');
     });
   });
-  const app = buildApp({ config, domainPlugins: [plugin], logger: false });
+  const app = buildApp({ authenticator: allowAll, config, domainPlugins: [plugin], logger: false });
   try {
     const responses = await Promise.all([
       app.inject({ method: 'GET', url: '/v1/needs-id' }),
@@ -237,7 +290,7 @@ test('/v1/* 响应无条件 Cache-Control: no-store（/healthz 不加）', async
   const plugin = fakePlugin('market', (app) => {
     app.get('/ping', async () => ({ pong: true }));
   });
-  const app = buildApp({ config, domainPlugins: [plugin], logger: false });
+  const app = buildApp({ authenticator: allowAll, config, domainPlugins: [plugin], logger: false });
   try {
     const v1 = await app.inject({ method: 'GET', url: '/v1/ping' });
     assert.equal(v1.statusCode, 200);
@@ -254,7 +307,7 @@ test('分页硬上限：limit>50 → 400（不 clamp）；offset 超窗 → 400�
     app.get('/items', async () => ({ items: [] }));
     app.get('/instruments/:id/bars', async () => ({ bars: [] }));
   });
-  const app = buildApp({ config, domainPlugins: [plugin], logger: false });
+  const app = buildApp({ authenticator: allowAll, config, domainPlugins: [plugin], logger: false });
   try {
     const tooBig = await app.inject({ method: 'GET', url: '/v1/items?limit=51' });
     assert.equal(tooBig.statusCode, 400);
@@ -277,7 +330,7 @@ test('单 IP 令牌桶：超限 429 + Retry-After 整数 ≥1s + problem+json RA
   const plugin = fakePlugin('market', (app) => {
     app.get('/token', async () => ({ ok: true }));
   });
-  const app = buildApp({ config, domainPlugins: [plugin], logger: false });
+  const app = buildApp({ authenticator: allowAll, config, domainPlugins: [plugin], logger: false });
   try {
     let last: Awaited<ReturnType<typeof app.inject>> | undefined;
     for (let i = 0; i < 20; i += 1) {

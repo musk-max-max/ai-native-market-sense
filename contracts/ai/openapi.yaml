@@ -1,0 +1,470 @@
+openapi: 3.1.0
+info:
+  title: market-sense AI 功能层 API
+  version: 0.1.0
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+  description: |
+    AI 功能层对外契约（INF-01，ADR-007 D2）。`/v1/ai/*` 为 additive 新域：
+    分析任务创建/查询/事件流 + 对话。所有结果必须经过统一后处理（ADR-007 D3）：
+    - 每个 claim 至少绑定一个 evidence_id；
+    - `compliance.decision=blocked` 时不得返回投资结论；
+    - `meta.disclaimer` 由 API 层从 copy.ts 注入，AI 服务不持有文案；
+    - `/v1/ai/*` 一律 no-store，不得跨 entitlement 缓存。
+    本契约不暴露供应商/模型/内部 tier；内部 AI（`/v1/internal/ai/*`）不在本文件，P0 不开放。
+servers:
+  - url: https://api.market-sense.invalid
+    description: 占位；部署地址由 A13 注入，P0 不对外。
+tags:
+  - name: ai-analysis
+    description: 结构化分析任务（解读/复盘/筛选/简报/异动/资金特征）。
+  - name: ai-chat
+    description: 对话式入口（SSE，有限轮上下文，工具经 tool registry）。
+security:
+  - bearerAuth: []
+paths:
+  /v1/ai/analyses:
+    post:
+      tags: [ai-analysis]
+      operationId: createAiAnalysis
+      summary: 创建一次结构化分析
+      description: |
+        短任务可直接 200 返回 `AnalysisResult`；长任务返回 202 + `analysis_id`，客户端用
+        `GET /v1/ai/analyses/{analysis_id}` 轮询或用 events SSE 接收进度。
+        `kind` 为封闭枚举（ADR-007 D2）；新增值按 ADR-001 D5/D6 走契约变更。
+        所有受限数据在调用模型前判定：整体受限返回 403，不进入 LLM。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalysisRequest'
+      responses:
+        '200':
+          description: 分析已完成（短任务）。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiAnalysisResponse'
+        '202':
+          description: 已受理，结果通过查询或事件流获取。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisAccepted'
+        '400':
+          $ref: '../shared/openapi.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '../shared/openapi.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '../shared/openapi.yaml#/components/responses/EntitlementRestricted'
+        '429':
+          $ref: '../shared/openapi.yaml#/components/responses/TooManyRequests'
+        '500':
+          $ref: '../shared/openapi.yaml#/components/responses/InternalError'
+        default:
+          $ref: '../shared/openapi.yaml#/components/responses/ProblemResponse'
+
+  /v1/ai/analyses/{analysis_id}:
+    get:
+      tags: [ai-analysis]
+      operationId: getAiAnalysis
+      summary: 查询分析结果/状态
+      parameters:
+        - $ref: '#/components/parameters/AnalysisIdPath'
+      responses:
+        '200':
+          description: 当前分析结果（可能仍在进行中，看 `status`）。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiAnalysisResponse'
+        '400':
+          $ref: '../shared/openapi.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '../shared/openapi.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '../shared/openapi.yaml#/components/responses/EntitlementRestricted'
+        '404':
+          $ref: '../shared/openapi.yaml#/components/responses/NotFound'
+        '429':
+          $ref: '../shared/openapi.yaml#/components/responses/TooManyRequests'
+        '500':
+          $ref: '../shared/openapi.yaml#/components/responses/InternalError'
+        default:
+          $ref: '../shared/openapi.yaml#/components/responses/ProblemResponse'
+
+  /v1/ai/analyses/{analysis_id}/events:
+    get:
+      tags: [ai-analysis]
+      operationId: streamAiAnalysisEvents
+      summary: 分析进度/增量片段（SSE）
+      description: |
+        `text/event-stream`。只传输已通过后处理的片段；断开可重连（按 analysis_id 重放已确认片段）。
+        不得传输模型原始输出或内部 tier/供应商信息。
+      parameters:
+        - $ref: '#/components/parameters/AnalysisIdPath'
+      responses:
+        '200':
+          description: SSE 事件流。事件类型由服务端定义；data 为事件 JSON（`{analysis_id,event,status,section?,caveat?,problem?}`，event ∈ status|section|caveat|done|error）。
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: SSE 帧（`event:` 与 `data:` 行），data 为事件 JSON（`{analysis_id,event,status,section?,caveat?,problem?}`，event ∈ status|section|caveat|done|error）。
+        '400':
+          $ref: '../shared/openapi.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '../shared/openapi.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '../shared/openapi.yaml#/components/responses/EntitlementRestricted'
+        '404':
+          $ref: '../shared/openapi.yaml#/components/responses/NotFound'
+        '429':
+          $ref: '../shared/openapi.yaml#/components/responses/TooManyRequests'
+        '500':
+          $ref: '../shared/openapi.yaml#/components/responses/InternalError'
+        default:
+          $ref: '../shared/openapi.yaml#/components/responses/ProblemResponse'
+
+  /v1/ai/chat:
+    post:
+      tags: [ai-chat]
+      operationId: createAiChat
+      summary: 对话入口（SSE）
+      description: |
+        服务端维护有限轮上下文；工具调用走同一 tool registry。响应为 `text/event-stream`，
+        只输出经合规过滤的片段；不给买卖建议/目标价（L3，ADR-007 D4/D8）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+      responses:
+        '200':
+          description: SSE 对话流；data 为事件 JSON（`{event,delta?,citation?,caveat?,problem?}`，event ∈ delta|tool|citation|caveat|done|error）。
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: SSE 帧；data 为事件 JSON（`{event,delta?,citation?,caveat?,problem?}`，event ∈ delta|tool|citation|caveat|done|error）。
+        '400':
+          $ref: '../shared/openapi.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '../shared/openapi.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '../shared/openapi.yaml#/components/responses/EntitlementRestricted'
+        '429':
+          $ref: '../shared/openapi.yaml#/components/responses/TooManyRequests'
+        '500':
+          $ref: '../shared/openapi.yaml#/components/responses/InternalError'
+        default:
+          $ref: '../shared/openapi.yaml#/components/responses/ProblemResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: C 端登录态（A4 identity 签发）；P0 AI 仅对已登录用户开放。
+
+  parameters:
+    AnalysisIdPath:
+      name: analysis_id
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 128
+        pattern: '^[A-Za-z0-9_-]+$'
+
+  schemas:
+    AnalysisKind:
+      type: string
+      description: 封闭枚举（ADR-007 D2）；新增值按 ADR-001 D5/D6 变更。
+      enum:
+        - stock_interpretation
+        - watchlist_review
+        - post_market_review
+        - lhb_review
+        - capital_features
+        - factor_screen
+        - research_brief
+        - anomaly_alert
+
+    AnalysisSubject:
+      type: object
+      description: |
+        分析对象。按 kind 语义选择：个股类传 `instrument_id`；自选/盘后/龙虎榜/资金特征
+        可传 `universe=watchlist`、`universe=market`。`as_of` 可覆盖默认取数时点。
+      additionalProperties: false
+      properties:
+        instrument_id:
+          $ref: '../shared/openapi.yaml#/components/schemas/InstrumentId'
+        universe:
+          type: string
+          enum: [market, watchlist]
+          description: 市场全量或当前用户自选；watchlist 需要登录态。
+        as_of:
+          type: string
+          format: date-time
+          description: 期望数据截止时点；缺省为服务端最近可用快照。
+
+    AnalysisOptions:
+      type: object
+      additionalProperties: false
+      properties:
+        lookback_days:
+          type: integer
+          minimum: 1
+          maximum: 250
+          description: 回看交易日数；缺省由 kind 决定。
+        include_evidence:
+          type: boolean
+          default: true
+          description: 是否在结果中返回 evidence_ids（P0 恒为 true）。
+
+    AnalysisRequest:
+      type: object
+      additionalProperties: false
+      required: [kind, subject]
+      properties:
+        kind:
+          $ref: '#/components/schemas/AnalysisKind'
+        subject:
+          $ref: '#/components/schemas/AnalysisSubject'
+        options:
+          $ref: '#/components/schemas/AnalysisOptions'
+        idempotency_key:
+          type: string
+          minLength: 8
+          maxLength: 128
+          pattern: '^[A-Za-z0-9_-]+$'
+          description: 幂等键；同一用户 + 同一 key 重放返回同一 `analysis_id`。
+
+    AnalysisStatus:
+      type: string
+      enum: [queued, running, succeeded, failed, blocked]
+
+    AnalysisClaim:
+      type: object
+      additionalProperties: false
+      required: [text, evidence_ids]
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        evidence_ids:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            type: string
+            minLength: 1
+            maxLength: 128
+
+    AnalysisDataRef:
+      type: object
+      additionalProperties: false
+      required: [module]
+      properties:
+        module:
+          type: string
+          description: 证据所在数据模块（如 market、fundamental、watchlist）。
+          minLength: 1
+          maxLength: 64
+        as_of:
+          type: string
+          format: date-time
+        period:
+          type: string
+          description: 财报/统计周期（如 2026Q3）。
+          maxLength: 32
+
+    AnalysisSection:
+      type: object
+      additionalProperties: false
+      required: [id, title, claims, data_refs]
+      properties:
+        id:
+          type: string
+          minLength: 1
+          maxLength: 64
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        claims:
+          type: array
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/AnalysisClaim'
+        data_refs:
+          type: array
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/AnalysisDataRef'
+
+    AnalysisCompliance:
+      type: object
+      additionalProperties: false
+      required: [policy_version, decision, reason_codes]
+      properties:
+        policy_version:
+          type: string
+          minLength: 1
+          maxLength: 64
+        decision:
+          type: string
+          enum: [passed, blocked]
+        reason_codes:
+          type: array
+          maxItems: 50
+          items:
+            type: string
+            maxLength: 64
+
+    AiMeta:
+      type: object
+      additionalProperties: false
+      required: [generated, label_version, content_version, model_family, prompt_version, policy_version]
+      properties:
+        generated:
+          const: true
+          description: 隐式标识；AI 路由上线硬门禁（ADR-006 D7 条件 1）。
+        label_version:
+          type: string
+          minLength: 1
+          maxLength: 64
+        content_version:
+          type: string
+          minLength: 1
+          maxLength: 64
+        model_family:
+          type: string
+          description: 模型族（不写供应商/具体模型名，避免契约泄漏；审计用内部映射）。
+          minLength: 1
+          maxLength: 64
+        prompt_version:
+          type: string
+          minLength: 1
+          maxLength: 64
+        policy_version:
+          type: string
+          minLength: 1
+          maxLength: 64
+
+    AiResponseMeta:
+      allOf:
+        - $ref: '../shared/openapi.yaml#/components/schemas/ResponseMeta'
+        - type: object
+          required: [disclaimer]
+
+    AiAnalysisResponse:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      description: 分析结果的统一成功信封（ADR-001 D4 / ADR-007 D2）。
+      properties:
+        data:
+          $ref: '#/components/schemas/AnalysisResult'
+        meta:
+          allOf:
+            - $ref: '../shared/openapi.yaml#/components/schemas/ResponseMeta'
+            - type: object
+              required: [disclaimer]
+    AnalysisResult:
+      type: object
+      additionalProperties: false
+      required:
+        - analysis_id
+        - kind
+        - subject
+        - status
+        - as_of
+        - sections
+        - caveats
+        - compliance
+        - ai
+        - meta
+      properties:
+        analysis_id:
+          type: string
+          minLength: 8
+          maxLength: 128
+          pattern: '^[A-Za-z0-9_-]+$'
+        kind:
+          $ref: '#/components/schemas/AnalysisKind'
+        subject:
+          $ref: '#/components/schemas/AnalysisSubject'
+        status:
+          $ref: '#/components/schemas/AnalysisStatus'
+        as_of:
+          type: string
+          format: date-time
+        sections:
+          type: array
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/AnalysisSection'
+        caveats:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            maxLength: 500
+        compliance:
+          $ref: '#/components/schemas/AnalysisCompliance'
+        ai:
+          $ref: '#/components/schemas/AiMeta'
+        meta:
+          $ref: '#/components/schemas/AiResponseMeta'
+
+    AnalysisAccepted:
+      type: object
+      additionalProperties: false
+      required: [analysis_id, status]
+      properties:
+        analysis_id:
+          type: string
+          minLength: 8
+          maxLength: 128
+          pattern: '^[A-Za-z0-9_-]+$'
+        status:
+          type: string
+          enum: [queued, running]
+
+
+    ChatRole:
+      type: string
+      enum: [user, assistant]
+
+    ChatMessage:
+      type: object
+      additionalProperties: false
+      required: [role, content]
+      properties:
+        role:
+          $ref: '#/components/schemas/ChatRole'
+        content:
+          type: string
+          minLength: 1
+          maxLength: 8000
+
+    ChatRequest:
+      type: object
+      additionalProperties: false
+      required: [messages]
+      properties:
+        messages:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/ChatMessage'
+

@@ -11,14 +11,15 @@ services/api/
 ├── package.json          # @market-sense/api，deps 仅 fastify
 ├── tsconfig.json         # NodeNext + strict
 ├── src/
-│   ├── app.ts            # buildApp()：创建 Fastify、装错误映射、注册域插件与 health
+│   ├── app.ts            # buildApp()：创建 Fastify、装错误映射/认证、注册域插件与 health
+│   ├── auth.ts           # 默认拒绝 preHandler：公开白名单 + 路径定 audience + Principal 注入
 │   ├── config.ts         # loadConfig()：环境变量 → 强类型配置，非法即快速失败
 │   ├── errors.ts         # HttpProblem + installErrorHandling()：统一契约 Problem
 │   ├── plugin.ts         # DomainPlugin 接口 + registerDomainPlugins()（本文件是域接入契约）
 │   ├── domains.ts        # 唯一装配点：domainPlugins 数组（A0 接线）
 │   ├── routes/health.ts  # GET /healthz（外壳层，不属于业务契约）
-│   └── server.ts         # 进程入口：listen + SIGINT/SIGTERM 优雅关闭
-└── test/app.test.ts      # 壳体自测（node:test + app.inject，不监听端口）
+│   └── server.ts         # 进程入口：loadConfig/identity → buildApp → listen + 优雅关闭
+└── test/*.test.ts        # 壳体自测（node:test + app.inject，不监听端口）
 ```
 
 ## 域插件接入契约（A3 必读）
@@ -59,7 +60,20 @@ A3 交付后，由 A0 在 `src/domains.ts` 的 `domainPlugins` 数组接线（�
 | `npm_package_version` | `0.1.0` | 由包管理器注入，作为 `/healthz` 的 version |
 | `TRUST_PROXY` | `false` | 只接受**单个** ingress 窄网段（IPv4 `/24`–`/32`；IPv6 `/64`–`/128`），或 `false`/留空。`true`、`0.0.0.0/0`、`::/0`、回环、链路本地、`10.0.0.0/8` 及更宽私有段、逗号列表一律在 `loadConfig()` 抛 `ConfigError`，进程在 `buildApp()`/`listen()` 前退出（错误信息点名 `TRUST_PROXY`）。
 
-密钥、数据库连接、tushare token **不在此读取**：P0 外壳不连数据库，数据链路归 A1/A2；认证归 A4/A9。
+密钥与认证配置归 A4 identity：`server.ts` 启动时用 `loadIdentityConfig(process.env)` 校验 `IDENTITY_JWT_SECRET`，用 `PgIdentityStore` 建连接池（`DATABASE_URL`），失败在 listen 前退出。`buildApp()` 本身只接收可选的 `authenticator`，不读环境变量。tushare token 归 A1，数据链路归 A1/A2。
+
+## 认证接线（A4 identity，ADR-008）
+
+`buildApp({ authenticator })` 在限流后安装全局 `preHandler`（`src/auth.ts`）：
+
+- 公开白名单：`/healthz`、`/v1/auth/register`、`/v1/auth/login`、`/v1/internal/auth/register`。
+- 其余路径默认拒绝：无有效 Bearer → `401 UNAUTHENTICATED`（problem+json）。
+- 通过后写 `request.user`（`Principal`）与 `request.audience`。
+- audience 只由路径决定：`/v1/internal/` → `internal`，其余 → `c_end`；**不读客户端 header**。
+- 未注入 authenticator 时 `async () => null`，即默认拒绝，不匿名放行；测试通过 `allowAll` 注入。
+- 外壳**只注入身份**，不解析 tier 当授权凭据；数据授权仍由各域 gate 判定。
+
+`server.ts` 的 `bootstrapIdentityOrExit()` 创建 `PgIdentityStore` + `createIdentityService` + `createIdentityAuthenticator`；配置非法或连接失败时 `[identity] 拒绝启动：...` 并在 listen 前退出。
 
 ## 错误映射（契约 `contracts/shared/openapi.yaml#/components/schemas/Problem`）
 
@@ -97,13 +111,12 @@ pnpm --filter @market-sense/api start      # node --import tsx src/server.ts（P
 
 ## 非目标（P0）
 
-- 不做鉴权/限流/审计（A4/A9/A13/A14；接 `preHandler` 时不改本壳体的错误契约）。
+- 不实现认证/授权逻辑（A4 identity、A9）；本壳体只做 preHandler 接线与 401 映射。
 - 不做数据库连接/ORM/迁移（A1/A2；迁移脚本禁止 A0 触碰）。
 - 不做业务路由、不写契约（契约在 `contracts/`，由 A0 维护）。
 - 不做 CORS/静态资源（H5 由 web 反代同源，见 A7；部署层归 A13）。
 
 ## 待定（需 Lead/H2 拍板）
 
-1. `NOT_FOUND` 目前只用于「路由不存在」，尚未写入 `contracts/shared/openapi.yaml` 的 P0 错误码清单；若 A11 要求所有错误码可追溯，由 A0 以 additive 方式补登记。
-2. 认证插件的挂载位置（`preHandler` 全局 vs 域插件内）待 A4/A9 方案确定后由 A0 定，原则是「一个判定点」。
-3. 请求日志脱敏（H5 审计要求）由 A13 统一日志方案覆盖，本壳体只保证不打印 body/headers 敏感字段。
+1. 请求日志脱敏（H5 审计要求）由 A13 统一日志方案覆盖，本壳体只保证不打印 body/headers 敏感字段。
+2. `/v1/internal/*` 的内部 AI 路由由 A3 在 `services/ai` 落地后决定是否挂到本外壳（P0 不对外暴露）。

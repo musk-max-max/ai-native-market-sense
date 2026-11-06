@@ -13,6 +13,7 @@
 
 import Fastify, { type FastifyInstance } from 'fastify';
 
+import { installAuth, type Authenticator } from './auth.js';
 import { DEFAULT_RATE_LIMIT, loadConfig, type AppConfig } from './config.js';
 import { installErrorHandling } from './errors.js';
 import { registerDomainPlugins, type DomainPlugin } from './plugin.js';
@@ -26,6 +27,8 @@ export interface BuildAppOptions {
   readonly domainPlugins?: readonly DomainPlugin[];
   /** Fastify logger 开关；测试传 false */
   readonly logger?: boolean;
+  /** 认证器；缺省即默认拒绝（公开路径之外一律 401）。生产由 server 注入 identity authenticator。 */
+  readonly authenticator?: Authenticator;
 }
 
 export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
@@ -37,6 +40,10 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
 
   installErrorHandling(app);
   installRateLimit(app, config.rateLimit ?? DEFAULT_RATE_LIMIT);
+  installAuth(
+    app,
+    options.authenticator === undefined ? {} : { authenticator: options.authenticator },
+  );
 
   // 行情响应带 as_of：缓存一次就是一次静默的陈旧。所有 /v1/* 无条件 no-store，
   // 不按响应内容判断（否则每新增一个接口都可能漏配）。

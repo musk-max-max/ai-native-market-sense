@@ -89,8 +89,9 @@ services/ai（AI 网关：provider 适配 / prompt 编排 / tool 调用 / 证据
 **归属与落地前置**
 
 - 建议目录：`services/ai/`；公共契约：`contracts/ai/openapi.yaml`（A0）；生成客户端复用 `packages/api-client`。
-- P0 owner 候选：**A3（现有后端，临时兼任 AI 平台）**；若 H2 同意扩编，则新设 AI 平台岗（建议 A24），
-  由 A3 移交。无论谁写，**契约归 A0，合规策略归 H3，数据口径归 H4**。
+- P0 owner（H2 L126 裁定）：**A3（现有后端，兼任 AI 平台）**，不扩编 A24。无论谁写，
+  **契约归 A0，合规策略归 H3，数据口径归 H4**。INF-01/INF-02 由 A0 在验收期临时持有写权，
+  验收后 `services/ai/` 写域移交 A3。
 - 需要 H2 批准的两件事：① 新增 LLM provider 这一外部依赖；② roster/ownership 增加 `services/ai/`
   写域（A3 或 A24，reviewers 至少 H2 + H3）。在批准前，A0 只写契约与 ADR，不写 `services/ai/` 代码。
 - 回退方案：若 H2 不批独立服务，P0 允许把 `services/ai` 作为 `services/api` 的内部插件挂载，
@@ -210,7 +211,7 @@ prompt、输出 JSON Schema、确定性 fallback，**禁止各自实现过滤/�
 | ID | 任务 | owner | 前置 | 规模 |
 |---|---|---|---|---|
 | INF-01 | `contracts/ai/openapi.yaml`：D2 的 analyses/chat/schema + A11 契约测试脚手架 | A0 | 本文签字；H2 契约会签 | S（2–3d） |
-| INF-02 | `services/ai` 骨架：Fastify、provider 接口 + FakeProvider、tool registry 接口、postprocess 空管线、health | A3/A24 | INF-01；H2 批 roster/依赖 | M（5–8d） |
+| INF-02 | `services/ai` 骨架：Fastify、provider 接口 + FakeProvider、tool registry 接口、postprocess 空管线、health | A3 | INF-01；H2 批 roster/依赖 | M（5–8d） |
 | INF-03 | provider adapter（OpenAI-compatible/内部网关）+ 超时/重试/熔断/密钥读取 | A3/A24 | H2 批外部依赖；A9 review | M（3–5d） |
 | INF-04 | postprocess P0–P8 + policy_version + 审计事件 schema | A3/A24 + A16/H3 | INF-02；H3 签策略 | L（8–10d） |
 | INF-05 | 研究数据 ingest：`daily_basic`、`top_list`、`top_inst`、`moneyflow`、`margin`、`hk_hold`、`index_daily`、`stk_limit` 等（见第 2 批拆分） | A1 | H4 确认接口/积分；F1 不阻塞 ingest | L（按数据集拆，合计 15–20d） |
@@ -218,6 +219,10 @@ prompt、输出 JSON Schema、确定性 fallback，**禁止各自实现过滤/�
 | INF-07 | H5 AI 页面壳/路由/错误态/标识组件（mock client） | A7 | INF-01；A0 契约冻结 | M（4–6d） |
 
 并行建议：INF-01/02/03/04 与 INF-05/06 两条线同时启动；INF-07 在 INF-01 冻结后启动。
+
+> 落地状态（2026-11-06）：INF-01 `contracts/ai/openapi.yaml` 已落盘（4 operations，kind 封闭 8 值，additive，redocly valid）；
+> INF-02 `services/ai/` 骨架已落盘（Fastify、`AiProvider`/FakeProvider、tool registry、postprocess 空管线、`/healthz`，
+> typecheck + 10 tests 通过）。A3 在验收后接管 `services/ai/` 写域。A11 契约测试脚手架（ai 域 DOMAINS/baseline/specimens）待补。
 这是 P0 的关键路径，**先做功能页面等数据会空转**。
 
 #### 第 1 批（现有能力可开工，不依赖 AI 网关/新数据域）
