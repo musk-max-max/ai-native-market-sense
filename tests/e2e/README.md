@@ -173,7 +173,8 @@ api 外壳启动即构造 identity authenticator（`IDENTITY_JWT_SECRET` 必需�
     （固定 user_id/email、合法 `apr_<uuidv7>` 的 `approval_ref`、`approved_by=H3`），再走真实
     `/v1/auth/login` —— 签名字段由 identity 服务生成，测试不伪造 token。
     需要 identity 迁移已被 db-migrate 覆盖（`services/*/migrations/*.sql`），psql 来源
-    `E2E_PG_DSN`/`PG_DSN`/`DATABASE_URL`，没有则 `docker compose exec postgres psql`。
+    `E2E_PG_DSN`/`PG_DSN`/`DATABASE_URL`，没有则 `docker compose exec postgres psql`
+    （项目名取 `E2E_COMPOSE_PROJECT`，未设时与 `up.sh` 同为目录名 `e2e`；CI 显式传 `market-sense-e2e`）。
 - 手动：`python3 tests/e2e/scripts/seed_e2e_identity.py --matrix restricted --api-base http://127.0.0.1:8081 --dsn "$E2E_PG_DSN"`
   （需同时 `E2E_AUTH_AUTOSEED=1` 或 `--allow-write`；只允许隔离库）。
 - 该脚本只写 identity 夹具用户、不改 services/**；生产/共享库禁止执行。

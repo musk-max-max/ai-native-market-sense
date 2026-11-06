@@ -91,7 +91,7 @@ def psql_command(dsn: str | None) -> list[str]:
     if dsn:
         return [psql, "-v", "ON_ERROR_STOP=1", "-d", dsn]
     compose = E2E_DIR / "docker-compose.yml"
-    project = os.environ.get("E2E_COMPOSE_PROJECT", "market-sense-e2e")
+    project = os.environ.get("E2E_COMPOSE_PROJECT", "e2e")
     return [
         "docker", "compose", "-p", project, "-f", str(compose),
         "exec", "-T", "postgres", "psql", "-v", "ON_ERROR_STOP=1",
