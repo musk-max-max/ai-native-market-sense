@@ -343,7 +343,7 @@ _DATASET_MODES: dict[str, str] = {
     "index_classify": "snapshot",
     "index_member_all": "snapshot",
     "dc_index": "daily",
-    "dc_member": "per_instrument",
+    "dc_member": "per_board",
 }
 
 #: snapshot 模式的分批参数（申万行业树按层级三次调用；成分表一次拉最新）。

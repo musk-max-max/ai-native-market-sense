@@ -466,6 +466,7 @@ class TushareAdapter:
         *,
         index_codes: Sequence[str] = (),
         instrument_id: str | None = None,
+        board_codes: Sequence[str] = (),
         start: date | None = None,
         end: date | None = None,
     ) -> list[dict[str, Any]]:
@@ -505,6 +506,19 @@ class TushareAdapter:
                 },
                 dataset=spec.name,
             )
+        elif spec.mode == "per_board":
+            # dc_member：按板块代码迭代（ts_code 需 .DC 后缀，如 BK1184.DC）
+            if not board_codes:
+                raise InvalidRequestError(
+                    f"{dataset} requires board_codes (per-board dataset, e.g. ['BK1184.DC'])"
+                )
+            for board_code in board_codes:
+                params: dict[str, Any] = {"ts_code": board_code}
+                if trade_date is not None:
+                    params["trade_date"] = trade_date.strftime("%Y%m%d")
+                raw_rows.extend(
+                    self._fetch_rows(spec.api_name, spec.fields, params, dataset=spec.name)
+                )
         elif spec.mode == "snapshot":
             for params in spec.batch_params or ({},):
                 raw_rows.extend(

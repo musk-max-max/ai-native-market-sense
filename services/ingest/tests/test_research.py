@@ -841,6 +841,28 @@ def test_fetch_research_per_instrument_uses_range_params() -> None:
         adapter.fetch_research("fina_indicator", start=date(2024, 1, 1), end=date(2024, 12, 31))
 
 
+
+
+def test_fetch_research_per_board_requires_board_codes() -> None:
+    entries = [
+        research_entry(
+            "dc_member",
+            DAY1,
+            [{"ts_code": "BK1184.DC", "con_code": "600519.SH", "trade_date": "20240102", "in_date": "20200101", "out_date": "", "is_new": "Y"}],
+            ts_code="BK1184.DC",
+        )
+    ]
+    adapter, guard, _ = _adapter(entries)
+    assert adapter.research_mode("dc_member") == "per_board"
+    # 缺 board_codes → fail-closed 拒绝（per_board 必填 board_codes）
+    with pytest.raises(InvalidRequestError, match="requires board_codes"):
+        adapter.fetch_research("dc_member", trade_date=DAY1)
+    # 带 board_codes → 按板块迭代调用
+    rows = adapter.fetch_research("dc_member", trade_date=DAY1, board_codes=["BK1184.DC"])
+    assert len(rows) == 1
+    assert rows[0]["instrument_id"] == "SSE:600519"
+    assert guard.run_calls == 1
+
 def test_fetch_research_snapshot_fans_out_batch_params() -> None:
     entries = [
         entry(
