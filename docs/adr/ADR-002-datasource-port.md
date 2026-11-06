@@ -139,7 +139,10 @@ SCOPES = (
 def excluded(rel: str) -> bool:
     if any(rel.startswith(prefix) for prefix in RAW_LAYER + EXEMPT_TREES):
         return True
-    return '/tests/' in rel or rel.endswith('.md')
+    # L83（H2 签）：测试宿主有 `/tests/`（复数）与服务侧 `/test/`（单数）两种目录名，
+    # 语义相同（fixture 合法承载源格式）；只排复数会让 services/*/test/** 漏网。
+    # 单数目录属「测试宿主排除项」，不加入 EXEMPT_TREES 正向清单（L81 边界不变）。
+    return '/tests/' in rel or '/test/' in rel or rel.endswith('.md')
 
 files = set()
 for pattern in SCOPES:

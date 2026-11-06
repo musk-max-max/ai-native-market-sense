@@ -58,21 +58,24 @@ SCOPES = (
 def excluded(rel: str) -> bool:
     if any(rel.startswith(prefix) for prefix in RAW_LAYER + EXEMPT_TREES):
         return True
-    return "/tests/" in rel or rel.endswith(".md")
+    # L83（H2 签）：测试宿主既可能是 `/tests/`（复数）也可能是服务侧 `/test/`（单数），
+    # 两者语义相同（fixture 合法承载源格式），排除范围必须同时覆盖；单数目录属
+    # 「测试宿主排除项」，不加入 EXEMPT_TREES 正向清单（L81 边界保持不变）。
+    return "/tests/" in rel or "/test/" in rel or rel.endswith(".md")
 
 
-def collect_files() -> list[pathlib.Path]:
+def collect_files(root: pathlib.Path = ROOT) -> list[pathlib.Path]:
     files: set[pathlib.Path] = set()
     for pattern in SCOPES:
-        files.update(path for path in ROOT.glob(pattern) if path.is_file())
+        files.update(path for path in root.glob(pattern) if path.is_file())
     return sorted(files)
 
 
-def scan() -> tuple[list[str], int]:
+def scan(root: pathlib.Path = ROOT) -> tuple[list[str], int]:
     violations: list[str] = []
     scanned = 0
-    for path in collect_files():
-        rel = path.relative_to(ROOT).as_posix()
+    for path in collect_files(root):
+        rel = path.relative_to(root).as_posix()
         if excluded(rel) or any(part in IGNORE_DIRS for part in path.parts):
             continue
         scanned += 1
@@ -121,3 +124,38 @@ def test_scanner_would_catch_a_leak() -> None:
         assert PATTERN.search(text) is not None
     finally:
         tmp.unlink(missing_ok=True)
+
+
+def test_singular_test_dir_is_excluded_but_src_leak_is_still_caught(tmp_path: pathlib.Path) -> None:
+    """L83 回归：`services/*/test/**` 排除，但 `services/*/src/**` 的同类泄漏仍必须抓。
+
+    用临时仓库树验证，不往真实 `services/` 写文件（避免与 A0/A3 并发改动冲突）。
+    """
+    svc = tmp_path / "services" / "svc"
+    (svc / "test").mkdir(parents=True)
+    (svc / "src").mkdir(parents=True)
+    leak = "const meta = { source: 'tushare' }; const code = '600519.SH';\n"
+    (svc / "test" / "fixture.ts").write_text(leak, encoding="utf-8")
+    (svc / "src" / "leak.ts").write_text(leak, encoding="utf-8")
+
+    violations, scanned = scan(tmp_path)
+
+    assert scanned == 1, f"只有 src 下的文件应进扫描面，实际 {scanned}"
+    assert violations, "服务 src/ 下的真实泄漏未被抓到（排除范围扩过头）"
+    assert all("services/svc/src/leak.ts" in item for item in violations), violations
+    assert not any("/test/" in item for item in violations), "services/*/test/** 未被排除"
+
+
+def test_real_service_singular_test_hosts_are_excluded() -> None:
+    """真实仓库：A3/A0 的 `services/*/test/**` fixture 合法使用源格式，不应漏判为泄漏。"""
+    real = [
+        "services/market/test/market-plugin.test.ts",
+        "services/api/test/routes.test.ts",
+    ]
+    for rel in real:
+        assert excluded(rel), f"{rel} 属于测试宿主，应被排除（否则 fixture 会被误报）"
+    # 不是「文件不存在所以没报」：其中一个文件确实存在且含 tushare 字面量
+    sample = ROOT / "services/market/test/market-plugin.test.ts"
+    assert sample.is_file() and "tushare" in sample.read_text(encoding="utf-8")
+    # 同服务的 src/ 仍属扫描面
+    assert not excluded("services/market/src/domain/build.ts")
