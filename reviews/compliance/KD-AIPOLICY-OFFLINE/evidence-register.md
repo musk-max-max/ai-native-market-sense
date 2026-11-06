@@ -32,3 +32,14 @@
 - 签署绑定以 **r2 冻结 sha `beacdf5dce5e569e7616e515644e433038f9b0303b51518ce0731fcdeece0546`** + policy 两个 sha（签认内容 `eee14c6228151197dd751ecb2c47cc279c39afd80a0eb952860dc2989af63293` / 最终文件 `3e03535efd02cb99fbeaddc476a408688b4b71e29e01e2a0bedbf37ccb990da9`）为准；ref 仅作检索线索，不得填猜测编号。
 - H3 本次抽核：登记簿 sha `2acd92c34d6a52a09cfc3da94b26e6efb58b0dcb45cd648c5f1c7acd11f86a97`（E-0002 追加前的版本）；E-0001 内 8 个 sha（r2/r1/evidence/报告 md/报告 json/fixtures/runner/mapping）经 H3 脚本重算与磁盘一致；check-only 生效（r2 sha 未变 `beacdf5dce5e569e7616e515644e433038f9b0303b51518ce0731fcdeece0546`，生成器拒绝写入）。
 - 登记人：A16 compliance-reviewer；登记时间：2026-11-06；治理抽核：H3（本次）。
+
+## E-0003 · 2026-11-06 · evidence gap：`ai-content-policy/1.1.1` 签认字节不可复现
+
+- 对象：`ai-content-policy/1.1.1` 签认字节（H3 签认 ref m01561；签认内容 sha256 `eee14c6228151197dd751ecb2c47cc279c39afd80a0eb952860dc2989af63293`；部署 pin `3e03535efd02cb99fbeaddc476a408688b4b71e29e01e2a0bedbf37ccb990da9`）。
+- 状态：**evidence gap**。上述 sha 仍为历史记录，r2（冻结 sha `beacdf5dce5e569e7616e515644e433038f9b0303b51518ce0731fcdeece0546`）作为当时记录继续有效，但**不能复现**——签认字节未归档、未进 git 历史；H3 已按部署 pin sha `3e03535e…` 全仓搜索确认不存在（note 中「1.1.1 已签字节保留为历史」为不实陈述，A5 已删）。
+- 归档机制：现行 `1.1.2` 已建内容寻址归档 `rules/archive/ai-content-policy/<sha256>.json` + CI 校验；`1.1.1` 当时无此机制，字节丢失不可追回。
+- 决议：后续版本（`1.1.2` 起）签认字节必须走内容寻址归档，不再依赖签认 note 的文字描述。
+- 前版登记簿 sha（上一次 H3 回执，append 前实测）：`90ee05a3da5b979d9c6d3c5dd7bb1a6c38e24945ca99bd630c9d98b8851bc14c`。
+- 来源 ref：Lead 任务单 KD-AIPOLICY-E0003（2026-11-06）；H3 要求；H3 签认 ref m01561。
+- 登记人：A16 compliance-reviewer；登记时间：2026-11-06。
+- 待抽核：按治理规则，本 append 由 H5 或 H3 抽核（重算 sha + 核对只追加 diff）。
