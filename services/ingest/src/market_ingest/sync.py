@@ -1072,6 +1072,7 @@ def sync_research(
     ods_root: str | Path | None = None,
     index_codes: Sequence[str] = (),
     instruments: Sequence[str] = (),
+    board_codes: Sequence[str] = (),
     clock: Callable[[], datetime] = market_now,
     guard: QuotaGuard | None = None,
     interrupt: Callable[[], bool] | None = None,
@@ -1080,10 +1081,11 @@ def sync_research(
 ) -> ResearchSyncResult:
     """研究数据集同步：按数据集形态抓取 → canonical ODS 行 → checkpoint 续跑。
 
-    三种形态（由适配器 ``research_mode`` 声明）：
+    四种形态（由适配器 ``research_mode`` 声明）：
     - ``daily``：按交易日逐日抓取，checkpoint 记到日；
     - ``snapshot``：无日期快照（行业树/成分表），一次写入，同日重跑跳过；
-    - ``per_instrument``：逐标的按区间抓取（财务指标），checkpoint 记到标的。
+    - ``per_instrument``：逐标的按区间抓取（财务指标），checkpoint 记到标的；
+    - ``per_board``：逐板块代码抓取（dc_member），checkpoint 记到板块。
 
     验收口径：只保证「数据正确落到 ODS + 字段映射清晰」；DWD/DWS 由 A2 建。
     接口无权限/不可用 → 显式 ``failed``，**绝不造数**。
@@ -1104,6 +1106,9 @@ def sync_research(
     per_instrument = [name for name in requested if modes[name] == "per_instrument"]
     if per_instrument and not instruments:
         raise ValueError(f"datasets {per_instrument} require instruments (per-instrument mode)")
+    per_board = [name for name in requested if modes[name] == "per_board"]
+    if per_board and not board_codes:
+        raise ValueError(f"datasets {per_board} require board_codes (per-board mode)")
 
     is_interrupted = interrupt or (lambda: False)
     started_at = clock()
@@ -1293,6 +1298,58 @@ def sync_research(
                         )
                     if dataset_failed:
                         break
+                    continue
+
+                if mode == "per_board":
+                    # dc_member：按板块代码迭代（板块代码需 .DC 后缀）
+                    dataset_failed = False
+                    for board_code in board_codes:
+                        if is_interrupted():
+                            status, halted, dataset_failed = "interrupted", "interrupt_signal", True
+                            break
+                        batch_id = f"{run_id}-{dataset}-{_slug(board_code)}"
+                        current["batch"] = batch_id
+                        storage.create_batch(batch_id, dataset, adapter_name(source), clock())
+                        resume = storage.get_checkpoint(dataset, board_code)
+                        if resume is not None and resume >= end:
+                            storage.finish_batch(
+                                batch_id,
+                                finished_at=clock(),
+                                status="succeeded",
+                                row_count=0,
+                                rejected_count=0,
+                                note="already_synced_range",
+                            )
+                            checkpoints[f"{dataset}:{board_code}"] = resume.isoformat()
+                            continue
+                        window_start = start if resume is None else max(start, resume + timedelta(days=1))
+                        rejected_before = storage.count_rejected(batch_id)
+                        try:
+                            rows = _fetch(dataset, board_codes=(board_code,), trade_date=window_start)
+                        except (QuotaExhaustedError, SourceAuthError, SchemaDriftError, SourceUnavailableError) as exc:
+                            status, halted = BarsSyncService._classify_failure(exc)
+                            _mark_consistency_blocked(dataset, board_code)
+                            storage.finish_batch(
+                                batch_id,
+                                finished_at=clock(),
+                                status=status,
+                                row_count=0,
+                                rejected_count=storage.count_rejected(batch_id),
+                                note=halted,
+                            )
+                            dataset_failed = True
+                            break
+                        _write(dataset, batch_id, rows, storage.count_rejected(batch_id) - rejected_before)
+                        storage.finish_batch(
+                            batch_id,
+                            finished_at=clock(),
+                            status="succeeded",
+                            row_count=len(rows),
+                            rejected_count=storage.count_rejected(batch_id) - rejected_before,
+                        )
+                        checkpoints[f"{dataset}:{board_code}"] = window_start.isoformat()
+                    if dataset_failed:
+                        failed_datasets.append(dataset)
                     continue
 
                 # daily 模式
