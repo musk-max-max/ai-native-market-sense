@@ -10,7 +10,33 @@ import { fileURLToPath } from 'node:url';
 
 const E2E_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
+/**
+ * ADR-008 S1 认证 token 供给：
+ *   - E2E_AUTH_TOKEN 已给 → 用它；
+ *   - 否则若 E2E_AUTH_AUTOSEED=1 → 调 seed_e2e_identity.py（restricted 造 internal_eval 夹具用户，
+ *     normal 走 register/login），把 token 写进 .state 文件并注入 process.env（preflight 子进程继承）。
+ * 不自动写库是默认行为：只有显式 AUTOSEED 才碰 identity 表。
+ */
+async function ensureAuthToken() {
+  if (process.env.E2E_AUTH_TOKEN) return;
+  if (process.env.E2E_AUTH_AUTOSEED !== '1') return;
+  const matrix = (process.env.E2E_ENTITLEMENT_MATRIX || 'normal').toLowerCase();
+  const apiBase = process.env.E2E_BASE_URL || 'http://127.0.0.1:3000';
+  const script = path.join(E2E_DIR, 'scripts', 'seed_e2e_identity.py');
+  const result = spawnSync('python3', [script, '--matrix', matrix, '--api-base', apiBase], {
+    env: { ...process.env, E2E_AUTH_AUTOSEED: '1' },
+    encoding: 'utf8',
+  });
+  const token = (result.stdout || '').trim().split('\n').pop() || '';
+  if (result.status !== 0 || !token) {
+    throw new Error(`[global-setup] E2E_AUTH_AUTOSEED 失败（matrix=${matrix}）：${result.stderr || result.stdout}`);
+  }
+  process.env.E2E_AUTH_TOKEN = token;
+  console.warn(`[global-setup] 已自动签发 identity token（matrix=${matrix}）`);
+}
+
 export default async function globalSetup() {
+  await ensureAuthToken();
   if (process.env.E2E_SKIP_PREFLIGHT === '1') {
     // Lead 2026-11-04：bypass 必须留下显式 READY 状态，否则 harness 读不到文件会静默 skip 全部用例。
     const statusFile = process.env.E2E_STATUS_FILE || path.join(E2E_DIR, '.e2e-status.json');

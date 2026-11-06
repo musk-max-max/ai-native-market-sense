@@ -429,6 +429,56 @@ def check_auth(checks: Checks):
         checks.add(SKIP, "AUTH", "E2E_AUTH_TOKEN 未设置：E2E-P0-08/09（加自选、刷新仍在）将 skip")
 
 
+# ADR-008 S1（A0）：非公开 /v1/* 默认拒绝，匿名必须 401 UNAUTHENTICATED。
+# 公开白名单只有 /healthz、/v1/auth/{register,login}、/v1/internal/auth/register（不在本表）。
+ANON_401_ENDPOINTS = {
+    "instrument": "/v1/instruments/{instrument_id}",
+    "quote": "/v1/instruments/{instrument_id}/quote",
+    "bars": "/v1/instruments/{instrument_id}/bars",
+    "fundamental-summary": "/v1/instruments/{instrument_id}/fundamental-summary",
+    "limit-ladder": "/v1/market/limit-ladder",
+    "page-summary": "/v1/instruments/{instrument_id}/page-summary",
+    "watchlist": "/v1/watchlist",
+}
+
+
+def anon_auth_verdict(status, body: dict):
+    """纯函数：匿名请求非公开 /v1 的期望。401 是默认拒绝，403/200 都是 S1 回归。"""
+    body = body or {}
+    code = body.get("code")
+    if status is None:
+        return SKIP, "无法探测（网络/栈不可达）"
+    if status == 401:
+        if code == "UNAUTHENTICATED":
+            return OK, "401 UNAUTHENTICATED"
+        return FAIL, f"IMPL_WRONG_BODY: 匿名 401 但 code={code!r}（ADR-008 S1 要求 UNAUTHENTICATED Problem）"
+    if status == 403:
+        return FAIL, ("IMPL_WRONG_STATUS: 匿名返回 403（ADR-008 S1 preHandler 未生效；"
+                      "403 只属于「已认证但未授权」，401/403 不能混）")
+    if status == 200:
+        return FAIL, "IMPL_WRONG_STATUS: 匿名返回 200（端点被误公开；getInstrument 也不在白名单，Lead 裁定保持 401）"
+    return FAIL, f"IMPL_WRONG_STATUS: 匿名返回 {status}（应为 401 UNAUTHENTICATED）"
+
+
+def check_auth_boundary(checks: Checks, scenario):
+    """匿名 401 边界：六个端点 + watchlist。与 ENTITLEMENT（认证后 403/200）分开报，避免 401/403 混为一谈。"""
+    instrument = (scenario or {}).get("instrument_id", "SSE:600519")
+    results = []
+    for endpoint, path_tpl in ANON_401_ENDPOINTS.items():
+        url = API + path_tpl.format(instrument_id=quote(instrument, safe=""))
+        status, body, _headers = http_response(url)
+        results.append((*anon_auth_verdict(status, body), endpoint))
+    worst = FAIL if any(level == FAIL for level, _, _ in results) else (
+        SKIP if any(level == SKIP for level, _, _ in results) else OK)
+    if worst == FAIL:
+        detail = " | ".join(f"{ep}: {msg}" for level, msg, ep in results if level == FAIL)
+    elif worst == SKIP:
+        detail = " | ".join(f"{ep}: {msg}" for level, msg, ep in results if level == SKIP)
+    else:
+        detail = f"匿名 {len(results)} 个非公开端点全部 401 UNAUTHENTICATED（公开白名单未扩大）"
+    checks.add(worst, "AUTH_ANON", detail)
+
+
 # Lead 2026-11-04 裁定（AC-5）：受限矩阵只认 403 + Problem ENTITLEMENT_RESTRICTED，
 # 200+is_entitled=false 不得替代。A3 2026-11-04 确认的逐接口形态：
 # - quote / bars / fundamental-summary：normal 200+true；restricted 403 ENTITLEMENT_RESTRICTED
@@ -585,13 +635,14 @@ def check_entitlement(checks: Checks, scenario):
         return
     instrument = (scenario or {}).get("instrument_id", "SSE:600519")
     token = os.environ.get("E2E_AUTH_TOKEN", "").strip()
+    if not token:
+        # 认证后的 403/200 矩阵没有 token 无法验；匿名 401 由 AUTH_ANON 覆盖，不在这里伪装成通过。
+        checks.add(SKIP, "ENTITLEMENT", "缺 E2E_AUTH_TOKEN：认证后授权矩阵检查跳过（匿名 401 见 AUTH_ANON）")
+        return
     results = []
+    headers = {"Authorization": f"Bearer {token}"}
     for endpoint, path_tpl in ENTITLEMENT_ENDPOINTS.items():
-        if endpoint == "watchlist" and not token:
-            results.append((SKIP, "watchlist: 缺 E2E_AUTH_TOKEN，跳过矩阵检查（AUTH 已 SKIP）"))
-            continue
         url = API + path_tpl.format(instrument_id=quote(instrument, safe=""))
-        headers = {"Authorization": f"Bearer {token}"} if endpoint == "watchlist" else None
         status, body, resp_headers = http_response(url, headers=headers)
         if status is None:
             results.append((SKIP, f"{endpoint}: 无法探测 {url}：{body.get('error')}"))
@@ -653,6 +704,11 @@ def _decide_base(checks: Checks, stack_up: bool, impl_ready: bool, offline: bool
             reason = f"FAIL:{cid}"
             if cid in ("CONTRADICTION", "INGEST_REPORT_INVALID", "DATA_READY"):
                 reason = f"FAIL:{cid}"
+            elif cid == "AUTH_ANON":
+                detail = next((i["detail"] for i in checks.by_level(FAIL) if i["id"] == "AUTH_ANON"), "")
+                code = detail.split(":", 1)[0]
+                if code in ("IMPL_WRONG_STATUS", "IMPL_WRONG_BODY"):
+                    reason += ":" + code
             elif cid == "ENTITLEMENT":
                 detail = next((i["detail"] for i in checks.by_level(FAIL) if i["id"] == "ENTITLEMENT"), "")
                 code = detail.split(":", 1)[0]
@@ -703,6 +759,7 @@ def main(argv=None) -> int:
         stack_up, impl_ready, _, data_ready = check_stack(checks)
         replay_ready, replay_detail = check_replay(checks)
         check_auth(checks)
+        check_auth_boundary(checks, scenario)
         check_entitlement(checks, scenario)
         check_ingest_report(checks, data_ready)
 

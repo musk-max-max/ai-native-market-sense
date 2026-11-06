@@ -21,7 +21,14 @@ export const PG_DSN = process.env.E2E_PG_DSN || process.env.PG_DSN || process.en
 export const PSQL_BIN = process.env.E2E_PSQL || 'psql';
 export const BASE_URL = (process.env.E2E_BASE_URL || 'http://127.0.0.1:3000').replace(/\/$/, '');
 export const REPLAY_URL = (process.env.E2E_REPLAY_URL || 'http://127.0.0.1:18081').replace(/\/$/, '');
-export const AUTH_TOKEN = process.env.E2E_AUTH_TOKEN || '';
+// ADR-008 S1：认证是 identity JWT（无 dev-token 旁路）。token 来源优先级：
+//   1. E2E_AUTH_TOKEN（CI/显式导出）；2. global-setup 自动种子/登录后写的 .state 文件（worker 读）。
+// 自动种子只在 E2E_AUTH_AUTOSEED=1 时发生（见 scripts/seed_e2e_identity.py），避免默认写库。
+export const TOKEN_FILE = process.env.E2E_AUTH_TOKEN_FILE || path.join(E2E_DIR, '.state', 'e2e-auth-token');
+function readTokenFile() {
+  try { return fs.readFileSync(TOKEN_FILE, 'utf8').trim(); } catch { return ''; }
+}
+export const AUTH_TOKEN = process.env.E2E_AUTH_TOKEN || readTokenFile();
 export const AUTH_STORAGE_KEY = process.env.E2E_AUTH_STORAGE_KEY || 'e2e_token';
 export const STALE_THRESHOLD_MS = 900000; // shared/openapi.yaml: >15min 必须标 stale
 export const COMPOSE_FILE = path.join(E2E_DIR, 'docker-compose.yml');

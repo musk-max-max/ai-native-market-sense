@@ -325,3 +325,33 @@ def test_header_scan_covers_instrument_base_200():
         {"meta": {"entitlement": {"tier": "internal_eval", "is_entitled": False}}},
         "instrument", None, {"X-Entitlement-Cause": "unauthorized_config"})
     assert level == preflight.FAIL and "IMPL_LEAKS_F1_HEADERS" in detail
+
+
+# ---- KD-E2E-AUTH-ALIGN（ADR-008 S1）：匿名 401 默认拒绝；401/403 语义不得混 ----
+
+def test_anon_401_unauthenticated_problem_is_ok():
+    level, detail = preflight.anon_auth_verdict(401, {"code": "UNAUTHENTICATED"})
+    assert level == preflight.OK and "401" in detail
+
+
+def test_anon_401_wrong_code_fails():
+    level, detail = preflight.anon_auth_verdict(401, {"code": "ENTITLEMENT_RESTRICTED"})
+    assert level == preflight.FAIL and "IMPL_WRONG_BODY" in detail
+
+
+def test_anon_403_is_wrong_status_not_entitlement():
+    # 403 = 已认证但未授权；匿名看到 403 说明 preHandler 没拦住，不能算「授权正常」
+    level, detail = preflight.anon_auth_verdict(403, {"code": "ENTITLEMENT_RESTRICTED"})
+    assert level == preflight.FAIL and "IMPL_WRONG_STATUS" in detail
+    assert "401/403" in detail
+
+
+def test_anon_200_means_endpoint_mis_public():
+    level, detail = preflight.anon_auth_verdict(200, {})
+    assert level == preflight.FAIL and "IMPL_WRONG_STATUS" in detail
+    assert "误公开" in detail
+
+
+def test_anon_unreachable_is_skip():
+    level, _ = preflight.anon_auth_verdict(None, {})
+    assert level == preflight.SKIP

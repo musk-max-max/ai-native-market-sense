@@ -98,8 +98,12 @@ services:
       DISCLAIMER_VERSION: ${E2E_DISCLAIMER_VERSION:-2026.11.1}
       # decisions.md L46：E2E 后门只在非 prod profile 放行；必须显式写，不能留空继承（缺省=prod → fail-closed 拒启动）。
       APP_PROFILE: "e2e"
-      E2E_MODE: "1"                      # A3：开启 E2E_AUTH_TOKEN dev bearer + 启动建 watchlist 表
-      E2E_AUTH_TOKEN: ${E2E_AUTH_TOKEN:-}  # 空串 → preflight AUTH SKIP（P0-08/09 skip，不假 FAIL）
+      E2E_MODE: "1"                      # A3：启动建 watchlist 表；dev bearer 仅作无 shell principal 时的兜底
+      # ADR-008 S1：api 启动即构造 identity authenticator；缺 JWT secret 直接拒启动（不降级为匿名放行）。
+      # 这是**隔离测试栈专用弱 secret**（≥32 字符，仅 e2e run 使用），生产必须由部署注入，不得复用此值。
+      IDENTITY_JWT_SECRET: ${E2E_IDENTITY_JWT_SECRET:-e2e-only-identity-jwt-secret-0123456789abcdef}
+      IDENTITY_JWT_TTL_SECONDS: "28800"
+      E2E_AUTH_TOKEN: ${E2E_AUTH_TOKEN:-}  # S1 后必须是 identity 真实 JWT（见 README §认证）；空串 → 相关用例 skip，不假 FAIL
       # A0 限流（单 IP 60/min、burst 10）对真实 C 端够用，但 E2E 在同一进程里连续打
       # 12 条用例会在第 3 条撞 429（非产品缺陷）。E2E 栈显式放宽，生产默认值不变。
       RATE_LIMIT_IP_PER_MIN: ${E2E_RATE_LIMIT_IP_PER_MIN:-600}

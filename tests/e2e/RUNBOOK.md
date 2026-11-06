@@ -7,7 +7,7 @@ Owner: A12 qa-e2e。目标：让首跑失败 = 5 分钟内定位到「哪一跳�
 
 `docker compose build` / `docker compose up` **一次都没在真实 docker 上跑过**：本机没有容器运行时（且只剩 5.9GiB
 磁盘，装 colima + 拉镜像会压到临界），仓库也还没接远端。已做的是**等价命令**验证（A0 多阶段构建命令、A1 CLI
-冒烟、A12 的 compose 静态 82/82 断言）——**不等于镜像能构建、能起**。
+冒烟、A12 的 compose 静态 83/83 断言）——**不等于镜像能构建、能起**。
 
 所以：看到「10 passed / 1 skipped」时不要理解为「真栈可用」；首跑（远端接上后）第一条请跑
 `tests/e2e/ci/BUILD-SMOKE.md` 的 `docker compose build` 冒烟，预期失败点与归属清单都在那里。**一条 skip 的
@@ -39,7 +39,7 @@ bash tests/e2e/scripts/up.sh
 
 预期输出（按顺序）：
 
-1. （静默）`validate_compose.py --quiet` 退出 0 —— 82 项 compose 静态断言全过；失败会打印断言 ID、期望值与实际值。
+1. （静默）`validate_compose.py --quiet` 退出 0 —— 83 项 compose 静态断言全过；失败会打印断言 ID、期望值与实际值。
 2. `==> 启动基础设施（postgres / redis / tushare-replay）`
 3. `==> 一次性 ingest（真实 adapter + 录播回放 → PG）`（`--no-seed` 可跳过；将扩为 ingest → load →
    质量报告三步，seed 失败时 api/web 仍会启动但 `/healthz` 报 `data_ready=false`，契约见 `docs/INGEST-ONCE-CONTRACT.md`）
@@ -62,7 +62,7 @@ DECISION: READY (exit 0)
 cd tests/e2e && pnpm install --ignore-workspace && npx playwright install chromium && npx playwright test
 ```
 
-预期：13 条 `E2E-P0-00..12`（serial；P0-11 hold 默认 skip 除非 `E2E_HOLD_ENABLED=1`；P0-12 fail-closed 仅 `E2E_FAILCLOSED_SCENARIO=1` 的受限档整栈运行）。失败信息都带 `[hop:web|api.market|api.fundamental|api.watchlist|db]` 标签，报告在 `tests/e2e/playwright-report/`。
+预期：15 条 = 13 条 `E2E-P0-00..12` + 2 条 `E2E-AUTH-01/02`（serial；P0-11 hold 默认 skip 除非 `E2E_HOLD_ENABLED=1`；P0-12 fail-closed 仅 `E2E_FAILCLOSED_SCENARIO=1`；AUTH-02 仅 restricted 矩阵）。失败信息都带 `[hop:web|api.market|api.fundamental|api.watchlist|db]` 标签，报告在 `tests/e2e/playwright-report/`。
 
 ## 2. 首跑最可能暴露的三类命名差异
 
@@ -198,8 +198,18 @@ PORT=3000 HOST=127.0.0.1 API_BASE_URL=http://127.0.0.1:8081 WEB_DIST_DIR=dist no
 #    （从仓库根启动必须显式 WEB_DIST_DIR=web/h5/dist；cwd 不对会 404）
 # 5) 跑用例：DB 断言直连 DSN，不需要 compose
 cd tests/e2e
-E2E_BASE_URL=http://127.0.0.1:3000 E2E_AUTH_TOKEN=dev-token E2E_PG_DSN=postgres://...@127.0.0.1:55432/... npx playwright test
+# ADR-008 S1：token 是 identity JWT（dev-token 已失效）。先造夹具用户并 login：
+E2E_AUTH_AUTOSEED=1 E2E_ENTITLEMENT_MATRIX=restricted \
+  E2E_PG_DSN=postgres://...@127.0.0.1:55432/... \
+  python3 scripts/seed_e2e_identity.py --matrix restricted --api-base http://127.0.0.1:8081
+E2E_BASE_URL=http://127.0.0.1:3000 E2E_PG_DSN=postgres://...@127.0.0.1:55432/... \
+  E2E_AUTH_TOKEN="$(cat .state/e2e-auth-token)" E2E_ENTITLEMENT_MATRIX=restricted npx playwright test
 ```
+
+- api 启动需要 `IDENTITY_JWT_SECRET`（≥32 字符；compose 已给 e2e 专用默认值，手工起栈要显式给）。
+- `E2E_AUTH_AUTOSEED=1` 时 global-setup 会自动生成 token 并写 `.state/e2e-auth-token`，worker 读该文件；
+  不设则必须显式 `E2E_AUTH_TOKEN`，否则匿名 401 用例可跑、认证相关用例 skip。
+- restricted 的夹具用户只在**隔离 E2E 库**写（image 内不得用于生产/共享库）。
 
 - `E2E_SKIP_PREFLIGHT=1`：`global-setup` 会写一份 `READY`（含 `replay.ready` 探测），**不会静默 skip**；
   只用于已手工验证环境的排障，不作为 CI 证据。

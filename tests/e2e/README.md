@@ -13,12 +13,13 @@ tests/e2e/
 ├── docker-compose.entitlement-positive.yml  # 已授权/hold/audit 正向 override（独立 project + loopback-only；KD-ENT-01）
 ├── tushare-replay/             # tushare HTTP 边界录播代理（含 8 条自测）
 ├── scripts/
-│   ├── validate_compose.py     # 无需 docker 的结构断言（82 项，含 KD-ENT-01 授权配置）
+│   ├── validate_compose.py     # 无需 docker 的结构断言（83 项，含 KD-ENT-01 授权配置 / S1 identity）
 │   ├── preflight.py            # 准入判定 READY/SKIP(78)/FAIL(1)，产出 .e2e-status.json
 │   ├── up.sh                   # 一条命令起真栈（含一次性 ingest 与 preflight）
 │   └── record-fixtures.sh      # 本地「录一次真实响应」（CI 拒绝执行）
 ├── lib/harness.js              # 准入、test-id、API、DB、断言辅助
-├── specs/p0-stock-page.spec.js # 11 条关键路径（P0-00..10）
+├── specs/p0-stock-page.spec.js # 13 条 P0 关键路径（P0-00..12）
+├── specs/auth-boundary.spec.js # 2 条 ADR-008 S1 认证边界（匿名 401 / 认证后 403）
 ├── testids.json                # test-id 单一真源（交接 A7）
 ├── docs/TESTID-CONVENTION.md   # test-id 命名约定
 ├── quarantine.json             # flaky 记录（expires_at 必填，>24h 未处置 preflight FAIL）
@@ -61,7 +62,7 @@ python3 tests/fixtures/tushare/synthetic/build_recordings.py
 | `/healthz` 可达但 `data_ready=false` | SKIP | 78 | 全部 skip（`DATA_NOT_READY:<reason>`），不把数据未落算成产品 bug |
 | 个股页 404（实现缺失） | SKIP | 78 | 全部 skip；原因里显式带 `FIXTURES_PENDING`，不掩盖缺口 |
 | 缺 `E2E_AUTH_TOKEN` | SKIP | 78 | 自选两条 skip；其余照跑 |
-| **录播代理（replay）不可达 / 录制 0 条** | READY（带注记） | 0 | **只有 P0-10 skip**，其余 11 条照跑（Lead 2026-11-04 裁定：replay 只是 P0-10 前置） |
+| **录播代理（replay）不可达 / 录制 0 条** | READY（带注记） | 0 | **只有 P0-10 skip**，其余 13 条照跑（Lead 2026-11-04 裁定：replay 只是 P0-10 前置） |
 | 录制损坏 / key 不一致 / quarantine 过期 | **FAIL** | 1 | 不跑，先修 E2E 资产 |
 | 全部就绪 | READY | 0 | 真跑，失败即产品缺陷 |
 
@@ -69,7 +70,7 @@ python3 tests/fixtures/tushare/synthetic/build_recordings.py
 「可测」的定义是 **`$E2E_API_URL/healthz` 可达且 `data_ready=true`**（Lead 2026-11-04 裁定），
 不是「compose 起来了」——本机原生 PG + 真 api + 真 web（无 compose）同样应该可测。
 replay 只是 P0-10 的前置，不达标只让 P0-10 skip，不拖累其余用例。
-`preflight` 的 FAIL 会在 Playwright `globalSetup` 里直接抛出，避免 11 条用例各自超时。
+`preflight` 的 FAIL 会在 Playwright `globalSetup` 里直接抛出，避免 15 条用例各自超时。
 `E2E_SKIP_PREFLIGHT=1` 时 `global-setup` 会写一份 `READY` 状态文件（含 `replay.ready` 探测），
 不会静默 skip；状态文件缺失时 `harness.status()` 直接抛错（不再默认 skip）。
 
@@ -127,7 +128,7 @@ seed 失败时 api/web
 [docs/INGEST-ONCE-CONTRACT.md](docs/INGEST-ONCE-CONTRACT.md)。A2 `warehouse.load` 已落地；剩余接线：A1 seed
 两步命令/证据参数、Dockerfile 需补 `config/ingest.yaml`、A1 固定时钟（见契约 §1b）。
 
-## P0 用例（11 条，每条带 hop 便于定位断点）
+## P0 用例（13 条，E2E-P0-00..12；每条带 hop 便于定位断点）
 
 | 用例 | hop | 断言要点 |
 |---|---|---|
@@ -144,6 +145,38 @@ seed 失败时 api/web
 | E2E-P0-10 | api→replay | 已录制载荷回放 200 且 `data.items` 非空（不造假）；未录制 → 503 `FIXTURE_MISSING` 且无 `data`；产品层未录制标的非 200 + Problem，UI 错误横幅可见且不显价格 |
 | E2E-P0-12 | web+api F1 fail-closed | 受限档整页 DOM：价格/涨跌 testid 不存在或文本为空；`0`/`0.00`/`--`/`—`/`NaN`/`undefined`/`null`/骨架屏/伪元素数字一律失败；**不用 `toBeHidden()` 判没有**（hidden 里的价格 devtools 一改就出来）；免责+不可用提示可见。仅 `E2E_FAILCLOSED_SCENARIO=1` 的受限档整栈运行 |
 | E2E-P0-11 | api.compliance+db+web | hold 冻结：`audit.raise_hold` 后 quote 403 `ENTITLEMENT_RESTRICTED`、instrument 200+`is_entitled=false` 且无行情数值字段（F1）、页面 notice 可见；`clear_hold` 后立即恢复 200+true。**默认 skip**，仅 `E2E_HOLD_ENABLED=1` 且 E2E 库已跑 A13 `db-migrate`（A5 迁移）时断言——不静默跳过成假绿 |
+
+## 认证边界（ADR-008 S1，2 条）
+
+匿名访问非公开 `/v1/*` 必须是 **401 `UNAUTHENTICATED`**（默认拒绝，`getInstrument` 也不进公开白名单——
+Lead 裁定，F1 后再议）；已认证但 `internal_eval` 无权仍是 **403 `ENTITLEMENT_RESTRICTED`**。401 与 403 是
+「没认证」与「认证了但没授权」两种语义，不能互换。公开白名单只有 `/healthz`、`/v1/auth/{register,login}`、
+`/v1/internal/auth/register`。
+
+| 用例 | hop | 断言要点 |
+|---|---|---|
+| E2E-AUTH-01 | api.auth | 匿名对 instrument/quote/bars/fundamental-summary/page-summary/limit-ladder/watchlist 全部 401 + `code=UNAUTHENTICATED` + 无 `data`；`/healthz` 仍 200；getInstrument 显式锁 401 |
+| E2E-AUTH-02 | api.auth+api.market | 仅 `E2E_ENTITLEMENT_MATRIX=restricted`：认证后 quote/bars/fundamental-summary/limit-ladder 403（不是 401）；instrument 200+`is_entitled=false` 无行情数值；page-summary 200 受限骨架无数值 |
+
+preflight 对应拆分：`AUTH_ANON` 专门验匿名 401（403/200 都判 FAIL，防「已认证但未授权」被误写成匿名行为），
+`ENTITLEMENT` 用 Bearer token 验认证后的矩阵（缺 token 时 SKIP，不冒充通过）。
+
+### 认证 token 供给（ADR-008 S1 起，`dev-token` 已失效）
+
+api 外壳启动即构造 identity authenticator（`IDENTITY_JWT_SECRET` 必需，compose 默认是 e2e 专用弱 secret），
+`E2E_AUTH_TOKEN` 必须是 identity 签出的 **真实 JWT**；静态 `dev-token` 会被判 401。
+
+- 自动（推荐）：`E2E_AUTH_AUTOSEED=1` → `global-setup` 在 preflight 前调
+  `scripts/seed_e2e_identity.py`，把 token 写入 `.state/e2e-auth-token`（worker 读）。
+  - `matrix=normal`：`/v1/auth/register` + `/v1/auth/login` 拿 c_end token（tier=c_end_display）。
+  - `matrix=restricted`：先在**隔离 E2E 库**写一个已批准 `internal_active/internal_eval` 夹具用户
+    （固定 user_id/email、合法 `apr_<uuidv7>` 的 `approval_ref`、`approved_by=H3`），再走真实
+    `/v1/auth/login` —— 签名字段由 identity 服务生成，测试不伪造 token。
+    需要 identity 迁移已被 db-migrate 覆盖（`services/*/migrations/*.sql`），psql 来源
+    `E2E_PG_DSN`/`PG_DSN`/`DATABASE_URL`，没有则 `docker compose exec postgres psql`。
+- 手动：`python3 tests/e2e/scripts/seed_e2e_identity.py --matrix restricted --api-base http://127.0.0.1:8081 --dsn "$E2E_PG_DSN"`
+  （需同时 `E2E_AUTH_AUTOSEED=1` 或 `--allow-write`；只允许隔离库）。
+- 该脚本只写 identity 夹具用户、不改 services/**；生产/共享库禁止执行。
 
 ## hold（合规冻结，P0 纳入）
 
@@ -194,7 +227,7 @@ FAIL 会带独立 reason code，让红灯可归因、不用每天重查：
 
 本机当前**没有 docker / pnpm / Playwright 浏览器**，因此本轮交付的验证边界是：
 
-- ✅ `validate_compose.py` 82/82 通过（真栈/录播/断网/token/授权矩阵/positive override/seed 链/`sh` 迁移脚本/loopback 端口）
+- ✅ `validate_compose.py` 83/83 通过（真栈/录播/断网/token/授权矩阵/positive override/seed 链/`sh` 迁移脚本/loopback 端口）
 - ✅ `pytest tushare-replay/test_server.py tests/e2e/scripts/test_preflight.py` 42 passed
 - ✅ 合成录制 19 条 + `build_recordings.py --check` 通过；replay 冒烟：已录制 200（`SYNTHETIC-*` 值）、未录制 503 `FIXTURE_MISSING`
 - ✅ `preflight.py --offline` 正确输出 `SKIP(78)` 并落 `.e2e-status.json`

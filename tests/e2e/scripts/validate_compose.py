@@ -164,6 +164,11 @@ def main(argv) -> int:
     rep.check(bool(dep_uid),
               "默认栈 DEPLOYMENT_UID 非空（A5 observed_required_chk：tier_state_observed 必须带 deployment_uid）",
               "缺失时 API 降级 internal_eval、/healthz 报 entitlement_degraded=true")
+    # ADR-008 S1：api 进程入口构造 identity authenticator，缺 JWT secret 直接拒启动。
+    id_secret = str(env_of(api, "IDENTITY_JWT_SECRET") or "")
+    rep.check(len(id_secret) >= 32,
+              "默认栈 IDENTITY_JWT_SECRET ≥32 字符（S1 identity authenticator 启动必需）",
+              f"实际长度 {len(id_secret)}；缺省/过短会导致 api 拒绝启动")
     # 5aa. positive override（独立 project + loopback，禁止公网可达）
     positive = load(POSITIVE)
     pos_api = ((positive.get("services") or {}).get("api") or {})
