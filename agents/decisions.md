@@ -1675,3 +1675,19 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 **Open**：H2 契约判定包待判；A7 采 AI-2/3 computed-style 证据在途；tushare 授权 0/3、安全半 3/3、SEC-011 = owner/H3。
 
 **生效**：2026-11-06 21:41。影响席：H2（判契约）、H3（签发）、A3（AI 域属）。
+
+### L143 — AKshare 实时行情适配器交付（L0 整备收尾，2026-11-06 21:48）
+
+**交付**：commit 29737be。services/ingest/src/market_ingest/adapters/akshare/（adapter.py 8.9K + requirements + __init__）。
+- 真实现 list_realtime_quotes/get_quote/health，60s 快照缓存，历史日线走 tushare；canonical EXCH:CODE/元/股（手→股），NaN→None 禁补 0（C10）。
+- 合规边界写入文件头：AKshare 为爬虫封装，**仅限内部研究/展示，C 端商用需另行授权**（F1 residual，红线①同源）。
+- 已注册 load_adapter("akshare") + create_adapter 工厂。
+- **L0 修正正确性缺陷**：原涨跌停判定 ±9.9% 全市场硬编码，会误标科创板/创业板/北交所。改为板块感知（主板 ±10%、科创 688/689/创业 300/301 ±20%、北交所 ±30%，容差 0.1%），数据缺失 fail-closed 归 NONE。新增 tests/test_adapter_akshare.py 5 case。
+
+**门禁**：services/ingest **219 passed**（原 214 + 5）。
+
+**未提交（留待 owner，L138 纪律）**：① services/ingest/src/market_ingest/adapters/tushare/{adapter.py,research.py} 的 dc_member per_board 改动（与 AKshare 无关的另一在途线）；② services/ingest/scripts/sync_realtime_quotes.py（未跟踪）。二者非 L0 起草，不代提交、不代归属。
+
+**Open**：A7 采 AI-2/3 computed-style 证据在途（L141 两阻塞：ECS web 容器陈旧 + injected probe 方法论）；AI-1 契约判定包待 H2（L142）；tushare 授权 0/3、安全半 3/3、SEC-011 = owner/H3；tushare per_board + sync 脚本待 owner 认领。
+
+**生效**：2026-11-06 21:48。影响席：A1（AKshare 源）、A3（ingest 域属）。
