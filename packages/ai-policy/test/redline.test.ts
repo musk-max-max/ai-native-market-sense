@@ -22,10 +22,7 @@ const policy = parseAiContentPolicy(policyRaw);
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
 function cloneRedline(): Record<string, unknown> {
-  const raw = clone(redlineRaw);
-  // 1.1.2 待签期间 redline 文件仍绑定 1.1.1；单测只校验解析逻辑，用当前 policy 版本覆盖。
-  raw.policy_version = policy.policy_version;
-  return raw;
+  return clone(redlineRaw);
 }
 
 function expectCode(fn: () => unknown, code: string): void {
@@ -38,7 +35,7 @@ function expectCode(fn: () => unknown, code: string): void {
 
 test("redline-basis：12 条 C01..C12 与 policy 12 类双向对齐，可解析", () => {
   const redline = parseRedlineBasis(cloneRedline(), { policy });
-  assert.equal(redline.version, "1.0.1");
+  assert.equal(redline.version, "1.0.2");
   assert.equal(redline.signed, redlineRaw.signed);
   assert.equal(redline.rules.length, 12);
   assert.deepEqual(
@@ -111,14 +108,22 @@ test("红用例 5：policy_version 或两个 policy sha 不匹配 → fail-close
       }),
     "policy_sha_mismatch",
   );
-  expectCode(
-    () =>
-      parseRedlineBasis(cloneRedline(), {
-        policy,
-        expectedPolicyDeployedFileSha256: "f".repeat(64),
-      }),
-    "policy_sha_mismatch",
-  );
+
+  // 跨文件绑定：policy 的 c_end 签认内容 sha 被改 → fail-closed。
+  const badContent = clone(policy) as AiContentPolicy;
+  badContent.authority.h3_policy_version_signature.content_sha256_at_signoff = "0".repeat(64);
+  expectCode(() => parseRedlineBasis(cloneRedline(), { policy: badContent }), "policy_sha_mismatch");
+
+  // 观测部署 sha 不参与门禁：改了也不抛错（部署字节由 policy loader 的 EXPECTED_SHA256 强制）。
+  const observed = cloneRedline();
+  observed.policy_deployed_file_sha256_observed_at_signoff = "f".repeat(64);
+  assert.equal(parseRedlineBasis(observed, { policy }).policy_deployed_file_sha256_observed_at_signoff, "f".repeat(64));
+
+  // T1：owner 分区 pending→signed 但内容不变 → 通过（解除签名分区变更牵连重签）。
+  const ownerSigned = clone(policy) as AiContentPolicy;
+  ownerSigned.authority.owner_policy_version_signature.status = "signed";
+  ownerSigned.authority.owner_policy_version_signature.signed_at = "2026-11-06T03:30:54Z";
+  assert.equal(parseRedlineBasis(cloneRedline(), { policy: ownerSigned }).signed, redlineRaw.signed);
 });
 
 test("红用例 6：生产 requireSigned 下 signed=false → fail-closed", () => {
@@ -131,7 +136,7 @@ test("红用例 6：生产 requireSigned 下 signed=false → fail-closed", () =
 
 test("红用例 6b：redline 文件版本与期望不符 → fail-closed", () => {
   expectCode(
-    () => parseRedlineBasis(cloneRedline(), { policy, expectedVersion: "1.0.2" }),
+    () => parseRedlineBasis(cloneRedline(), { policy, expectedVersion: "1.0.1" }),
     "version_mismatch",
   );
 });

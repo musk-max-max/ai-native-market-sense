@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "version": "1.0.1",
+  "version": "1.0.2",
   "doc_type": "h3-redline-basis",
   "owner": "H3",
   "implemented_by": "A5",
@@ -9,7 +9,7 @@
   "signed_at": "2026-11-06",
   "policy_version": "ai-content-policy/1.1.2",
   "policy_signed_content_sha256": "aae8032a1423566d7d3f0355326a891ee88d8236959ebe5605557da57291a2bd",
-  "policy_deployed_file_sha256": "7f7955037a124ca9b664617d5da23427a536a797c1e6cb11cadf2f629b89d1d5",
+  "policy_deployed_file_sha256_observed_at_signoff": "7f7955037a124ca9b664617d5da23427a536a797c1e6cb11cadf2f629b89d1d5",
   "basis_tiers": {
     "CSRC_40_DEF": "40号文定义（分析/预测/建议）",
     "L3_FIVE_NO": "L3 五不",
@@ -122,6 +122,6 @@
       ]
     }
   ],
-  "content_sha256_at_signoff": "8e8ef728b593732354501374b19d6e38fb50508130503676b1fd725d0faf6516",
-  "sign_at": "2026-11-06T03:30:54Z"
+  "content_sha256_at_signoff": "f071cbc91710671d330dc1272558ca05436b9b4db21c2690388534dbe5ef53e6",
+  "sign_at": "2026-11-06T03:34:19Z"
 }

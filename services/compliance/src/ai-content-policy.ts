@@ -100,14 +100,11 @@ export function loadRedlineBasis(
     throw new AiPolicyConfigError("redline_json_invalid", `H3 红线依据文件不是合法 JSON：${detail}`);
   }
 
-  const policySourceSha256 = createHash("sha256")
-    .update(readFileSync(resolve(resolveRepoRoot(), AI_CONTENT_POLICY_RELATIVE_PATH), "utf8"), "utf8")
-    .digest("hex");
-
+  // 部署字节由 policy loader 的 EXPECTED_SHA256 强制；redline 只绑 H3 签认内容 sha，
+  // 不再比较 policy 部署文件 sha（否则签名分区任何变更都会牵连 redline 重签）。
   return parseRedlineBasis(parsed, {
     policy,
     expectedVersion: REDLINE_BASIS_EXPECTED_VERSION,
-    expectedPolicyDeployedFileSha256: policySourceSha256,
     ...(isProductionRuntime() ? { requireSigned: true } : {}),
   });
 }

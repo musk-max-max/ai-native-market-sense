@@ -36,7 +36,8 @@
 - 1.1.1 已签字节**不存在于仓库**（H3 按 `3e03535e…` 全仓搜索确认）；A16 登记簿 E-0003 记 evidence gap，r2 作为当时记录继续有效但不可复现。
 - **当前待签 pending 字节 sha256=`aae8032a1423566d7d3f0355326a891ee88d8236959ebe5605557da57291a2bd`**；已归档到 `rules/archive/ai-content-policy/`。
 - 归档机制：`rules/archive/ai-content-policy/<sha256>.json` 与 `rules/archive/redline-basis/<sha256>.json`，字节完全一致、只读、文件名=内容 sha256；`packages/ai-policy/test/archive.test.ts` 做 CI 校验。签前归档 pending 字节，签后归档最终字节。
-- **redline-basis.json v1.0.1**（H3 签认，2026-11-06）：pending `8e8ef728…`（H3 签认绑定）→ 最终 `51d06e3d…`（部署 pin）；只改 4 个签认字段，`rules`/`basis_tiers` 未动；两版均已归档。生产加载要求 `signed=true` 且与 policy 1.1.2 双 sha 一致。
+- **redline-basis.json v1.0.2**（H3 已签，pending `f071cbc9…` / 部署 `cfe50982…`）：`policy_signed_content_sha256` 跨文件等于 policy 的 c_end 签认内容 sha；`policy_deployed_file_sha256_observed_at_signoff` 仅记录签认时观测值、**非门禁**（部署字节由 policy loader 的 `AI_CONTENT_POLICY_EXPECTED_SHA256` 强制）。这样 owner 签 internal / 任何签名分区字节变化不再牵连 redline 重签。
+- redline v1.0.1（H3 已签，pending `8e8ef728…` / 部署 `51d06e3d…`）**已被 v1.0.2 取代**：1.0.1 的部署 pin 会随 policy 签名分区变化而失配，故解除该重复绑定；1.0.1 归档保留不删。
 
 ### 1.1.2 编辑状态表（给 H3 核）
 
@@ -49,7 +50,8 @@
 | 5 | 11:22:33 | `47dc47d3` | Lead | 恢复 definition_refs 6 条 + note 改分区签发措辞 |
 | 6 | 11:2x | `aae8032a` | A5 | 分区签名结构（H3 c_end / owner internal）+ `basis_scope` + 删「1.1.1 已签字节保留为历史」不实句 + 归档 pending 字节 |
 | 7 | 11:27:11Z（c_end 翻转） | `7f795503` | A5 | 按 Lead m02065/H3 授权翻转 c_end：仅改 `h3_policy_version_signature` 的 status/content_sha256_at_signoff/sign_at/note 四字段（其余字节未动，diff 已核）；最终字节归档 `rules/archive/ai-content-policy/7f795503….json`；internal 仍待 owner |
-| 8 | 11:30:54Z（redline 1.0.1 翻转） | `51d06e3d`（redline） | A5 | redline-basis 升 1.0.1、policy_version→1.1.2、重绑 policy 双 sha；pending `8e8ef728….json` 与最终 `51d06e3d….json` 均归档；翻转只改 signed/signed_at/content_sha256_at_signoff/sign_at 四字段 |
+| 8 | 11:30:54Z（redline 1.0.1 翻转） | `51d06e3d`（redline） | A5 | redline-basis 升 1.0.1、policy_version→1.1.2、重绑 policy 双 sha；pending `8e8ef728….json` 与最终 `51d06e3d….json` 均归档；翻转只改 signed/signed_at/content_sha256_at_signoff/sign_at 四字段。**已被 1.0.2 取代**（解除签名分区变更牵连） |
+| 9 | 11:34:19Z（redline 1.0.2 翻转） | `cfe50982`（redline） | A5 | 绑定语义修正：绑定 c_end 签认内容 sha；部署 sha 改名 observed、非门禁；pending `f071cbc9….json` 与最终 `cfe50982….json` 均归档；H3 签认 pending 字节，翻转只改 4 字段 |
 
 ## 历史生效记录（1.1.1，H3 签认，2026-11-06）
 

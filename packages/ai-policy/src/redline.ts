@@ -17,7 +17,7 @@ export const BASIS_TIERS = {
 
 export type BasisTier = keyof typeof BASIS_TIERS;
 
-export const REDLINE_BASIS_EXPECTED_VERSION = "1.0.1";
+export const REDLINE_BASIS_EXPECTED_VERSION = "1.0.2";
 
 export const REDLINE_RULE_IDS = [
   "H3-C01",
@@ -58,8 +58,10 @@ export interface RedlineBasis {
   /** 翻转签认的实际 UTC 时间；待签时为 null。 */
   sign_at: string | null;
   policy_version: string;
+  /** 必须等于 policy 的 c_end 签认内容 sha（H3 签的是内容，跨文件绑定）。 */
   policy_signed_content_sha256: string;
-  policy_deployed_file_sha256: string;
+  /** 签认时观测到的 policy 部署文件 sha；非门禁，部署字节由 policy loader 的 EXPECTED_SHA256 强制。 */
+  policy_deployed_file_sha256_observed_at_signoff: string;
   basis_tiers: Record<BasisTier, string>;
   rules: RedlineBasisRule[];
 }
@@ -92,7 +94,6 @@ export interface ParseRedlineBasisOptions {
   policy: AiContentPolicy;
   expectedVersion?: string;
   expectedPolicySignedContentSha256?: string;
-  expectedPolicyDeployedFileSha256?: string;
   /** 生产入口必须传 true：signed 必须为 true。 */
   requireSigned?: boolean;
 }
@@ -134,7 +135,9 @@ function assertNullableString(
  * 校验红线依据文件，并做三层一致性：
  * 1) 文件自身结构/签名/版本；
  * 2) 12 条 C01..C12 与 policy 的 12 个 category 双向集合相等；
- * 3) policy 版本与双 sha 必须匹配（防 policy 改版后红线依据未跟）。
+ * 3) policy 版本与签认内容 sha 必须匹配（跨文件绑定 H3 签认的内容）；
+ *    签认时观测到的部署文件 sha 仅记录，不作为门禁——部署字节由 policy loader
+ *    的 AI_CONTENT_POLICY_EXPECTED_SHA256 强制，避免签名分区变更牵连 redline 重签。
  */
 export function parseRedlineBasis(
   raw: unknown,
@@ -186,13 +189,19 @@ export function parseRedlineBasis(
     "policy_signed_content_sha256",
     "invalid_structure",
   );
-  const deployedSha = assertString(
-    raw.policy_deployed_file_sha256,
-    "policy_deployed_file_sha256",
+  const deployedObservedSha = assertString(
+    raw.policy_deployed_file_sha256_observed_at_signoff,
+    "policy_deployed_file_sha256_observed_at_signoff",
     "invalid_structure",
   );
-  if (!SHA256_RE.test(signedSha) || !SHA256_RE.test(deployedSha)) {
-    fail("invalid_structure", "redline-basis 的 policy 两个 sha 必须是 64 位小写 hex");
+  if (!SHA256_RE.test(signedSha) || !SHA256_RE.test(deployedObservedSha)) {
+    fail("invalid_structure", "redline-basis 的 policy 签认内容/观测部署 sha 必须是 64 位小写 hex");
+  }
+  if (signedSha !== options.policy.authority.h3_policy_version_signature.content_sha256_at_signoff) {
+    fail(
+      "policy_sha_mismatch",
+      "redline-basis.policy_signed_content_sha256 与 policy 的 c_end 签认内容 sha 不一致",
+    );
   }
 
   if (!isPlainObject(raw.basis_tiers)) {
@@ -338,12 +347,6 @@ export function parseRedlineBasis(
   ) {
     fail("policy_sha_mismatch", "redline-basis.policy_signed_content_sha256 与期望不一致");
   }
-  if (
-    options.expectedPolicyDeployedFileSha256 !== undefined &&
-    deployedSha !== options.expectedPolicyDeployedFileSha256
-  ) {
-    fail("policy_sha_mismatch", "redline-basis.policy_deployed_file_sha256 与期望不一致");
-  }
 
   return {
     schema_version: 1,
@@ -358,7 +361,7 @@ export function parseRedlineBasis(
     sign_at: signAt,
     policy_version: policyVersion,
     policy_signed_content_sha256: signedSha,
-    policy_deployed_file_sha256: deployedSha,
+    policy_deployed_file_sha256_observed_at_signoff: deployedObservedSha,
     basis_tiers: { ...BASIS_TIERS },
     rules,
   };
