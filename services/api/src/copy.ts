@@ -13,7 +13,7 @@
 export const COPY_VERSION = '2026.11.5';
 
 /** 所有对外可见文本的确定性哈希（copy.ts 文本 + 版本），构建期由 scripts/check-copy-version.mjs 校验。 */
-export const COPY_TEXT_HASH = 'ac875c9d9237009cbe366f9879cb94739d1a8194c90173dbb29b4768ebb46a4b';
+export const COPY_TEXT_HASH = 'f40eac989d8ae18d3dea7b9a75240525927ef5708d15ff9e5a99b3777357d4d7';
 
 /** HTTP 状态码兜底标题：只描述事实，不含内部码/英文原文。 */
 export const ERROR_TITLES = {
