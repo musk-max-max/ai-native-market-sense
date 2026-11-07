@@ -13,6 +13,7 @@ import type {
   ConfigState,
   ConfigValue,
   ConfigValues,
+  ImpactScope,
   Release,
   ValidationIssue,
 } from '../domain/types';
@@ -33,6 +34,24 @@ import { formatDateTime } from '../lib/format';
 import type { ConsoleServices } from '../lib/services';
 import { TESTIDS } from '../lib/testids';
 import { useAsync } from '../lib/use-async';
+
+const ALL_IMPACT_SCOPES: readonly ImpactScope[] = [
+  'column_layout',
+  'content_copy',
+  'content_placement',
+  'ranking',
+  'rotation',
+  'visibility',
+] as const;
+
+const IMPACT_SCOPE_LABEL: Readonly<Record<ImpactScope, string>> = {
+  column_layout: '栏位布局',
+  content_copy: '文案内容',
+  content_placement: '内容排布',
+  ranking: '排序规则',
+  rotation: '轮换策略',
+  visibility: '可见性',
+};
 
 export interface ConfigEditorPageProps {
   services: ConsoleServices;
@@ -135,6 +154,9 @@ function ConfigItemEditor({
   const [conflictVersion, setConflictVersion] = useState<number | null>(null);
   const [resolutions, setResolutions] = useState<Record<string, ConflictChoice>>({});
   const [rollbackTarget, setRollbackTarget] = useState<Release | null>(null);
+  // 契约必填：SubmitRequest.change_reason（8–200 字）+ impact_scope（1–6 枚举）。canary_percent 归 ApprovalQueuePage publish。
+  const [changeReason, setChangeReason] = useState('');
+  const [impactScope, setImpactScope] = useState<readonly ImpactScope[]>([]);
 
   useEffect(() => {
     if (!detail) return;
@@ -271,6 +293,8 @@ function ConfigItemEditor({
         itemId,
         actor,
         diffAcknowledged: true,
+        changeReason: changeReason.trim() || undefined,
+        impactScope: impactScope.length > 0 ? impactScope : undefined,
       });
       setMessage(`已提交审批：${changeRequest.id}（等待人类终审，agent 无终审权）`);
       setShowDiff(false);
@@ -389,6 +413,42 @@ function ConfigItemEditor({
             disabled={busy || locked}
           />
         ))}
+
+        {/* 契约 SubmitRequest 必填：change_reason（8–200 字）+ impact_scope（1–6 枚举）。 */}
+        <label className="c-field">
+          <span className="c-field-label">变更说明（提交审批必填，8–200 字）</span>
+          <textarea
+            className="c-textarea"
+            rows={2}
+            value={changeReason}
+            onChange={(event) => setChangeReason(event.target.value)}
+            disabled={busy || locked}
+            data-testid={TESTIDS.changeReason}
+            maxLength={200}
+          />
+          <span className="c-muted">{changeReason.trim().length}/200（≥8 字才能提交）</span>
+        </label>
+        <fieldset className="c-field">
+          <legend className="c-field-label">影响面（契约 impact_scope，1–6 个不重复枚举）</legend>
+          {ALL_IMPACT_SCOPES.map((scope) => (
+            <label key={scope} className="c-check">
+              <input
+                type="checkbox"
+                checked={impactScope.includes(scope)}
+                onChange={(event) => {
+                  if (event.target.checked) {
+                    setImpactScope([...impactScope, scope]);
+                  } else {
+                    setImpactScope(impactScope.filter((s) => s !== scope));
+                  }
+                }}
+                disabled={busy || locked}
+                data-testid={TESTIDS.impactScope(scope)}
+              />
+              <span>{IMPACT_SCOPE_LABEL[scope]}</span>
+            </label>
+          ))}
+        </fieldset>
 
         <div className="c-diff-actions">
           <button

@@ -77,6 +77,10 @@ export interface SubmitApprovalInput {
   /** 必须已查看 before/after diff + 影响范围（硬约束）。 */
   diffAcknowledged: boolean;
   note?: string;
+  /** 契约 SubmitRequest.change_reason（8–200 字，HTTP 适配器必填；Mock 容忍缺省）。 */
+  changeReason?: string;
+  /** 契约 SubmitRequest.impact_scope（1–6 枚举，HTTP 适配器必填；Mock 容忍缺省）。 */
+  impactScope?: readonly ImpactScope[];
 }
 
 export interface PublishInput {

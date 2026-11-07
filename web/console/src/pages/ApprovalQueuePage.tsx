@@ -37,6 +37,7 @@ export function ApprovalQueuePage({ services, actor, onPendingApprovalsChange }:
   const [selectedId, setSelectedId] = useState('');
   const [acknowledged, setAcknowledged] = useState(false);
   const [approvalRef, setApprovalRef] = useState('');
+  const [canaryPercent, setCanaryPercent] = useState('5');
   const [rejectReason, setRejectReason] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -81,6 +82,7 @@ export function ApprovalQueuePage({ services, actor, onPendingApprovalsChange }:
         changeRequestId: selected.changeRequest.id,
         actor,
         diffAcknowledged: true,
+        canaryPercent: canaryPercent.trim() === '' ? undefined : Number(canaryPercent),
       });
       setMessage(`已通过并发布：${selected.changeRequest.id}`);
       setConfirmOpen(false);
@@ -226,6 +228,19 @@ export function ApprovalQueuePage({ services, actor, onPendingApprovalsChange }:
           </div>
 
           <div className="c-form" style={{ marginTop: 'var(--space-4)' }}>
+            <label className="c-field">
+              <span className="c-field-label">灰度百分比（契约 canary_percent，1–10 整数；留空走服务端默认）</span>
+              <input
+                className="c-input"
+                type="number"
+                min={1}
+                max={10}
+                value={canaryPercent}
+                onChange={(event) => setCanaryPercent(event.target.value)}
+                disabled={busy}
+                data-testid={TESTIDS.canaryPercent}
+              />
+            </label>
             <label className="c-field">
               <span className="c-field-label">approval_ref（写入授权与审计）</span>
               <input
