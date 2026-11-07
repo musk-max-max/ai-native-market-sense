@@ -1947,3 +1947,12 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 - **门禁**：typecheck 10/10；api 26 pass。已 push（c57668b）。
 - **Open**：ECS API 容器重建 + smoke 待跑。
 
+
+## L157 — API deploy 产物补齐 ai/market 传递 workspace 依赖（L0 亲跑，aeb7079）
+
+- **触发**：L156 修 identity/approval 相对路径后容器启动下一关——dist/services/ai/src/domain/analyses.js `ERR_MODULE_NOT_FOUND @market-sense/ai-policy`。
+- **根因**：pnpm deploy --prod 只带 package.json 显式声明的 workspace 依赖（approval/identity）；ai/market 是 tsc 编入 dist 的传递依赖，deploy 不递归拉它们的 workspace deps（ai-policy/compliance/api-client）。
+- **修复**：services/api/package.json dependencies 加 ai/ai-policy/compliance/api-client/market `workspace:*`，deploy 产物 node_modules/@market-sense/ 7 包齐全（本机 deploy 验证）。
+- **门禁**：typecheck 10/10；api 26 pass。已 push（aeb7079）。
+- **Open**：ECS 重建 + smoke 待跑（bundle 或 fetch）。
+
