@@ -10,7 +10,7 @@ import type {
   MarketComponents,
   SourceValue,
   WatchlistComponents,
-} from '@market-sense/api-client';
+} from '../../../../packages/api-client/src/index.js';
 
 import type { DataTier } from '../config.js';
 import { effectiveTier } from './entitlement.js';

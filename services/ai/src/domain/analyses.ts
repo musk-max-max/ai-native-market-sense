@@ -12,7 +12,7 @@
 import { createHash, createHmac, randomUUID } from 'node:crypto';
 
 import type { AiDraft, Claim, EvidenceItem } from '@market-sense/ai-policy';
-import { computeInputEvidenceHash } from '@market-sense/ai-policy';
+import { computeInputEvidenceHash } from '../../../../packages/ai-policy/src/index.js';
 
 import {
   AI_COPY,

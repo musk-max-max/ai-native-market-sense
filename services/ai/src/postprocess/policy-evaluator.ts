@@ -9,7 +9,7 @@
  *    不允许回退到“不过滤直接透传”。
  */
 
-import { loadAiContentPolicy } from '@market-sense/compliance';
+import { loadAiContentPolicy } from '../../../compliance/src/index.js';
 import {
   collectClaims,
   runAiPolicy,
@@ -20,7 +20,7 @@ import {
   type EvidenceItem,
   type PolicyResult,
   type Section,
-} from '@market-sense/ai-policy';
+} from '../../../../packages/ai-policy/src/index.js';
 
 import type {
   PolicyEvaluator,

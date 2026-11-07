@@ -8,7 +8,7 @@
  */
 
 import type { AiDraft, Claim, EvidenceItem, OutputClass } from '@market-sense/ai-policy';
-import { OUTPUT_CLASSES } from '@market-sense/ai-policy';
+import { OUTPUT_CLASSES } from '../../../packages/ai-policy/src/index.js';
 
 import type { AiCompletionRequest } from './provider.js';
 import type { AnalysisSubjectLike, EvidenceModule, EvidenceProbeResult } from './evidence.js';

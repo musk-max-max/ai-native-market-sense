@@ -17,7 +17,7 @@ import {
   computeBlockedDraftHash,
   computeOutputHash,
   type AuditOutputClaim,
-} from '@market-sense/ai-policy';
+} from '../../../../packages/ai-policy/src/index.js';
 
 import {
   assertValidAiGenerationAuditEvent,
