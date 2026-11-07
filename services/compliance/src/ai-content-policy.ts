@@ -10,7 +10,7 @@ import {
   REDLINE_BASIS_EXPECTED_VERSION,
   type AiContentPolicy,
   type RedlineBasis,
-} from "@market-sense/ai-policy";
+} from "../../../packages/ai-policy/src/index.js";
 
 /** 策略单一真源（相对仓库根）。 */
 export const AI_CONTENT_POLICY_RELATIVE_PATH = "rules/ai-content-policy.json";
