@@ -1815,3 +1815,35 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 - tushare 转售授权三件 0/3（11-12 到期）、安全半 3/3 OPEN、SEC-011/SEC-012 residual = owner/H3/H4 专属。
 - Console P1-6 adapter 层已入库（89ebffd/6b56d00），App.tsx 仍 MockBackend；接线待真 /v1 隧道+A6 UI 改造。
 - antd 引入 = owner 确认（改 package.json 纪律）。
+
+
+
+### L150 — 未跟踪交付物批量入库（2026-11-07 08:03）
+
+**范围**：L0 亲跑，A3/A4/A6/A7 保持 inactive。
+
+**交付**：
+
+- **11 个分类 commit 首入库**（dd18591..12353ff）历史在途交付物：
+  - `dd18591` test(e2e)：AI-1/AI-2/3 采证脚本与 fixture（specs/ai-card-compliance.spec.js + lib/ai-mock.js + scripts/ai1-verify.mjs + evidence/）。
+  - `a63e18f` docs(acceptance)：AI-2/3 采证汇总 md。
+  - `e77b614` docs(security)：P0 台账快照 + owner 追催草稿 + AI 卡红队报告 + 安全半接受门禁草稿。
+  - `9385da4` feat(compliance)：migration 004 control_heartbeat_observed + fixture/smoke。
+  - `aef1f35` docs(runbook)：tushare 授权追催 + 业务侧三线可用性验收清单。
+  - `1a8b99e` docs(research)：宏观 + 龙虎榜资金流证据样本 v0（样本证据非放行）。
+  - `2dd4b29` docs：antd 落地清单/ADR-009/契约评审/AI 展示验收/P1-6 验收/backlog。
+  - `b524bce` docs(reviews)：H3 AI 卡 go-live 队列裁定 + 爬取权利 QUAL + 收口追踪。
+  - `ac27b2a` feat(h5)：serve-current.mjs 采证静态服务。
+  - `88f8cc9` test(warehouse)：serving 涨跌停同步 + internal-only 来源测试。
+  - `12353ff` evidence(infra)：ECS 栈健康快照 2026-11-06 09:41Z。
+- **推送**：`git push origin main`（707b405..12353ff）成功。
+- **ECS 服务状态**：web 容器 healthy @ b41ee30（含 9562a04 AI-2/3 视觉修复），dev-ai-card/index 均 200。12353ff 后续 commits 均为 docs/脚本，不影响 ECS web 运行时（fetch TLS 不稳，不强拉）。
+
+**门禁复核**：typecheck 10/10；pnpm -r test 全绿（ingest 220 新增 +2）；git 工作区仅剩 `var/`（gitignore 已忽略）。
+
+**Open（非本轮可闭环，守边界）**：
+- AI-1/2/3 go-live 签发 = H3；AI-1 request-id 头契约性 = H2。
+- AI-2/3 2 absent 选择器是否应渲染 = H3 判定。
+- tushare 转售授权三件 0/3（11-12 到期）、安全半 3/3 OPEN、SEC-011/SEC-012 residual = owner/H3/H4 专属。
+- Console App.tsx 仍 MockBackend（P1-6 接线待真 /v1 隧道+A6 UI 改造）。
+- antd 引入 = owner 确认（改 package.json 纪律）。
