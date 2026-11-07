@@ -88,7 +88,7 @@ function safeJson(raw: string): unknown {
 }
 
 function normalizeProblem(status: number, parsed: unknown): WireProblem {
-  const obj = (parsed ?? {}) as Partial<WireProblem>;
+  const obj = (parsed ?? {}) as Partial<WireProblem> & { diff?: unknown };
   return {
     type: typeof obj.type === 'string' ? obj.type : 'about:blank',
     title: typeof obj.title === 'string' ? obj.title : `HTTP ${status}`,
@@ -97,7 +97,9 @@ function normalizeProblem(status: number, parsed: unknown): WireProblem {
     detail: typeof obj.detail === 'string' ? obj.detail : undefined,
     trace_id: typeof obj.trace_id === 'string' ? obj.trace_id : undefined,
     errors: Array.isArray(obj.errors) ? (obj.errors as WireProblem['errors']) : undefined,
-  };
+    // 409 ConfigConflictProblem.diff 原样保留（saveDraft 冲突映射用）。
+    ...(obj.diff !== undefined ? { diff: obj.diff } : {}),
+  } as WireProblem;
 }
 
 /** Idempotency-Key（8–128 字符）；同 key 重试返回同一单，不重复建单。 */
