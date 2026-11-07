@@ -1901,3 +1901,30 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 - tushare 转售授权三件 0/3（11-12 到期）、安全半 3/3 OPEN、SEC-011/SEC-012 residual = owner/H3/H4 专属。
 - antd 引入 = owner 确认（改 package.json 纪律）。
 
+
+
+
+### L153 — Console UI 契约必填字段补齐（2026-11-07 18:06）
+
+**范围**：L0 亲跑。纯工程实现，不代行 owner/H3 专属签发。
+
+**交付**（commit 1733a93）：
+
+- **web/console/src/lib/testids.ts**：新增 changeReason/impactScope(scope)/canaryPercent 三个 testid。
+- **web/console/src/mocks/ports.ts**：SubmitApprovalInput 增 `changeReason?: string` + `impactScope?: readonly ImpactScope[]`（契约必填，HTTP 适配器必填；Mock 容忍缺省，向后兼容旧 mock 测试）。
+- **web/console/src/pages/ConfigEditorPage.tsx**：submit 表单补变更说明（change_reason 8–200 字 textarea + 字数计数）+ 影响面（impact_scope 6 复选枚举：栏位布局/文案内容/内容排布/排序规则/轮换策略/可见性）。ALL_IMPACT_SCOPES + IMPACT_SCOPE_LABEL 常量在文件顶。submit 调用传 changeReason/impactScope（缺省 undefined，HTTP adapter 会 fail-closed）。
+- **web/console/src/pages/ApprovalQueuePage.tsx**：approve+publish 表单补灰度百分比（canary_percent 1–10 整数，留空走服务端默认）。canaryPercent 状态（字符串输入、Number() 转换）+ publish 调用传 canaryPercent。
+- **门禁**：typecheck 10/10 PASS；console 56 pass / 0 fail；pnpm -r test 全绿（ingest 228 / ai 42 / market 153 / approval 12 / h5 28 / identity 45 / compliance 4 / api 26 / ai-policy 41 / console 56）。已推 GitHub（1733a93）。
+
+**P1-6 阶段性收口**：
+- HTTP adapter 三端口（01e53db）+ App 运行时切换（bc7b9be）+ UI 契约字段（1733a93）三步完成。
+- Console 已具备接真 /v1 backend 的能力（`?backend=http&baseUrl=/v1&environment=dev`），UI 表单契约完整。
+- MockBackend 默认保留（本地开发/无真契约后端 fallback）。
+
+**Open**：
+- 真 /v1 隧道 smoke 测试（?backend=http 路径）未跑——等 A0/A4 契约复核 + ECS API 容器跑 approval 契约后端。
+- App.tsx 仍 H2 演示身份（A4 identity 接入后改 Bearer token + 真实 actor id）。
+- AI-1/2/3 go-live 签发 = H3；AI-1 request-id 头契约性 = H2；AI-2/3 2 absent 选择器 = H3 判定。
+- tushare 转售授权三件 0/3（11-12 到期）、安全半 3/3 OPEN、SEC-011/SEC-012 residual = owner/H3/H4 专属。
+- antd 引入 = owner 确认（改 package.json 纪律）。
+
