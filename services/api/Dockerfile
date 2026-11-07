@@ -35,6 +35,10 @@ COPY --from=build --chown=node:node /app/deploy ./
 RUN rm -rf src test scripts tsconfig.json tsconfig.build.json README.md
 # 契约是运行时 fail-closed 依赖，不是文档：固定路径 + 镜像内构建期断言。
 COPY --from=build --chown=node:node /app/docs/reference/event-payloads.json /app/docs/reference/event-payloads.json
+# L161：AI 内容策略单一真源（fail-closed 加载，缺文件应 docker build 失败而非运行时拒启）。
+# compliance/src/ai-content-policy.ts resolveRepoRoot = /app/dist，找 /app/dist/rules/ai-content-policy.json。
+COPY --from=build --chown=node:node /app/rules/ai-content-policy.json /app/dist/rules/ai-content-policy.json
+COPY --from=build --chown=node:node /app/rules/redline-basis.json /app/dist/rules/redline-basis.json
 RUN node -e "const fs=require('fs');const p='/app/docs/reference/event-payloads.json';if(!fs.existsSync(p))throw new Error('missing '+p);const j=JSON.parse(fs.readFileSync(p,'utf8'));if(j.schema_version!==1||typeof j.event_types!=='object'||j.event_types===null)throw new Error('invalid '+p);console.log('event-payloads contract present')"
 
 USER node
