@@ -1,0 +1,33 @@
+# ECS 部署健康核验（只读） · 20261106T0941Z (UTC) · A8 SRE
+## 目标：47.120.16.239（host heyuan）· 访问：ssh lyuddu（密钥登录）+ sudo -n docker
+## 范围声明：仅 docker ps / docker inspect / 主机只读事实；未测试、未改动公网暴露面
+##（红线 infra/evidence/drill/a19-exposure-boundary-deviation-20261105.md:36，经 lead 收窄为「公网暴露面」后执行）；
+## 未做任何 curl/nmap/ss/iptables/安全组探测，未做任何写操作（无 restart/exec/配置变更）。
+
+$ hostname; date -u "+%Y-%m-%dT%H:%M:%SZ"; uptime
+heyuan
+2026-11-06T09:40:54Z
+ 17:40:54 up 149 days,  1:05,  0 users,  load average: 0.26, 0.48, 0.53
+
+$ sudo -n docker version --format "server={{.Server.Version}}"
+server=29.9.3
+
+$ sudo -n docker ps --format "{{.Names}}|{{.Image}}|{{.Status}}|{{.Ports}}"
+market-sense-e2e-api-1|market-sense-e2e-api|Up 34 hours (healthy)|127.0.0.1:8081->8080/tcp
+market-sense-e2e-web-1|market-sense-e2e-web|Up 2 days (healthy)|127.0.0.1:3000->3000/tcp
+market-sense-e2e-postgres-1|postgres:16-alpine|Up 2 days (healthy)|5432/tcp
+market-sense-e2e-redis-1|redis:7-alpine|Up 2 days (healthy)|6379/tcp
+market-sense-e2e-tushare-replay-1|market-sense-e2e-tushare-replay|Up 2 days (healthy)|127.0.0.1:18081->18080/tcp
+
+$ sudo -n docker inspect --format "{{.Name}} health={{.State.Health.Status}} failing={{.State.Health.FailingStreak}} last={{(index .State.Health.Log 0).End}} rc={{(index .State.Health.Log 0).ExitCode}} started={{.State.StartedAt}} restarts={{.RestartCount}}" <五容器>
+/market-sense-e2e-api-1 health=healthy failing=0 last=2026-11-06 17:41:05.6738 +0800 CST rc=0 started=2026-11-04T23:59:14.186231222Z restarts=0
+/market-sense-e2e-web-1 health=healthy failing=0 last=2026-11-06 17:41:05.633714349 +0800 CST rc=0 started=2026-11-04T06:06:30.419234644Z restarts=0
+/market-sense-e2e-postgres-1 health=healthy failing=0 last=2026-11-06 17:41:12.100107495 +0800 CST rc=0 started=2026-11-04T06:06:19.444998566Z restarts=0
+/market-sense-e2e-redis-1 health=healthy failing=0 last=2026-11-06 17:41:12.04730027 +0800 CST rc=0 started=2026-11-04T06:06:19.60918262Z restarts=0
+/market-sense-e2e-tushare-replay-1 health=healthy failing=0 last=2026-11-06 17:41:11.564847778 +0800 CST rc=0 started=2026-11-04T06:06:19.874701133Z restarts=0
+
+## 结论
+- 五容器（e2e-api/web/postgres/redis/tushare-replay）全部 healthy：health=healthy、failing=0、最近健康检查 rc=0（17:41 +0800 时刻）、restarts=0。
+- 与 lead 交接一致：SSH lyuddu 可登录、sudo -n docker 可用、五容器 healthy。
+- 附带观察（来自 docker ps 只读输出，非暴露面探测）：api/web/tushare-replay 主机侧端口均绑定 127.0.0.1；postgres/redis 无主机端口映射（容器网内 5432/6379）。
+- 持续时间：api Up 34 hours（11-04T23:59Z 起），其余 Up 2 days（11-04T06:06Z 起）；宿主 up 149 天，load 0.26/0.48/0.53 正常。
