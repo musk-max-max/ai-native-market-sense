@@ -4,12 +4,13 @@
  * 只做进程生命周期管理，不含业务逻辑。
  */
 
+// L156：identity 同 approval 用相对路径导入（同根因——pnpm deploy 后的包是 .ts 源码，Node 拒绝 node_modules type stripping）。
 import {
   createIdentityAuthenticator,
   createIdentityService,
   loadIdentityConfig,
   PgIdentityStore,
-} from '@market-sense/identity';
+} from '../../identity/src/index.js';
 
 import { buildApp } from './app.js';
 import type { Authenticator } from './auth.js';

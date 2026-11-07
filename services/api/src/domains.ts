@@ -5,8 +5,11 @@
  * 本文件只负责把它们放进数组，不写任何域逻辑。A0 owns 本文件，域交付后由 A0 接线。
  */
 
-import { identityPlugin } from '@market-sense/identity/plugin';
-import { approvalPlugin, configPlugin } from '@market-sense/approval/plugin';
+import { identityPlugin } from '../../identity/src/plugin.js';
+// L156：approval 插件用相对路径导入（同 market），tsc --rootDir=../.. 会把源码编进 dist；
+// 包路径 `@market-sense/approval/plugin` 在 pnpm deploy 后的 node_modules 里是 .ts 源码，
+// Node 运行时 ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING 拒启（identity 同问题已绕过，见下）。
+import { approvalPlugin, configPlugin } from '../../approval/src/plugin.js';
 
 import { aiPlugin } from '../../ai/src/plugin.js';
 import { marketPlugin } from '../../market/src/plugin.js';
