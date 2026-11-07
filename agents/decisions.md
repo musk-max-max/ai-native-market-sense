@@ -1847,3 +1847,33 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 - tushare 转售授权三件 0/3（11-12 到期）、安全半 3/3 OPEN、SEC-011/SEC-012 residual = owner/H3/H4 专属。
 - Console App.tsx 仍 MockBackend（P1-6 接线待真 /v1 隧道+A6 UI 改造）。
 - antd 引入 = owner 确认（改 package.json 纪律）。
+
+
+
+### L151 — P1-6 Console HTTP adapter 层接入真契约 backend（2026-11-07 17:55）
+
+**范围**：L0 亲跑（subagent 工具本会话连续 3 次 invalid args 不可用）。纯工程实现，不代行 owner/H3 专属签发。
+
+**交付**（commit 01e53db，1357 行新增 / 6 文件）：
+
+- `web/console/src/adapters/http-config-service.ts`（HttpConfigService 实现 ConfigServicePort）：list/get/saveDraft/validate/submitForApproval/publish/rollback/listReleases。environment 构造注入；configIdForItemId/itemIdForConfigId 映射；未映射 itemId 抛 ConfigGateError(NOT_FOUND)；saveDraft PUT If-Match `v<n>`，409 映射到 ConflictPayload{base,mine,theirs,currentVersion,message}；publish 先校 canary 1-10 再校 approvalRef（内存 Map 暂存 submit 返回的 approval_ref）；rollback 强制 human+approvalRef；listReleases GET /v1/internal/releases?config_id；WireRelease.values 契约无 spec 文档，返回空 values（P2 标注）；validate 先 GET doc 再 POST validate。
+- `web/console/src/adapters/http-approval-service.ts`（HttpApprovalService + HttpApprovalEventReader 实现 ApprovalServicePort）：listPending 过滤 ops_config 域 + pending 状态（submitted/routed/evaluated）；approve 强制 human+approvalRef+reason≥8（note 传入 reason），带 Idempotency-Key；reject 用 changeRequestId 当 approval_ref；agent 抛 ApprovalAuthorityError(AGENT_CANNOT_FINAL_APPROVE)。listEvents 读 GET /v1/internal/approvals/{approval_ref}/events（P2 暂不通过 AuditPort）。
+- `web/console/src/adapters/http-audit-service.ts`（HttpAuditService 实现 AuditPort）：listAudit 返回空数组（契约未见 audit 列表，等 A4/A0 契约补齐）。
+- `web/console/src/adapters/index.ts`：createHttpConsoleServices({baseUrl,environment,authHeaders,fetchImpl?,canaryPercent?,pageSize?}) 组装三端口；re-export config-ids/http-common/contract-types。
+- `web/console/test/http-adapters.test.ts`：30 用例覆盖每方法 URL/method/headers/请求体/响应映射/错误抛出（agent 拒绝/reason<8/缺 approvalRef/canary 越界/409 冲突/403 Problem 透传）。
+
+**bug 修复**：
+- `http-common.ts` normalizeProblem() 原样保留 409 diff 字段（原本丢 diff → saveDraft 409 读 problem.diff undefined 崩）；类型 cast `as WireProblem`。
+- `http-config-service.ts` publish() 把 canary 校验提到 approvalRef 校验前（否则 canary 越界测试因未 submit 先抛 NO_APPROVAL）。
+- 删除重复的本地 `type ConfigValue` 声明，改用内联类型；ValidationOutcome 从 '../mocks/ports' 导入（domain/types 不导出）。
+
+**门禁**：cd web/console && node --import tsx --test test/*.test.ts = **56 pass / 0 fail**（原 26 + 新 30）；node infra/ci/typecheck.mjs = 10/10 PASS；pnpm -r test 全绿（ingest 228 / ai 42 / market 153 / approval 12 / h5 28 / identity 45 / compliance 4 / api 26 / ai-policy 41 / console 56，0 fail）。已推 GitHub（01e53db）。
+
+**Open（非本轮可闭环）**：
+- App.tsx 仍 MockBackend；接线留 P2（需 UI 表单补 change_reason/impact_scope 块+canary_percent 输入；真 /v1 隧道+A6 UI 改造）。
+- Console /v1 隧道（当前 8099→ECS:8081 契约与 CONTRACT-MAP 是否一致待 A0/A4 复核；WireRelease.values spec 待 H2/A0 补）。
+- AI-1/2/3 go-live 签发 = H3；AI-1 request-id 头契约性 = H2（L142 判定材料）。
+- AI-2/3 2 absent 选择器是否应渲染 = H3 判定。
+- tushare 转售授权三件 0/3（11-12 到期）、安全半 3/3 OPEN、SEC-011/SEC-012 residual = owner/H3/H4 专属。
+- antd 引入 = owner 确认（改 package.json 纪律）。
+
