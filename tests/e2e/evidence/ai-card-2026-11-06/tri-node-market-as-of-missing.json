@@ -1,0 +1,124 @@
+{
+  "label": "market-as-of-missing",
+  "scope": "market",
+  "rawAsOf": "<ABSENT>",
+  "baseline": {
+    "badge": 0,
+    "disclaimer": 0,
+    "aiAsOfTexts": [
+      "2026-11-06T15:00:00+08:00"
+    ],
+    "quoteAsOfTexts": [
+      "2026-11-06T15:00:00+08:00"
+    ],
+    "aiNumeric": [
+      {
+        "cls": "",
+        "text": "+0.74%"
+      },
+      {
+        "cls": "ai-metric",
+        "text": "营收同比+10.50%"
+      },
+      {
+        "cls": "ai-metric__value",
+        "text": "+10.50%"
+      },
+      {
+        "cls": "ai-metric",
+        "text": "净利同比+12.30%"
+      },
+      {
+        "cls": "ai-metric__value",
+        "text": "+12.30%"
+      },
+      {
+        "cls": "ai-metric",
+        "text": "毛利率91.28%"
+      },
+      {
+        "cls": "ai-metric__value",
+        "text": "91.28%"
+      },
+      {
+        "cls": "ai-metric",
+        "text": "净资产收益率30.15%"
+      },
+      {
+        "cls": "ai-metric__value",
+        "text": "30.15%"
+      },
+      {
+        "cls": "ai-metric",
+        "text": "每股收益47.82 元/股"
+      },
+      {
+        "cls": "ai-metric__value",
+        "text": "47.82 元/股"
+      }
+    ],
+    "blocks": [],
+    "pageNumeric": [
+      {
+        "cls": "quote__price quote__price--up",
+        "text": "1680.00 元"
+      },
+      {
+        "cls": "quote__change quote__change--up",
+        "text": "+0.74%"
+      },
+      {
+        "cls": "",
+        "text": "2026-11-06T15:00:00+08:00"
+      },
+      {
+        "cls": "",
+        "text": "2026-11-06"
+      },
+      {
+        "cls": "",
+        "text": "1680.00 元"
+      },
+      {
+        "cls": "",
+        "text": "+0.74%"
+      },
+      {
+        "cls": "",
+        "text": "2026-11-06T15:00:00+08:00"
+      },
+      {
+        "cls": "ai-metric__value",
+        "text": "+10.50%"
+      },
+      {
+        "cls": "ai-metric__value",
+        "text": "+12.30%"
+      },
+      {
+        "cls": "ai-metric__value",
+        "text": "91.28%"
+      },
+      {
+        "cls": "ai-metric__value",
+        "text": "30.15%"
+      },
+      {
+        "cls": "ai-metric__value",
+        "text": "47.82 元/股"
+      }
+    ]
+  },
+  "actual": null,
+  "pageErrors": [
+    "[对抗场景] pageerror: Cannot read properties of undefined (reading 'trim')",
+    "TypeError: Cannot read properties of undefined (reading 'trim')\n    at ee.getStockPage (http://127.0.0.1:3456/assets/index-1l0Ibs1C.js:1:38350)"
+  ],
+  "verdicts": [
+    {
+      "type": "页面稳态",
+      "status": "FAIL",
+      "detail": "market-as-of-missing：页面未达稳态（locator.waitFor: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('stock-header') to be visible\u001b[22m\n）——AI 卡三节点缺席断言无法执行；页面停在加载/中间态而非降级错误态即违反 fail-closed 承诺（apiGateway.ts:261 注释「缺免责/时点→返回 kind:'error'」）。运行时错误：[对抗场景] pageerror: Cannot read properties of undefined (reading 'trim')；TypeError: Cannot read properties of undefined (reading 'trim')\n    at ee.getStockPage (http://127.0.0.1:3456/assets/index-1l0Ibs1C.js:1:38350)"
+    }
+  ]
+}

@@ -1,0 +1,539 @@
+{
+  "generated_at": "2026-11-06T10:56:43.905Z",
+  "target": "http://127.0.0.1:8181",
+  "instrument": "SSE:600519",
+  "request_id_sent": "a7-v3a-req-0001",
+  "checks": [
+    {
+      "id": "V3a-AUTH-1",
+      "name": "POST /v1/auth/register → 201 + user_id",
+      "pass": "PASS",
+      "expected": "201 + user_id",
+      "actual": {
+        "status": 201,
+        "user_id": "usr_01a1b080-f4c6-7be0-ae0d-820559d80882"
+      },
+      "note": ""
+    },
+    {
+      "id": "V3a-AUTH-2",
+      "name": "POST /v1/auth/login → 200 + token",
+      "pass": "PASS",
+      "expected": "200 + token",
+      "actual": {
+        "status": 200,
+        "expires_at": "2026-11-06T18:56:43.000Z"
+      },
+      "note": ""
+    },
+    {
+      "id": "V3a-POST-1",
+      "name": "POST /v1/ai/analyses → 200",
+      "pass": "PASS",
+      "expected": 200,
+      "actual": 200,
+      "note": "body={\"data\":{\"analysis_id\":\"an-1360a18e-4e17-4e64-b1c1-52f4beb45d48\",\"kind\":\"stock_interpretation\",\"subject\":{\"instrument_id\":\"SSE:600519\"},\"status\":\"succeeded\",\"as_of\":\"2026-11-06T15:00:00+08:00\",\"sectio"
+    },
+    {
+      "id": "V3a-ENV-1",
+      "name": "data.analysis_id 形状",
+      "pass": "PASS",
+      "expected": "^[A-Za-z0-9_-]{8,128}$",
+      "actual": "an-1360a18e-4e17-4e64-b1c1-52f4beb45d48",
+      "note": ""
+    },
+    {
+      "id": "V3a-ENV-2",
+      "name": "data.kind==='stock_interpretation'",
+      "pass": "PASS",
+      "expected": "stock_interpretation",
+      "actual": "stock_interpretation",
+      "note": ""
+    },
+    {
+      "id": "V3a-ENV-3",
+      "name": "data.as_of 原样 +08:00 严格相等",
+      "pass": "PASS",
+      "expected": "2026-11-06T15:00:00+08:00",
+      "actual": "2026-11-06T15:00:00+08:00",
+      "note": "严格相等=与种子市场时点一致，禁止换算/格式化"
+    },
+    {
+      "id": "V3a-ENV-4",
+      "name": "data.as_of ISO8601 偏移形式",
+      "pass": "PASS",
+      "expected": "/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\+08:00$/",
+      "actual": "2026-11-06T15:00:00+08:00",
+      "note": ""
+    },
+    {
+      "id": "V3a-ENV-5",
+      "name": "data.ai.generated===true",
+      "pass": "PASS",
+      "expected": true,
+      "actual": true,
+      "note": ""
+    },
+    {
+      "id": "V3a-ENV-6-label_version",
+      "name": "data.ai.label_version 非空字符串",
+      "pass": "PASS",
+      "expected": "非空字符串",
+      "actual": "2026.11.5.ac875c9d9237",
+      "note": ""
+    },
+    {
+      "id": "V3a-ENV-6-content_version",
+      "name": "data.ai.content_version 非空字符串",
+      "pass": "PASS",
+      "expected": "非空字符串",
+      "actual": "2026.11.5.ac875c9d9237",
+      "note": ""
+    },
+    {
+      "id": "V3a-ENV-6-model_family",
+      "name": "data.ai.model_family 非空字符串",
+      "pass": "PASS",
+      "expected": "非空字符串",
+      "actual": "fake-v1",
+      "note": ""
+    },
+    {
+      "id": "V3a-ENV-6-prompt_version",
+      "name": "data.ai.prompt_version 非空字符串",
+      "pass": "PASS",
+      "expected": "非空字符串",
+      "actual": "analyses-v1",
+      "note": ""
+    },
+    {
+      "id": "V3a-ENV-6-policy_version",
+      "name": "data.ai.policy_version 非空字符串",
+      "pass": "PASS",
+      "expected": "非空字符串",
+      "actual": "ai-content-policy/1.1.2",
+      "note": ""
+    },
+    {
+      "id": "V3a-ENV-7",
+      "name": "policy_version 与 ai-content-policy v1.1.2 对齐",
+      "pass": "PASS",
+      "expected": "ai-content-policy/1.1.2",
+      "actual": "ai-content-policy/1.1.2",
+      "note": ""
+    },
+    {
+      "id": "V3a-ENV-8",
+      "name": "meta.disclaimer.text 非空",
+      "pass": "PASS",
+      "expected": "非空字符串",
+      "actual": "本内容由 AI 生成，基于页面标注时点的市场数据整理，仅供参考，不构成投资建议，也不构成任何买卖依据。",
+      "note": ""
+    },
+    {
+      "id": "V3a-ENV-9",
+      "name": "meta.disclaimer.version 形状",
+      "pass": "PASS",
+      "expected": "YYYY.MM.N",
+      "actual": "2026.11.5",
+      "note": ""
+    },
+    {
+      "id": "V3a-ENV-10",
+      "name": "meta.disclaimer.closable===false（不可关闭）",
+      "pass": "PASS",
+      "expected": false,
+      "actual": false,
+      "note": ""
+    },
+    {
+      "id": "V3a-ENV-11",
+      "name": "meta.source + meta.entitlement 在位",
+      "pass": "PASS",
+      "expected": "{source,entitlement}",
+      "actual": {
+        "source": {
+          "source": "platform_eod",
+          "as_of": "2026-11-06T15:00:00+08:00",
+          "staleness_ms": 14203783,
+          "source_id": "e2e_seed"
+        },
+        "entitlement": {
+          "tier": "c_end_display",
+          "is_entitled": true
+        }
+      },
+      "note": ""
+    },
+    {
+      "id": "V3a-ENV-12",
+      "name": "data.compliance.decision==='passed'",
+      "pass": "PASS",
+      "expected": "passed",
+      "actual": {
+        "policy_version": "ai-content-policy/1.1.2",
+        "decision": "passed",
+        "reason_codes": [
+          "conclusion_unqualified"
+        ]
+      },
+      "note": ""
+    },
+    {
+      "id": "V3a-RED-1",
+      "name": "AI 可见文案无荐股红线词",
+      "pass": "PASS",
+      "expected": "无命中",
+      "actual": null,
+      "note": ""
+    },
+    {
+      "id": "V3a-EV-1",
+      "name": "market quote 200（自环真仓储）",
+      "pass": "PASS",
+      "expected": 200,
+      "actual": 200,
+      "note": ""
+    },
+    {
+      "id": "V3a-EV-2",
+      "name": "market fundamental-summary 200",
+      "pass": "PASS",
+      "expected": 200,
+      "actual": 200,
+      "note": ""
+    },
+    {
+      "id": "V3a-AUD-1",
+      "name": "审计行恰 1 条（analysis_id 同源）",
+      "pass": "FAIL",
+      "expected": 1,
+      "actual": 0,
+      "note": ""
+    },
+    {
+      "id": "V3a-AUD-2",
+      "name": "decision==='passed'",
+      "pass": "FAIL",
+      "expected": "passed",
+      "actual": null,
+      "note": ""
+    },
+    {
+      "id": "V3a-AUD-3",
+      "name": "request_id 非空（闭环键）",
+      "pass": "FAIL",
+      "expected": "非空",
+      "actual": null,
+      "note": ""
+    },
+    {
+      "id": "V3a-AUD-4",
+      "name": "request_id 与请求头 x-request-id 同值（如外壳透传）",
+      "pass": "INFO",
+      "expected": "a7-v3a-req-0001",
+      "actual": null,
+      "note": "INFO：外壳未透传头，request.id 自生成——闭环改以 analysis_id 对账"
+    },
+    {
+      "id": "V3a-AUD-5",
+      "name": "user_id = HMAC-SHA256(identity user_id, key) 独立复算",
+      "pass": "FAIL",
+      "expected": "f1b0cc5b13e9f77b48615a14bdba7acef85f531685fc05dc4dc94a01f0d25559",
+      "actual": null,
+      "note": ""
+    },
+    {
+      "id": "V3a-AUD-6",
+      "name": "as_of 与响应 data.as_of 同值",
+      "pass": "FAIL",
+      "expected": "2026-11-06T15:00:00+08:00",
+      "actual": null,
+      "note": ""
+    },
+    {
+      "id": "V3a-AUD-7",
+      "name": "model_family 记录",
+      "pass": "FAIL",
+      "expected": "非空",
+      "actual": null,
+      "note": ""
+    },
+    {
+      "id": "V3a-AUD-8",
+      "name": "input_evidence_hash 64hex",
+      "pass": "FAIL",
+      "expected": "64hex",
+      "actual": null,
+      "note": ""
+    },
+    {
+      "id": "V3a-AUD-9",
+      "name": "output_hash 64hex",
+      "pass": "FAIL",
+      "expected": "64hex",
+      "actual": null,
+      "note": ""
+    },
+    {
+      "id": "V3a-AUD-10",
+      "name": "passed 行无 blocked_draft",
+      "pass": "PASS",
+      "expected": null,
+      "actual": null,
+      "note": ""
+    },
+    {
+      "id": "V3a-AUD-11",
+      "name": "postprocess_actions 为数组",
+      "pass": "FAIL",
+      "expected": "array",
+      "actual": null,
+      "note": ""
+    },
+    {
+      "id": "V3a-AUD-12",
+      "name": "链字段 event_key/prev_hash/hash 在位",
+      "pass": "FAIL",
+      "expected": "三字段非空",
+      "actual": {},
+      "note": ""
+    },
+    {
+      "id": "V3a-HASH-1",
+      "name": "output_hash 独立重算闭环（claims=响应 sections，class=数据卡口径 historical_facts）",
+      "pass": "FAIL",
+      "expected": null,
+      "actual": "13686dbf3cda1d4ee955ba593cc4ecce27587def54af9a86d8ed760671cc38c1",
+      "note": "数据卡降级路径 claim.class 固定 historical_facts（services/ai/src/generation.ts dataCardDraft）"
+    },
+    {
+      "id": "V3a-HASH-2",
+      "name": "output_hash 兜底口径（class=null）比对",
+      "pass": "FAIL",
+      "expected": null,
+      "actual": "e1bda37b3a6f2f9fa915d5c5fe9d0a401228127ecd7a1b4f74102fb7454062aa",
+      "note": "仅当 HASH-1 失败时参考"
+    },
+    {
+      "id": "V3a-HASH-3",
+      "name": "input_evidence_hash 独立重算闭环（market 响应重放）",
+      "pass": "FAIL",
+      "expected": null,
+      "actual": "c9866927f478fe1a31b0d5697b8b6f378a6117f4b05579d86de59393fc7933a9",
+      "note": "evidence 项构造独立实现在 tests/e2e/lib/ai1-verify-lib.mjs"
+    },
+    {
+      "id": "V3a-GET-1",
+      "name": "GET /v1/ai/analyses/{id} → 200 同 analysis_id",
+      "pass": "PASS",
+      "expected": {
+        "status": 200,
+        "analysis_id": "an-1360a18e-4e17-4e64-b1c1-52f4beb45d48"
+      },
+      "actual": {
+        "status": 200,
+        "analysis_id": "an-1360a18e-4e17-4e64-b1c1-52f4beb45d48"
+      },
+      "note": ""
+    },
+    {
+      "id": "V3a-GET-2",
+      "name": "GET 回环 data.as_of 同值",
+      "pass": "PASS",
+      "expected": "2026-11-06T15:00:00+08:00",
+      "actual": "2026-11-06T15:00:00+08:00",
+      "note": ""
+    },
+    {
+      "id": "V3a-GET-3",
+      "name": "GET 回环 data 与 POST 一致（canonical 比对）",
+      "pass": "PASS",
+      "expected": "canonical 相等",
+      "actual": "相等",
+      "note": ""
+    },
+    {
+      "id": "V3a-404-1",
+      "name": "不存在 analysis_id → 404 problem",
+      "pass": "PASS",
+      "expected": {
+        "status": 404,
+        "problem_shape": true
+      },
+      "actual": {
+        "status": 404,
+        "code": "NOT_FOUND",
+        "title": "资源不存在"
+      },
+      "note": ""
+    },
+    {
+      "id": "V3a-404-2",
+      "name": "非本人 analysis_id → 404 且与不存在同型（不泄露存在性）",
+      "pass": "PASS",
+      "expected": {
+        "status": 404,
+        "code": "NOT_FOUND"
+      },
+      "actual": {
+        "status": 404,
+        "code": "NOT_FOUND"
+      },
+      "note": ""
+    }
+  ],
+  "raw": {
+    "register_a": {
+      "status": 201,
+      "body": {
+        "user_id": "usr_01a1b080-f4c6-7be0-ae0d-820559d80882"
+      }
+    },
+    "login_a_status": 200,
+    "post": {
+      "data": {
+        "analysis_id": "an-1360a18e-4e17-4e64-b1c1-52f4beb45d48",
+        "kind": "stock_interpretation",
+        "subject": {
+          "instrument_id": "SSE:600519"
+        },
+        "status": "succeeded",
+        "as_of": "2026-11-06T15:00:00+08:00",
+        "sections": [
+          {
+            "id": "market_quote",
+            "title": "market_quote",
+            "claims": [
+              {
+                "text": "数据显示，market_quote|as_of=2026-11-06T15:00:00+08:00|{\"instrument_id\":\"SSE:600519\",\"trade_date\":\"2026-11-06\",\"last_price\":1680,\"prev_close\":1667.66,\"change\":12.34,\"change_pct\":0.74,\"volume\":12345600,\"amount\":20734560000,\"suspended\":false,\"open\":1670,\"high\":1688.8,\"low\":1665,\"limit_status\":\"none\"}",
+                "evidence_ids": [
+                  "ev:market_quote"
+                ]
+              }
+            ],
+            "data_refs": [
+              {
+                "module": "market_quote",
+                "as_of": "2026-11-06T15:00:00+08:00"
+              }
+            ]
+          },
+          {
+            "id": "fundamental_summary",
+            "title": "fundamental_summary",
+            "claims": [
+              {
+                "text": "数据显示，fundamental_summary|as_of=2026-11-06T15:00:00+08:00|{\"instrument_id\":\"SSE:600519\",\"report_period\":\"2025Q3\",\"report_end_date\":\"2025-09-30\",\"announced_at\":\"2025-10-28T16:00:00+08:00\",\"statement_basis\":\"reported\",\"currency\":\"CNY\",\"revenue\":123456789000,\"net_profit\":61728394500,\"revenue_yoy_pct\":12.34,\"net_profit_yoy_pct\":13.57,\"eps\":49.15,\"roe_pct\":28.9,\"gross_margin_pct\":91.2}",
+                "evidence_ids": [
+                  "ev:fundamental_summary"
+                ]
+              }
+            ],
+            "data_refs": [
+              {
+                "module": "fundamental_summary",
+                "as_of": "2026-11-06T15:00:00+08:00"
+              }
+            ]
+          }
+        ],
+        "caveats": [],
+        "compliance": {
+          "policy_version": "ai-content-policy/1.1.2",
+          "decision": "passed",
+          "reason_codes": [
+            "conclusion_unqualified"
+          ]
+        },
+        "ai": {
+          "generated": true,
+          "label_version": "2026.11.5.ac875c9d9237",
+          "content_version": "2026.11.5.ac875c9d9237",
+          "model_family": "fake-v1",
+          "prompt_version": "analyses-v1",
+          "policy_version": "ai-content-policy/1.1.2"
+        },
+        "meta": {
+          "source": {
+            "source": "platform_eod",
+            "as_of": "2026-11-06T15:00:00+08:00",
+            "staleness_ms": 14203783,
+            "source_id": "e2e_seed"
+          },
+          "entitlement": {
+            "tier": "c_end_display",
+            "is_entitled": true
+          },
+          "disclaimer": {
+            "text": "本内容由 AI 生成，基于页面标注时点的市场数据整理，仅供参考，不构成投资建议，也不构成任何买卖依据。",
+            "version": "2026.11.5",
+            "closable": false
+          }
+        }
+      },
+      "meta": {
+        "source": {
+          "source": "platform_eod",
+          "as_of": "2026-11-06T15:00:00+08:00",
+          "staleness_ms": 14203783,
+          "source_id": "e2e_seed"
+        },
+        "entitlement": {
+          "tier": "c_end_display",
+          "is_entitled": true
+        },
+        "disclaimer": {
+          "text": "本内容由 AI 生成，基于页面标注时点的市场数据整理，仅供参考，不构成投资建议，也不构成任何买卖依据。",
+          "version": "2026.11.5",
+          "closable": false
+        }
+      }
+    },
+    "get_roundtrip_status": 200,
+    "audit_row": {},
+    "missing_404": {
+      "type": "https://errors.market-sense.invalid/not-found",
+      "title": "资源不存在",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "trace_id": "req-9"
+    },
+    "cross_user_404": {
+      "type": "https://errors.market-sense.invalid/not-found",
+      "title": "资源不存在",
+      "status": 404,
+      "code": "NOT_FOUND",
+      "trace_id": "req-c"
+    }
+  },
+  "recompute": {
+    "input_evidence_hash": {
+      "computed": "c9866927f478fe1a31b0d5697b8b6f378a6117f4b05579d86de59393fc7933a9"
+    },
+    "output_hash": {
+      "computed": "13686dbf3cda1d4ee955ba593cc4ecce27587def54af9a86d8ed760671cc38c1",
+      "computed_null_class": "e1bda37b3a6f2f9fa915d5c5fe9d0a401228127ecd7a1b4f74102fb7454062aa"
+    },
+    "evidence_items": [
+      {
+        "id": "ev:market_quote",
+        "text_len": 289,
+        "numbers_len": 9
+      },
+      {
+        "id": "ev:fundamental_summary",
+        "text_len": 377,
+        "numbers_len": 7
+      }
+    ]
+  },
+  "observations": [
+    {
+      "note": "命名澄清（AI-CARD「meta.ai」vs 契约 data.ai）",
+      "data_ai_present": true,
+      "meta_ai_present": false,
+      "data_meta_present": true
+    }
+  ]
+}

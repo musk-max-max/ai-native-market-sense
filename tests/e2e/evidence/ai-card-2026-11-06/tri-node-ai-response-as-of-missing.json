@@ -1,0 +1,254 @@
+{
+  "label": "ai-response-as-of-missing",
+  "scope": "block",
+  "rawAsOf": "<ABSENT>",
+  "baseline": {
+    "badge": 0,
+    "disclaimer": 0,
+    "aiAsOfTexts": [
+      "2026-11-06T15:00:00+08:00"
+    ],
+    "quoteAsOfTexts": [
+      "2026-11-06T15:00:00+08:00"
+    ],
+    "aiNumeric": [
+      {
+        "cls": "",
+        "text": "+0.74%"
+      },
+      {
+        "cls": "ai-metric",
+        "text": "营收同比+10.50%"
+      },
+      {
+        "cls": "ai-metric__value",
+        "text": "+10.50%"
+      },
+      {
+        "cls": "ai-metric",
+        "text": "净利同比+12.30%"
+      },
+      {
+        "cls": "ai-metric__value",
+        "text": "+12.30%"
+      },
+      {
+        "cls": "ai-metric",
+        "text": "毛利率91.28%"
+      },
+      {
+        "cls": "ai-metric__value",
+        "text": "91.28%"
+      },
+      {
+        "cls": "ai-metric",
+        "text": "净资产收益率30.15%"
+      },
+      {
+        "cls": "ai-metric__value",
+        "text": "30.15%"
+      },
+      {
+        "cls": "ai-metric",
+        "text": "每股收益47.82 元/股"
+      },
+      {
+        "cls": "ai-metric__value",
+        "text": "47.82 元/股"
+      }
+    ],
+    "blocks": [],
+    "pageNumeric": [
+      {
+        "cls": "quote__price quote__price--up",
+        "text": "1680.00 元"
+      },
+      {
+        "cls": "quote__change quote__change--up",
+        "text": "+0.74%"
+      },
+      {
+        "cls": "",
+        "text": "2026-11-06T15:00:00+08:00"
+      },
+      {
+        "cls": "",
+        "text": "2026-11-06"
+      },
+      {
+        "cls": "",
+        "text": "1680.00 元"
+      },
+      {
+        "cls": "",
+        "text": "+0.74%"
+      },
+      {
+        "cls": "",
+        "text": "2026-11-06T15:00:00+08:00"
+      },
+      {
+        "cls": "ai-metric__value",
+        "text": "+10.50%"
+      },
+      {
+        "cls": "ai-metric__value",
+        "text": "+12.30%"
+      },
+      {
+        "cls": "ai-metric__value",
+        "text": "91.28%"
+      },
+      {
+        "cls": "ai-metric__value",
+        "text": "30.15%"
+      },
+      {
+        "cls": "ai-metric__value",
+        "text": "47.82 元/股"
+      }
+    ]
+  },
+  "actual": {
+    "badge": 0,
+    "disclaimer": 0,
+    "aiAsOfTexts": [
+      "2026-11-06T15:00:00+08:00"
+    ],
+    "quoteAsOfTexts": [
+      "2026-11-06T15:00:00+08:00"
+    ],
+    "aiNumeric": [
+      {
+        "cls": "",
+        "text": "+0.74%"
+      },
+      {
+        "cls": "ai-metric",
+        "text": "营收同比+10.50%"
+      },
+      {
+        "cls": "ai-metric__value",
+        "text": "+10.50%"
+      },
+      {
+        "cls": "ai-metric",
+        "text": "净利同比+12.30%"
+      },
+      {
+        "cls": "ai-metric__value",
+        "text": "+12.30%"
+      },
+      {
+        "cls": "ai-metric",
+        "text": "毛利率91.28%"
+      },
+      {
+        "cls": "ai-metric__value",
+        "text": "91.28%"
+      },
+      {
+        "cls": "ai-metric",
+        "text": "净资产收益率30.15%"
+      },
+      {
+        "cls": "ai-metric__value",
+        "text": "30.15%"
+      },
+      {
+        "cls": "ai-metric",
+        "text": "每股收益47.82 元/股"
+      },
+      {
+        "cls": "ai-metric__value",
+        "text": "47.82 元/股"
+      }
+    ],
+    "blocks": [],
+    "pageNumeric": [
+      {
+        "cls": "quote__price quote__price--up",
+        "text": "1680.00 元"
+      },
+      {
+        "cls": "quote__change quote__change--up",
+        "text": "+0.74%"
+      },
+      {
+        "cls": "",
+        "text": "2026-11-06T15:00:00+08:00"
+      },
+      {
+        "cls": "",
+        "text": "2026-11-06"
+      },
+      {
+        "cls": "",
+        "text": "1680.00 元"
+      },
+      {
+        "cls": "",
+        "text": "+0.74%"
+      },
+      {
+        "cls": "",
+        "text": "2026-11-06T15:00:00+08:00"
+      },
+      {
+        "cls": "ai-metric__value",
+        "text": "+10.50%"
+      },
+      {
+        "cls": "ai-metric__value",
+        "text": "+12.30%"
+      },
+      {
+        "cls": "ai-metric__value",
+        "text": "91.28%"
+      },
+      {
+        "cls": "ai-metric__value",
+        "text": "30.15%"
+      },
+      {
+        "cls": "ai-metric__value",
+        "text": "47.82 元/股"
+      }
+    ]
+  },
+  "verdicts": [
+    {
+      "type": "ai-generated-badge",
+      "status": "BLOCKED",
+      "reason": "合法 as_of 正对照下「ai-generated-badge」渲染数=0（模型文本路径未接线），缺席断言无意义"
+    },
+    {
+      "type": "ai-disclaimer",
+      "status": "BLOCKED",
+      "reason": "合法 as_of 正对照下「ai-disclaimer」渲染数=0（模型文本路径未接线），缺席断言无意义"
+    },
+    {
+      "type": "生成块内数值",
+      "status": "BLOCKED",
+      "reason": "合法 as_of 正对照下「生成块内数值」渲染数=0（模型文本路径未接线），缺席断言无意义"
+    },
+    {
+      "type": "生成块 ai-as-of",
+      "status": "BLOCKED",
+      "reason": "合法 as_of 正对照下「生成块 ai-as-of」渲染数=0（模型文本路径未接线），缺席断言无意义"
+    },
+    {
+      "type": "ai-as-of(生成块)",
+      "status": "BLOCKED",
+      "reason": "正对照下 ai-as-of(生成块) 未渲染，缺席断言无意义"
+    }
+  ],
+  "observations": {
+    "note": "以下节点由行情 source.asOf 驱动（AiInterpretation.tsx:127），不在 AI 响应 as_of 变体断言域（E2E-AI2-2A 覆盖）；2B 中 marketAsOf=valid，合法渲染属预期。",
+    "aiNumericCount": 11,
+    "pageAiAsOf": [
+      "2026-11-06T15:00:00+08:00"
+    ],
+    "pageNumericCount": 12
+  }
+}

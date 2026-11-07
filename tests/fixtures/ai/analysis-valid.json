@@ -1,0 +1,61 @@
+{
+  "data": {
+    "analysis_id": "ai-e2e-valid-0001",
+    "kind": "stock_interpretation",
+    "subject": { "instrument_id": "SSE:600519" },
+    "status": "succeeded",
+    "as_of": "2026-11-06T15:00:00+08:00",
+    "sections": [
+      {
+        "id": "valuation",
+        "title": "估值水平",
+        "claims": [
+          {
+            "text": "【E2E哨兵CLAIM-ALPHA】营收同比处于近三年较高区间，成长动能来源于主营业务扩张。",
+            "evidence_ids": ["ev-e2e-alpha"]
+          }
+        ],
+        "data_refs": [{ "module": "market" }]
+      },
+      {
+        "id": "earnings-quality",
+        "title": "盈利质量",
+        "claims": [
+          {
+            "text": "【E2E哨兵CLAIM-BETA】毛利率保持稳定，盈利质量未见明显恶化迹象。",
+            "evidence_ids": ["ev-e2e-beta"]
+          }
+        ],
+        "data_refs": [{ "module": "fundamental" }]
+      }
+    ],
+    "caveats": ["【E2E哨兵CAVEAT】历史数据不代表未来表现。"],
+    "compliance": { "policy_version": "1.1.2", "decision": "passed", "reason_codes": [] },
+    "ai": {
+      "generated": true,
+      "label_version": "ai-label-v2026.11.1",
+      "content_version": "ai-content-v2026.11.1",
+      "model_family": "platform-eval-family",
+      "prompt_version": "prompt-v2026.11.1",
+      "policy_version": "1.1.2"
+    },
+    "meta": {
+      "source": { "source": "platform_snapshot", "as_of": "2026-11-06T15:00:00+08:00", "staleness_ms": 120000 },
+      "entitlement": { "tier": "c_end_display", "is_entitled": true },
+      "disclaimer": {
+        "text": "【E2E哨兵AI-DISCLAIMER】本内容由 AI 生成，仅作客观数据解读参考，不构成任何投资建议、要约或收益承诺；市场有风险，决策需谨慎。",
+        "version": "2026.11.1",
+        "closable": false
+      }
+    }
+  },
+  "meta": {
+    "source": { "source": "platform_snapshot", "as_of": "2026-11-06T15:00:00+08:00", "staleness_ms": 120000 },
+    "entitlement": { "tier": "c_end_display", "is_entitled": true },
+    "disclaimer": {
+      "text": "【E2E哨兵AI-DISCLAIMER】本内容由 AI 生成，仅作客观数据解读参考，不构成任何投资建议、要约或收益承诺；市场有风险，决策需谨慎。",
+      "version": "2026.11.1",
+      "closable": false
+    }
+  }
+}
