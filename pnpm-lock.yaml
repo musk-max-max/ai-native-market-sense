@@ -82,6 +82,9 @@ importers:
 
   services/api:
     dependencies:
+      '@market-sense/approval':
+        specifier: workspace:*
+        version: link:../approval
       '@market-sense/identity':
         specifier: workspace:*
         version: link:../identity

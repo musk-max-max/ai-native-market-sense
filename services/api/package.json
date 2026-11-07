@@ -20,6 +20,7 @@
     "check:manifest": "tsx scripts/copy-manifest.mjs --check"
   },
   "dependencies": {
+    "@market-sense/approval": "workspace:*",
     "@market-sense/identity": "workspace:*",
     "fastify": "^5.12.8",
     "ioredis": "^5.4.2",
