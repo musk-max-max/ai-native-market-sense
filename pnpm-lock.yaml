@@ -82,12 +82,27 @@ importers:
 
   services/api:
     dependencies:
+      '@market-sense/ai':
+        specifier: workspace:*
+        version: link:../ai
+      '@market-sense/ai-policy':
+        specifier: workspace:*
+        version: link:../../packages/ai-policy
+      '@market-sense/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
       '@market-sense/approval':
         specifier: workspace:*
         version: link:../approval
+      '@market-sense/compliance':
+        specifier: workspace:*
+        version: link:../compliance
       '@market-sense/identity':
         specifier: workspace:*
         version: link:../identity
+      '@market-sense/market':
+        specifier: workspace:*
+        version: link:../market
       fastify:
         specifier: ^5.12.8
         version: 5.12.8
