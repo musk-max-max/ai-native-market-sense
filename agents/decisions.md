@@ -1796,3 +1796,22 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 
 
 
+
+
+
+### L149 — AI-2/3 重采证据 + ECS web 镜像更新（2026-11-07 07:55）
+
+**范围**：L0 亲跑，A3/A4/A6/A7 保持 inactive。
+
+**交付**：
+
+- **AI-2/3 computed-style 重采**（b41ee30）：本地 serve-current.mjs:18000（跑当前 HEAD e46b30d 含 9562a04 修复）+ 隧道 8099→ECS API:8081，`tests/e2e/scripts/ai23-visual-evidence.mjs` 重跑 → `tests/e2e/evidence/ai23-visual-computed-2026-11-06.json` 87637B 07:51 更新，git_sha=e46b30d。verdict=**PASS_WITH_GAPS**（17 pass / 0 fail / 2 absent：`.ai-slot--pending` 与 `.quote__stale` 自然渲染下未出现，需 H3 判是否应渲染）。
+- **ECS web 镜像更新**：ECS `47.120.16.239:/opt/market-sense` 同步至 b41ee30，`sudo docker build -t market-sense-e2e-web:latest -f web/h5/Dockerfile .`（仓库根上下文，含 workspace api-client）成功，`docker compose up -d --force-recreate --no-deps web` 完成，容器 healthy。**ECS web 现跑当前代码含 9562a04**（CSS `.ai-slot--pending` 落 `var(--fs-caption)`=13px 验证）。dev-ai-card/index 均 200。
+- **基础设施维持**：本地 serve-current.mjs:18000（PID 76740）跑当前代码；SSH 隧道 8099→ECS API:8081（healthz 200）。
+
+**Open（非本轮可闭环，守边界）**：
+- AI-1/2/3 go-live 签发 = H3（红线⑤）；AI-1 request-id 头契约性 = H2（L142 判定材料）。
+- AI-2/3 2 absent 选择器是否应渲染 = H3 判定。
+- tushare 转售授权三件 0/3（11-12 到期）、安全半 3/3 OPEN、SEC-011/SEC-012 residual = owner/H3/H4 专属。
+- Console P1-6 adapter 层已入库（89ebffd/6b56d00），App.tsx 仍 MockBackend；接线待真 /v1 隧道+A6 UI 改造。
+- antd 引入 = owner 确认（改 package.json 纪律）。
