@@ -81,6 +81,9 @@ services:
     environment:
       NODE_ENV: test
       DATABASE_URL: postgres://market:market_e2e_only_local@postgres:5432/market
+      # L160：AI_DATABASE_URL — ai 插件 fail-closed 要求（无注入回调时必须有 pool 写审计）；
+      # e2e 栈复用同一 PG 实例，与 DATABASE_URL 同 DSN。
+      AI_DATABASE_URL: postgres://market:market_e2e_only_local@postgres:5432/market
       REDIS_URL: redis://redis:6379/0
       # A1 adapter 的注入点（环境变量契约，见 README §录播注入点）：
       DATA_SOURCE_MODE: replay            # replay | live；默认/replay 时禁止外呼
