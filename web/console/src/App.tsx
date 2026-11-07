@@ -5,6 +5,7 @@ import { ROUTES, navigate, useRoute, type ConsoleRoute } from './lib/router';
 import type { ConsoleServices } from './lib/services';
 import { useAsync } from './lib/use-async';
 import { MockBackend } from './mocks';
+import { createHttpConsoleServices } from './adapters';
 import { ApprovalQueuePage } from './pages/ApprovalQueuePage';
 import { CompliancePage } from './pages/CompliancePage';
 import { ConfigEditorPage } from './pages/ConfigEditorPage';
@@ -13,11 +14,39 @@ import { OverviewPage } from './pages/OverviewPage';
 import { configurableItems } from './domain/registry';
 
 /**
- * ⚠️ 当前使用 MockBackend（Config Service / Approval API 契约未建）。
- * 未来由 src/adapters/http-config-service.ts 等实现同一 ConsoleServices 接口替换，
- * 页面与组件不感知 mock/http 差异。见 src/mocks/CONTRACT-MAP.md。
+ * 运行时服务装配：
+ * - 默认 MockBackend（seedDemoApprovals）——本地开发 / 无真契约后端时使用。
+ * - 切 HTTP：URL query 带 ?backend=http&baseUrl=/v1&environment=dev（或注入 VITE_CONSOLE_API_URL）。
+ *   ConsoleServices 由 createHttpConsoleServices 组装 ConfigServicePort + ApprovalServicePort + AuditPort。
+ *   页面与组件不感知 mock/http 差异，见 src/mocks/CONTRACT-MAP.md。
  */
-const services: ConsoleServices = new MockBackend({ seedDemoApprovals: true });
+/** Vite build 注入 import.meta.env；测试环境可能缺，兜底空对象。 */
+function viteEnv(): Record<string, string | undefined> {
+  try {
+    return (import.meta.env ?? {}) as Record<string, string | undefined>;
+  } catch {
+    return {};
+  }
+}
+
+function bootstrapServices(): ConsoleServices {
+  const params = new URLSearchParams(globalThis.location?.search ?? '');
+  const env = viteEnv();
+  const backend = (params.get('backend') ?? env.VITE_CONSOLE_BACKEND ?? 'mock').toLowerCase();
+  if (backend !== 'http') {
+    return new MockBackend({ seedDemoApprovals: true });
+  }
+  const baseUrl = params.get('baseUrl') ?? env.VITE_CONSOLE_API_URL ?? '/v1';
+  const environment = (params.get('environment') ?? env.VITE_CONSOLE_ENV ?? 'dev') as 'dev' | 'staging' | 'prod';
+  // authHeaders 默认走同源 cookie/credentials；A4 identity 接入后可改 Bearer token。
+  return createHttpConsoleServices({
+    baseUrl,
+    environment,
+    authHeaders: () => ({}),
+  });
+}
+
+const services: ConsoleServices = bootstrapServices();
 /** 演示用内部员工身份；真实身份来自 A4 identity（/v1/internal/*），前端只展示不判定。 */
 const consoleActor: Actor = { kind: 'human', id: 'H2' };
 
