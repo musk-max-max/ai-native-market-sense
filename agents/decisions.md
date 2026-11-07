@@ -1928,3 +1928,22 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 - tushare 转售授权三件 0/3（11-12 到期）、安全半 3/3 OPEN、SEC-011/SEC-012 residual = owner/H3/H4 专属。
 - antd 引入 = owner 确认（改 package.json 纪律）。
 
+
+## L155 — COPY_TEXT_HASH 重算 + B1-P0-5 快照登记（L0 亲跑，203dd9d）
+
+- **触发**：L154 approval+config plugin 接线（798ff09）后 ECS `docker compose build api` 卡 `check:copy` EXIT 1——copy.ts 内容 hash=f40eac989d8a vs 声明 ac875c9d9237。
+- **根因**：9562a04（AI-2/3 视觉合规）改 `services/api/src/copy.ts` 后未重算 COPY_TEXT_HASH，COPY_VERSION 仍 '2026.11.5'。
+- **修复**：L0 亲跑重算 stable-hash（sort_keys + 紧凑 JSON），COPY_TEXT_HASH 更新为 f40eac989d8a…；新增 `docs/release/copy-snapshots/2026.11.5.f40eac989d8a.backend.json`；manifest 加 B1-P0-5 行。
+- **临时脚本清理**：services/api/scripts/_gen-backend-snapshot.mjs / _gen-snapshot.mjs 用毕即删。
+- **门禁**：typecheck 10/10；api 26 pass；check:copy OK；check:manifest OK。已 push（203dd9d）。
+- **Open**：ECS API 容器待重建以含 798ff09 + 203dd9d；smoke /v1/internal/configs + /v1/internal/approvals 待跑。
+
+
+## L156 — API identity/approval 插件导入改相对路径（L0 亲跑，c57668b）
+
+- **触发**：L155 修复 COPY_TEXT_HASH 后 API 镜像 build 通过，容器启动即崩 `ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`（Node 22.23.4 拒绝对 node_modules 下 .ts 做 type stripping）。
+- **根因**：domains.ts 用 `@market-sense/identity/plugin` + `@market-sense/approval/plugin` 包路径导入；pnpm deploy --prod 后的 workspace 依赖在 node_modules 里是 .ts 源码，Node ESM loader 不剥离类型。server.ts 主入口同样 `@market-sense/identity` 崩。market 插件原本就用相对路径 `../../market/src/plugin.js` 所以幸免。
+- **修复**：domains.ts + server.ts identity/approval 导入全部改相对路径（`../../identity/src/plugin.js` / `../../approval/src/plugin.js` / `../../identity/src/index.js`）；auth.ts 的 `import type { Principal }` 是 type-only import 运行时擦除，保留包路径不动。tsc --rootDir=../.. 会把相对导入的源码一起编进 dist。
+- **门禁**：typecheck 10/10；api 26 pass。已 push（c57668b）。
+- **Open**：ECS API 容器重建 + smoke 待跑。
+
