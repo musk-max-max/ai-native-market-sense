@@ -955,9 +955,16 @@ def create_adapter(
             )
             if not token and mode == "replay":
                 token = _REPLAY_TOKEN_PLACEHOLDER
-            endpoint = str(
-                options.get("endpoint") or os.environ.get(_ENV_API_URL) or ts_transport.DEFAULT_ENDPOINT
-            )
+            endpoint_opt = options.get("endpoint") or os.environ.get(_ENV_API_URL)
+            if not endpoint_opt:
+                if mode == "live":
+                    # H4 SEC-007 fail-closed：live 模式缺端点 = 配置错误，拒绝静默回落官方端点
+                    raise InvalidRequestError(
+                        f"tushare endpoint not configured; set {_ENV_API_URL} or options['endpoint'] "
+                        f"(mirror/official); refusing silent fallback to {ts_transport.DEFAULT_ENDPOINT}"
+                    )
+                endpoint_opt = ts_transport.DEFAULT_ENDPOINT
+            endpoint = str(endpoint_opt)
             active_transport = ts_transport.HttpTransport(token, endpoint=endpoint)
             record_path = options.get("record_path")
             if record_path:

@@ -19,7 +19,7 @@
 | --- | --- | --- | --- | --- |
 | ① 官方书面回复 | **PENDING-H4**：未取得入档。owner 口述「已获授权」（L127, 2026-11-06），但无书面文件 | 官方书面回复（授权主体/日期/覆盖范围：C 端展示 + 再分发） | 具备 authorization 文件（截图/邮件/合同均可），覆盖 C 端商业展示 | `security/`（H4 task-12 台账） |
 | ② 条款文本 | **PENDING-H4**：未见 | tushare 用户协议/商用条款全文及版本 | 条款文本入档，并给出与红线①「个人许可不可转让、C 端商用违约」的逐条比对结论 | 同上 |
-| ③ 白名单 + 来源解耦 | **PARTIAL**：工程侧已解耦——`services/ingest/.env` 的 `TUSHARE_HTTP_URL=https://tuaremax.top`（第三方 mirror），业务层无 tushare 标识；但 mirror 无书面转售授权 | mirror（tuaremax.top）的转售/再分发书面授权，或切回官方端点并由①覆盖 | 书面授权入档；或切回官方 `api.tushare.pro` 且①覆盖，并完成全量回补 | 同上 |
+| ③ 白名单 + 来源解耦 | **PARTIAL**：工程侧已解耦——`services/ingest/.env` 的 `TUSHARE_API_URL=https://tuaremax.top`（第三方 mirror），业务层无 tushare 标识；技术缺口 SEC-007/008/009 已修（2026-11-07，fail-closed + https 强制 + 限流接线）；但 mirror 无书面转售授权 | mirror（tuaremax.top）的转售/再分发书面授权，或切回官方端点并由①覆盖 | 书面授权入档；或切回官方 `api.tushare.pro` 且①覆盖，并完成全量回补 | 同上 |
 
 - **不得改写的 residual 表述**：无 mirror 书面转售授权 = **C 端商用违约风险未闭环**（L100/L118），不得写「已解决」。11-12 前未取得 → 服务端拒答（fail-closed），不是降级（S0-STATUS §二.2、L76）。
 - 与 G3 的分工：G1 = 数据源许可（能不能取/能不能再分发）；G3 = 对外 entitlement 语义（能不能展示）。

@@ -18,7 +18,13 @@ from typing import Any, Protocol
 from ...ports import QuotaExhaustedError, SchemaDriftError, SourceAuthError, SourceUnavailableError
 
 #: 数据源端点（仅适配层可见；可用配置覆盖，禁止在其他层出现）。
-DEFAULT_ENDPOINT = "http://api.tushare.pro"
+DEFAULT_ENDPOINT = "https://api.tushare.pro"
+
+#: 非白名单端点须显式 ``ALLOW_INSECURE_ENDPOINT=1``（H4 SEC-008：默认 https 强制）
+ALLOW_INSECURE_ENV = "ALLOW_INSECURE_ENDPOINT"
+
+#: TUSHARE_RATE_LIMIT_PER_MIN（H4 SEC-009：限流接线，mirror 声明 ≤200/min）
+RATE_LIMIT_ENV = "TUSHARE_RATE_LIMIT_PER_MIN"
 
 #: 日线接口请求字段（保持顺序稳定，便于审计比对）。
 DAILY_FIELDS: tuple[str, ...] = (
@@ -73,15 +79,48 @@ def _classify_error(code: int, msg: str) -> Exception:
     return SourceUnavailableError(f"source api error: code={code} msg={msg}")
 
 
+def _validate_endpoint(endpoint: str) -> None:
+    """端点安全校验（H4 SEC-008）：默认 https，非白名单 host 须显式 ``ALLOW_INSECURE_ENDPOINT=1``。
+
+    白名单（官方 tushare）：api.tushare.pro / api.tushare.com
+    本地回环（127.0.0.1/localhost）测试用，同样须显式放行（CI 走 ReplayTransport，不经此路径）。
+    """
+    from urllib.parse import urlsplit
+    parts = urlsplit(endpoint)
+    if parts.scheme != "https":
+        host = (parts.hostname or "").lower()
+        is_local = host in {"127.0.0.1", "localhost", "0.0.0.0", ""}
+        allow = os.environ.get(ALLOW_INSECURE_ENV) == "1"
+        if not (is_local and allow):
+            raise ValueError(
+                f"endpoint must be https (got {endpoint!r}); "
+                f"set {ALLOW_INSECURE_ENV}=1 to allow insecure (local test only)"
+            )
+
+
+def _read_rate_limit() -> float | None:
+    """读 ``TUSHARE_RATE_LIMIT_PER_MIN``（H4 SEC-009）；未配置/非法则 None（用 QuotaPolicy 默认）。"""
+    raw = os.environ.get(RATE_LIMIT_ENV)
+    if not raw:
+        return None
+    try:
+        val = float(raw)
+        return val if val > 0 else None
+    except ValueError:
+        return None
+
+
 class HttpTransport:
     """真实 HTTP 传输（生产/本地联调用；CI 严禁使用）。"""
 
     def __init__(self, token: str, *, endpoint: str = DEFAULT_ENDPOINT, timeout_s: float = 30.0) -> None:
         if not token:
             raise ValueError("source token is empty; 拒绝无凭证调用")
+        _validate_endpoint(endpoint)
         self._token = token
         self._endpoint = endpoint
         self._timeout_s = timeout_s
+        self._rate_limit_per_min = _read_rate_limit()
 
     @property
     def endpoint(self) -> str:
@@ -89,6 +128,13 @@ class HttpTransport:
         return self._endpoint
 
     def call(self, api_name: str, params: Mapping[str, Any], fields: Sequence[str]) -> list[dict[str, Any]]:
+        if self._rate_limit_per_min is not None:
+            min_interval = 60.0 / self._rate_limit_per_min
+            now = time.monotonic()
+            elapsed = now - getattr(self, "_last_call_ts", 0.0)
+            if elapsed < min_interval:
+                time.sleep(min_interval - elapsed)
+            self._last_call_ts = time.monotonic()
         body = json.dumps(
             {"api_name": api_name, "token": self._token, "params": dict(params), "fields": list(fields)},
             ensure_ascii=False,

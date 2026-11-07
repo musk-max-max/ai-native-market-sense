@@ -14,6 +14,13 @@ import pytest
 from market_ingest.adapters.tushare.transport import HttpTransport
 from market_ingest.ports import QuotaExhaustedError, SchemaDriftError, SourceAuthError, SourceUnavailableError
 
+
+
+@pytest.fixture(autouse=True)
+def _allow_local_insecure(monkeypatch: pytest.MonkeyPatch) -> None:
+    """本模块测试服务器均为本地 loopback；H4 SEC-008 显式放行（不影响生产默认 https 强制）。"""
+    monkeypatch.setenv("ALLOW_INSECURE_ENDPOINT", "1")
+
 CAPTURED: list[dict[str, Any]] = []
 
 
@@ -96,3 +103,78 @@ def test_connection_error_maps_to_source_unavailable() -> None:
     transport = HttpTransport("t", endpoint="http://127.0.0.1:9", timeout_s=0.2)
     with pytest.raises(SourceUnavailableError):
         transport.call("daily", {"ts_code": "600519.SH"}, ("ts_code",))
+
+# ---- H4 SEC-007/008/009 修复测试（L0 2026-11-07）----
+
+
+class TestEndpointSecurity:
+    """G2/SEC-008：非 https 端点 fail-closed，显式 ALLOW_INSECURE_ENDPOINT=1 仅本地回环放行。"""
+
+    def test_https_official_endpoint_passes(self) -> None:
+        from market_ingest.adapters.tushare.transport import HttpTransport
+
+        t = HttpTransport("tok", endpoint="https://api.tushare.pro")
+        assert t.endpoint == "https://api.tushare.pro"
+
+    def test_http_non_local_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from market_ingest.adapters.tushare.transport import HttpTransport
+
+        monkeypatch.delenv("ALLOW_INSECURE_ENDPOINT", raising=False)
+        with pytest.raises(ValueError, match="endpoint must be https"):
+            HttpTransport("tok", endpoint="http://tuaremax.top")
+
+    def test_http_local_without_allow_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from market_ingest.adapters.tushare.transport import HttpTransport
+
+        monkeypatch.delenv("ALLOW_INSECURE_ENDPOINT", raising=False)
+        with pytest.raises(ValueError, match="endpoint must be https"):
+            HttpTransport("tok", endpoint="http://127.0.0.1:18081")
+
+    def test_http_local_with_allow_passes(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from market_ingest.adapters.tushare.transport import HttpTransport
+
+        monkeypatch.setenv("ALLOW_INSECURE_ENDPOINT", "1")
+        t = HttpTransport("tok", endpoint="http://127.0.0.1:18081")
+        assert t.endpoint == "http://127.0.0.1:18081"
+
+
+class TestRateLimit:
+    """G3/SEC-009：TUSHARE_RATE_LIMIT_PER_MIN 接线到 HttpTransport 调用间隔。"""
+
+    def test_rate_limit_read(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from market_ingest.adapters.tushare.transport import HttpTransport
+
+        monkeypatch.setenv("ALLOW_INSECURE_ENDPOINT", "1")
+        monkeypatch.setenv("TUSHARE_RATE_LIMIT_PER_MIN", "200")
+        t = HttpTransport("tok", endpoint="http://127.0.0.1:18081")
+        assert t._rate_limit_per_min == 200.0
+
+    def test_rate_limit_unread_when_unset(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from market_ingest.adapters.tushare.transport import HttpTransport
+
+        monkeypatch.setenv("ALLOW_INSECURE_ENDPOINT", "1")
+        monkeypatch.delenv("TUSHARE_RATE_LIMIT_PER_MIN", raising=False)
+        t = HttpTransport("tok", endpoint="http://127.0.0.1:18081")
+        assert t._rate_limit_per_min is None
+
+
+class TestAdapterEndpointFailClosed:
+    """G1/SEC-007：live 模式缺端点 = 配置错误，拒绝静默回落默认端点。"""
+
+    def test_live_mode_no_endpoint_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from market_ingest.adapters.tushare.adapter import create_adapter as create
+        from market_ingest.ports import InvalidRequestError
+
+        monkeypatch.delenv("TUSHARE_API_URL", raising=False)
+        monkeypatch.delenv("DATA_SOURCE_MODE", raising=False)
+        with pytest.raises(InvalidRequestError, match="endpoint not configured"):
+            create({"token": "tok", "mode": "live"})
+
+    def test_replay_mode_no_endpoint_ok(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from market_ingest.adapters.tushare.adapter import create_adapter as create
+
+        monkeypatch.delenv("TUSHARE_API_URL", raising=False)
+        monkeypatch.delenv("DATA_SOURCE_MODE", raising=False)
+        # replay 模式缺端点用占位 token，不构造 HttpTransport
+        ds = create({"token": "replay-no-auth", "mode": "replay"})
+        assert ds is not None
