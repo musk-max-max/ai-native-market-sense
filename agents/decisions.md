@@ -1956,3 +1956,20 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 - **门禁**：typecheck 10/10；api 26 pass。已 push（aeb7079）。
 - **Open**：ECS 重建 + smoke 待跑（bundle 或 fetch）。
 
+
+## L162 — API 容器 healthy + Console HTTP backend 链路通（L0 亲跑，c9163ac）
+
+- **本段修复链**（L155→L161，API 容器从 build 崩 → healthy）：
+  - L155（203dd9d）COPY_TEXT_HASH 重算 + B1-P0-5 快照：解 docker build 卡 check:copy。
+  - L156（c57668b）identity/approval 插件导入改相对路径：解 Node 22.23.4 ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING。
+  - L157（aeb7079）api package.json 补 ai/ai-policy/compliance/api-client/market workspace 依赖：解 deploy 产物缺传递依赖 ERR_MODULE_NOT_FOUND。
+  - L158（4d6212b）ai + market 5 处值导入改相对路径：同 L156 根因。
+  - L159（24e884d）compliance ai-content-policy.ts 值导入改相对路径：同上。
+  - L160（bc28c18）compose api env 补 AI_DATABASE_URL：解 ai 插件 fail-closed 启动崩。
+  - L161（c9163ac）Dockerfile runtime COPY rules/*.json → /app/dist/rules/：解 loadAiContentPolicy ENOENT。
+- **状态**：API 容器 healthy，/healthz 200，/v1/internal/{configs,approvals,releases} 路由可达（401 UNAUTHENTICATED fail-closed 响应正确）。
+- **Open（超出纯工程边界）**：
+  - API 无 dev-token 后门；/v1/internal/* 需真 identity JWT。Console App.tsx 仍 H2 演示身份，无登录流程——完整 smoke 需 Console 身份接入策略=owner/H3 决策。
+  - ECS GitHub fetch 不稳（GnuTLS -110 / banner timeout），改走 git bundle + scp 通道（/tmp/api-fix*.bundle）。
+  - 门禁全绿：typecheck 10/10；api/ai/market/compliance tests 全绿。
+
