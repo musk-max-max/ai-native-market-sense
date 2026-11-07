@@ -1877,3 +1877,27 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 - tushare 转售授权三件 0/3（11-12 到期）、安全半 3/3 OPEN、SEC-011/SEC-012 residual = owner/H3/H4 专属。
 - antd 引入 = owner 确认（改 package.json 纪律）。
 
+
+
+
+### L152 — App.tsx 运行时 HTTP adapter 切换（2026-11-07 17:58）
+
+**范围**：L0 亲跑。纯工程实现，不代行 owner/H3 专属签发。
+
+**交付**（commit bc7b9be + 前置 commit 01e53db 内已含 adapters/index.ts 重构）：
+
+- **adapters/index.ts**：createHttpConsoleServices 返回类型升级为 `HttpConsoleServices`（extends lib/services 的 ConsoleServicesPort + 暴露 config/approval/audit 三实例），显式实现三端口全部方法（委托到子 service）。App.tsx 直接持有返回值，无需 cast。
+- **App.tsx**：bootstrapServices() 运行时装配。默认 MockBackend（本地开发 fallback）；URL 带 `?backend=http&baseUrl=/v1&environment=dev` 切真契约 backend；同时读 Vite build 时注入的 `VITE_CONSOLE_BACKEND/VITE_CONSOLE_API_URL/VITE_CONSOLE_ENV`。viteEnv() 守 import.meta.env 测试环境缺失。consoleActor 仍 H2 占位（真实身份 A4 identity）。
+- **门禁**：typecheck 10/10 PASS；console 56 pass / 0 fail（30 adapter 桩测 + 26 原 mock 测试 + app.test.ts）；pnpm -r test 全绿（ingest 228 / ai 42 / market 153 / approval 12 / h5 28 / identity 45 / compliance 4 / api 26 / ai-policy 41 / console 56）。已推 GitHub（bc7b9be）。
+
+**Console UI 仍缺（接线 P2）**：
+- ConfigEditorPage publish 流程需 UI 补 change_reason/impact_scope 块（submit 入参）+ canary_percent 输入（publish 入参）。
+- ApprovalQueuePage approve/reject 表单需 approval_ref + reason（≥8 字）输入。
+- Console 无 dev/prod 入口切换菜单（当前靠 URL query）。
+
+**Open**：
+- 真 /v1 隧道 smoke 测试（?backend=http 路径）未跑——8099→ECS API 走 E2E 采证，未对 Console UI 验证。等 A0/A4 契约复核 + ECS API 容器跑 approval 契约后端。
+- AI-1/2/3 go-live 签发 = H3；AI-1 request-id 头契约性 = H2；AI-2/3 2 absent 选择器 = H3 判定。
+- tushare 转售授权三件 0/3（11-12 到期）、安全半 3/3 OPEN、SEC-011/SEC-012 residual = owner/H3/H4 专属。
+- antd 引入 = owner 确认（改 package.json 纪律）。
+
