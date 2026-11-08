@@ -1984,3 +1984,13 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 - 意义：H3 目视 AI-2/3 时可直接在 /dev/ai-card 看到全部 19 个观察项的渲染形态，2 absent 选择器不再「需人工判定是否应渲染」——现在有对应渲染路径可采。
 - 待办：重跑 tests/e2e/scripts/ai23-visual-evidence.mjs 生成含 19/19 的视觉证据（需本地 serve-current.mjs + ECS API 隧道）。
 
+
+## L164 — AI-2/3 视觉证据 PASS 19/19（L0 亲跑）
+
+- 前置：L163 给 /dev/ai-card fixture 补 absent-state 演示块（STALE_SOURCE 30min 触发 .quote__stale；aiContent={{}} 触发 .ai-slot--pending）。
+- 环境：本地 serve-current.mjs:18000（跑 7012b4f 含新 fixture）+ SSH 隧道 13001→ECS API:8081。隧道长连接反复掉线（ECONNRESET）→ 修 tests/e2e/scripts/ai23-visual-evidence.mjs:213 healthz fetch 改 .then(r=>r.json()).catch() fail-soft（fixture 页零 /v1，采证不依赖 API，原 await (await fetch).json() 写法 ECONNRESET 直接 FATAL）。
+- 证据：tests/e2e/evidence/ai23-visual-computed-2026-11-06.json 刷新 → **verdict.status=PASS，19 pass / 0 fail / 0 absent**（原 PASS_WITH_GAPS 17 pass / 2 absent）。
+- anchors.gitSha=7012b4f32f4aabe91bb5e3f33120dea7f006a246，scriptSha256=e01ced5c44e766ace12d3023c2d66c6b40dbac60d5086551ef19ba3b1de4f9cc。
+- 意义：AI-2/3 视觉合规 19 个观察项全部有对应渲染路径可采，H3 目视不再需人工判定 absent。AI-2/3 签发前置全部就绪。
+- 教训：长 SSH 隧道在 Playwright 长任务（~2min）中不稳定；采证脚本的环境自证 fetch 必须 fail-soft，不能因隧道抖动阻断核心证据采集。
+

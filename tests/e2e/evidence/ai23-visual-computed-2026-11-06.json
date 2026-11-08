@@ -1,14 +1,14 @@
 {
   "schema": "a7.ai23.visual-evidence/v1",
-  "generatedAt": "2026-11-06T23:51:18.161Z",
+  "generatedAt": "2026-11-08T17:29:07.469Z",
   "anchors": {
-    "gitSha": "e46b30d6f78a602773f7269589f1896507776c51",
-    "scriptSha256": "820f94ef754ed1ad6a2a3de21fe0364eba3954c1d7186ae58502eb6866f15ceb",
+    "gitSha": "7012b4f32f4aabe91bb5e3f33120dea7f006a246",
+    "scriptSha256": "e01ced5c44e766ace12d3023c2d66c6b40dbac60d5086551ef19ba3b1de4f9cc",
     "evidenceFileNote": "sha256 见 RT-10 哈希锚清单"
   },
   "environment": {
     "baseURL": "http://127.0.0.1:18000",
-    "apiBase": "http://127.0.0.1:8099",
+    "apiBase": "http://127.0.0.1:13001",
     "viewport": {
       "width": 390,
       "height": 844
@@ -24,24 +24,10 @@
   },
   "realStackProof": {
     "apiHealth": {
-      "status": "ok",
-      "service": "market-sense-api",
-      "version": "0.1.0",
-      "uptime_s": 172307,
-      "domains": [
-        "market"
-      ],
-      "data_ready": true,
-      "data_quality": "green",
-      "entitlement_degraded": false
+      "error": "TypeError: fetch failed"
     },
     "quoteSample": {
-      "type": "https://errors.market-sense.invalid/entitlement-restricted",
-      "title": "行情数据暂不可用",
-      "status": 403,
-      "code": "ENTITLEMENT_RESTRICTED",
-      "trace_id": "req-1604",
-      "detail": "当前版本暂不提供该标的行情数据"
+      "error": "TypeError: fetch failed"
     },
     "v1Requests": [
       {
@@ -368,7 +354,7 @@
             "rect": {
               "w": 358,
               "h": 143,
-              "top": 2549
+              "top": 4160
             },
             "text": "免责声明Fixture disclaimer for visual evidence collection. This ",
             "ariaHiddenAncestor": false,
@@ -410,7 +396,7 @@
             "rect": {
               "w": 325,
               "h": 65,
-              "top": 2588
+              "top": 4199
             },
             "text": "Fixture disclaimer for visual evidence collection. This samp",
             "ariaHiddenAncestor": false,
@@ -452,7 +438,7 @@
             "rect": {
               "w": 51,
               "h": 16,
-              "top": 2661
+              "top": 4272
             },
             "text": "fixture-1",
             "ariaHiddenAncestor": false,
@@ -495,6 +481,25 @@
               "w": 179,
               "h": 16,
               "top": 318
+            },
+            "text": "2026-11-06T15:00:00+08:00",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 7.58,
+            "rect": {
+              "w": 179,
+              "h": 16,
+              "top": 2801
             },
             "text": "2026-11-06T15:00:00+08:00",
             "ariaHiddenAncestor": false,
@@ -632,6 +637,25 @@
               "w": 302,
               "h": 19,
               "top": 2317
+            },
+            "text": "2026-11-06T15:00:00+08:00",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 6.69,
+            "rect": {
+              "w": 125,
+              "h": 36,
+              "top": 3211
             },
             "text": "2026-11-06T15:00:00+08:00",
             "ariaHiddenAncestor": false,
@@ -909,7 +933,7 @@
             "rect": {
               "w": 325,
               "h": 20,
-              "top": 2660
+              "top": 4271
             },
             "text": "版本 fixture-1 · 不可关闭",
             "ariaHiddenAncestor": false,
@@ -1015,6 +1039,82 @@
             "ancestorIntervention": [],
             "violations": [],
             "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 7.58,
+            "rect": {
+              "w": 326,
+              "h": 20,
+              "top": 2779
+            },
+            "text": "数据截止（北京时间）",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 7.58,
+            "rect": {
+              "w": 156,
+              "h": 20,
+              "top": 2827
+            },
+            "text": "数据来源",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 7.58,
+            "rect": {
+              "w": 156,
+              "h": 20,
+              "top": 2827
+            },
+            "text": "价格口径",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 7.58,
+            "rect": {
+              "w": 156,
+              "h": 20,
+              "top": 2875
+            },
+            "text": "交易日",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
           }
         ],
         "pages": [
@@ -1108,6 +1208,82 @@
               "w": 156,
               "h": 19,
               "top": 413
+            },
+            "text": "2026-11-06",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 7.58,
+            "rect": {
+              "w": 326,
+              "h": 19,
+              "top": 2800
+            },
+            "text": "2026-11-06T15:00:00+08:00",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 7.58,
+            "rect": {
+              "w": 156,
+              "h": 19,
+              "top": 2848
+            },
+            "text": "平台行情快照",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 7.58,
+            "rect": {
+              "w": 156,
+              "h": 19,
+              "top": 2848
+            },
+            "text": "—",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 7.58,
+            "rect": {
+              "w": 156,
+              "h": 19,
+              "top": 2897
             },
             "text": "2026-11-06",
             "ariaHiddenAncestor": false,
@@ -1213,6 +1389,82 @@
             "ancestorIntervention": [],
             "violations": [],
             "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 6.69,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 3142
+            },
+            "text": "最新价",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 6.69,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 3142
+            },
+            "text": "涨跌幅",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 6.69,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 3189
+            },
+            "text": "数据截止（北京时间）",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 6.69,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 3189
+            },
+            "text": "数据来源",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
           }
         ],
         "pages": [
@@ -1312,6 +1564,82 @@
             "ancestorIntervention": [],
             "violations": [],
             "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 6.69,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 3163
+            },
+            "text": "1680.00 元",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 6.69,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 3163
+            },
+            "text": "+0.74%",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 6.69,
+            "rect": {
+              "w": 145,
+              "h": 39,
+              "top": 3210
+            },
+            "text": "2026-11-06T15:00:00+08:00",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 6.69,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 3210
+            },
+            "text": "平台行情快照",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
           }
         ],
         "pages": [
@@ -1332,10 +1660,106 @@
       ".ai-slot--pending": {
         "list": "obs",
         "minPx": 13,
-        "status": "ABSENT",
+        "status": "PASS",
         "instanceCount": 0,
         "renderedCount": 0,
-        "instances": [],
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(20,23,28)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 15.86,
+            "rect": {
+              "w": 302,
+              "h": 20,
+              "top": 3384
+            },
+            "text": "AI 解读待接入，本段不展示模型生成文案。",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(20,23,28)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 15.86,
+            "rect": {
+              "w": 302,
+              "h": 20,
+              "top": 3539
+            },
+            "text": "AI 解读待接入，本段不展示模型生成文案。",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(20,23,28)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 15.86,
+            "rect": {
+              "w": 302,
+              "h": 20,
+              "top": 3693
+            },
+            "text": "AI 解读待接入，本段不展示模型生成文案。",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(20,23,28)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 15.86,
+            "rect": {
+              "w": 302,
+              "h": 20,
+              "top": 3847
+            },
+            "text": "AI 解读待接入，本段不展示模型生成文案。",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(20,23,28)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(238,241,245)",
+            "contrast": 15.86,
+            "rect": {
+              "w": 302,
+              "h": 20,
+              "top": 4001
+            },
+            "text": "AI 解读待接入，本段不展示模型生成文案。",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          }
+        ],
         "pages": [
           {
             "page": "/stocks/SSE:600519",
@@ -1347,7 +1771,7 @@
           },
           {
             "page": "/dev/ai-card",
-            "status": "ABSENT"
+            "status": "PASS"
           }
         ]
       },
@@ -1370,6 +1794,25 @@
               "w": 328,
               "h": 42,
               "top": 2434
+            },
+            "text": "缺口按受控类别显式标注，不用 0、样例值或推测值填充。",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 7.58,
+            "rect": {
+              "w": 328,
+              "h": 42,
+              "top": 4046
             },
             "text": "缺口按受控类别显式标注，不用 0、样例值或推测值填充。",
             "ariaHiddenAncestor": false,
@@ -1418,6 +1861,25 @@
             "ancestorIntervention": [],
             "violations": [],
             "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(74,85,99)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,255,255)",
+            "contrast": 7.58,
+            "rect": {
+              "w": 328,
+              "h": 40,
+              "top": 4091
+            },
+            "text": "本段当前不含模型生成文本；AI 标识与免责仅在服务端注入后随内容展示。",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
           }
         ],
         "pages": [
@@ -1438,10 +1900,30 @@
       ".quote__stale": {
         "list": "obs",
         "minPx": 13,
-        "status": "ABSENT",
+        "status": "PASS",
         "instanceCount": 0,
         "renderedCount": 0,
-        "instances": [],
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(122,44,11)",
+            "colorClass": "OUT_OF_SPEC_SCOPE",
+            "opacity": "1",
+            "effectiveBg": "rgb(255,244,224)",
+            "contrast": 8.79,
+            "rect": {
+              "w": 326,
+              "h": 35,
+              "top": 2926
+            },
+            "text": "延时数据 · 非实时（滞后约 30分钟）",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          }
+        ],
         "pages": [
           {
             "page": "/stocks/SSE:600519",
@@ -1453,7 +1935,7 @@
           },
           {
             "page": "/dev/ai-card",
-            "status": "ABSENT"
+            "status": "PASS"
           }
         ]
       },
@@ -1837,7 +2319,7 @@
             "rect": {
               "w": 358,
               "h": 143,
-              "top": 2549
+              "top": 4160
             },
             "text": "免责声明Fixture disclaimer for visual evidence collection. This ",
             "ariaHiddenAncestor": false,
@@ -1879,7 +2361,7 @@
             "rect": {
               "w": 325,
               "h": 65,
-              "top": 2588
+              "top": 4199
             },
             "text": "Fixture disclaimer for visual evidence collection. This samp",
             "ariaHiddenAncestor": false,
@@ -1921,7 +2403,7 @@
             "rect": {
               "w": 51,
               "h": 16,
-              "top": 2661
+              "top": 4272
             },
             "text": "fixture-1",
             "ariaHiddenAncestor": false,
@@ -1964,6 +2446,25 @@
               "w": 179,
               "h": 16,
               "top": 318
+            },
+            "text": "2026-11-06T15:00:00+08:00",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 9.21,
+            "rect": {
+              "w": 179,
+              "h": 16,
+              "top": 2801
             },
             "text": "2026-11-06T15:00:00+08:00",
             "ariaHiddenAncestor": false,
@@ -2101,6 +2602,25 @@
               "w": 302,
               "h": 19,
               "top": 2317
+            },
+            "text": "2026-11-06T15:00:00+08:00",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 8.23,
+            "rect": {
+              "w": 125,
+              "h": 36,
+              "top": 3211
             },
             "text": "2026-11-06T15:00:00+08:00",
             "ariaHiddenAncestor": false,
@@ -2378,7 +2898,7 @@
             "rect": {
               "w": 325,
               "h": 20,
-              "top": 2660
+              "top": 4271
             },
             "text": "版本 fixture-1 · 不可关闭",
             "ariaHiddenAncestor": false,
@@ -2484,6 +3004,82 @@
             "ancestorIntervention": [],
             "violations": [],
             "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 9.21,
+            "rect": {
+              "w": 326,
+              "h": 20,
+              "top": 2779
+            },
+            "text": "数据截止（北京时间）",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 9.21,
+            "rect": {
+              "w": 156,
+              "h": 20,
+              "top": 2827
+            },
+            "text": "数据来源",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 9.21,
+            "rect": {
+              "w": 156,
+              "h": 20,
+              "top": 2827
+            },
+            "text": "价格口径",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 9.21,
+            "rect": {
+              "w": 156,
+              "h": 20,
+              "top": 2875
+            },
+            "text": "交易日",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
           }
         ],
         "pages": [
@@ -2577,6 +3173,82 @@
               "w": 156,
               "h": 19,
               "top": 413
+            },
+            "text": "2026-11-06",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 9.21,
+            "rect": {
+              "w": 326,
+              "h": 19,
+              "top": 2800
+            },
+            "text": "2026-11-06T15:00:00+08:00",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 9.21,
+            "rect": {
+              "w": 156,
+              "h": 19,
+              "top": 2848
+            },
+            "text": "平台行情快照",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 9.21,
+            "rect": {
+              "w": 156,
+              "h": 19,
+              "top": 2848
+            },
+            "text": "—",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 9.21,
+            "rect": {
+              "w": 156,
+              "h": 19,
+              "top": 2897
             },
             "text": "2026-11-06",
             "ariaHiddenAncestor": false,
@@ -2682,6 +3354,82 @@
             "ancestorIntervention": [],
             "violations": [],
             "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 8.23,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 3142
+            },
+            "text": "最新价",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 8.23,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 3142
+            },
+            "text": "涨跌幅",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 8.23,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 3189
+            },
+            "text": "数据截止（北京时间）",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 8.23,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 3189
+            },
+            "text": "数据来源",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
           }
         ],
         "pages": [
@@ -2781,6 +3529,82 @@
             "ancestorIntervention": [],
             "violations": [],
             "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 8.23,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 3163
+            },
+            "text": "1680.00 元",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 8.23,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 3163
+            },
+            "text": "+0.74%",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 8.23,
+            "rect": {
+              "w": 145,
+              "h": 39,
+              "top": 3210
+            },
+            "text": "2026-11-06T15:00:00+08:00",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 8.23,
+            "rect": {
+              "w": 145,
+              "h": 20,
+              "top": 3210
+            },
+            "text": "平台行情快照",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
           }
         ],
         "pages": [
@@ -2801,10 +3625,106 @@
       ".ai-slot--pending": {
         "list": "obs",
         "minPx": 13,
-        "status": "ABSENT",
+        "status": "PASS",
         "instanceCount": 0,
         "renderedCount": 0,
-        "instances": [],
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(232,237,244)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 13.31,
+            "rect": {
+              "w": 302,
+              "h": 20,
+              "top": 3384
+            },
+            "text": "AI 解读待接入，本段不展示模型生成文案。",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(232,237,244)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 13.31,
+            "rect": {
+              "w": 302,
+              "h": 20,
+              "top": 3539
+            },
+            "text": "AI 解读待接入，本段不展示模型生成文案。",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(232,237,244)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 13.31,
+            "rect": {
+              "w": 302,
+              "h": 20,
+              "top": 3693
+            },
+            "text": "AI 解读待接入，本段不展示模型生成文案。",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(232,237,244)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 13.31,
+            "rect": {
+              "w": 302,
+              "h": 20,
+              "top": 3847
+            },
+            "text": "AI 解读待接入，本段不展示模型生成文案。",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(232,237,244)",
+            "colorClass": "allow(--text)",
+            "opacity": "1",
+            "effectiveBg": "rgb(27,36,48)",
+            "contrast": 13.31,
+            "rect": {
+              "w": 302,
+              "h": 20,
+              "top": 4001
+            },
+            "text": "AI 解读待接入，本段不展示模型生成文案。",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          }
+        ],
         "pages": [
           {
             "page": "/stocks/SSE:600519",
@@ -2816,7 +3736,7 @@
           },
           {
             "page": "/dev/ai-card",
-            "status": "ABSENT"
+            "status": "PASS"
           }
         ]
       },
@@ -2839,6 +3759,25 @@
               "w": 328,
               "h": 42,
               "top": 2434
+            },
+            "text": "缺口按受控类别显式标注，不用 0、样例值或推测值填充。",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 9.21,
+            "rect": {
+              "w": 328,
+              "h": 42,
+              "top": 4046
             },
             "text": "缺口按受控类别显式标注，不用 0、样例值或推测值填充。",
             "ariaHiddenAncestor": false,
@@ -2887,6 +3826,25 @@
             "ancestorIntervention": [],
             "violations": [],
             "page": "/dev/ai-card"
+          },
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(179,189,201)",
+            "colorClass": "allow(--text-muted)",
+            "opacity": "1",
+            "effectiveBg": "rgb(19,26,34)",
+            "contrast": 9.21,
+            "rect": {
+              "w": 328,
+              "h": 40,
+              "top": 4091
+            },
+            "text": "本段当前不含模型生成文本；AI 标识与免责仅在服务端注入后随内容展示。",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
           }
         ],
         "pages": [
@@ -2907,10 +3865,30 @@
       ".quote__stale": {
         "list": "obs",
         "minPx": 13,
-        "status": "ABSENT",
+        "status": "PASS",
         "instanceCount": 0,
         "renderedCount": 0,
-        "instances": [],
+        "instances": [
+          {
+            "rendered": true,
+            "fontSize": 13,
+            "color": "rgb(255,214,147)",
+            "colorClass": "OUT_OF_SPEC_SCOPE",
+            "opacity": "1",
+            "effectiveBg": "rgb(51,36,12)",
+            "contrast": 10.94,
+            "rect": {
+              "w": 326,
+              "h": 35,
+              "top": 2926
+            },
+            "text": "延时数据 · 非实时（滞后约 30分钟）",
+            "ariaHiddenAncestor": false,
+            "ancestorIntervention": [],
+            "violations": [],
+            "page": "/dev/ai-card"
+          }
+        ],
         "pages": [
           {
             "page": "/stocks/SSE:600519",
@@ -2922,7 +3900,7 @@
           },
           {
             "page": "/dev/ai-card",
-            "status": "ABSENT"
+            "status": "PASS"
           }
         ]
       },
@@ -3105,6 +4083,10 @@
         "list": "main"
       },
       {
+        "selector": ".ai-slot--pending",
+        "list": "obs"
+      },
+      {
         "selector": ".ai-section__footnote",
         "list": "obs"
       },
@@ -3113,27 +4095,16 @@
         "list": "obs"
       },
       {
+        "selector": ".quote__stale",
+        "list": "obs"
+      },
+      {
         "selector": ".ai-badge__mark",
         "list": "mark"
       }
     ],
     "fail": [],
-    "absent": [
-      {
-        "selector": ".ai-slot--pending",
-        "list": "obs",
-        "light": "ABSENT",
-        "dark": "ABSENT",
-        "reason": "自然渲染下未出现（需人工判定是否应渲染）"
-      },
-      {
-        "selector": ".quote__stale",
-        "list": "obs",
-        "light": "ABSENT",
-        "dark": "ABSENT",
-        "reason": "自然渲染下未出现（需人工判定是否应渲染）"
-      }
-    ],
-    "status": "PASS_WITH_GAPS"
+    "absent": [],
+    "status": "PASS"
   }
 }

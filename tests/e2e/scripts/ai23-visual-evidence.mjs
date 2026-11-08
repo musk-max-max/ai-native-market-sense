@@ -210,7 +210,8 @@ async function main() {
   const git = gitSha();
 
   // 环境自证（真栈）：api healthz + entitled quote 样本
-  const health = await (await fetch(API + '/healthz')).json().catch((e) => ({ error: String(e) }));
+  // fail-soft: fixture 采证零 /v1，隧道掉线不阻断视觉证据（health 仅作环境自证参考）
+  const health = await fetch(API + '/healthz').then(r => r.json()).catch((e) => ({ error: String(e) }));
   const quoteRes = await fetch(API + '/v1/instruments/SSE:600519/quote?adjustment=qfq', { headers: { authorization: 'Bearer ' + token } }).catch((e) => ({ status: 0, json: async () => ({ error: String(e) }) }));
   const quoteSample = await quoteRes.json().catch(() => ({}));
 
