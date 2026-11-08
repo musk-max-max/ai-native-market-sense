@@ -29,6 +29,13 @@ const FIXTURE_SOURCE: SourceInfo = {
   adjustment: null,
 };
 
+const STALE_SOURCE: SourceInfo = {
+  source: 'platform_snapshot',
+  asOf: FIXTURE_AS_OF,
+  stalenessMs: 1_800_000, // 30min > 15min threshold -> renders .quote__stale
+  adjustment: null,
+};
+
 const FIXTURE_QUOTE: QuoteInfo = {
   tradeDate: '2026-11-06',
   lastPrice: 1680,
@@ -101,6 +108,23 @@ export function AiCardFixturePage() {
         fundamental={null}
         fundamentalState="missing"
         aiContent={FIXTURE_AI_CONTENT}
+      />
+
+      <h2 className="page__section-title">Absent-state demos</h2>
+      <p className="page__lede">
+        Below blocks trigger conditional classes that the main fixture does not render.
+      </p>
+
+      {/* .quote__stale: stalenessMs above threshold */}
+      <QuoteBlock quote={FIXTURE_QUOTE} source={STALE_SOURCE} />
+
+      {/* .ai-slot--pending: no aiContent injected -> AiTextSlot null placeholder */}
+      <AiInterpretation
+        quote={FIXTURE_QUOTE}
+        source={FIXTURE_SOURCE}
+        fundamental={null}
+        fundamentalState="missing"
+        aiContent={{}}
       />
 
       <DisclaimerNotice disclaimer={FIXTURE_DISCLAIMER} />

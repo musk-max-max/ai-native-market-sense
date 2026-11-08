@@ -1973,3 +1973,14 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
   - ECS GitHub fetch 不稳（GnuTLS -110 / banner timeout），改走 git bundle + scp 通道（/tmp/api-fix*.bundle）。
   - 门禁全绿：typecheck 10/10；api/ai/market/compliance tests 全绿。
 
+
+## L163 — /dev/ai-card fixture 补两个 absent 状态演示块（L0 亲跑）
+
+- 背景：AI-2/3 视觉证据 verdict=PASS_WITH_GAPS，2 absent（.ai-slot--pending / .quote__stale）——两者都是条件渲染，主 fixture（stalenessMs=60_000 + 五段全注入）自然不渲染，采证脚本无法采到。
+- 触发机制确认：.quote__stale 仅 stalenessMs > 15min（isStale，web/h5/src/lib/format.ts:51）才渲染（QuoteBlock.tsx:90）；.ai-slot--pending 仅 content=null 或 asOf 非法时 fail-closed 占位（AiTextSlot.tsx:41）。
+- 改动：web/h5/src/pages/AiCardFixturePage.tsx 新增 STALE_SOURCE（stalenessMs=1_800_000=30min）+ 「Absent-state demos」小节，含一个 stale QuoteBlock + 一个 aiContent={{}} 的 AiInterpretation（五段均 null 占位）。
+- 文案纪律：新加注释里的中文被 web/h5/test/compliance.test.ts「除 copy.ts 外 src 无中文字面量」抓到 → 改 ASCII。
+- 门禁：web/h5 28/28 pass（原 27+1 fail→修后 28 pass）；typecheck 10/10；testids 60 PASS；budget 85.1KB PASS。
+- 意义：H3 目视 AI-2/3 时可直接在 /dev/ai-card 看到全部 19 个观察项的渲染形态，2 absent 选择器不再「需人工判定是否应渲染」——现在有对应渲染路径可采。
+- 待办：重跑 tests/e2e/scripts/ai23-visual-evidence.mjs 生成含 19/19 的视觉证据（需本地 serve-current.mjs + ECS API 隧道）。
+
