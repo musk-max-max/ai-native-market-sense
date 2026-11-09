@@ -3,7 +3,7 @@
  *
  * - 结构错误与语义错误分列返回（validateOpsConfig 契约：valid=false 仍 HTTP 200）；
  * - 结构真源 = contracts/config/openapi.yaml（JSON Schema 2020-12 语义，手写展开以带 path/code）；
- * - V-05 路由白名单真源 = web/h5/src/lib/router.tsx parseRoute（A7）；默认拒绝，清单待 A7/H2 正式化（TODO）；
+ * - V-05 路由白名单真源 = web/h5/src/lib/router.tsx parseRoute（A7）；默认拒绝；7 例对应锁定测试见 test/route-whitelist.test.ts（L165），正式化文档化清单仍待 A7/H2 签署；
  * - V-08 口径真源 = docs/metrics/p0_metrics.json（H4-D6）：可执行 M01/M02/M04/M08，M03/M05/M06/M07 pending-data；
  * - V-09/V-10 禁用词预检 = rules/ai-content-policy.json 全部 12 类 patterns（A5 真源），预检通过 ≠ 已批准。
  * V-11/V-12（发布时）与 V-13（query environment）在服务层/路由层硬校验。
@@ -40,7 +40,7 @@ const METRIC_WINDOWS = new Set(WINDOWS);
 
 /**
  * V-05 A7 路由白名单（web/h5/src/lib/router.tsx parseRoute，2026-11-06 抽取）。
- * TODO(A7/H2)：清单正式化前保守拒绝；模板 {segment} 匹配任意单段。
+ * L165 单测锁定：test/route-whitelist.test.ts（7 例）；正式化文档化清单仍待 A7/H2 签署。模板 {segment} 匹配任意单段。
  */
 const ROUTE_WHITELIST: readonly string[][] = [
   ['watchlist'],
