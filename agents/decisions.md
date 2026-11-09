@@ -1994,3 +1994,11 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 - 意义：AI-2/3 视觉合规 19 个观察项全部有对应渲染路径可采，H3 目视不再需人工判定 absent。AI-2/3 签发前置全部就绪。
 - 教训：长 SSH 隧道在 Playwright 长任务（~2min）中不稳定；采证脚本的环境自证 fetch 必须 fail-soft，不能因隧道抖动阻断核心证据采集。
 
+
+## L165 — Console Port 层过期 TODO 注释清理（L0 亲跑，7a05655）
+
+- **触发**：监听轮扫描 product src TODO，发现 web/console/src/{mocks/ports.ts, mocks/backend.ts, lib/services.ts} 头部仍挂 6 条 `TODO(A8/A0)` 注释（「契约未定 / 暂无 config-service.openapi.yaml / Approval HTTP 入口未暴露」），但 L151–L154 已把 contracts/{config,approval}/openapi.yaml + src/adapters/http-{config,approval,audit}-service.ts 全部落地。注释与现实脱节，误导后续读者以为契约仍缺。
+- **改动**：三文件头部 TODO 段改写为「实现状态」描述——Config Service（contracts/config + HttpConfigService 双实现）、Approval API（contracts/approval + HttpApprovalService）、AuditSink（HTTP 适配层返回空数组，identity 侧事件读接口待 A4）、切换入口（adapters/index.ts createHttpConsoleServices + App.tsx bootstrapServices ?backend=http）。保留 registry.ts:11 `TODO(A8/H6)` 16 项配置边界注释（H6 定稿前是真实阻塞）。
+- **门禁**：typecheck 10/10；console 56 pass / 0 fail；其余 workspace 测试不变。
+- **推送**：7a05655 → GitHub origin/main。
+- **Open**：H6 16 项边界（阻塞 A8/H6）；App.tsx H2 演示身份（Console 登录策略 owner/H3）；AI-1/2/3 签发（H3）；tushare/安全半/SEC-011/012（owner/H3/H4）。
