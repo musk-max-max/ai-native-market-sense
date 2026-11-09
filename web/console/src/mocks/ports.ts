@@ -14,13 +14,13 @@ import type {
 } from '../domain/types';
 
 /**
- * 中后台适配层端口（Port）。
+ * 端口（Port）层：页面依赖此处接口，不感知 mock/http 差异。
  *
- * ⚠️ 目前全部由 src/mocks/backend.ts 的 MockBackend 实现：
- * - Config Service 契约未定（A0 负责，contracts/ 暂无 config-service.openapi.yaml）
- * - Approval API 契约未定（A0/A4，services/identity 刻意未暴露审批 HTTP 入口）
- * TODO(A8/A0)：两张契约落地后，新增 src/adapters/http-config-service.ts 实现同一 Port，
- * 页面只依赖本文件的接口，不感知 mock/http 差异。
+ * 实现状态：
+ * - Config Service：契约 contracts/config/openapi.yaml 已落地（A0），适配层 src/mocks/backend.ts（MockBackend，本地开发 fallback）+ src/adapters/http-config-service.ts（HttpConfigService，?backend=http 运行时切换）。
+ * - Approval API：契约 contracts/approval/openapi.yaml 已落地（A0/A4），适配层 src/mocks/backend.ts + src/adapters/http-approval-service.ts。
+ * - AuditSink：identity 域审计事件端口，当前 HTTP 适配层返回空数组（identity 侧事件读接口待 A4 暴露）。
+ * - 切换入口：web/console/src/adapters/index.ts createHttpConsoleServices()；App.tsx bootstrapServices() URL ?backend=http&baseUrl=/v1&environment=dev 启用真契约。
  */
 
 export interface ConfigItemSummary {

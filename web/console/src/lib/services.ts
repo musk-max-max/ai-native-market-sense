@@ -2,6 +2,6 @@ import type { ApprovalServicePort, AuditPort, ConfigServicePort } from '../mocks
 
 /**
  * 页面依赖的服务集合。
- * 当前由 MockBackend 实现；TODO(A8/A0)：契约落地后由 HTTP 适配器实现同一个接口。
+ * 双实现：src/mocks/backend.ts（MockBackend，本地 fallback 默认）+ src/adapters/index.ts（HTTP 适配器，URL ?backend=http 启用）。
  */
 export interface ConsoleServices extends ConfigServicePort, ApprovalServicePort, AuditPort {}

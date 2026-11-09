@@ -40,7 +40,8 @@ import {
 /**
  * Mock 适配层：一张内存表同时模拟 Config Service + Approval API + AuditSink。
  *
- * TODO(A8/A0)：以下契约落地后换成 HTTP 适配器（页面只依赖 ./ports.ts）：
+ * 角色：本地开发/无真契约后端时的 fallback（App.tsx 默认走这里；URL ?backend=http 切换到 src/adapters/ HTTP 适配器）。
+ * 契约已落地的三个域（contracts/{config,approval}/openapi.yaml + identity.AuditSink）：
  * - Config Service：draft/publish 双态、If-Match 乐观锁、409 + 三点 diff、不可变 release
  * - Approval API：单条审批（无 batch）、approval_ref、人类终审
  * - identity.AuditSink：actor{kind,id,modelVersion,runId} 来源真源
