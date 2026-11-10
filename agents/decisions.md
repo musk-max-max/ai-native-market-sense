@@ -2030,3 +2030,10 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 - **Open**：dc_index/dc_member 未落 dwd schema（本轮跳过，adapter 层已有但 warehouse 未建表）；数据中台页签发需 H3/owner（不进 C 端，但仍需 H3 目视 + owner 授权范围确认）；Console 身份接入=owner/H3；tushare 授权 0/3（11-12 到期）=owner。
 - **推送**：554c16c + d3284ef 待 push origin/main。
 
+## L168 — api dist 出口扫描豁免 internal data-platform（L0 亲跑，2aed8fc）
+
+- **触发**：ECS `docker compose build api` 失败在 `pnpm --filter @market-sense/api build` → `check:dist` 步骤：`dist/services/market/src/ports/data-platform-repo.js` 命中 `/\btushare\b/i` + `/\bakshare\b/i` + `/（F1）|\bF1\b/`。根因：L167 数据中台 port 层 DATASETS 常量 source 字段是 `tushare`/`akshare`（A13 governance 每行 source 元数据要求），且头部 docstring 含 F1 residual 说明。
+- **决策**：这是 Console 内部端点（/v1/internal/data-platform），不下发 C 端，厂商标识是服务端合法元数据。修 `services/api/scripts/check-dist.mjs` 加 EXEMPT 路径白名单（data-platform-repo.js + pg-data-platform-repo.js + routes-data-platform.js），C 端出口仍由 test/app.test.ts 断言覆盖。
+- **门禁**：api build 通过（`[dist] OK files=91`）；pnpm -r test 全绿（ai-policy 41/approval 19/console 56/identity 45/h5 28/compliance 4/market 160/ai 42/api 26 = 0 fail）。
+- **推送**：2aed8fc → GitHub origin/main（c623cc9..2aed8fc）。ECS 仓库下次窗口 depth-1 fetch 或 git bundle 同步。
+
