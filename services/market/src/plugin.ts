@@ -24,6 +24,7 @@ import { Pool } from 'pg';
 import type { DomainPlugin, DomainPluginOptions } from '../../api/src/plugin.js';
 import { PgEntitlementControlRepo } from './adapters/pg-entitlement-control-repo.js';
 import { PgEntitlementEventRepo } from './adapters/pg-entitlement-event-repo.js';
+import { PgDataPlatformRepo } from './adapters/pg-data-platform-repo.js';
 import { PgServingRepo } from './adapters/pg-serving-repo.js';
 import { PgWatchlistRepo } from './adapters/pg-watchlist-repo.js';
 import { createAuthenticator, type Authenticate } from './auth.js';
@@ -54,9 +55,11 @@ import {
   type EntitlementEventRepo,
 } from './ports/entitlement.js';
 import type { ServingRepo } from './ports/serving-repo.js';
+import type { DataPlatformRepo } from './ports/data-platform-repo.js';
 import type { WatchlistRepo } from './ports/watchlist-repo.js';
 import { registerMarketRoutes } from './routes.js';
 import { registerB1Routes } from './routes-b1.js';
+import { registerDataPlatformRoutes } from './routes-data-platform.js';
 
 export interface MarketPluginOptions {
   /** 显式配置（测试）；缺省从 env 读取 */
@@ -64,6 +67,7 @@ export interface MarketPluginOptions {
   readonly env?: NodeJS.ProcessEnv;
   readonly servingRepo?: ServingRepo;
   readonly watchlistRepo?: WatchlistRepo;
+  readonly dataPlatformRepo?: DataPlatformRepo;
   readonly authenticate?: Authenticate;
   /** 复用外壳/测试的 pool；不传则按 DATABASE_URL 自建并负责关闭 */
   readonly pool?: Pool;
@@ -263,6 +267,8 @@ async function installMarketPlugin(
   } as const;
   registerMarketRoutes(app, routeDeps);
   registerB1Routes(app, routeDeps);
+  const dataPlatform = options.dataPlatformRepo ?? new PgDataPlatformRepo(pool as Pool);
+  registerDataPlatformRoutes(app, { dataPlatform });
 
   if (options.pool === undefined && pool !== null) {
     const ownedPool = pool;
