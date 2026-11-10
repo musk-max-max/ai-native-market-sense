@@ -2002,3 +2002,12 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 - **门禁**：typecheck 10/10；console 56 pass / 0 fail；其余 workspace 测试不变。
 - **推送**：7a05655 → GitHub origin/main。
 - **Open**：H6 16 项边界（阻塞 A8/H6）；App.tsx H2 演示身份（Console 登录策略 owner/H3）；AI-1/2/3 签发（H3）；tushare/安全半/SEC-011/012（owner/H3/H4）。
+
+## L166 — C 端 H5 全路由 HTML+PNG 快照证据（L0 亲跑，010d643）
+
+- **触发**：用户（m02629）要求「全部产出 html 快照」——为 C 端 H5 9 路由 × 2 视口生成序列化 DOM HTML + 全页 PNG 留档，便于离线审阅与 H3 目视签发。
+- **脚本**：tests/e2e/scripts/snapshot-routes.mjs（Playwright chromium @ tests/e2e/node_modules，默认 E2E_BASE_URL=http://127.0.0.1:18000 走本地 serve-current.mjs 跑当前代码）。
+- **证据**：tests/e2e/evidence/h5-snapshots/ 38 文件（01-home / 02-watchlist / 03-stock-sse-600519 / 04-portfolio-review / 05-limit-ladder / 06-ai-home / 07-me / 08-ai-card-fixture / 09-not-found 各 × 390x844 + 375x667 的 HTML+PNG + manifest.json，18 entries 全 HTTP 200）。
+- **覆盖**：5 tab 主路由（/ watchlist stocks review/portfolio review/limits ai me）+ AI 卡 fixture（/dev/ai-card）+ SPA fallback 404（/this-route-does-not-exist）。
+- **推送**：010d643 → GitHub origin/main。
+- **Open**：AI-1/2/3 签发=H3（红线⑤）；tushare/安全半/SEC-011/012=owner/H3（红线①）；Console 身份接入=owner/H3；antd=owner；V-05/V-08 签署=H2/H4。L0 禁代签。
