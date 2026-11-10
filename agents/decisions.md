@@ -2060,3 +2060,12 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 - **未跑**：check-dom-compliance 需本地服务器（3011 端口 ERR_CONNECTION_REFUSED），属预期——本轮不动 dev 服务器。
 - **推送**：84c7104 待 push origin/main。
 
+## L171 — /ai 条目模板 AiContentBlock + AiAnalysisList（L0 亲跑，a308a17）
+
+- **触发**：backlog.md:37「`/ai` 条目模板（AiAnalysisList/AiContentBlock：badge/as_of/免责展示位）未建」——A6 域纯工程实现，backlog 已注明「`ai-as-of` testid 注册提前」由 AiTextSlot/AiInterpretation 前置完成。
+- **web/h5/src/components/AiContentBlock.tsx**（新建）：article.ai-content-block 包 AiTextSlot（唯一文本渲染通道）；content=null 走 fail-closed 占位（不渲染 badge/ai-as-of/免责，防伪造/防非法时点驱动）。
+- **web/h5/src/components/AiAnalysisList.tsx**（新建）：ul.ai-analysis-list 包 0..N 个 AiContentBlock；items 空数组返 null（页级 DataGapCard 占位由 AiHomePage 现有聚合接口未接入态处理）；不拉接口不注入文案；无 testid（A12 域 testid 契约不擅扩）；aria-label="AI interpretations"（英文，规避「除 copy.ts 外无中文字面量」静态门禁）。
+- **AiHomePage** 未改：条目模板就位但不接聚合接口 → 仍渲染 DataGapCard 占位，不伪造 AI 文案。
+- **门禁**：h5 28/28 pass；typecheck 10/10；check-testids 60 PASS。
+- **推送**：a308a17 待 push origin/main。ECS bundle 下次窗口同步。
+
