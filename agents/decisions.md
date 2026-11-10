@@ -2050,3 +2050,13 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 - **数据集计数**：数据中台 12 → 14 数据集（补 dc_index 东财板块行情 + dc_member 东财板块成分股）。
 - **推送**：d7afef3 待 push origin/main；ECS 需下次窗口 bundle + scp 同步（api 重建 + warehouse bootstrap 才能看到新视图）。
 
+## L170 — P1-5 尾项 /me 补 4 项（L0 亲跑，84c7104）
+
+- **触发**：backlog.md:36「`/me` 补 4 尾项：我的自选入口、免责 version 号、COPY_VERSION、数据来源说明独立条」——A6 域纯工程实现。
+- **web/h5/src/pages/MePage.tsx**：重写，新增 3 个 section——`me__card[aria-labelledby=me-watchlist-link]`（我的自选入口 Link → /watchlist）、`me__card[aria-labelledby=me-source]`（数据来源独立条，不复用 footerNote）、`me__card[aria-labelledby=me-disclaimer]` 补独立免责全文条 + COPY_VERSION 展示（`data-testid="copy-version"`）。
+- **web/h5/src/lib/copy.ts**：me.* 新增 7 键——watchlistLinkTitle/Note/Label、sourceTitle/Note、disclaimerFullNote、copyVersionLabel。COPY_VERSION 从 lib/copy.ts 直接 import（不走服务端下发，是构建期常量）。
+- **copy snapshot 升版**：hash 由 14e38beede3e → dae9667ee6a6（frontend 文案变更触发，COPY_VERSION 仍 2026.11.5）。旧 frontend 快照文件删除（compliance.test「同一版本只允许一个 frontend 快照」强制），留 manifest 墓碑；新 frontend 快照落 `docs/release/copy-snapshots/2026.11.5.dae9667ee6a6.frontend.json`；manifest 主表补 B1-P0-6 行 + 墓碑补一条 superseded 记录。
+- **门禁**：h5 28/28 pass；typecheck 10/10；check-testids 60 PASS；check-budget 85.2KB gzip（预算 200KB）；h5 build 通过（bundle 扫描 OK · 5 产物无内部标识）。
+- **未跑**：check-dom-compliance 需本地服务器（3011 端口 ERR_CONNECTION_REFUSED），属预期——本轮不动 dev 服务器。
+- **推送**：84c7104 待 push origin/main。
+
