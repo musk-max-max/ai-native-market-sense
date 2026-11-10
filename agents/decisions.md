@@ -2011,3 +2011,22 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 - **覆盖**：5 tab 主路由（/ watchlist stocks review/portfolio review/limits ai me）+ AI 卡 fixture（/dev/ai-card）+ SPA fallback 404（/this-route-does-not-exist）。
 - **推送**：010d643 → GitHub origin/main。
 - **Open**：AI-1/2/3 签发=H3（红线⑤）；tushare/安全半/SEC-011/012=owner/H3（红线①）；Console 身份接入=owner/H3；antd=owner；V-05/V-08 签署=H2/H4。L0 禁代签。
+## L167 — 数据中台 Console 后端 + 前端交付（L0 亲跑，554c16c + d3284ef）
+
+- **触发**：用户（m02693）要求把 tushare 150000 档全部可获数据展示到主页；L0 边界澄清后给 A/B 选项（A=内部 Console / B=C 端 H5），用户（m02714）答「A」。
+- **后端（554c16c）**：
+  - services/market/src/ports/data-platform-repo.ts：DataPlatformRepo（listDatasets/queryDataset/getDatasetMeta）+ DATASETS 12 数据集 catalog 常量（domain/pointsMin/docId/viewName）。
+  - services/market/src/adapters/pg-data-platform-repo.ts：只 SELECT `serving.serving_research_*` view（禁直查 dwd_*），数字 pg 驱动返回 string 原样透传 precision-safe；MAX_LIMIT=5000/DEFAULT_LIMIT=200；listDatasets 单 view 失败 try/catch fallback 不影响其他。
+  - services/market/src/routes-data-platform.ts：GET /v1/internal/data-platform/catalog、GET /v1/internal/data-platform/datasets/:dataset、POST /v1/internal/data-platform/datasets/:dataset/query（内部 /v1 前缀插件内写相对 /internal/...，外壳统一加 /v1）。校验 limit 1-5000、exchange 枚举 SSE/SZSE/BSE、instrumentId 非空。
+  - services/market/src/plugin.ts：MarketPluginOptions 增 dataPlatformRepo?；registerDataPlatformRoutes 挂载，dataPlatform = options.dataPlatformRepo ?? new PgDataPlatformRepo(pool)。
+  - services/market/test/data-platform.test.ts：7 用例（catalog 无 auth 401 / catalog 200 / meta 200 / 未知 dataset 400 / query 200 / limit>5000 400 / exchange 非法 400）。market 153 → 160 pass。
+- **前端（d3284ef）**：
+  - web/console/src/adapters/http-data-platform-service.ts：HttpDataPlatformService 三方法（listDatasets/getDatasetMeta/queryDataset），走 requestJson 4-arg 签名。
+  - web/console/src/adapters/index.ts：HttpConsoleServices 增 dataPlatform 字段，createHttpConsoleServices 装配 + re-export。
+  - web/console/src/lib/router.ts：ConsoleRoute 增 'data-platform'，group='ops'，path='/data-platform'，label='数据中台'。
+  - web/console/src/pages/DataPlatformPage.tsx：业务域 5 tab（行情与涨跌停/资金流向/基本面/研究数据/行业成分）→ 数据集按钮（带 rowCount + latestDate）→ 查询表单（instrument_id/from/to/limit 50/200/500/1000/5000）→ DataTable 结果；PREFERRED_COLUMNS 12 数据集优先列映射；ResultView 子组件收敛 null narrowing。
+  - web/console/src/App.tsx：bootstrapServices() 返回 ConsoleServices | HttpConsoleServices；dataPlatformService 用 'dataPlatform' in services 检测（HttpConsoleServices 为 type-only import，不能用 instanceof）；PAGE_TITLE 增 data-platform。
+- **门禁**：typecheck 10/10；workspace 测试全绿（approval 19 / console 56 / identity 45 / h5 28 / compliance 4 / market 160 / ai 42 / api 26 = 0 fail）。
+- **Open**：dc_index/dc_member 未落 dwd schema（本轮跳过，adapter 层已有但 warehouse 未建表）；数据中台页签发需 H3/owner（不进 C 端，但仍需 H3 目视 + owner 授权范围确认）；Console 身份接入=owner/H3；tushare 授权 0/3（11-12 到期）=owner。
+- **推送**：554c16c + d3284ef 待 push origin/main。
+
