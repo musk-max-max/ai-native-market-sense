@@ -331,9 +331,18 @@ export const copy = {
     entitlementTitle: '数据权限',
     entitlementNote:
       '行情与基本面数据的展示范围以服务端下发的权限结果为准；无权展示时不出现任何数值。',
+    watchlistLinkTitle: '我的自选',
+    watchlistLinkNote: '跳转到 /watchlist 页查看已加入的标的。',
+    watchlistLinkLabel: '查看我的自选',
+    sourceTitle: '数据来源',
+    sourceNote:
+      '行情与基本面数据均标注来源（如平台行情源、降级快照），原样展示不隐藏数据链路。',
     disclaimerTitle: '免责声明全文',
     disclaimerNote:
-      '免责声明由服务端版本化下发且不可关闭；本页展示常驻摘要，全文文案以服务端下发版本为准。',
+      '免责声明由服务端版本化下发且不可关闭；本页展示常驻摘要。',
+    disclaimerFullNote:
+      '全文文案以服务端下发版本为准，本页不提供关闭或折叠入口。',
+    copyVersionLabel: '文案版本',
   },
   gap: {
     title: '数据缺口',

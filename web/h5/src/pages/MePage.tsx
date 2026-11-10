@@ -7,8 +7,11 @@
  *  - 免责声明由服务端版本化下发、不可关闭：本页只展示常驻摘要，不自行编写法律正文，
  *    也不渲染任何「关闭/收起」控件；
  *  - 未接入的通道（账户、退订接口）显式说明「尚未接入」，不给可点击的假按钮、不填占位数值。
+ *  - P1-5 尾项（L170）：补我的自选入口（Link）、免责 version 号（COPY_VERSION）、
+ *    COPY_VERSION 独立展示、数据来源说明独立条（不复用 footerNote）。
  */
-import { copy } from '../lib/copy';
+import { COPY_VERSION, copy } from '../lib/copy';
+import { Link } from '../lib/router';
 
 export function MePage() {
   return (
@@ -30,6 +33,16 @@ export function MePage() {
         <p className="card__note">{copy.me.accountAnonymous}</p>
       </section>
 
+      <section className="card me__card" aria-labelledby="me-watchlist-link">
+        <h2 className="card__title" id="me-watchlist-link">
+          {copy.me.watchlistLinkTitle}
+        </h2>
+        <p className="card__note">{copy.me.watchlistLinkNote}</p>
+        <Link className="me__link" href="/watchlist">
+          {copy.me.watchlistLinkLabel}
+        </Link>
+      </section>
+
       <section className="card me__card" aria-labelledby="me-entitlement">
         <h2 className="card__title" id="me-entitlement">
           {copy.me.entitlementTitle}
@@ -37,12 +50,22 @@ export function MePage() {
         <p className="card__note">{copy.me.entitlementNote}</p>
       </section>
 
+      <section className="card me__card" aria-labelledby="me-source">
+        <h2 className="card__title" id="me-source">
+          {copy.me.sourceTitle}
+        </h2>
+        <p className="card__note">{copy.me.sourceNote}</p>
+      </section>
+
       <section className="card me__card" aria-labelledby="me-disclaimer">
         <h2 className="card__title" id="me-disclaimer">
           {copy.me.disclaimerTitle}
         </h2>
-        <p className="card__note">{copy.app.footerNote}</p>
-        <p className="card__hint">{copy.me.disclaimerNote}</p>
+        <p className="card__note">{copy.me.disclaimerNote}</p>
+        <p className="card__hint">{copy.me.disclaimerFullNote}</p>
+        <p className="card__meta" data-testid="copy-version">
+          {copy.me.copyVersionLabel}: {COPY_VERSION}
+        </p>
       </section>
     </div>
   );
