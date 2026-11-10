@@ -18,6 +18,7 @@ import type { ConsoleServices as ConsoleServicesPort } from '../lib/services';
 import { HttpConfigService } from './http-config-service';
 import { HttpApprovalService } from './http-approval-service';
 import { HttpAuditService } from './http-audit-service';
+import { HttpDataPlatformService } from './http-data-platform-service';
 import type { HttpFetch } from './http-common';
 
 export interface CreateHttpConsoleServicesOptions {
@@ -37,6 +38,7 @@ export interface HttpConsoleServices extends ConsoleServicesPort {
   readonly config: HttpConfigService;
   readonly approval: HttpApprovalService;
   readonly audit: HttpAuditService;
+  readonly dataPlatform: HttpDataPlatformService;
 }
 
 export function createHttpConsoleServices(
@@ -60,10 +62,17 @@ export function createHttpConsoleServices(
     pageSize: options.pageSize,
   });
   const audit = new HttpAuditService(fetchImpl, options.baseUrl, options.authHeaders);
+  const dataPlatform = new HttpDataPlatformService({
+    fetchImpl,
+    baseUrl: options.baseUrl,
+    environment: options.environment,
+    authHeaders: options.authHeaders,
+  });
   return {
     config,
     approval,
     audit,
+    dataPlatform,
     // 委托方法（App 直接持有 ConsoleServices 时使用，无需走 .config/.approval/.audit）。
     list: (...args) => config.list(...args),
     get: (...args) => config.get(...args),
@@ -83,6 +92,7 @@ export function createHttpConsoleServices(
 export { HttpConfigService } from './http-config-service';
 export { HttpApprovalService, HttpApprovalEventReader } from './http-approval-service';
 export { HttpAuditService } from './http-audit-service';
+export { HttpDataPlatformService } from './http-data-platform-service';
 export { configIdForItemId, itemIdForConfigId } from './config-ids';
 export { requestJson, HttpProblemError, newIdempotencyKey } from './http-common';
 export type { HttpFetch, HttpProblemError as HttpProblemErrorClass } from './http-common';

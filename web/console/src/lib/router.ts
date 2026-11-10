@@ -5,7 +5,7 @@ import { useSyncExternalStore } from 'react';
  * 中后台路由数量固定、需要与四中台导航绑定，不需要嵌套路由。
  */
 
-export type ConsoleRoute = 'overview' | 'config' | 'approvals' | 'compliance' | 'crm';
+export type ConsoleRoute = 'overview' | 'config' | 'approvals' | 'compliance' | 'crm' | 'data-platform';
 
 export interface RouteDef {
   id: ConsoleRoute;
@@ -18,6 +18,7 @@ export interface RouteDef {
 export const ROUTES: readonly RouteDef[] = [
   { id: 'overview', path: '/overview', label: '配置看板', group: 'ops' },
   { id: 'config', path: '/config', label: '配置编辑器', group: 'ops' },
+  { id: 'data-platform', path: '/data-platform', label: '数据中台', group: 'ops' },
   { id: 'approvals', path: '/approvals', label: '审批队列', group: 'admin' },
   { id: 'compliance', path: '/compliance', label: '合规与审计', group: 'compliance' },
   { id: 'crm', path: '/crm', label: '客户跟进', group: 'crm' },

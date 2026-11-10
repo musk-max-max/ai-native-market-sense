@@ -6,10 +6,13 @@ import type { ConsoleServices } from './lib/services';
 import { useAsync } from './lib/use-async';
 import { MockBackend } from './mocks';
 import { createHttpConsoleServices } from './adapters';
+import type { HttpConsoleServices } from './adapters';
+import { HttpDataPlatformService } from './adapters/http-data-platform-service';
 import { ApprovalQueuePage } from './pages/ApprovalQueuePage';
 import { CompliancePage } from './pages/CompliancePage';
 import { ConfigEditorPage } from './pages/ConfigEditorPage';
 import { CrmPage } from './pages/CrmPage';
+import { DataPlatformPage } from './pages/DataPlatformPage';
 import { OverviewPage } from './pages/OverviewPage';
 import { configurableItems } from './domain/registry';
 
@@ -46,7 +49,12 @@ function bootstrapServices(): ConsoleServices {
   });
 }
 
-const services: ConsoleServices = bootstrapServices();
+const services = bootstrapServices();
+/** 数据平台服务仅在 HTTP backend 装配；Mock 模式下为 null，页面提示切换。 */
+const dataPlatformService: HttpDataPlatformService | null =
+  'dataPlatform' in services
+    ? (services as HttpConsoleServices).dataPlatform
+    : null;
 /** 演示用内部员工身份；真实身份来自 A4 identity（/v1/internal/*），前端只展示不判定。 */
 const consoleActor: Actor = { kind: 'human', id: 'H2' };
 
@@ -63,6 +71,7 @@ const PAGE_TITLE: Readonly<Record<ConsoleRoute, { title: string; subtitle: strin
   approvals: { title: '流程审批', subtitle: '单条审批 · 人类终审 · agent 只能发起' },
   compliance: { title: '合规中台', subtitle: '锁定项 · AI 标识 · 审计来源（只读）' },
   crm: { title: 'CRM', subtitle: '跟进规则 + 客户名单（P2 占位）' },
+  'data-platform': { title: '数据中台', subtitle: 'tushare + AKshare 研究数据集（仅内部，不进 C 端契约）' },
 };
 
 export function App() {
@@ -125,6 +134,7 @@ export function App() {
       ) : null}
       {route === 'compliance' ? <CompliancePage services={services} /> : null}
       {route === 'crm' ? <CrmPage services={services} onOpenItem={openItem} /> : null}
+      {route === 'data-platform' ? <DataPlatformPage service={dataPlatformService} /> : null}
     </AppShell>
   );
 }
