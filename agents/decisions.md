@@ -2037,3 +2037,16 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 - **门禁**：api build 通过（`[dist] OK files=91`）；pnpm -r test 全绿（ai-policy 41/approval 19/console 56/identity 45/h5 28/compliance 4/market 160/ai 42/api 26 = 0 fail）。
 - **推送**：2aed8fc → GitHub origin/main（c623cc9..2aed8fc）。ECS 仓库下次窗口 depth-1 fetch 或 git bundle 同步。
 
+## L169 — 数据中台补完 dc_index/dc_member 东财板块数据集（L0 亲跑，d7afef3）
+
+- **触发**：L167 跳过 dc_index/dc_member（adapter 层已有但 warehouse dwd/serving 未建表）。本轮闭环。
+- **warehouse/dwd/schema.sql**：新增 `dwd_dc_index`（板块日行情，PK (board_code, trade_date)，含 leading_name/leading_code/pct_change/total_mv/turnover_rate/up_num/down_num/idx_type/level）+ `dwd_dc_member`（板块成分股快照，PK (board_code, trade_date, instrument_id)，append-only 多日共存支持任意 as-of 回溯）。
+- **warehouse/serving/schema.sql**：新增 `serving.serving_research_dc_index` + `serving.serving_research_dc_member` 视图（含 staleness_ms governance 字段）。
+- **services/market/src/ports/data-platform-repo.ts**：ResearchDataset 增 'dc_index' | 'dc_member'；DATASETS 常量补 2 条目（domain='sector'，pointsMin=6000，docId=362/363，mode='daily'/'snapshot'）。
+- **services/market/src/adapters/pg-data-platform-repo.ts**：TIME_COLUMN + INSTRUMENT_COLUMN 补 dc_index/dc_member 映射（dc_index 按 board_code 过滤，dc_member 按 instrument_id 过滤）。
+- **services/market/test/data-platform.test.ts**：catalog 测试补 `assert.equal(DATASETS.length, 14)` + 断言 dc_index/dc_member 在 catalog 内。
+- **web/console/src/pages/DataPlatformPage.tsx**：PREFERRED_COLUMNS 补 dc_index（13 列）/dc_member（4 列）优先显示列映射。
+- **门禁**：typecheck 10/10；workspace 测试全绿（approval 19 / console 59 / identity 45 / h5 28 / compliance 4 / market 160 / ai 42 / api 26 = 0 fail）。
+- **数据集计数**：数据中台 12 → 14 数据集（补 dc_index 东财板块行情 + dc_member 东财板块成分股）。
+- **推送**：d7afef3 待 push origin/main；ECS 需下次窗口 bundle + scp 同步（api 重建 + warehouse bootstrap 才能看到新视图）。
+
