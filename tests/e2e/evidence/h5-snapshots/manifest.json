@@ -1,0 +1,170 @@
+{
+  "base": "http://127.0.0.1:18000",
+  "generatedAt": "2026-11-10T00:16:48.724Z",
+  "routes": 9,
+  "viewports": 2,
+  "entries": [
+    {
+      "route": "/",
+      "name": "01-home",
+      "viewport": "390x844",
+      "url": "http://127.0.0.1:18000/",
+      "status": "http_200",
+      "htmlFile": "tests/e2e/evidence/h5-snapshots/01-home.390x844.html",
+      "bytes": 3562
+    },
+    {
+      "route": "/watchlist",
+      "name": "02-watchlist",
+      "viewport": "390x844",
+      "url": "http://127.0.0.1:18000/watchlist",
+      "status": "http_200",
+      "htmlFile": "tests/e2e/evidence/h5-snapshots/02-watchlist.390x844.html",
+      "bytes": 2309
+    },
+    {
+      "route": "/stocks/SSE:600519",
+      "name": "03-stock-sse-600519",
+      "viewport": "390x844",
+      "url": "http://127.0.0.1:18000/stocks/SSE:600519",
+      "status": "http_200",
+      "htmlFile": "tests/e2e/evidence/h5-snapshots/03-stock-sse-600519.390x844.html",
+      "bytes": 2748
+    },
+    {
+      "route": "/review/portfolio",
+      "name": "04-portfolio-review",
+      "viewport": "390x844",
+      "url": "http://127.0.0.1:18000/review/portfolio",
+      "status": "http_200",
+      "htmlFile": "tests/e2e/evidence/h5-snapshots/04-portfolio-review.390x844.html",
+      "bytes": 3258
+    },
+    {
+      "route": "/review/limits",
+      "name": "05-limit-ladder",
+      "viewport": "390x844",
+      "url": "http://127.0.0.1:18000/review/limits",
+      "status": "http_200",
+      "htmlFile": "tests/e2e/evidence/h5-snapshots/05-limit-ladder.390x844.html",
+      "bytes": 3032
+    },
+    {
+      "route": "/ai",
+      "name": "06-ai-home",
+      "viewport": "390x844",
+      "url": "http://127.0.0.1:18000/ai",
+      "status": "http_200",
+      "htmlFile": "tests/e2e/evidence/h5-snapshots/06-ai-home.390x844.html",
+      "bytes": 2846
+    },
+    {
+      "route": "/me",
+      "name": "07-me",
+      "viewport": "390x844",
+      "url": "http://127.0.0.1:18000/me",
+      "status": "http_200",
+      "htmlFile": "tests/e2e/evidence/h5-snapshots/07-me.390x844.html",
+      "bytes": 3126
+    },
+    {
+      "route": "/dev/ai-card",
+      "name": "08-ai-card-fixture",
+      "viewport": "390x844",
+      "url": "http://127.0.0.1:18000/dev/ai-card",
+      "status": "http_200",
+      "htmlFile": "tests/e2e/evidence/h5-snapshots/08-ai-card-fixture.390x844.html",
+      "bytes": 16827
+    },
+    {
+      "route": "/this-route-does-not-exist",
+      "name": "09-not-found",
+      "viewport": "390x844",
+      "url": "http://127.0.0.1:18000/this-route-does-not-exist",
+      "status": "http_200",
+      "htmlFile": "tests/e2e/evidence/h5-snapshots/09-not-found.390x844.html",
+      "bytes": 2308
+    },
+    {
+      "route": "/",
+      "name": "01-home",
+      "viewport": "375x667",
+      "url": "http://127.0.0.1:18000/",
+      "status": "http_200",
+      "htmlFile": "tests/e2e/evidence/h5-snapshots/01-home.375x667.html",
+      "bytes": 3562
+    },
+    {
+      "route": "/watchlist",
+      "name": "02-watchlist",
+      "viewport": "375x667",
+      "url": "http://127.0.0.1:18000/watchlist",
+      "status": "http_200",
+      "htmlFile": "tests/e2e/evidence/h5-snapshots/02-watchlist.375x667.html",
+      "bytes": 2309
+    },
+    {
+      "route": "/stocks/SSE:600519",
+      "name": "03-stock-sse-600519",
+      "viewport": "375x667",
+      "url": "http://127.0.0.1:18000/stocks/SSE:600519",
+      "status": "http_200",
+      "htmlFile": "tests/e2e/evidence/h5-snapshots/03-stock-sse-600519.375x667.html",
+      "bytes": 2748
+    },
+    {
+      "route": "/review/portfolio",
+      "name": "04-portfolio-review",
+      "viewport": "375x667",
+      "url": "http://127.0.0.1:18000/review/portfolio",
+      "status": "http_200",
+      "htmlFile": "tests/e2e/evidence/h5-snapshots/04-portfolio-review.375x667.html",
+      "bytes": 3258
+    },
+    {
+      "route": "/review/limits",
+      "name": "05-limit-ladder",
+      "viewport": "375x667",
+      "url": "http://127.0.0.1:18000/review/limits",
+      "status": "http_200",
+      "htmlFile": "tests/e2e/evidence/h5-snapshots/05-limit-ladder.375x667.html",
+      "bytes": 3032
+    },
+    {
+      "route": "/ai",
+      "name": "06-ai-home",
+      "viewport": "375x667",
+      "url": "http://127.0.0.1:18000/ai",
+      "status": "http_200",
+      "htmlFile": "tests/e2e/evidence/h5-snapshots/06-ai-home.375x667.html",
+      "bytes": 2846
+    },
+    {
+      "route": "/me",
+      "name": "07-me",
+      "viewport": "375x667",
+      "url": "http://127.0.0.1:18000/me",
+      "status": "http_200",
+      "htmlFile": "tests/e2e/evidence/h5-snapshots/07-me.375x667.html",
+      "bytes": 3126
+    },
+    {
+      "route": "/dev/ai-card",
+      "name": "08-ai-card-fixture",
+      "viewport": "375x667",
+      "url": "http://127.0.0.1:18000/dev/ai-card",
+      "status": "http_200",
+      "htmlFile": "tests/e2e/evidence/h5-snapshots/08-ai-card-fixture.375x667.html",
+      "bytes": 16827
+    },
+    {
+      "route": "/this-route-does-not-exist",
+      "name": "09-not-found",
+      "viewport": "375x667",
+      "url": "http://127.0.0.1:18000/this-route-does-not-exist",
+      "status": "http_200",
+      "htmlFile": "tests/e2e/evidence/h5-snapshots/09-not-found.375x667.html",
+      "bytes": 2308
+    }
+  ]
+}
