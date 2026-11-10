@@ -116,6 +116,10 @@ describe('data-platform internal routes', () => {
     const body = JSON.parse(response.body);
     assert.ok(Array.isArray(body.datasets));
     assert.equal(body.datasets.length, FAKE_DATASETS.length);
+    // L169 补完：dc_index + dc_member 东财板块数据集在 catalog 内
+    assert.ok(DATASETS.some((d) => d.name === 'dc_index'));
+    assert.ok(DATASETS.some((d) => d.name === 'dc_member'));
+    assert.equal(DATASETS.length, 14);
     assert.equal(typeof body.as_of, 'string');
     assert.equal(repo.listDatasetsCalls, 1);
   });

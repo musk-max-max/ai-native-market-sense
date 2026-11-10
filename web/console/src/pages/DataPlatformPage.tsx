@@ -27,6 +27,8 @@ const PREFERRED_COLUMNS: Readonly<Record<string, readonly string[]>> = {
   index_classify: ['index_code', 'industry_name', 'level', 'parent_code', 'industry_code', 'snapshot_date'],
   index_member_all: ['instrument_id', 'snapshot_date', 'name', 'l1_name', 'l2_name', 'l3_name', 'in_date', 'out_date'],
   realtime_quote: ['instrument_id', 'name', 'as_of', 'close', 'change_pct', 'volume', 'amount', 'turnover_rate', 'limit_status'],
+  dc_index: ['board_code', 'trade_date', 'board_name', 'leading_name', 'leading_code', 'pct_change', 'leading_pct', 'total_mv', 'turnover_rate', 'up_num', 'down_num', 'idx_type', 'level'],
+  dc_member: ['trade_date', 'board_code', 'instrument_id', 'name'],
 };
 
 function pickColumns(rows: readonly ResearchRow[], dataset: string): Column<ResearchRow>[] {

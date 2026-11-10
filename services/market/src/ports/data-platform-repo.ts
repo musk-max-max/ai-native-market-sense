@@ -29,7 +29,9 @@ export type ResearchDataset =
   | 'fina_indicator'
   | 'index_classify'
   | 'index_member_all'
-  | 'realtime_quote';
+  | 'realtime_quote'
+  | 'dc_index'
+  | 'dc_member';
 
 /** 通用行：所有研究数据集共有字段。 */
 export type ResearchRow = SourceInfo & Record<string, string | number | boolean | null>;
@@ -234,5 +236,27 @@ export const DATASETS: readonly DatasetMeta[] = [
     source: 'akshare_eastmoney',
     mode: 'realtime',
     viewName: 'serving_quote_realtime',
+  },
+  {
+    name: 'dc_index',
+    domain: 'sector',
+    title: '东财板块行情',
+    description: '东方财富概念/行业/地域板块日行情（1058 板块，6000 分档）',
+    pointsMin: 6000,
+    docId: 362,
+    source: 'tushare',
+    mode: 'daily',
+    viewName: 'serving_research_dc_index',
+  },
+  {
+    name: 'dc_member',
+    domain: 'sector',
+    title: '东财板块成分股',
+    description: '东方财富概念板块成分股快照（append-only 多日共存，6000 分档）',
+    pointsMin: 6000,
+    docId: 363,
+    source: 'tushare',
+    mode: 'snapshot',
+    viewName: 'serving_research_dc_member',
   },
 ];

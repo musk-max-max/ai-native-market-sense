@@ -44,6 +44,8 @@ const TIME_COLUMN: Record<ResearchDataset, string> = {
   index_classify: 'snapshot_date',
   index_member_all: 'snapshot_date',
   realtime_quote: 'as_of',
+  dc_index: 'trade_date',
+  dc_member: 'trade_date',
 };
 
 /** 允许的 instrument 过滤字段（realtime_quote 用 instrument_id；margin 无）。 */
@@ -58,7 +60,8 @@ const INSTRUMENT_COLUMN: Partial<Record<ResearchDataset, string>> = {
   fina_indicator: 'instrument_id',
   index_member_all: 'instrument_id',
   realtime_quote: 'instrument_id',
-  // margin 用 exchange，index_classify 用 index_code —— 不做 instrument 过滤。
+  dc_member: 'instrument_id',
+  // margin 用 exchange，index_classify/dc_index 用 board_code —— 不做 instrument 过滤。
 };
 
 export class PgDataPlatformRepo implements DataPlatformRepo {

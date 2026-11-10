@@ -368,6 +368,23 @@ SELECT instrument_id, snapshot_date, name,
        in_date, out_date, is_new, source, as_of,
        GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
 FROM dwd_index_member_all;
+-- --------------------------------------------------------------------------
+-- 数据中台 P1 补完（L169）：东财板块数据 serving view（dc_index 行情 / dc_member 成分股）
+--    * 仅内部使用（Console 数据中台 /v1/internal/data-platform），C 端不接
+--    * dc_index: 板块日行情；dc_member: append-only 板块成分股快照
+-- --------------------------------------------------------------------------
+CREATE OR REPLACE VIEW serving.serving_research_dc_index AS
+SELECT board_code, trade_date, board_name, leading_name, leading_code,
+       pct_change, leading_pct, total_mv, turnover_rate,
+       up_num, down_num, idx_type, level, source, as_of,
+       GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_dc_index;
+
+CREATE OR REPLACE VIEW serving.serving_research_dc_member AS
+SELECT trade_date, board_code, instrument_id, name, source, as_of,
+       GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_dc_member;
+
 
 -- --------------------------------------------------------------------------
 -- 实时行情快照（AKshare 东方财富源，A1 P1）

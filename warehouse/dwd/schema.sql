@@ -476,3 +476,49 @@ CREATE TABLE IF NOT EXISTS dwd_realtime_quote (
     PRIMARY KEY (instrument_id, as_of)
 );
 COMMENT ON TABLE dwd_realtime_quote IS '实时行情快照（AKshare 东方财富源），append-only 多时点共存，serving 取最新（F1 residual / SEC-012：爬虫源仅限内部研究/展示，C 端实时行情展示未放行待 H3/H4 书面裁）';
+-- --------------------------------------------------------------------------
+-- 数据中台 P1 补完（L169）：东财板块数据（dc_index 行情 / dc_member 成分股）
+--    * 来源 = tushare（dc_index doc=362 6000 分 / dc_member doc=363 6000 分，需 .DC 后缀）
+--    * dc_index: 板块日行情（含 leading_name/pct_change/total_mv/turnover_rate/up_num/down_num）
+--    * dc_member: 板块成分股快照（append-only 多日共存；PK (board_code, trade_date, instrument_id)）
+--    * 仅内部使用（Console 数据中台 /v1/internal/data-platform），C 端不接
+--    * 板块代码形态 = XXXXXX.DC；instrument_id 走 A1 canonical 形态（如 SSE:600519）
+-- --------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS dwd_dc_index (
+    board_code      text        NOT NULL,                          -- 板块代码，如 BK1184.DC
+    trade_date      date        NOT NULL,
+    board_name      text        NOT NULL,
+    leading_name    text,                                          -- 领涨股名
+    leading_code    text,                                          -- 领涨股代码（A1 canonical）
+    pct_change      numeric(10,4),                                 -- 板块涨跌幅（%）
+    leading_pct     numeric(10,4),                                 -- 领涨股涨跌幅（%）
+    total_mv        numeric(20,2),                                 -- 板块总市值（元）
+    turnover_rate   numeric(10,4),                                 -- 板块换手率（%）
+    up_num          integer       CHECK (up_num   IS NULL OR up_num   >= 0),
+    down_num        integer       CHECK (down_num IS NULL OR down_num >= 0),
+    idx_type        text,                                          -- 板块类型（N=概念/行业/地域）
+    level           text,                                          -- L1/L2/L3（地域/概念无级）
+    source          text        NOT NULL,
+    as_of           timestamptz NOT NULL,
+    fetched_at      timestamptz NOT NULL,
+    batch_id        text        NOT NULL,
+    ingested_at     timestamptz NOT NULL,
+    PRIMARY KEY (board_code, trade_date)
+);
+COMMENT ON TABLE dwd_dc_index IS '东财板块行情（概念/行业/地域，tushare dc_index doc=362 6000 分）；金额元，涨跌幅 %';
+
+CREATE TABLE IF NOT EXISTS dwd_dc_member (
+    trade_date      date        NOT NULL,
+    board_code      text        NOT NULL,                          -- 板块代码，如 BK1184.DC
+    instrument_id   text        NOT NULL,                          -- 成分股（A1 canonical，如 SSE:600519）
+    name            text,                                          -- 成分股名
+    source          text        NOT NULL,
+    as_of           timestamptz NOT NULL,
+    fetched_at      timestamptz NOT NULL,
+    batch_id        text        NOT NULL,
+    ingested_at     timestamptz NOT NULL,
+    PRIMARY KEY (board_code, trade_date, instrument_id)
+);
+COMMENT ON TABLE dwd_dc_member IS '东财板块成分股快照（tushare dc_member doc=363 6000 分；append-only 多日共存，支持任意 as-of 板块成分回溯）';
+
