@@ -36,6 +36,10 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const app = Fastify({
     logger: options.logger === false ? false : { level: config.logLevel },
     trustProxy: config.trustProxy,
+    // market plugin 在启动路径做 probeStartup + 审计事件预热；默认 10s 在
+    // 网络抖动下会 FST_ERR_PLUGIN_TIMEOUT 直接 crashloop。放宽到 30s（仍短于
+    // E2E compose healthcheck 起始 grace）。
+    pluginTimeout: 30_000,
   });
 
   installErrorHandling(app);
