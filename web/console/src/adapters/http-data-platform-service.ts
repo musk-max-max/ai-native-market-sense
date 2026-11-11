@@ -7,7 +7,7 @@
 
 import { requestJson, type HttpFetch } from './http-common';
 
-export type DataPlatformDomain = 'quote' | 'flow' | 'fundamental' | 'research' | 'sector';
+export type DataPlatformDomain = 'quote' | 'flow' | 'fundamental' | 'research' | 'sector' | 'shareholder' | 'index' | 'fund' | 'futures' | 'options' | 'bond' | 'fx';
 
 export interface DatasetMeta {
   readonly name: string;

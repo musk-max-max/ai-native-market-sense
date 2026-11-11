@@ -307,7 +307,53 @@ def test_research_datasets_registry() -> None:
         "index_member_all",
         "dc_index",
         "dc_member",
+        # L172 第一批（15000 档全量接入，20 数据集）
+        "daily",
+        "weekly",
+        "monthly",
+        "new_share",
+        "income",
+        "balancesheet",
+        "cashflow",
+        "forecast",
+        "express",
+        "dividend",
+        "pledge_detail",
+        "pledge_stat",
+        "margin_detail",
+        "repurchase",
+        "share_float",
+        "block_trade",
+        "stk_holdernumber",
+        "stk_holdertrade",
+        # L172 第二批
+        "index_basic",
+        "index_weekly",
+        "index_monthly",
+        "fund_basic",
+        "fund_company",
+        "fund_nav",
+        "fund_daily",
+        "fund_div",
+        "fut_basic",
+        "trade_cal",
+        "fut_daily",
+        "fut_holding",
+        "fut_wsr",
+        "fut_settle",
+        "opt_basic",
+        "opt_daily",
+        "cb_basic",
+        "cb_issue",
+        "cb_daily",
+        "fx_obasic",
+        "fx_daily",
     }
+    # L172 抽样断言：新数据集元数据正确
+    assert research.RESEARCH_DATASETS["daily"].points_min == 120
+    assert research.RESEARCH_DATASETS["share_float"].points_min == 3000
+    assert research.RESEARCH_DATASETS["income"].mode == "daily"
+    assert research.RESEARCH_DATASETS["income"].api_name == "income"
     assert research.RESEARCH_DATASETS["top_inst"].points_min == 5000
     assert research.RESEARCH_DATASETS["index_daily"].requires_index_codes is True
 

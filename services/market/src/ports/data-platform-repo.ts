@@ -31,7 +31,46 @@ export type ResearchDataset =
   | 'index_member_all'
   | 'realtime_quote'
   | 'dc_index'
-  | 'dc_member';
+  | 'dc_member'
+  | 'daily'
+  | 'weekly'
+  | 'monthly'
+  | 'new_share'
+  | 'income'
+  | 'balancesheet'
+  | 'cashflow'
+  | 'forecast'
+  | 'express'
+  | 'dividend'
+  | 'pledge_detail'
+  | 'pledge_stat'
+  | 'margin_detail'
+  | 'repurchase'
+  | 'share_float'
+  | 'block_trade'
+  | 'stk_holdernumber'
+  | 'stk_holdertrade'
+  | 'index_basic'
+  | 'index_weekly'
+  | 'index_monthly'
+  | 'fund_basic'
+  | 'fund_company'
+  | 'fund_nav'
+  | 'fund_daily'
+  | 'fund_div'
+  | 'fut_basic'
+  | 'trade_cal'
+  | 'fut_daily'
+  | 'fut_holding'
+  | 'fut_wsr'
+  | 'fut_settle'
+  | 'opt_basic'
+  | 'opt_daily'
+  | 'cb_basic'
+  | 'cb_issue'
+  | 'cb_daily'
+  | 'fx_obasic'
+  | 'fx_daily';
 
 /** 通用行：所有研究数据集共有字段。 */
 export type ResearchRow = SourceInfo & Record<string, string | number | boolean | null>;
@@ -64,7 +103,7 @@ export interface ResearchPage {
 export interface DatasetMeta {
   readonly name: ResearchDataset;
   /** 业务域分类（前端一级 tab）。 */
-  readonly domain: 'quote' | 'flow' | 'fundamental' | 'research' | 'sector';
+  readonly domain: 'quote' | 'flow' | 'fundamental' | 'research' | 'sector' | 'shareholder' | 'index' | 'fund' | 'futures' | 'options' | 'bond' | 'fx';
   /** 中文显示名。 */
   readonly title: string;
   /** 一句话说明。 */
@@ -259,4 +298,45 @@ export const DATASETS: readonly DatasetMeta[] = [
     mode: 'snapshot',
     viewName: 'serving_research_dc_member',
   },
+  // ---- L172 第一批（15000 档全量接入，20 数据集）----
+  { name: 'daily', domain: 'quote', title: '日线行情', description: '全部历史日线 OHLCV（交易日 15-17 点更新）', pointsMin: 120, docId: 27, source: 'tushare', mode: 'daily', viewName: 'serving_research_daily' },
+  { name: 'weekly', domain: 'quote', title: '周线行情', description: '全部历史周线 OHLCV（每周五盘后更新）', pointsMin: 2000, docId: 28, source: 'tushare', mode: 'daily', viewName: 'serving_research_weekly' },
+  { name: 'monthly', domain: 'quote', title: '月线行情', description: '全部历史月线 OHLCV（每月盘后更新）', pointsMin: 2000, docId: 29, source: 'tushare', mode: 'daily', viewName: 'serving_research_monthly' },
+  { name: 'new_share', domain: 'quote', title: 'IPO 新股', description: '新股列表含申购/上市/中签日期与募资额（每日 19 点更新）', pointsMin: 120, docId: 18, source: 'tushare', mode: 'snapshot', viewName: 'serving_research_new_share' },
+  { name: 'income', domain: 'fundamental', title: '利润表', description: '营收/营业利润/净利润/归母净利/EPS（全部历史，实时更新）', pointsMin: 2000, docId: 33, source: 'tushare', mode: 'per_instrument', viewName: 'serving_research_income' },
+  { name: 'balancesheet', domain: 'fundamental', title: '资产负债表', description: '总资产/总负债/股东权益/流动与非流动项/应收/存货/商誉（实时更新）', pointsMin: 2000, docId: 34, source: 'tushare', mode: 'per_instrument', viewName: 'serving_research_balancesheet' },
+  { name: 'cashflow', domain: 'fundamental', title: '现金流量表', description: '经营/投资/筹资活动现金流净额与资本开支（实时更新）', pointsMin: 2000, docId: 35, source: 'tushare', mode: 'per_instrument', viewName: 'serving_research_cashflow' },
+  { name: 'forecast', domain: 'fundamental', title: '业绩预告', description: '预告类型/净利润区间/同比变动/预告原因（实时更新）', pointsMin: 2000, docId: 36, source: 'tushare', mode: 'per_instrument', viewName: 'serving_research_forecast' },
+  { name: 'express', domain: 'fundamental', title: '业绩快报', description: '营收/净利润/同比与环比增速（实时更新）', pointsMin: 2000, docId: 37, source: 'tushare', mode: 'per_instrument', viewName: 'serving_research_express' },
+  { name: 'dividend', domain: 'fundamental', title: '分红送股', description: '每股派息/送股比例/股权登记日/除权日/派息日（实时更新）', pointsMin: 2000, docId: 38, source: 'tushare', mode: 'per_instrument', viewName: 'serving_research_dividend' },
+  { name: 'pledge_detail', domain: 'shareholder', title: '股权质押明细', description: '质押次数/质押比例/质押股份/质押市值（2004 起，每日更新）', pointsMin: 2000, docId: 55, source: 'tushare', mode: 'snapshot', viewName: 'serving_research_pledge_detail' },
+  { name: 'pledge_stat', domain: 'shareholder', title: '股权质押统计', description: '质押/解押次数/质押比例/总质押比例（2014 起，每日更新）', pointsMin: 2000, docId: 56, source: 'tushare', mode: 'snapshot', viewName: 'serving_research_pledge_stat' },
+  { name: 'margin_detail', domain: 'flow', title: '融资融券明细', description: '个股两融余额/融资买入额/融券余量（2010 起，每日 9 点更新）', pointsMin: 2000, docId: 57, source: 'tushare', mode: 'daily', viewName: 'serving_research_margin_detail' },
+  { name: 'repurchase', domain: 'shareholder', title: '股票回购', description: '回购数量/金额/价格区间（2011 起，每日更新）', pointsMin: 2000, docId: 43, source: 'tushare', mode: 'snapshot', viewName: 'serving_research_repurchase' },
+  { name: 'share_float', domain: 'shareholder', title: '限售股解禁', description: '解禁日期/解禁数量/解禁比例/股东名称（3000 分，定期更新）', pointsMin: 3000, docId: 44, source: 'tushare', mode: 'snapshot', viewName: 'serving_research_share_float' },
+  { name: 'block_trade', domain: 'flow', title: '大宗交易', description: '成交价/成交量/成交金额/买卖营业部（每日晚 9 点更新）', pointsMin: 2000, docId: 45, source: 'tushare', mode: 'daily', viewName: 'serving_research_block_trade' },
+  { name: 'stk_holdernumber', domain: 'shareholder', title: '股东人数', description: '股东户数/变动/户均市值/户均持股（不定期更新）', pointsMin: 2000, docId: 46, source: 'tushare', mode: 'snapshot', viewName: 'serving_research_stk_holdernumber' },
+  { name: 'stk_holdertrade', domain: 'shareholder', title: '股东增减持', description: '股东名称/变动数量/变动比例/均价/增减持方向（交易日 19 点更新）', pointsMin: 2000, docId: 47, source: 'tushare', mode: 'snapshot', viewName: 'serving_research_stk_holdertrade' },
+  // ---- L172 第二批（指数/基金/期货/期权/债券/外汇，21 数据集）----
+  { name: 'index_basic', domain: 'index', title: '指数基本信息', description: '指数代码/名称/发布商/基日/基点（每日更新）', pointsMin: 2000, docId: 93, source: 'tushare', mode: 'snapshot', viewName: 'serving_research_index_basic' },
+  { name: 'index_weekly', domain: 'index', title: '指数周线', description: '指数周线 OHLCV（每周盘后更新）', pointsMin: 2000, docId: 96, source: 'tushare', mode: 'daily', viewName: 'serving_research_index_weekly' },
+  { name: 'index_monthly', domain: 'index', title: '指数月线', description: '指数月线 OHLCV（每月盘后更新）', pointsMin: 2000, docId: 97, source: 'tushare', mode: 'daily', viewName: 'serving_research_index_monthly' },
+  { name: 'fund_basic', domain: 'fund', title: '公募基金列表', description: '基金代码/名称/管理人/托管行/基金类型/成立日（定时更新）', pointsMin: 2000, docId: 25, source: 'tushare', mode: 'snapshot', viewName: 'serving_research_fund_basic' },
+  { name: 'fund_company', domain: 'fund', title: '基金公司', description: '公司代码/名称/注册资本/城市（定时更新）', pointsMin: 2000, docId: 26, source: 'tushare', mode: 'snapshot', viewName: 'serving_research_fund_company' },
+  { name: 'fund_nav', domain: 'fund', title: '基金净值', description: '单位净值/累计净值/日收益率（每日定期更新）', pointsMin: 2000, docId: 24, source: 'tushare', mode: 'daily', viewName: 'serving_research_fund_nav' },
+  { name: 'fund_daily', domain: 'fund', title: '场内基金日线', description: 'ETF/LOF 日线 OHLCV（每日盘后更新）', pointsMin: 2000, docId: 30, source: 'tushare', mode: 'daily', viewName: 'serving_research_fund_daily' },
+  { name: 'fund_div', domain: 'fund', title: '基金分红', description: '每单位派息/除息日/派息日（定期更新）', pointsMin: 2000, docId: 31, source: 'tushare', mode: 'snapshot', viewName: 'serving_research_fund_div' },
+  { name: 'fut_basic', domain: 'futures', title: '期货合约', description: '合约代码/名称/交易所/合约单位/上市与退市日（全部历史）', pointsMin: 2000, docId: 111, source: 'tushare', mode: 'snapshot', viewName: 'serving_research_fut_basic' },
+  { name: 'trade_cal', domain: 'futures', title: '交易日历', description: '交易所交易日历含开市标识（1996 起，定期更新）', pointsMin: 2000, docId: 109, source: 'tushare', mode: 'snapshot', viewName: 'serving_research_trade_cal' },
+  { name: 'fut_daily', domain: 'futures', title: '期货日线', description: '期货 OHLCV + 结算价 + 持仓量（1996 起，每日盘后更新）', pointsMin: 2000, docId: 112, source: 'tushare', mode: 'daily', viewName: 'serving_research_fut_daily' },
+  { name: 'fut_holding', domain: 'futures', title: '成交持仓排名', description: '期货公司多/空持仓量与变化（2002 起，每日盘后更新）', pointsMin: 2000, docId: 113, source: 'tushare', mode: 'daily', viewName: 'serving_research_fut_holding' },
+  { name: 'fut_wsr', domain: 'futures', title: '仓单日报', description: '注册仓单量与变化（2006 起，每日盘后更新）', pointsMin: 2000, docId: 114, source: 'tushare', mode: 'daily', viewName: 'serving_research_fut_wsr' },
+  { name: 'fut_settle', domain: 'futures', title: '结算参数', description: '结算价/保证金率/手续费/交割价（2012 起，每日盘后更新）', pointsMin: 2000, docId: 115, source: 'tushare', mode: 'daily', viewName: 'serving_research_fut_settle' },
+  { name: 'opt_basic', domain: 'options', title: '期权合约', description: '期权代码/标的/类型/行权价/到期日（每日晚 8 点更新）', pointsMin: 2000, docId: 119, source: 'tushare', mode: 'snapshot', viewName: 'serving_research_opt_basic' },
+  { name: 'opt_daily', domain: 'options', title: '期权日线', description: '期权 OHLCV + 结算价 + 持仓量（5000 分，每日 17 点更新）', pointsMin: 5000, docId: 120, source: 'tushare', mode: 'daily', viewName: 'serving_research_opt_daily' },
+  { name: 'cb_basic', domain: 'bond', title: '可转债基础', description: '转债代码/名称/正股/发行价/上市日/到期日（每日更新）', pointsMin: 2000, docId: 121, source: 'tushare', mode: 'snapshot', viewName: 'serving_research_cb_basic' },
+  { name: 'cb_issue', domain: 'bond', title: '可转债发行', description: '发行公告日/上市日/发行价/票面利率/期限（每日更新）', pointsMin: 2000, docId: 122, source: 'tushare', mode: 'snapshot', viewName: 'serving_research_cb_issue' },
+  { name: 'cb_daily', domain: 'bond', title: '可转债日线', description: '转债 OHLCV（每日 17 点更新）', pointsMin: 2000, docId: 123, source: 'tushare', mode: 'daily', viewName: 'serving_research_cb_daily' },
+  { name: 'fx_obasic', domain: 'fx', title: '外汇基础', description: '外汇代码/名称/基准货币/报价货币（海外，每日更新）', pointsMin: 2000, docId: 134, source: 'tushare', mode: 'snapshot', viewName: 'serving_research_fx_obasic' },
+  { name: 'fx_daily', domain: 'fx', title: '外汇日线', description: '外汇 OHLCV（每日更新）', pointsMin: 2000, docId: 135, source: 'tushare', mode: 'daily', viewName: 'serving_research_fx_daily' },
 ];

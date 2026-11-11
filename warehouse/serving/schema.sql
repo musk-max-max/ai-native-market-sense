@@ -445,3 +445,163 @@ SELECT p.instrument_id,
        (p.source IS DISTINCT FROM 'tushare') AS source_internal_only,
        GREATEST(0, EXTRACT(EPOCH FROM (now() - p.as_of)) * 1000)::bigint AS staleness_ms
 FROM priced AS p;
+
+
+-- L172 第一批 serving views
+CREATE OR REPLACE VIEW serving.serving_research_daily AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_daily;
+
+CREATE OR REPLACE VIEW serving.serving_research_weekly AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_weekly;
+
+CREATE OR REPLACE VIEW serving.serving_research_monthly AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_monthly;
+
+CREATE OR REPLACE VIEW serving.serving_research_new_share AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_new_share;
+
+CREATE OR REPLACE VIEW serving.serving_research_income AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_income;
+
+CREATE OR REPLACE VIEW serving.serving_research_balancesheet AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_balancesheet;
+
+CREATE OR REPLACE VIEW serving.serving_research_cashflow AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_cashflow;
+
+CREATE OR REPLACE VIEW serving.serving_research_forecast AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_forecast;
+
+CREATE OR REPLACE VIEW serving.serving_research_express AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_express;
+
+CREATE OR REPLACE VIEW serving.serving_research_dividend AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_dividend;
+
+CREATE OR REPLACE VIEW serving.serving_research_pledge_detail AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_pledge_detail;
+
+CREATE OR REPLACE VIEW serving.serving_research_pledge_stat AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_pledge_stat;
+
+CREATE OR REPLACE VIEW serving.serving_research_margin_detail AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_margin_detail;
+
+CREATE OR REPLACE VIEW serving.serving_research_repurchase AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_repurchase;
+
+CREATE OR REPLACE VIEW serving.serving_research_share_float AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_share_float;
+
+CREATE OR REPLACE VIEW serving.serving_research_block_trade AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_block_trade;
+
+CREATE OR REPLACE VIEW serving.serving_research_stk_holdernumber AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_stk_holdernumber;
+
+CREATE OR REPLACE VIEW serving.serving_research_stk_holdertrade AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_stk_holdertrade;
+
+
+-- L172 第二批 serving views
+CREATE OR REPLACE VIEW serving.serving_research_index_basic AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_index_basic;
+
+CREATE OR REPLACE VIEW serving.serving_research_index_weekly AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_index_weekly;
+
+CREATE OR REPLACE VIEW serving.serving_research_index_monthly AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_index_monthly;
+
+CREATE OR REPLACE VIEW serving.serving_research_fund_basic AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_fund_basic;
+
+CREATE OR REPLACE VIEW serving.serving_research_fund_company AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_fund_company;
+
+CREATE OR REPLACE VIEW serving.serving_research_fund_nav AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_fund_nav;
+
+CREATE OR REPLACE VIEW serving.serving_research_fund_daily AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_fund_daily;
+
+CREATE OR REPLACE VIEW serving.serving_research_fund_div AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_fund_div;
+
+CREATE OR REPLACE VIEW serving.serving_research_fut_basic AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_fut_basic;
+
+CREATE OR REPLACE VIEW serving.serving_research_trade_cal AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_trade_cal;
+
+CREATE OR REPLACE VIEW serving.serving_research_fut_daily AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_fut_daily;
+
+CREATE OR REPLACE VIEW serving.serving_research_fut_holding AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_fut_holding;
+
+CREATE OR REPLACE VIEW serving.serving_research_fut_wsr AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_fut_wsr;
+
+CREATE OR REPLACE VIEW serving.serving_research_fut_settle AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_fut_settle;
+
+CREATE OR REPLACE VIEW serving.serving_research_opt_basic AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_opt_basic;
+
+CREATE OR REPLACE VIEW serving.serving_research_opt_daily AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_opt_daily;
+
+CREATE OR REPLACE VIEW serving.serving_research_cb_basic AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_cb_basic;
+
+CREATE OR REPLACE VIEW serving.serving_research_cb_issue AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_cb_issue;
+
+CREATE OR REPLACE VIEW serving.serving_research_cb_daily AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_cb_daily;
+
+CREATE OR REPLACE VIEW serving.serving_research_fx_obasic AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_fx_obasic;
+
+CREATE OR REPLACE VIEW serving.serving_research_fx_daily AS
+SELECT *, GREATEST(0, EXTRACT(EPOCH FROM (now() - as_of)) * 1000)::bigint AS staleness_ms
+FROM dwd_research_fx_daily;

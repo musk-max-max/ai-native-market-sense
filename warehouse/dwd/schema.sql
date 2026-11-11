@@ -522,3 +522,306 @@ CREATE TABLE IF NOT EXISTS dwd_dc_member (
 );
 COMMENT ON TABLE dwd_dc_member IS '东财板块成分股快照（tushare dc_member doc=363 6000 分；append-only 多日共存，支持任意 as-of 板块成分回溯）';
 
+
+-- L172 第一批（15000 档全量接入，20 数据集）
+-- 口径：daily/weekly/monthly 存 OHLCV（复用 stock_bar_daily 语义，但独立表）
+CREATE TABLE IF NOT EXISTS dwd_research_daily (
+    instrument_id text NOT NULL, trade_date date NOT NULL,
+    open numeric(18,2), high numeric(18,2), low numeric(18,2), close numeric(18,2),
+    prev_close numeric(18,2), change_ numeric(18,4), pct_change_pct numeric(10,4),
+    volume bigint, amount numeric(20,2),
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (instrument_id, trade_date)
+);
+CREATE TABLE IF NOT EXISTS dwd_research_weekly (
+    instrument_id text NOT NULL, trade_date date NOT NULL,
+    open numeric(18,2), high numeric(18,2), low numeric(18,2), close numeric(18,2),
+    prev_close numeric(18,2), change_ numeric(18,4), pct_change_pct numeric(10,4),
+    volume bigint, amount numeric(20,2),
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (instrument_id, trade_date)
+);
+CREATE TABLE IF NOT EXISTS dwd_research_monthly (
+    instrument_id text NOT NULL, trade_date date NOT NULL,
+    open numeric(18,2), high numeric(18,2), low numeric(18,2), close numeric(18,2),
+    prev_close numeric(18,2), change_ numeric(18,4), pct_change_pct numeric(10,4),
+    volume bigint, amount numeric(20,2),
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (instrument_id, trade_date)
+);
+CREATE TABLE IF NOT EXISTS dwd_research_new_share (
+    instrument_id text NOT NULL, announced_at date,
+    subscription_date date, listing_date date,
+    issue_price numeric(18,4), issue_volume bigint, lottery_date date, raise_funds numeric(20,2),
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (instrument_id)
+);
+CREATE TABLE IF NOT EXISTS dwd_research_income (
+    instrument_id text NOT NULL, announced_at date, report_end_date date NOT NULL,
+    total_revenue numeric(20,2), revenue numeric(20,2), operating_cost numeric(20,2),
+    total_operating_cost numeric(20,2), operating_profit numeric(20,2), total_profit numeric(20,2),
+    net_profit numeric(20,2), net_profit_parent numeric(20,2),
+    basic_eps numeric(18,6), diluted_eps numeric(18,6),
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (instrument_id, report_end_date)
+);
+CREATE TABLE IF NOT EXISTS dwd_research_balancesheet (
+    instrument_id text NOT NULL, announced_at date, report_end_date date NOT NULL,
+    total_assets numeric(20,2), total_liabilities numeric(20,2), total_equity numeric(20,2),
+    current_assets numeric(20,2), noncurrent_assets numeric(20,2),
+    current_liabilities numeric(20,2), noncurrent_liabilities numeric(20,2),
+    receivables numeric(20,2), inventory numeric(20,2), goodwill numeric(20,2),
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (instrument_id, report_end_date)
+);
+CREATE TABLE IF NOT EXISTS dwd_research_cashflow (
+    instrument_id text NOT NULL, announced_at date, report_end_date date NOT NULL,
+    operating_cashflow numeric(20,2), investing_cashflow numeric(20,2),
+    financing_cashflow numeric(20,2), net_cashflow numeric(20,2), capex numeric(20,2),
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (instrument_id, report_end_date)
+);
+CREATE TABLE IF NOT EXISTS dwd_research_forecast (
+    instrument_id text NOT NULL, announced_at date, report_end_date date NOT NULL,
+    forecast_type text, net_profit_min numeric(10,4), net_profit_max numeric(10,4),
+    net_profit numeric(20,2), reason text,
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (instrument_id, report_end_date)
+);
+CREATE TABLE IF NOT EXISTS dwd_research_express (
+    instrument_id text NOT NULL, announced_at date, report_end_date date NOT NULL,
+    revenue numeric(20,2), net_profit numeric(20,2),
+    yoy_netprofit_pct numeric(10,4), qoq_netprofit_pct numeric(10,4),
+    yoy_revenue_pct numeric(10,4), qoq_revenue_pct numeric(10,4),
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (instrument_id, report_end_date)
+);
+CREATE TABLE IF NOT EXISTS dwd_research_dividend (
+    instrument_id text NOT NULL, announced_at date, report_end_date date NOT NULL,
+    dividend_per_share numeric(18,6), stock_dividend_ratio numeric(18,6),
+    record_date date, ex_date date, payment_date date,
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (instrument_id, report_end_date)
+);
+CREATE TABLE IF NOT EXISTS dwd_research_pledge_detail (
+    instrument_id text NOT NULL, announced_at date,
+    pledge_count int, pledge_ratio_pct numeric(10,4), total_shares_pledged bigint, pledge_value numeric(20,2),
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (instrument_id, announced_at)
+);
+CREATE TABLE IF NOT EXISTS dwd_research_pledge_stat (
+    instrument_id text NOT NULL, announced_at date,
+    pledge_count int, unpledge_count int, pledge_ratio_pct numeric(10,4),
+    total_shares_pledged bigint, total_pledge_ratio_pct numeric(10,4),
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (instrument_id, announced_at)
+);
+CREATE TABLE IF NOT EXISTS dwd_research_margin_detail (
+    instrument_id text NOT NULL, trade_date date NOT NULL,
+    financing_balance numeric(20,2), securities_balance numeric(20,2),
+    securities_sell_volume bigint, margin_balance numeric(20,2),
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (instrument_id, trade_date)
+);
+CREATE TABLE IF NOT EXISTS dwd_research_repurchase (
+    instrument_id text NOT NULL, announced_at date, report_end_date date,
+    repurchase_volume bigint, repurchase_amount numeric(20,2),
+    repurchase_high numeric(18,2), repurchase_low numeric(18,2),
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (instrument_id, announced_at, report_end_date)
+);
+CREATE TABLE IF NOT EXISTS dwd_research_share_float (
+    instrument_id text NOT NULL, float_date date,
+    float_share bigint, float_ratio_pct numeric(10,4), holder_name text, share_type text,
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (instrument_id, float_date, holder_name)
+);
+CREATE TABLE IF NOT EXISTS dwd_research_block_trade (
+    instrument_id text NOT NULL, trade_date date NOT NULL,
+    price numeric(18,4), volume bigint, amount numeric(20,2), buyer text, seller text,
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (instrument_id, trade_date, buyer, seller)
+);
+CREATE TABLE IF NOT EXISTS dwd_research_stk_holdernumber (
+    instrument_id text NOT NULL, announced_at date, report_end_date date,
+    holder_number bigint, holder_number_change bigint,
+    avg_market_value numeric(20,2), avg_hold_volume bigint,
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (instrument_id, announced_at)
+);
+CREATE TABLE IF NOT EXISTS dwd_research_stk_holdertrade (
+    instrument_id text NOT NULL, holder_name text NOT NULL, announced_at date,
+    change_date date, change_volume bigint, change_ratio_pct numeric(10,4),
+    avg_price numeric(18,4), total_shares bigint, direction text,
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (instrument_id, holder_name, change_date)
+);
+
+-- L172 第二批（指数/基金/期货/期权/债券/外汇，21 数据集）
+
+CREATE TABLE IF NOT EXISTS dwd_research_index_weekly (
+    instrument_id text NOT NULL, trade_date date NOT NULL,
+    open numeric(18,4), high numeric(18,4), low numeric(18,4), close numeric(18,4),
+    prev_close numeric(18,4), change_ numeric(18,6), pct_change_pct numeric(10,4),
+    volume bigint, amount numeric(20,2), open_interest bigint,
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (instrument_id, trade_date)
+);
+
+CREATE TABLE IF NOT EXISTS dwd_research_index_monthly (
+    instrument_id text NOT NULL, trade_date date NOT NULL,
+    open numeric(18,4), high numeric(18,4), low numeric(18,4), close numeric(18,4),
+    prev_close numeric(18,4), change_ numeric(18,6), pct_change_pct numeric(10,4),
+    volume bigint, amount numeric(20,2), open_interest bigint,
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (instrument_id, trade_date)
+);
+
+CREATE TABLE IF NOT EXISTS dwd_research_index_basic (
+    index_code text NOT NULL, name text NOT NULL,
+    market text, publisher text, category text, base_date date, base_point numeric(18,4), listing_date date,
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (index_code)
+);
+
+CREATE TABLE IF NOT EXISTS dwd_research_fund_daily (
+    fund_code text NOT NULL, trade_date date NOT NULL,
+    open numeric(18,4), high numeric(18,4), low numeric(18,4), close numeric(18,4),
+    prev_close numeric(18,4), change_ numeric(18,6), pct_change_pct numeric(10,4),
+    volume bigint, amount numeric(20,2),
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (fund_code, trade_date)
+);
+
+CREATE TABLE IF NOT EXISTS dwd_research_fund_basic (
+    fund_code text NOT NULL, name text NOT NULL,
+    management_company text, custodian text, fund_type text,
+    established_date date, listing_date date, issue_date date, delisting_date date, issue_amount bigint,
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (fund_code)
+);
+
+CREATE TABLE IF NOT EXISTS dwd_research_fund_company (
+    company_code text NOT NULL, name text NOT NULL,
+    short_name text, established_date date, registered_capital numeric(20,2), city text,
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (company_code)
+);
+
+CREATE TABLE IF NOT EXISTS dwd_research_fund_nav (
+    fund_code text NOT NULL, announced_at date NOT NULL,
+    unit_nav numeric(18,6), accumulated_nav numeric(18,6),
+    unit_nav_return_pct numeric(10,4), accum_nav_return_pct numeric(10,4),
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (fund_code, announced_at)
+);
+
+CREATE TABLE IF NOT EXISTS dwd_research_fund_div (
+    fund_code text NOT NULL, announced_at date,
+    imp_announced_at date, dividend_per_unit numeric(18,6),
+    record_date date, ex_date date, payment_date date,
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (fund_code, announced_at)
+);
+
+CREATE TABLE IF NOT EXISTS dwd_research_fut_basic (
+    futures_code text NOT NULL, name text NOT NULL,
+    exchange text, contract_unit text, listing_date date, delisting_date date, delivery_month text,
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (futures_code)
+);
+
+CREATE TABLE IF NOT EXISTS dwd_research_trade_cal (
+    exchange text NOT NULL, calendar_date date NOT NULL,
+    is_open text, prev_trade_date date,
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (exchange, calendar_date)
+);
+
+CREATE TABLE IF NOT EXISTS dwd_research_fut_daily (
+    futures_code text NOT NULL, trade_date date NOT NULL,
+    open numeric(18,4), high numeric(18,4), low numeric(18,4), close numeric(18,4),
+    settlement numeric(18,4), prev_settlement numeric(18,4),
+    volume bigint, amount numeric(20,2), open_interest bigint,
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (futures_code, trade_date)
+);
+
+CREATE TABLE IF NOT EXISTS dwd_research_fut_holding (
+    futures_code text NOT NULL, trade_date date NOT NULL, broker text NOT NULL,
+    long_volume bigint, long_change bigint, short_volume bigint, short_change bigint,
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (futures_code, trade_date, broker)
+);
+
+CREATE TABLE IF NOT EXISTS dwd_research_fut_wsr (
+    futures_code text NOT NULL, trade_date date NOT NULL,
+    warehouse_receipt bigint, change bigint,
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (futures_code, trade_date)
+);
+
+CREATE TABLE IF NOT EXISTS dwd_research_fut_settle (
+    futures_code text NOT NULL, trade_date date NOT NULL,
+    settlement_price numeric(18,4), settlement_margin numeric(10,4),
+    settlement_fee numeric(18,6), delivery_price numeric(18,4),
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (futures_code, trade_date)
+);
+
+CREATE TABLE IF NOT EXISTS dwd_research_opt_basic (
+    option_code text NOT NULL, name text NOT NULL,
+    exchange text, underlying_code text, option_type text, exercise_price numeric(18,4),
+    listing_date date, expiry_date date,
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (option_code)
+);
+
+CREATE TABLE IF NOT EXISTS dwd_research_opt_daily (
+    option_code text NOT NULL, trade_date date NOT NULL,
+    open numeric(18,4), high numeric(18,4), low numeric(18,4), close numeric(18,4),
+    settlement numeric(18,4), prev_settlement numeric(18,4),
+    volume bigint, amount numeric(20,2), open_interest bigint,
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (option_code, trade_date)
+);
+
+CREATE TABLE IF NOT EXISTS dwd_research_cb_basic (
+    bond_code text NOT NULL, name text NOT NULL,
+    underlying_code text, underlying_name text, issue_price numeric(18,4),
+    issue_volume bigint, listing_date date, maturity_date date,
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (bond_code)
+);
+
+CREATE TABLE IF NOT EXISTS dwd_research_cb_issue (
+    bond_code text NOT NULL, name text NOT NULL, underlying_code text,
+    announced_at date, listing_date date, issue_price numeric(18,4),
+    issue_volume bigint, coupon numeric(10,4), maturity_years numeric(10,4),
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (bond_code)
+);
+
+CREATE TABLE IF NOT EXISTS dwd_research_cb_daily (
+    bond_code text NOT NULL, trade_date date NOT NULL,
+    open numeric(18,4), high numeric(18,4), low numeric(18,4), close numeric(18,4),
+    prev_close numeric(18,4), change_ numeric(18,6), pct_change_pct numeric(10,4),
+    volume bigint, amount numeric(20,2),
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (bond_code, trade_date)
+);
+
+CREATE TABLE IF NOT EXISTS dwd_research_fx_obasic (
+    fx_code text NOT NULL, name text NOT NULL,
+    exchange text, base_currency text, quote_currency text, listing_date date,
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (fx_code)
+);
+
+CREATE TABLE IF NOT EXISTS dwd_research_fx_daily (
+    fx_code text NOT NULL, trade_date date NOT NULL,
+    open numeric(18,4), high numeric(18,4), low numeric(18,4), close numeric(18,4),
+    volume bigint, amount numeric(20,2),
+    source text NOT NULL, as_of timestamptz NOT NULL, batch_id text NOT NULL,
+    ingested_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (fx_code, trade_date)
+);
