@@ -2081,3 +2081,11 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 - **门禁**：typecheck 10/10；workspace 测试全绿（h5 28 / console 59 / market 160 / api 26 / ai 42 / identity 45 / approval 19 / compliance 4 / ai-policy 41 = 0 fail）；h5 build PASS；budget 85.4KB gzip / 200KB。
 - **推送**：4b17af4 已推 origin/main。
 - **边界**：UI 标识层，真正数据门禁仍受后端 entitlement + H3 制度签发控制；L0 不代签 AI-1/2/3 go-live、不代签 SEC-011 F1 residual 解除。
+
+## L173 — staff.ts 单测覆盖补齐（L0 亲跑，ff9719d）
+
+- **触发**：L172 scaffolding 落地后 web/h5/test/ 无 staff 覆盖（仅 console/test/data-platform-adapter.test.ts 间接命中），角色识别的优先级与降级路径缺锁定。
+- **web/h5/test/staff.test.ts**（新建 6 用例）：readRole 优先级（URL ?role > localStorage > 默认 guest）、URL role=staff 压过 stored guest、URL role 非法值降级到 storage、storage 非法值降级 guest、setRole staff 持久化 + guest 清 storage、window 缺失时降级 guest 且 setRole 不抛。用最小 window/globalThis shim 在 `node --test` 下跑（无 jsdom 依赖）。
+- **门禁**：h5 28 → 34 pass；typecheck 10/10；`pnpm -r test` 全绿。
+- **推送**：ff9719d 已推 origin/main（c981540..ff9719d）。ECS bundle 同步待 SSH 限流窗口解除。
+- **边界**：L0 不代签 H3/owner 专属签发。ECS api 镜像是否已重建含 L172 53 数据集代码未确认（SSH 连续 banner timeout 限流）。
