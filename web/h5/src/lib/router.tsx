@@ -10,6 +10,8 @@
  *  - /review/limits            B1-02 涨跌停梯队
  *  - /ai                       「AI」Tab：AI 解读聚合入口（docs/design/c-end-h5-v2.md §1.1）
  *  - /me                       「我的」Tab：账户 / 权限 / 退订（置顶）/ 免责全文
+ *  - /metrics                  多维度市场概览（金融维度目录 v1.0 · 5 tab · GET /v1/c-end/overview）
+ *  - /stocks/:id/metrics       个股全维度展示（30+ 维度 · GET /v1/c-end/stocks/:id/metrics）
  *  - /dev/ai-card              AI 卡视觉采证 fixture（A6；非产品路由，页面自标注）
  *
  * 5 个底部 Tab 的路由映射见 components/TabBar.tsx（/review/limits 与个股页归「行情」）。
@@ -27,6 +29,8 @@ export type Route =
   | { name: 'ai' }
   | { name: 'me' }
   | { name: 'stock'; instrumentId: string }
+  | { name: 'metricsOverview' }
+  | { name: 'stockMetrics'; instrumentId: string }
   | { name: 'aiCardFixture' }
   | { name: 'notFound'; path: string };
 
@@ -58,6 +62,7 @@ export function parseRoute(pathname: string): Route {
     return { name: 'limitLadder' };
   if (pathname === '/ai' || pathname === '/ai/') return { name: 'ai' };
   if (pathname === '/me' || pathname === '/me/') return { name: 'me' };
+  if (pathname === '/metrics' || pathname === '/metrics/') return { name: 'metricsOverview' };
   // 视觉采证 fixture 路由：静态数据、零请求；页面上显式标注非 API 响应（m00346）。
   if (pathname === '/dev/ai-card' || pathname === '/dev/ai-card/')
     return { name: 'aiCardFixture' };
@@ -65,6 +70,11 @@ export function parseRoute(pathname: string): Route {
   const stockMatch = /^\/(?:stocks|stock)\/([^/]+)\/?$/.exec(pathname);
   if (stockMatch && stockMatch[1]) {
     return { name: 'stock', instrumentId: normalizeInstrumentId(stockMatch[1]) };
+  }
+
+  const stockMetricsMatch = /^\/(?:stocks|stock)\/([^/]+)\/metrics\/?$/.exec(pathname);
+  if (stockMetricsMatch && stockMetricsMatch[1]) {
+    return { name: 'stockMetrics', instrumentId: normalizeInstrumentId(stockMetricsMatch[1]) };
   }
 
   return { name: 'notFound', path: pathname };

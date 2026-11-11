@@ -10,6 +10,8 @@ import { WatchlistPage } from './pages/WatchlistPage';
 import { AiHomePage } from './pages/AiHomePage';
 import { AiCardFixturePage } from './pages/AiCardFixturePage';
 import { MePage } from './pages/MePage';
+import { MetricsOverviewPage } from './pages/MetricsOverviewPage';
+import { StockMetricsPage } from './pages/StockMetricsPage';
 import { TabBar } from './components/TabBar';
 import { StaffBanner } from './components/StaffBanner';
 import { Link, useRoute } from './lib/router';
@@ -18,7 +20,7 @@ export function App() {
   const route = useRoute();
 
   useEffect(() => {
-    if (route.name !== 'stock' && route.name !== 'notFound' && route.name !== 'aiCardFixture') {
+    if (route.name !== 'stock' && route.name !== 'notFound' && route.name !== 'aiCardFixture' && route.name !== 'metricsOverview' && route.name !== 'stockMetrics') {
       track('page_view', { route: route.name });
     }
   }, [route]);
@@ -51,6 +53,8 @@ export function App() {
         {route.name === 'limitLadder' && <LimitLadderPage />}
         {route.name === 'ai' && <AiHomePage />}
         {route.name === 'me' && <MePage />}
+        {route.name === 'metricsOverview' && <MetricsOverviewPage />}
+        {route.name === 'stockMetrics' && <StockMetricsPage instrumentId={route.instrumentId} />}
         {route.name === 'stock' && <StockPage instrumentId={route.instrumentId} />}
         {route.name === 'aiCardFixture' && <AiCardFixturePage />}
         {route.name === 'notFound' && <NotFoundPage />}

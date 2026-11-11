@@ -87,6 +87,9 @@ export function HomePage() {
         <Link className="home__link" href="/review/limits">
           {copy.home.limitLink}
         </Link>
+        <Link className="home__link" href="/metrics" data-testid="home-metrics-link">
+          {copy.home.metricsLink}
+        </Link>
       </div>
 
       <section className="card home__notes" aria-labelledby="home-notes-heading">
