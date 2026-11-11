@@ -2102,3 +2102,17 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 - **推送**：c981540 → 8c02281 已推 origin/main（GitHub 同步完成）。
 - **ECS**：SSH 持续 banner timeout（10+ 次重试 90–180s 间隔均失败），HEAD 停在 c981540；`/tmp/ms-l174.bundle`（c981540..main，含 7cb9578/10a64bf/51f89b8/8c02281，5.5KB）就绪待 scp。api 镜像 4affab06d545 仍为 19h 前 L167 状态（不含 L172 53 数据集代码），限流窗口解除后需 fetch+reset+`docker compose build api`+`up -d --force-recreate --no-deps api`。
 - **边界**：L0 不代签 H3/owner 专属签发。
+
+
+## L178 — C 端展示指标前端落地（antd-mobile 5-tab + 个股全维度）
+- **时间**：2026-11-11 13:40–14:03 (Asia/Shanghai)。
+- **commit**：b1b1879（L178 主提交）。
+- **触发**：m04105 用户（paraphrased）「c 端页面重新设计：全量数据 + 多维度展示。金融专家 subagent 产出维度清单+计算公式。交付后端和前端实现。前端样式采用 antdesign」——后端 L177 9a5ff13 已交付 `/v1/c-end/{overview,stocks/:id/metrics,limits}`，本轮交付前端。
+- **新增**：`web/h5/src/data/cEndMetricsGateway.ts`（HttpCEndMetricsGateway fetch /v1/c-end/*）；`web/h5/src/pages/MetricsOverviewPage.tsx`（antd-mobile Tabs+Card+List，5 tab quote/flow/fundamental/sector/index，17 metric_key）；`web/h5/src/pages/StockMetricsPage.tsx`（antd-mobile Card+Grid+List，8 分组 valuation/profitability/growth/leverage/liquidity/capital-flow/holders/technical，30+ 维度）。
+- **路由**：lib/router.tsx 增 `/metrics` + `/stocks/:id/metrics`；App.tsx 接入两页；HomePage 加 `/metrics` Link（copy.home.metricsLink）。
+- **copy.ts**：+47 metrics.* 键（tab labels / group titles / 20 metric labels / 页面 note / error / loading / empty / derived-direct）；+home.metricsLink；copy snapshot hash d419b82→9d790f19f101；manifest B1-P0-8 行 + d419b82 墓碑。
+- **门禁**：typecheck 10/10 workspace；pnpm -r test 全绿（market 160 / ai 42 / api 26 / approval 19 / console 61 / identity 45 / h5 34 / ingest 228 / compliance 4 / ai-policy 41 = 0 fail）；check-testids 60 PASS；check-budget 85.8KB/200KB PASS。
+- **合规边界**：metrics.* 文案已过 compliance.test 单一来源门禁；数据门禁仍受后端 entitlement + 制度签发控制；不输出投资建议/评级/目标价/风险提示；页面明标「不构成投资建议」。
+- **推送**：b1b1879 推 origin/main（7845b71..b1b1879）。Bundle /tmp/ms-l178.bundle（7845b71..main，1.1MB，含 L175 antd-mobile lock + L176 截图 + L177 后端目录 + L178 前端）就绪待 scp 到 ECS（SSH 限流窗口未知，本轮未试）。
+- **未做**：LimitLadderPage antd-mobile 版本（现有页面已可读 30+ 维度）；`/v1/c-end/limits` 未接前端页（limit_status 已在 stock-metrics-meta 展示）；组合复盘页 PortfolioReviewPage 未改 antd-mobile；ECS api 镜像未重建（限流）。
+- **边界**：L0 不代签 H3/owner 专属签发——页面工程侧就绪，go-live 仍需 H3 逐卡签发（AI 卡 / 数据门禁 / 免责版本对齐）。
