@@ -20,9 +20,10 @@
     "test": "node --test test/*.test.ts"
   },
   "dependencies": {
+    "@market-sense/api-client": "workspace:*",
+    "antd-mobile": "^5.43.0",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1",
-    "@market-sense/api-client": "workspace:*"
+    "react-dom": "^19.3.1"
   },
   "devDependencies": {
     "@types/react": "^19.2.0",
