@@ -76,7 +76,7 @@ const PREFERRED_COLUMNS: Readonly<Record<string, readonly string[]>> = {
   cb_issue: ['announced_at', 'bond_code', 'listing_date', 'issue_price', 'coupon', 'maturity_years'],
   cb_daily: ['trade_date', 'bond_code', 'open', 'high', 'low', 'close', 'pct_change_pct', 'volume'],
   fx_obasic: ['fx_code', 'name', 'exchange', 'base_currency', 'quote_currency', 'listing_date'],
-  fx_daily: ['trade_date', 'fx_code', 'open', 'high', 'low, close, volume, amount'],
+  fx_daily: ['trade_date', 'fx_code', 'open', 'high', 'low', 'close', 'volume', 'amount'],
 
 };
 
