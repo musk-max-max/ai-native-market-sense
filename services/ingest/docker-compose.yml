@@ -1,0 +1,32 @@
+# 生产 ingest 服务（独立于 tests/e2e/docker-compose.yml 的测试栈）
+# 用户 m04429「数据都在云服务器跑」+ m04435「不动 E2E 栈」——本 compose 在 ECS
+# 生产网络跑，连真 tushare pro API（https://api.tushare.pro）+ 生产 PG，
+# 不复用 tests/e2e/app-net（internal=true 容器无法出网）。
+#
+# 启动：
+#   export TUSHARE_TOKEN=...   # 15000 档 token，见 services/ingest/.env:5
+#   export PG_DSN=postgresql://user:pass@host:5432/market_sense
+#   docker compose -f services/ingest/docker-compose.yml up -d
+#
+# 数据流：tushare pro → market_ingest.sync → dwd_* → serving.v_cend_* → /v1/c-end/*
+#
+# 频控：15000 档默认 500 req/min，sync 内置 rate_limiter + 退避。
+# F1 residual：realtime_quote 走 AKshare，仅内部研究/展示，C 端商用需 owner 书面授权（红线①）。
+
+services:
+  ingest-sync:
+    build:
+      context: ../..
+      dockerfile: services/ingest/Dockerfile.prod
+    image: market-sense-ingest:latest
+    container_name: market-sense-ingest
+    restart: unless-stopped
+    environment:
+      TUSHARE_TOKEN: ${TUSHARE_TOKEN:?set TUSHARE_TOKEN}
+      TUSHARE_HTTP_URL: "https://api.tushare.pro"
+      DATA_SOURCE_MODE: live
+      PG_DSN: ${PG_DSN:?set PG_DSN}
+      SYNC_SCHEDULE: "${SYNC_SCHEDULE:-0 18 * * 1-5}"   # 工作日 18:00 UTC=次日 02:00 Asia/Shanghai
+      SYNC_LOOKBACK_DAYS: ${SYNC_LOOKBACK_DAYS:-30}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+        command: ["/bin/sh", "/app/services/ingest/scripts/production-sync.sh"]

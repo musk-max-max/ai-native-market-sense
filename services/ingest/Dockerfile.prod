@@ -1,0 +1,22 @@
+# 生产 ingest 镜像（A1 → A2 合并）：在 services/ingest/Dockerfile 基础上
+# 追加 warehouse 包 + psycopg + production-sync.sh。
+# 构建上下文 = 仓库根（services/ingest/docker-compose.yml context: ../..）：
+#   docker build -f services/ingest/Dockerfile.prod -t market-sense-ingest:latest .
+FROM market-sense-ingest:e2e
+
+USER root
+# warehouse 依赖 psycopg[binary]，境内用阿里云 pip 镜像（境外 --build-arg PIP_INDEX_URL=...）
+ARG PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/
+COPY warehouse/requirements.txt /tmp/wh-requirements.txt
+RUN pip install --no-cache-dir -i "$PIP_INDEX_URL" -r /tmp/wh-requirements.txt
+
+COPY warehouse /app/warehouse
+COPY warehouse/serving/schema.sql /app/warehouse/serving/schema.sql
+COPY warehouse/serving/c-end-metrics.sql /app/warehouse/serving/c-end-metrics.sql
+COPY services/ingest/scripts/production-sync.sh /app/services/ingest/scripts/production-sync.sh
+RUN chmod +x /app/services/ingest/scripts/production-sync.sh \
+    && chown -R ingest:ingest /app/warehouse
+USER ingest
+
+# 入口走 production-sync.sh（sync-instruments → sync-bars → sync-research → warehouse.load）
+CMD ["/bin/sh", "/app/services/ingest/scripts/production-sync.sh"]
