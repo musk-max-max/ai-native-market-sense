@@ -2089,3 +2089,16 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 - **门禁**：h5 28 → 34 pass；typecheck 10/10；`pnpm -r test` 全绿。
 - **推送**：ff9719d 已推 origin/main（c981540..ff9719d）。ECS bundle 同步待 SSH 限流窗口解除。
 - **边界**：L0 不代签 H3/owner 专属签发。ECS api 镜像是否已重建含 L172 53 数据集代码未确认（SSH 连续 banner timeout 限流）。
+
+## L174 — staff/console 测试补齐 + fx_daily 修正 + L172 快照墓碑（L0 亲跑，ff9719d/7cb9578/10a64bf/51f89b8/8c02281）
+
+- **触发**：用户 m03540 授权后 L0 持续推进；本轮纯工程实现（staff/console 测试覆盖 + bug 修 + L172 墓碑闭环），ECS SSH 持续限流期间先本地落。
+- **ff9719d** `web/h5/test/staff.test.ts`（新 6 用例）：readRole 优先级（URL `?role` > localStorage > guest）、URL role=staff 压过 stored guest、URL/storage 非法值降级、setRole staff 持久化 + guest 清 storage、window 缺失时降级 guest 且 setRole 不抛。最小 window shim，无 jsdom 依赖。**h5 28→34 pass**。
+- **7cb9578** decisions L173 登记。
+- **10a64bf** `web/console/test/data-platform-page.test.ts`（新 2 用例 SSR smoke）：`service=null` 渲染 HTTP backend 提示（Mock 守卫）；装配 service 后 SSR 首帧处于 loading（`useAsync` effect 不在 SSR 跑，只出「加载 catalog…」骨架）。**console 59→61 pass**。
+- **51f89b8** `web/console/src/pages/DataPlatformPage.tsx:79` fx_daily PREFERRED_COLUMNS 字符串粘连修复：`['trade_date','fx_code','open','high','low, close, volume, amount']` → `'low, close, volume, amount'` 是单 key 永不匹配 → `pickColumns` fallback 到全列（顺序失控）；改为真数组 8 元素。
+- **8c02281** L172 快照墓碑：删除 `docs/release/copy-snapshots/2026.11.5.dae9667ee6a6.frontend.json`（`compliance.test:162` 强制「同一版本只允许一个 frontend 快照」；HEAD 已 track 但磁盘已删 → 工作区 D 状态未提交入库）。manifest.md:22 B1-P0-7 行 + :28 墓碑已留。
+- **门禁**：typecheck 10/10；h5 34 / console 61 / market 160 pass；0 fail。
+- **推送**：c981540 → 8c02281 已推 origin/main（GitHub 同步完成）。
+- **ECS**：SSH 持续 banner timeout（10+ 次重试 90–180s 间隔均失败），HEAD 停在 c981540；`/tmp/ms-l174.bundle`（c981540..main，含 7cb9578/10a64bf/51f89b8/8c02281，5.5KB）就绪待 scp。api 镜像 4affab06d545 仍为 19h 前 L167 状态（不含 L172 53 数据集代码），限流窗口解除后需 fetch+reset+`docker compose build api`+`up -d --force-recreate --no-deps api`。
+- **边界**：L0 不代签 H3/owner 专属签发。
