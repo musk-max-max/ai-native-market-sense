@@ -136,6 +136,47 @@ input {
   letter-spacing: 0.06em;
 }
 
+/* L172 C 端双角色 scaffolding：顶部角色指示条（staff/guest 切换，UI 标识层）。 */
+.staff-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.staff-banner--guest {
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+
+.staff-banner--staff {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-color: var(--accent);
+}
+
+.staff-banner__text {
+  min-width: 0;
+}
+
+.staff-banner__switch {
+  flex: none;
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid currentColor;
+  background: transparent;
+  color: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .app-main {
   flex: 1;
   padding-top: 16px;

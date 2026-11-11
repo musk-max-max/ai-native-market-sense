@@ -11,6 +11,7 @@ import { AiHomePage } from './pages/AiHomePage';
 import { AiCardFixturePage } from './pages/AiCardFixturePage';
 import { MePage } from './pages/MePage';
 import { TabBar } from './components/TabBar';
+import { StaffBanner } from './components/StaffBanner';
 import { Link, useRoute } from './lib/router';
 
 export function App() {
@@ -40,6 +41,8 @@ export function App() {
           </span>
         </Link>
       </header>
+
+      <StaffBanner />
 
       <main id="main-content" className="app-main" tabIndex={-1}>
         {route.name === 'home' && <HomePage />}

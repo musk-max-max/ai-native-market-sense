@@ -469,6 +469,18 @@ export const copy = {
       `[source] 未映射的数据来源标识：${JSON.stringify(raw)}。已原样展示；` +
       '请检查 contracts/shared SourceRef.source 是否新增枚举，并同步 SOURCE_LABELS。',
   },
-} as const;
 
+  staff: {
+    banner: '内部员工视图 · 全量数据 · AI 拉满',
+    bannerGuest: '普通用户视图 · 合规展示',
+    switchToStaff: '切换内部员工',
+    switchToGuest: '切回普通用户',
+    role: '角色',
+    staffRole: '内部员工',
+    guestRole: '普通用户',
+    fullDataNote: '全量数据通道（内部员工）',
+    aiMaxNote: 'AI 能力拉满（内部员工）',
+    complianceNote: '展示范围仍受后端 entitlement + 制度签发控制',
+  },
+} as const;
 export type Copy = typeof copy;
