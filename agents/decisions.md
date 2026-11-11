@@ -2069,3 +2069,15 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 - **门禁**：h5 28/28 pass；typecheck 10/10；check-testids 60 PASS。
 - **推送**：a308a17 待 push origin/main。ECS bundle 下次窗口同步。
 
+## L172 — C 端双角色 scaffolding（staff/guest banner，L0 亲跑，4b17af4）
+
+- **触发**：用户 m03540 授权推进 C 端双角色工程；工程侧先做 UI 标识层与角色切换通道，真正数据门禁仍由后端 entitlement + H3 制度签发控制。
+- **web/h5/src/lib/staff.ts**（新建）：readRole/setRole/isStaff。优先级：URL `?role=staff` → localStorage['ms_role'] → 默认 guest。H5Role = 'guest' | 'staff'。
+- **web/h5/src/components/StaffBanner.tsx**（新建）：顶部角色指示条，guest 视图提示「普通用户视图 · 合规展示」+ 切内部员工入口；staff 视图提示「内部员工视图 · 全量数据 · AI 拉满」+ 切回入口。toggle 后 window.location.reload() 让所有读取 role 的组件重新初始化。
+- **web/h5/src/App.tsx**：`<header>` 后渲染 `<StaffBanner />`。
+- **web/h5/src/lib/copy.ts**：staff.* 10 键——banner/bannerGuest/switchToStaff/switchToGuest/role/staffRole/guestRole/fullDataNote/aiMaxNote/complianceNote。
+- **web/h5/src/styles/app.css**：`.staff-banner{-staff|-guest}` 样式——staff 用 accent 高对比；guest 用 surface-2 弱对比。
+- **copy snapshot**：hash dae9667ee6a6 → d419b82d0a18；旧 frontend 快照删除；manifest 补 B1-P0-7 行 + dae9667 墓碑。
+- **门禁**：typecheck 10/10；workspace 测试全绿（h5 28 / console 59 / market 160 / api 26 / ai 42 / identity 45 / approval 19 / compliance 4 / ai-policy 41 = 0 fail）；h5 build PASS；budget 85.4KB gzip / 200KB。
+- **推送**：4b17af4 已推 origin/main。
+- **边界**：UI 标识层，真正数据门禁仍受后端 entitlement + H3 制度签发控制；L0 不代签 AI-1/2/3 go-live、不代签 SEC-011 F1 residual 解除。
