@@ -277,12 +277,17 @@ class BarsSyncService:
         guard: QuotaGuard | None = None,
         clock: Callable[[], datetime] = market_now,
         ods_root: str | Path | None = None,
+        skip_factor_anchor: bool = False,
     ) -> None:
         self._source = source
         self._storage = storage
         self._guard = guard
         self._clock = clock
         self._ods_root = Path(ods_root) if ods_root is not None else None
+        # L180: SKIP_ANCHOR_PRELOAD=1 时跳过 bars 主循环的 _ensure_anchors + fetch_market_factors，
+        # 让 raw bars 先落 ODS（mirror 1000/UTC-day 对 5580 instrument 远不够 anchor 全量预取；
+        # serving.v_cend_* 视图当前只读 dwd_stock_bar_daily.close/volume/amount，不依赖 adj_factor）。
+        self._skip_factor_anchor = skip_factor_anchor
         if self._ods_root is not None:
             missing = [name for name in _ODS_SOURCE_METHODS if not callable(getattr(source, name, None))]
             if missing:
@@ -476,8 +481,10 @@ class BarsSyncService:
                                 for record in self._source.fetch_market_suspensions(day)  # type: ignore[attr-defined]
                                 if record.instrument_id not in bar_ids
                             ]
-                            self._ensure_anchors([bar.instrument_id for bar in bars], anchors)
-                            factors = self._source.fetch_market_factors(day, anchors=anchors)  # type: ignore[attr-defined]
+                            # L180: SKIP_ANCHOR_PRELOAD 跳过 anchor 预取，让 raw bars 先落地。
+                            if not self._skip_factor_anchor:
+                                self._ensure_anchors([bar.instrument_id for bar in bars], anchors)
+                                factors = self._source.fetch_market_factors(day, anchors=anchors)  # type: ignore[attr-defined]
                     except (QuotaExhaustedError, SourceAuthError, SchemaDriftError, SourceUnavailableError) as exc:
                         status, halted = self._classify_failure(exc)
                         break

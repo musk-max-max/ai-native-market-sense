@@ -256,7 +256,11 @@ def run_sync(args: argparse.Namespace) -> int:
     )
     # 行情/财务批次来自内部源通道，一律进内部 ODS 根（L34：展示 root 只接 csv/official_api）。
     _, internal_root = _resolve_ods_roots(config, args)
-    service = BarsSyncService(source, storage, guard=guard, ods_root=internal_root)
+    # L180: SKIP_ANCHOR_PRELOAD=1 时跳过 anchor 预取，让 raw bars 先落 ODS（serving.v_cend_* 只读 close/volume/amount）。
+    import os as _os
+    skip_anchor = _os.environ.get("SKIP_ANCHOR_PRELOAD", "") == "1"
+    service = BarsSyncService(source, storage, guard=guard, ods_root=internal_root,
+                              skip_factor_anchor=skip_anchor)
 
     stop = {"requested": False}
 
