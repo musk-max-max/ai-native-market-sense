@@ -19,5 +19,9 @@ RUN chmod +x /app/services/ingest/scripts/production-sync.sh \
     && mkdir -p /state && chown ingest:ingest /state
 USER ingest
 
-# 入口走 production-sync.sh（sync-instruments → sync-bars → sync-research → warehouse.load）
+# 入口走 production-sync.sh（sync-instruments → sync-bars → sync-research → warehouse.load）。
+# 基镜像 services/ingest/Dockerfile:40 声明了 ENTRYPOINT=[python,-m,market_ingest]，
+# 若只写 CMD，运行时会拼成 python -m market_ingest /bin/sh /app/... 触发 CLI 报错；
+# 这里显式清空 ENTRYPOINT 让 CMD 全权接管。
+ENTRYPOINT []
 CMD ["/bin/sh", "/app/services/ingest/scripts/production-sync.sh"]
