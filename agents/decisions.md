@@ -2153,4 +2153,23 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 - **推送**：5 commits 全推 origin/main（fa08b24..1a69d44）+ ECS bundle scp 同步。
 - **边界**：L0 禁代签。生产 ingest 数据落地是纯工程实现；tushare 授权 0/3（11-12 到期）=owner（红线①）；C 端制度签发=H3（红线⑤）。
 
+## L184 — ingest mypy 三处真错修复（L0 亲跑，5f0ef53）
+
+- **触发**：schedule-9431ec2f 采样轮亲跑 pnpm -r typecheck 发现 ingest mypy 3 errors（此前 typecheck 10/10 绿的宣称是误报，b1-b56 段落只看 git status 没跑 mypy）。
+- **commits**：5f0ef53 (L184)。
+- **sync.py:1359 failed_datasets 未定义**：`sync_research` per_board 分支（services/ingest/src/market_ingest/sync.py:1359）`failed_datasets.append(dataset)` 引用未声明变量——任一 board_code 的 _fetch 抛 SourceAuthError/QuotaExhaustedError/SchemaDriftError/SourceUnavailableError 时 NameError。修：改为 `break`（与 per_instrument L1307 / daily L1415 分支失败处理一致——break 出 for dataset 循环置 halted_reason）。
+- **tushare/adapter.py:523 params 阴影**：snapshot 分支 `for params in spec.batch_params or ({},)` loop var 重绑为 Mapping，遮蔽 L516 per_board 声明的 `params: dict[str, Any]`。修：rename 为 batch_params。
+- **akshare/adapter.py:153 缺 stub**：运行时 import akshare（L143 AKshare adapter 交付时漏配），mypy 找不到 stub。修：services/ingest/pyproject.toml 的 `[[tool.mypy.overrides]]` module 从 ["yaml"] 改为 ["yaml", "akshare"]，ignore_missing_imports=true。
+- **门禁**：mypy 3 err→0（Success: no issues found in 25 source files）；ingest 228 pass；pnpm -r typecheck 10/10 绿。未跑 pnpm -r test 全量（本轮只动 ingest，risk 低）。
+- **边界**：L0 禁代签。三处都是 pre-existing 错（git stash 亲验 HEAD 上已有），本轮修复未引入新错。
+
+## L185 — 生产 ingest 两处真错（/state 权限 + stk_limit 缺失，L0 亲跑，a95f7f5）
+
+- **触发**：m06132 亲验 ECS 容器状态发现 market-sense-ingest Exited (2) 7 小时前——但 docker logs 显示 sync-instruments/bars/research 三步全 succeeded（daily_basic=33437 + index_daily=30 + top_list=415 + top_inst=2140 + moneyflow=33476 + margin=15 + hk_hold=5007 = 74520 行落 /data/ods 39 批），step 4/4 warehouse.load 才失败。
+- **根因 1：/state 权限**。services/ingest/warehouse/load.py:405 默认 `DEFAULT_QUALITY_REPORT_PATH = "/state/quality.json"`，但 services/ingest/Dockerfile.prod 从未 mkdir /state，容器以 ingest 用户运行无法在根目录建目录 → `[Errno 13] Permission denied` → set -e 退出码 2。修：Dockerfile.prod:19 RUN 加 `mkdir -p /state && chown ingest:ingest /state`。
+- **根因 2：stk_limit 缺失**。services/ingest/config/ingest.yaml:60-72 默认 research.datasets 只有 7 个（daily_basic/index_daily/top_list/top_inst/moneyflow/margin/hk_hold），stk_limit 需显式 --datasets。缺 stk_limit 导致 dwd_stk_limit 空 → serving.v_cend_limit_ladder=0（m03598 起遗留）。修：production-sync.sh 加 step 3b/4 `sync-research --datasets stk_limit`，失败非致命（WARN 后继续），避免单数据集失败阻塞 bars/daily_basic 主链路。
+- **commits**：a95f7f5 (L185)。
+- **预期效果**：下次 ECS 重跑将 (1) quality.json 正常落盘；(2) v_cend_limit_ladder 从 0 转真数据。
+- **stk_limit 40101 教训澄清**：前文"stk_limit sync 抛 SourceAuthError: code=40101"记录的是更早失败记忆——本轮 docker logs 亲验显示 TUSHARE_TOKEN 在容器 env 里正确传递（inspect Config.Env 可见），research 7 数据集全 succeeded，40101 并未在本轮复现。前几次 40101 推测是 token 挂载路径或时序问题，本轮 docker-compose 正确注入后已消失。
+- **边界**：L0 禁代签。tushare 授权 0/3（11-12 到期）=owner（红线①）；生产 ingest 是纯工程实现，不触制度签发。
 
