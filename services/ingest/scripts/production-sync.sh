@@ -31,6 +31,14 @@ python -m market_ingest sync-research \
     --ods-root /data/ods --db /data/ingest.db \
     --config /app/services/ingest/config/ingest.yaml
 
+echo "[ingest] step 3b/4 sync-research stk_limit (v_cend_limit_ladder)"
+python -m market_ingest sync-research \
+    --datasets stk_limit \
+    --start "${START}" --end "${END}" \
+    --ods-root /data/ods --db /data/ingest.db \
+    --config /app/services/ingest/config/ingest.yaml || \
+    echo "[ingest] WARN stk_limit sync failed (non-fatal; v_cend_limit_ladder stays empty)"
+
 echo "[ingest] step 4/4 warehouse.load ODS->DWD (PostgreSQL)"
 python -m warehouse.load \
     --ods-root /data/ods \

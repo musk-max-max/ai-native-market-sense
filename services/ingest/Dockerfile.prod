@@ -15,7 +15,8 @@ COPY warehouse/serving/schema.sql /app/warehouse/serving/schema.sql
 COPY warehouse/serving/c-end-metrics.sql /app/warehouse/serving/c-end-metrics.sql
 COPY services/ingest/scripts/production-sync.sh /app/services/ingest/scripts/production-sync.sh
 RUN chmod +x /app/services/ingest/scripts/production-sync.sh \
-    && chown -R ingest:ingest /app/warehouse
+    && chown -R ingest:ingest /app/warehouse \
+    && mkdir -p /state && chown ingest:ingest /state
 USER ingest
 
 # 入口走 production-sync.sh（sync-instruments → sync-bars → sync-research → warehouse.load）
