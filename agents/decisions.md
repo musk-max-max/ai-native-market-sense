@@ -2116,3 +2116,20 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 - **推送**：b1b1879 推 origin/main（7845b71..b1b1879）。Bundle /tmp/ms-l178.bundle（7845b71..main，1.1MB，含 L175 antd-mobile lock + L176 截图 + L177 后端目录 + L178 前端）就绪待 scp 到 ECS（SSH 限流窗口未知，本轮未试）。
 - **未做**：LimitLadderPage antd-mobile 版本（现有页面已可读 30+ 维度）；`/v1/c-end/limits` 未接前端页（limit_status 已在 stock-metrics-meta 展示）；组合复盘页 PortfolioReviewPage 未改 antd-mobile；ECS api 镜像未重建（限流）。
 - **边界**：L0 不代签 H3/owner 专属签发——页面工程侧就绪，go-live 仍需 H3 逐卡签发（AI 卡 / 数据门禁 / 免责版本对齐）。
+
+
+## L180 — SKIP_ANCHOR_PRELOAD：mirror 配额内让 raw bars 先落地（L0 亲跑，40a5d06）
+
+- **时间**：2026-11-12 17:30–18:58 (Asia/Shanghai)。
+- **commit**：40a5d06。
+- **触发**：生产 ingest 容器首跑（m05237 段）bars 主循环 84 分钟后 `quota_exhausted`（calls_used=1000，bars 主数据 0 行落地，`instruments_completed=0`），1000 calls 全吃在 anchor 预取阶段。根因：`sync.py:479 _ensure_anchors` per-instrument 全历史（1990-12-19 起）adj_factor 锚点，5580 instrument × ~2 pages ≈ 1300 calls，远超 mirror 单日配额 1000。
+- **语义依据**：`serving.v_cend_stock_metrics` 视图 view definition 第一个 CTE `latest_daily` 只 SELECT `dwd_stock_bar_daily.close/volume/amount/prev_close` **原始价格**，无 adj_factor join（m05377 段 grep 已核）——raw bars 可直接进 warehouse，视图照常出数。
+- **改动**：
+  - `services/ingest/src/market_ingest/sync.py:280` `BarsSyncService.__init__` 加 `skip_factor_anchor: bool = False` 参数 + `self._skip_factor_anchor` 字段 + L180 注释。
+  - `services/ingest/src/market_ingest/sync.py:485` bars 主循环 anchor 调用加 `if not self._skip_factor_anchor:` 守卫——skip 时跳过 `_ensure_anchors` + `fetch_market_factors`，`factors=[]` → `adj_factor` ODS batch 不写，checkpoint 照常推进。
+  - `services/ingest/src/market_ingest/cli.py:259` `run_sync` 读 `SKIP_ANCHOR_PRELOAD=1` env 传 `skip_factor_anchor=`——生产脚本 `.env` 加 `SKIP_ANCHOR_PRELOAD=1` 即生效，不改命令行。
+- **门禁**：ingest 228 passed（219→228，含本轮前新增）；typecheck 10/10 workspace；工作区干净（除 var/ gitignore）。
+- **推送**：40a5d06 推 origin/main（a4268dc..40a5d06）。ECS bundle 同步待 SSH 窗口。
+- **未做（下一步）**：ECS bundle scp + 重建 ingest 容器（需 `SKIP_ANCHOR_PRELOAD=1` env）；重建后 rerun bars 主数据应能落地；anchor 后置可由独立 `sync-factors` 或下次配额富余补。
+- **边界**：L0 不代签 H3/owner 专属签发。SKIP_ANCHOR_PRELOAD 只是工程侧让 bars 先落地，不改变 tushare 授权 residual（红线①）与 C 端制度签发（红线⑤）。
+
