@@ -1356,7 +1356,7 @@ def sync_research(
                         )
                         checkpoints[f"{dataset}:{board_code}"] = window_start.isoformat()
                     if dataset_failed:
-                        failed_datasets.append(dataset)
+                        break
                     continue
 
                 # daily 模式

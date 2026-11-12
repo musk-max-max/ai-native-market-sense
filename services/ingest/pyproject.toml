@@ -38,5 +38,5 @@ no_implicit_optional = true
 
 # PyYAML 无官方 stubs；配置读取是薄封装，按无类型处理。
 [[tool.mypy.overrides]]
-module = ["yaml"]
+module = ["yaml", "akshare"]
 ignore_missing_imports = true

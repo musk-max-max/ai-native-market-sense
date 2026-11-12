@@ -520,9 +520,9 @@ class TushareAdapter:
                     self._fetch_rows(spec.api_name, spec.fields, params, dataset=spec.name)
                 )
         elif spec.mode == "snapshot":
-            for params in spec.batch_params or ({},):
+            for batch_params in spec.batch_params or ({},):
                 raw_rows.extend(
-                    self._fetch_rows(spec.api_name, spec.fields, dict(params), dataset=spec.name)
+                    self._fetch_rows(spec.api_name, spec.fields, dict(batch_params), dataset=spec.name)
                 )
         elif spec.requires_index_codes:
             codes = tuple(index_codes)
