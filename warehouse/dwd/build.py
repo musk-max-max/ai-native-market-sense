@@ -474,6 +474,42 @@ def _research_key(endpoint: str, row: dict[str, Any]) -> tuple[Any, ...]:
     return tuple(row[field] for field in fields)
 
 
+def _aggregate_top_inst(
+    target: dict[tuple[Any, ...], dict[str, Any]],
+    key: tuple[Any, ...],
+    row: dict[str, Any],
+    fields: tuple[str, ...],
+) -> bool:
+    """L181 top_inst 同 PK 行聚合（tushare seat_name 分类名多营业部）。"""
+    record = target.get(key)
+    if record is None:
+        return False
+    for f in fields:
+        if f in ("buy_amount", "sell_amount", "net_buy_amount"):
+            new_val = _to_decimal(row.get(f))
+            old_val = _to_decimal(record.get(f))
+            if new_val is None and old_val is None:
+                continue
+            record[f] = str((old_val or Decimal(0)) + (new_val or Decimal(0)))
+        elif f in ("buy_rate_pct", "sell_rate_pct"):
+            new_val = _to_decimal(row.get(f))
+            old_val = _to_decimal(record.get(f))
+            if new_val is None:
+                continue
+            if old_val is None or new_val > old_val:
+                record[f] = str(new_val)
+    return True
+
+
+def _to_decimal(value: Any) -> Decimal | None:
+    if value is None:
+        return None
+    try:
+        return Decimal(str(value))
+    except Exception:
+        return None
+
+
 def _upsert_research(
     state: DwdState,
     *,
@@ -503,6 +539,10 @@ def _upsert_research(
             }
         key = _research_key(endpoint, row)
         if key in seen:
+            if endpoint == "top_inst" and _aggregate_top_inst(target, key, row, fields):
+                # L181: tushare top_inst seat_name 分类名（非唯一席位），同分类多营业部多行同 PK。
+                # 聚合：amount 求和，rate 取 max。其他端点仍走 STRUCT-02 blocker。
+                continue
             state.issues.append(
                 BuildIssue(
                     rule_id="STRUCT-02",

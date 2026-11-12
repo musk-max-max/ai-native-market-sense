@@ -115,7 +115,8 @@ def test_build_rows_match_schema_columns():
 
 def test_top_inst_and_margin_key_fields():
     state = build_fixture_state()
-    for (iid, td, seat, side), row in state.top_inst.items():
+    # L181: PK 扩展为 (instrument_id, trade_date, seat_name, side, reason)
+    for (iid, td, seat, side, reason), row in state.top_inst.items():
         assert iid.startswith(("SSE:", "SZSE:"))
         assert seat and side in (0, 1)
         assert row["instrument_id"] == iid
