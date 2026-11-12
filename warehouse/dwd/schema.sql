@@ -217,17 +217,18 @@ CREATE TABLE IF NOT EXISTS dwd_top_list (
     lhb_net_rate_pct    numeric(10,4) NOT NULL,   -- 可负
     lhb_amount_rate_pct numeric(10,4) NOT NULL,
     float_market_value  numeric(20,2) NOT NULL CHECK (float_market_value >= 0),
-    reason              text        NOT NULL,     -- 上榜原因（M05：保留原文，不做归类）
+    reason              text        NOT NULL,     -- 上榜原因（M05：保留原文，不做归类；一只可多原因上榜，入 PK）
     source              text        NOT NULL,
     as_of               timestamptz NOT NULL,
     fetched_at          timestamptz NOT NULL,
     batch_id            text        NOT NULL,
     ingested_at         timestamptz NOT NULL,
-    PRIMARY KEY (instrument_id, trade_date)
+    PRIMARY KEY (instrument_id, trade_date, reason)
 );
-COMMENT ON TABLE dwd_top_list IS '龙虎榜每日明细（M05 保留上榜原因原文）；金额元';
+COMMENT ON TABLE dwd_top_list IS '龙虎榜每日明细（M05 保留上榜原因原文，同一股票可因多原因上榜，reason 入 PK）；金额元';
 
--- 7.4 龙虎榜席位明细——PK (instrument_id, trade_date, seat_name, side)
+-- 7.4 龙虎榜席位明细——PK (instrument_id, trade_date, seat_name, side, reason)
+-- 同一席位+同侧可因多个不同上榜原因重复出现，reason 入 PK 消除误判重复。
 CREATE TABLE IF NOT EXISTS dwd_top_inst (
     instrument_id   text        NOT NULL,
     trade_date      date        NOT NULL,
@@ -244,7 +245,7 @@ CREATE TABLE IF NOT EXISTS dwd_top_inst (
     fetched_at      timestamptz NOT NULL,
     batch_id        text        NOT NULL,
     ingested_at     timestamptz NOT NULL,
-    PRIMARY KEY (instrument_id, trade_date, seat_name, side)
+    PRIMARY KEY (instrument_id, trade_date, seat_name, side, reason)
 );
 COMMENT ON TABLE dwd_top_inst IS '龙虎榜机构/营业部席位明细（5000 分档；整表可为空）';
 

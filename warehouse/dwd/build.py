@@ -455,7 +455,8 @@ def _upsert_fundamental(state: DwdState, row: dict[str, Any], batch: Batch) -> N
 
 
 RESEARCH_KEY_FIELDS: dict[str, tuple[str, ...]] = {
-    "top_inst": ("instrument_id", "trade_date", "seat_name", "side"),
+    "top_list": ("instrument_id", "trade_date", "reason"),
+    "top_inst": ("instrument_id", "trade_date", "seat_name", "side", "reason"),
     "margin": ("exchange", "trade_date"),
     "stk_limit": ("instrument_id", "trade_date"),
     "fina_indicator": ("instrument_id", "report_period"),
