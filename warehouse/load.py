@@ -42,7 +42,7 @@ from warehouse.ods.loader import (
     load_ods_roots,
     require_display_evidence,
 )
-from warehouse.quality.checks import QualityReport, run_quality_checks
+from warehouse.quality.checks import QualityReport, RuleResult, run_quality_checks
 
 # --------------------------------------------------------------------------
 # 列清单：唯一真源是 warehouse/dwd/schema.sql；tests/test_load.py 交叉校验。
@@ -702,29 +702,27 @@ def _downgrade_rules(report: QualityReport, skip_rules: tuple[str, ...]) -> Qual
     用途：SKIP_ANCHOR_PRELOAD 场景下 bars 无 factors，STRUCT-06 blocker 是预期冲突；
     不改 quality_config.json，仅在 CLI 显式传入时生效。
     """
-
+    import dataclasses
     skip = set(skip_rules)
-    # 克隆 results，将命中规则降级为 warn，然后重算 grade
-    from copy import deepcopy
-    new_report = deepcopy(report)
-    for result in new_report.results:
+    new_results: list[RuleResult] = []
+    for result in report.results:
         if result.rule_id in skip:
-            for v in result.violations:
-                v.severity = "warn"
-            # severity property 由 violations[0] 决定，重算后自然降级
-    # 重算 grade：仿 checks.py 中逻辑（blocker 任一 → black + blocked）
-    new_report.blocked = any(
-        v.severity == "blocker"
-        for r in new_report.results
-        for v in r.violations
+            new_violations = [
+                dataclasses.replace(v, severity="warn") for v in result.violations
+            ]
+            new_results.append(
+                dataclasses.replace(result, violations=new_violations)
+            )
+        else:
+            new_results.append(result)
+    blocked = any(v.severity == "blocker" for r in new_results for v in r.violations)
+    has_warn = any(v.severity == "warn" for r in new_results for v in r.violations)
+    grade = "black" if blocked else ("yellow" if has_warn else "green")
+    return dataclasses.replace(
+        report, grade=grade, blocked=blocked, results=new_results
     )
-    if new_report.blocked:
-        new_report.grade = "black"
-    else:
-        # 简化：有 warn → yellow，否则 green
-        has_warn = any(v.severity == "warn" for r in new_report.results for v in r.violations)
-        new_report.grade = "yellow" if has_warn else "green"
-    return new_report
+
+
 
 
 def run(
