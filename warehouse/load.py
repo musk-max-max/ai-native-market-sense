@@ -196,7 +196,7 @@ TOP_LIST_COLUMNS = (
     "reason",
     *_RESEARCH_META_COLUMNS,
 )
-TOP_LIST_PK = ("instrument_id", "trade_date")
+TOP_LIST_PK = ("instrument_id", "trade_date", "reason")  # L181: fa08b24 加 reason（同股可因多原因上榜）
 
 TOP_INST_COLUMNS = (
     "instrument_id",
@@ -211,7 +211,7 @@ TOP_INST_COLUMNS = (
     "reason",
     *_RESEARCH_META_COLUMNS,
 )
-TOP_INST_PK = ("instrument_id", "trade_date", "seat_name", "side")
+TOP_INST_PK = ("instrument_id", "trade_date", "seat_name", "side", "reason")  # L181: fa08b24 加 reason
 
 MONEYFLOW_COLUMNS = (
     "instrument_id",
