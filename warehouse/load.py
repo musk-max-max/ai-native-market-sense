@@ -696,6 +696,37 @@ def _print_plan(state: DwdState, statements: Sequence[Statement], *, dry_run: bo
         print("[plan] dry-run：未连接数据库、未写入任何行")
 
 
+def _downgrade_rules(report: QualityReport, skip_rules: tuple[str, ...]) -> QualityReport:
+    """L182 运行时把指定 rule_id 的 severity 降为 warn，重算 grade/blocked。
+
+    用途：SKIP_ANCHOR_PRELOAD 场景下 bars 无 factors，STRUCT-06 blocker 是预期冲突；
+    不改 quality_config.json，仅在 CLI 显式传入时生效。
+    """
+
+    skip = set(skip_rules)
+    # 克隆 results，将命中规则降级为 warn，然后重算 grade
+    from copy import deepcopy
+    new_report = deepcopy(report)
+    for result in new_report.results:
+        if result.rule_id in skip:
+            for v in result.violations:
+                v.severity = "warn"
+            # severity property 由 violations[0] 决定，重算后自然降级
+    # 重算 grade：仿 checks.py 中逻辑（blocker 任一 → black + blocked）
+    new_report.blocked = any(
+        v.severity == "blocker"
+        for r in new_report.results
+        for v in r.violations
+    )
+    if new_report.blocked:
+        new_report.grade = "black"
+    else:
+        # 简化：有 warn → yellow，否则 green
+        has_warn = any(v.severity == "warn" for r in new_report.results for v in r.violations)
+        new_report.grade = "yellow" if has_warn else "green"
+    return new_report
+
+
 def run(
     ods_root: Path,
     *,
@@ -704,6 +735,7 @@ def run(
     manifest_root: Path | None = None,
     internal_ods_root: Path | None = None,
     profile: str = "prod",
+    skip_rules: tuple[str, ...] = (),
 ) -> int:
     try:
         batches = load_ods_roots(ods_root, internal_ods_root)
@@ -756,6 +788,9 @@ def run(
         return EXIT_INPUT_MISSING
 
     report = run_quality_checks(state)
+    if skip_rules:
+        report = _downgrade_rules(report, skip_rules)
+        print(f"[WARN] 运行时降级规则 {','.join(skip_rules)} → warn（L182）", file=sys.stderr)
     exemptions = report.as_dict().get("exemptions") or {}
     suffix = f" exemptions={exemptions}" if exemptions else ""
     print(f"quality score={report.score} grade={report.grade} blocked={report.blocked}{suffix}")
@@ -837,6 +872,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--dsn", help="PostgreSQL DSN；缺省读 DSN / DATABASE_URL")
     parser.add_argument("--dry-run", action="store_true", help="只输出写库计划，不连接数据库")
+    parser.add_argument("--skip-rule", action="append", default=[], metavar="RULE_ID", help="运行时把指定规则从 blocker 降为 warn（L182；可重复）")
     args = parser.parse_args(argv)
     return run(
         args.ods_root,
@@ -845,6 +881,7 @@ def main(argv: list[str] | None = None) -> int:
         manifest_root=args.manifest_root,
         internal_ods_root=args.internal_ods_root,
         profile=args.profile,
+        skip_rules=tuple(args.skip_rule),
     )
 
 
