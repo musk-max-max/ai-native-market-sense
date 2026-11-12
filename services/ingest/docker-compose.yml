@@ -29,4 +29,4 @@ services:
       SYNC_SCHEDULE: "${SYNC_SCHEDULE:-0 18 * * 1-5}"   # 工作日 18:00 UTC=次日 02:00 Asia/Shanghai
       SYNC_LOOKBACK_DAYS: ${SYNC_LOOKBACK_DAYS:-30}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
-        command: ["/bin/sh", "/app/services/ingest/scripts/production-sync.sh"]
+    command: ["/bin/sh", "/app/services/ingest/scripts/production-sync.sh"]
