@@ -2173,3 +2173,15 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 - **stk_limit 40101 教训澄清**：前文"stk_limit sync 抛 SourceAuthError: code=40101"记录的是更早失败记忆——本轮 docker logs 亲验显示 TUSHARE_TOKEN 在容器 env 里正确传递（inspect Config.Env 可见），research 7 数据集全 succeeded，40101 并未在本轮复现。前几次 40101 推测是 token 挂载路径或时序问题，本轮 docker-compose 正确注入后已消失。
 - **边界**：L0 禁代签。tushare 授权 0/3（11-12 到期）=owner（红线①）；生产 ingest 是纯工程实现，不触制度签发。
 
+
+## L186–L190 生产 ingest 容器修复链（1ba3031..408057d，2026-11-13）
+
+- **背景**：L185 修完 /state 权限 + stk_limit 缺失后，重新部署发现镜像 d2466671efd7 起不来，经过 5 轮排错定位到 6 个独立问题。
+- **L186 YAML 缩进（1ba3031）**：services/ingest/docker-compose.yml:32 `command:` 多缩进 2 空格落在 environment 内，docker compose 报 `mapping values are not allowed in this context`。python yaml.safe_load 同样报错。修：command 对齐 environment。
+- **L187 双网络（99111d0）**：单网络无法同时出网调 tushare + 连 e2e PG（app-net internal=true）。修：声明 ingest-wan (bridge, 出网) + e2e-app-net (external=true, name=market-sense-e2e_app-net)。ECS .env 补 PG_DSN。
+- **L188 ENTRYPOINT 冲突（06a023c）**：基镜像 services/ingest/Dockerfile:40 `ENTRYPOINT=["python","-m","market_ingest"]`，Dockerfile.prod 只写 CMD，运行时拼成 `python -m market_ingest /bin/sh /app/...production-sync.sh` → CLI invalid choice。修：Dockerfile.prod 加 `ENTRYPOINT []` 让 CMD 全权接管。
+- **L189 env var 名错（4bb3971）**：compose 写 `TUSHARE_HTTP_URL`，adapter 读 `TUSHARE_API_URL`（services/ingest/src/market_ingest/adapters/tushare/adapter.py:962）。前 7h 成功那次是镜像内默认 env 兜底，非 compose 注入。修：TUSHARE_HTTP_URL → TUSHARE_API_URL。
+- **L190 operator 缺失（408057d）**：H4 审计要求 `DATA_IMPORT_OPERATOR` 必填（cli.py:336），缺则报 missing operator。修：compose 补 `DATA_IMPORT_OPERATOR=ecs-production-ingest`。
+- **tushare token 失效探针（m06368）**：一次性容器跑 `/tmp/probe.py`（POST https://api.tushare.pro api_name=stock_basic token=env 读）返回 `{"code":40101,"msg":"您的token不对，请确认。"}`。网络通、adapter 配置对，token 本身被 tushare 拒绝。
+- **当前状态**：容器已 stop 避免重启循环刷日志。工程侧 L185–L190 6 个问题全修完并推 origin/main（HEAD=408057d，ECS HEAD 同步）。v_cend_limit_ladder=0 的实际归因是 token 失效（红线①），不是 stk_limit 未配置。
+- **边界**：tushare 授权 = owner（红线①）；token 失效必须 owner 更新，L0 禁代签、禁代换 token。工程侧已推到顶。
