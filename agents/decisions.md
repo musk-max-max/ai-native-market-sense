@@ -2185,3 +2185,12 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 - **tushare token 失效探针（m06368）**：一次性容器跑 `/tmp/probe.py`（POST https://api.tushare.pro api_name=stock_basic token=env 读）返回 `{"code":40101,"msg":"您的token不对，请确认。"}`。网络通、adapter 配置对，token 本身被 tushare 拒绝。
 - **当前状态**：容器已 stop 避免重启循环刷日志。工程侧 L185–L190 6 个问题全修完并推 origin/main（HEAD=408057d，ECS HEAD 同步）。v_cend_limit_ladder=0 的实际归因是 token 失效（红线①），不是 stk_limit 未配置。
 - **边界**：tushare 授权 = owner（红线①）；token 失效必须 owner 更新，L0 禁代签、禁代换 token。工程侧已推到顶。
+
+## L192 C 端展示指标路由测试 6 例（ba579d2，2026-11-13）
+
+- **背景**：L177/L178 交付 C 端指标后端（routes-c-end-metrics.ts 3 路由 + CEndMetricsRepo 端口）+ 前端（MetricsOverviewPage + StockMetricsPage），但 market 测试套缺 c-end 路由级覆盖。
+- **新增**：services/market/test/c-end-metrics.test.ts，对齐 data-platform.test.ts 的 createApp+inject 测试模式（createMarketPlugin + buildApp + authenticator）。
+- **覆盖 6 例**：401 未认证 / 200 overview 返回 metric 行 / 200 stock metrics 已知标的 / 404 未知标的 / 400 非法 instrument_id 格式 / 200 limit ladder。
+- **关键断言**：precision-safe 数字必须以字符串透传（body.close === '1510.00'、typeof body.pe === 'string'），对齐 HANDOFF precision-safe 边界。
+- **门禁**：market 160→166 pass，0 fail。
+- **边界**：纯工程实现，不触制度签发；tushare token 失效仍 owner 侧待更新（红线①）。
