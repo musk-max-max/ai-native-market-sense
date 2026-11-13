@@ -24,6 +24,7 @@ services:
     environment:
       TUSHARE_TOKEN: ${TUSHARE_TOKEN:?set TUSHARE_TOKEN}
       TUSHARE_API_URL: "https://api.tushare.pro"
+      DATA_IMPORT_OPERATOR: "ecs-production-ingest"
       DATA_SOURCE_MODE: live
       PG_DSN: ${PG_DSN:?set PG_DSN}
       SYNC_SCHEDULE: "${SYNC_SCHEDULE:-0 18 * * 1-5}"   # 工作日 18:00 UTC=次日 02:00 Asia/Shanghai
