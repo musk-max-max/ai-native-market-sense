@@ -2194,3 +2194,15 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 - **关键断言**：precision-safe 数字必须以字符串透传（body.close === '1510.00'、typeof body.pe === 'string'），对齐 HANDOFF precision-safe 边界。
 - **门禁**：market 160→166 pass，0 fail。
 - **边界**：纯工程实现，不触制度签发；tushare token 失效仍 owner 侧待更新（红线①）。
+
+## L194 C 端涨跌停页接线 /v1/c-end/limits（3920337，2026-11-16）
+
+- **背景**：用户 m06893 指令「推进 stk_limit 数据落地 + 修 C 端涨跌停页面」。读作**把现有真数据接到 C 端涨跌停页**的授权（纯接线，无新数据源）。之前 LimitLadderPage 用 reviewGateway（生产=unavailable 兜底），cEndMetricsGateway.getLimitLadder() 已有真数据网关但未接页。
+- **形态**：后端 `/v1/c-end/limits` 返回 per-instrument 行（serving.v_cend_limit_ladder），H3 m02407 裁定 C 端只允许**市场级汇总计数**——因此前端聚合，行数据本身不进渲染路径。
+- **新增 web/h5/src/data/limitLadderAggregate.ts**：`aggregateLimitLadder(rows)` 把 LimitLadderRow[] 聚合成 LimitLadder——upCount/downCount 按 limit_status='U'/'D' 计数（Z=触及未封住不计入，provisional）；maxStreakDays=null / streakBuckets=[] / stExcludedCount=0（视图无 streak、无 ST 标记，provisional 显式置零）；as_of 取行集最大；空行/无 as_of → null（页面转 empty，禁 0 冒充/禁无名渲染）；caliberVersion=c-end-limits-v1.provisional。
+- **改 web/h5/src/pages/LimitLadderPage.tsx**：生产构建走 `cEndMetricsGateway.getLimitLadder()`（新 loadReal）；DEV mock 模式（`VITE_DATA_MODE=mock`）回退 `reviewGateway.getLimitLadder()`（demo 标识，新 loadDemo）。unavailable 仅在两个网关都不可用时出现。
+- **测试 web/h5/test/limit-ladder-aggregate.test.ts**：5 例（空行 fail-closed / 时点不明 fail-closed / U-D 计数含 Z 忽略 / provisional 置零 + caliber 固定 / as_of 取最新）。web/h5 34→39 pass。
+- **门禁**：web/h5 tsc clean；pnpm -r typecheck 11/11；vite build 85.1KB gzip / 200KB budget PASS；bundle F1 扫描 OK。
+- **数据依赖**：v_cend_limit_ladder 当前 ECS 0 行（tushare token 失效），页端表现 empty——token 更新后自动出真数据，前端无需再改。
+- **剩余 provisional 项**：(1) 连板 streakDays 需 serving.v_cend_limit_ladder 补 streak 计算（跨日 join dwd_stk_limit 多日序列）；(2) ST 排除计数需视图补 `CASE WHEN i.name LIKE '%ST%'` 聚合。均属口径补完，不影响当前 up/down 计数。
+- **边界**：纯工程实现 + 前端聚合，不触制度签发（H3 形态已合规）；tushare token 失效仍 owner 侧待更新（红线①）；L0 禁代签。
