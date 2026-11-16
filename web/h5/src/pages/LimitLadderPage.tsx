@@ -7,21 +7,35 @@
  *    个股明细类型仍保留在 `LimitLadder.instrumentRows`，只供未来内部评测，页面不读取；
  *  - ST / *ST 排除必须显式标注，不静默过滤；
  *  - 口径为 provisional（临时近似规则），页面固定展示口径版本与范围说明；
- *  - 生产端点在授权落地前一律 unavailable（不展示数值，不用 mock 伪装面客）。
+ *  - 真实端点走 /v1/c-end/limits（serving.v_cend_limit_ladder per-instrument 行由
+ *    limitLadderAggregate.aggregateLimitLadder 在前端聚合成市场级计数，行数据本身不进渲染）；
+ *  - DEV mock 模式回退 reviewGateway（demo 标识）；生产 reviewGateway=unavailable。
  */
 import { useEffect, useState } from 'react';
 import { DataGapCard } from '../components/DataGapCard';
 import { ErrorBlock, LoadingBlock } from '../components/PageState';
 import { reviewGateway } from '../data/ai';
-import type { LimitLadder, LimitLadderResult } from '../data/ai/types';
+import type { LimitLadder } from '../data/ai/types';
+import { aggregateLimitLadder } from '../data/limitLadderAggregate';
+import { cEndMetricsGateway } from '../data/cEndMetricsGateway';
 import type { GatewayError } from '../data/gateway';
 import { copy, errorCopy, MISSING, sourceLabel } from '../lib/copy';
 import { TID } from '../lib/testids';
 
+/**
+ * 页面状态：真实端点走 /v1/c-end/limits（aggregateLimitLadder 汇总）；
+ * DEV mock 模式回退 reviewGateway（demo 数据）。生产构建 reviewGateway=unavailable
+ * 但 cEnd 端点已接入，故 unavailable 仅在两个网关都不可用时出现。
+ */
 type PageState =
   | { status: 'loading' }
-  | LimitLadderResult
+  | { status: 'ready'; ladder: LimitLadder }
+  | { status: 'empty' }
+  | { status: 'unavailable'; reason: import('../lib/copy').GapReason }
   | { status: 'error'; error: GatewayError };
+
+const DATA_MODE_MOCK =
+  ((import.meta.env.VITE_DATA_MODE as string | undefined) ?? 'api').toLowerCase() === 'mock';
 
 function asError(error: unknown): PageState {
   const gatewayError =
@@ -137,20 +151,41 @@ function LadderBody({ ladder }: { ladder: LimitLadder }) {
   );
 }
 
+async function loadReal(): Promise<PageState> {
+  const result = await cEndMetricsGateway.getLimitLadder();
+  if (result.kind === 'error') {
+    return { status: 'error', error: { status: result.status, network: result.network } };
+  }
+  const ladder = aggregateLimitLadder(result.rows);
+  if (ladder === null) {
+    // 空行 或 时点不明 → 都按「无可统计样本」处理（H3：不用 0 冒充、不渲染无名数据）。
+    return { status: 'empty' };
+  }
+  return { status: 'ready', ladder };
+}
+
+async function loadDemo(): Promise<PageState> {
+  const result = await reviewGateway.getLimitLadder();
+  if (result.status === 'ready') return { status: 'ready', ladder: result.ladder };
+  if (result.status === 'empty') return { status: 'empty' };
+  if (result.status === 'unavailable') return { status: 'unavailable', reason: result.reason };
+  if (result.status === 'error') return { status: 'error', error: result.error };
+  return { status: 'unavailable', reason: 'not_integrated' };
+}
+
 export function LimitLadderPage() {
   const [state, setState] = useState<PageState>({ status: 'loading' });
 
   const load = (): void => {
     setState({ status: 'loading' });
-    reviewGateway.getLimitLadder().then(
-      (result) => setState(result),
-      (error: unknown) => setState(asError(error)),
-    );
+    const next = import.meta.env.DEV && DATA_MODE_MOCK ? loadDemo() : loadReal();
+    next.then(setState, (error: unknown) => setState(asError(error)));
   };
 
   useEffect(() => {
     let alive = true;
-    reviewGateway.getLimitLadder().then(
+    const next = import.meta.env.DEV && DATA_MODE_MOCK ? loadDemo() : loadReal();
+    next.then(
       (result) => {
         if (alive) setState(result);
       },
