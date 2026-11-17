@@ -1769,15 +1769,16 @@ def _close_as_of(day: date) -> datetime:
 
 
 def _research_as_of(dataset: str, day: date) -> datetime:
-    """研究批次信封 as_of（A2 RES-04 阈值）。
+    """研究批次信封 as_of：所有日频数据集统一取交易日 15:00 收盘。
 
-    ``hk_hold`` 是北向持股 T+1 披露：as_of = 下一自然日 15:00；其余日频数据集为当日
-    收盘 15:00。财报/行业快照无 trade_date，不在此函数内（时点由行内公告日/快照日承担）。
+    ``as_of`` 是数据代表的**市场时点**（models.py:126），不是抓取时间（C04 禁止
+    与 ``fetched_at`` 混用/倒挂，loader.py:757）。hk_hold 虽然是 T+1 披露（T+1 上午
+    才可取到 T 收盘持仓快照），但持仓快照本身对应的市场时点仍是 T 15:00
+    收盘——T+1 才可取是**抓取侧约束**，不是 as_of 时点定义。若把 as_of 写成 T+1
+    15:00，则日中运行（fetched_at=T+1 10:00）会早于 as_of=T+1 15:00，触发 C04。
+
+    财报/行业快照无 trade_date，不在此函数内（时点由行内公告日/快照日承担）。
     """
-    if dataset == "hk_hold":
-        from .models import market_close_at
-
-        return market_close_at(day + timedelta(days=1))
     return _close_as_of(day)
 
 

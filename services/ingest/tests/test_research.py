@@ -519,8 +519,13 @@ def test_sync_research_coverage_records_source_channel_and_st_quality(tmp_path: 
     storage.close()
 
 
-def test_sync_research_hk_hold_as_of_is_t_plus_one(tmp_path: Path) -> None:
-    """hk_hold 北向持股为 T+1 披露：ODS 信封 as_of 必须是下一自然日 15:00（RES-04）。"""
+def test_sync_research_hk_hold_as_of_is_t_close(tmp_path: Path) -> None:
+    """hk_hold 北向持股的 ODS 信封 as_of 是 T 收盘 15:00（与其它日频数据集一致）。
+
+    hk_hold 持仓快照对应的市场时点是 T 收盘；T+1 上午才可从 tushare 取到是抓取侧约束，
+    不进入 as_of 定义。若写 T+1 15:00，日中运行（fetched_at=T+1 10:00）会早于 as_of，
+    触发 C04（loader.py:757）。
+    """
     entries = [
         calendar_entry(DAY1, DAY1, [DAY1]),
         research_entry("hk_hold", DAY1, [hk_hold_row()]),
@@ -542,7 +547,7 @@ def test_sync_research_hk_hold_as_of_is_t_plus_one(tmp_path: Path) -> None:
     files = sorted((ods_root / "hk_hold").glob("dt=*/*.json"))
     assert len(files) == 1
     payload = json.loads(files[0].read_text(encoding="utf-8"))
-    assert payload["source"]["as_of"] == "2024-01-03T15:00:00+08:00"
+    assert payload["source"]["as_of"] == "2024-01-02T15:00:00+08:00"
     assert payload["source"]["fetched_at"].startswith("2024-01-05T19:30:00")
     storage.close()
 

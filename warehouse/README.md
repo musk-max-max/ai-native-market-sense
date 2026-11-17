@@ -208,8 +208,10 @@ A1 把 7 个研究数据集写入 `<ODS_ROOT>/internal/<endpoint>/dt=<trade_date
   - **RES-03 外键**：A 股研究数据 `instrument_id` 必须在 `dim_instrument`；`hk_hold` 的港股标识用
     独立命名空间 `HKEX:#####`（如 `HKEX:00700`），不在 A 股 dim 中，规则**显式豁免并计数**
     （报告 `exemptions`），不静默跳过；若 `hk_hold` 出现 A 股标识但不在 dim，仍是 blocker。
-  - **RES-04 per-endpoint as_of 阈值**（`quality_config.json::research_as_of`）：A 股研究数据当日 15:00；
-    `hk_hold` 为 T+1 披露，次日 15:00；`index_daily` 指数收盘当日 15:00。
+  - **RES-04 per-endpoint as_of 阈值**（`quality_config.json::research_as_of`）：所有含 trade_date 的日频
+    endpoint 统一为交易日 15:00（offset_days=0）。`as_of` 是数据代表的市场时点，不是抓取时间；
+    `hk_hold` 持仓快照对应 T 收盘，T+1 上午才可从 tushare 取到属抓取侧约束，不进入 as_of 阈值定义
+    （L198 方案 A，避免日中运行时 `fetched_at < as_of` 触发 C04）。
 - **运行摘要**：`pipeline` / `load` 的 stdout 质量行在存在豁免时输出 `exemptions={...}`
   （如 `RES-03: 2`），与 `quality.json` 内的 `exemptions` 同源，豁免不能只留在内部计数器。
 - **hk_hold 状态**：**active_internal**（A1 commit `97c8f3e` 落地 `00700.HK → HKEX:00700`，1–5 位左补 0、

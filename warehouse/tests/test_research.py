@@ -267,20 +267,22 @@ def test_res03_ashare_hk_hold_id_is_still_fk_checked():
     assert "RES-03" in {v.rule_id for v in report.blocker_violations}
 
 
-def test_res04_hk_hold_requires_t_plus_1():
-    # H4 备案附注 4：hk_hold 是 T+1 披露，as_of 必须 ≥ 次日 15:00；其它 A 股研究数据仍当日 15:00
+def test_res04_hk_hold_uses_t_close_threshold():
+    # L198 方案 A：as_of 是数据代表的市场时点，hk_hold 持仓快照对应 T 收盘 15:00；
+    # T+1 上午才可从 tushare 取到是抓取侧约束，不进入 as_of 阈值定义。
     state = build_fixture_state()
-    # 取 HKEX:09988（trade_date=2024-01-03）：T+1 阈值是 2024-01-04 15:00，当日 20:05 仍不够
+    # 取 HKEX:09988（trade_date=2024-01-03）：阈值是当日 15:00，T 收盘后 20:05 即合格
     row = state.hk_hold[("HKEX:09988", date(2024, 1, 3))]
     row["as_of"] = datetime(2024, 1, 3, 20, 5, tzinfo=CST)
     report = run_quality_checks(state)
-    assert "RES-04" in {v.rule_id for v in report.blocker_violations}
+    assert "RES-04" not in {v.rule_id for v in report.blocker_violations}
 
+    # 早于当日 15:00 仍 blocker
     state2 = build_fixture_state()
-    row2 = next(iter(state2.daily_basic.values()))
-    row2["as_of"] = datetime(2024, 1, 3, 20, 5, tzinfo=CST)  # A 股研究数据当日收盘后即合格
+    row2 = state2.hk_hold[("HKEX:09988", date(2024, 1, 3))]
+    row2["as_of"] = datetime(2024, 1, 3, 14, 0, tzinfo=CST)
     report2 = run_quality_checks(state2)
-    assert "RES-04" not in {v.rule_id for v in report2.blocker_violations}
+    assert "RES-04" in {v.rule_id for v in report2.blocker_violations}
 
 
 def test_hk_hold_loader_accepts_hkex_namespace(tmp_path):
@@ -330,9 +332,9 @@ def test_research_rules_declared_in_config():
     # P2 规则 RES-05..08 见 test_research_p2.py；RES-09 为 warn；总规则 23（6 结构 / 6 业务 / 5 完整性 / 6 一致性）
     assert len(config["rules"]) == 23
     policies = config["research_as_of"]
-    assert policies["hk_hold"] == {"offset_days": 1, "time": "15:00"}
-    for endpoint in ("daily_basic", "index_daily", "top_list", "top_inst", "moneyflow", "margin"):
-        assert policies[endpoint] == {"offset_days": 0, "time": "15:00"}
+    # L198 方案 A：所有日频 endpoint 统一 T 收盘 15:00（hk_hold 持仓快照对应 T 收盘）
+    for endpoint in ("daily_basic", "index_daily", "top_list", "top_inst", "moneyflow", "margin", "hk_hold", "stk_limit"):
+        assert policies[endpoint] == {"offset_days": 0, "time": "15:00"}, endpoint
 
 
 # --------------------------------------------------------------------------

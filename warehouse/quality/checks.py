@@ -54,7 +54,7 @@ RULE_META: dict[str, tuple[str, str]] = {
     "RES-01": ("completeness", "研究数据集交易日为工作日（weekday 体检，不含节假日；P1 接 trade_cal）"),
     "RES-02": ("business", "研究指标量纲：仅 DWD canonical 字段；金额/量/市值非负，百分比 |x| ≤ 1000"),
     "RES-03": ("consistency", "研究数据 instrument_id 必须存在于 dim_instrument（指数/两融豁免；非 A 股命名空间显式豁免并计数）"),
-    "RES-04": ("completeness", "研究批次 as_of 满足各 endpoint 的及时性阈值（默认交易日 15:00；hk_hold T+1 15:00）且 fetched_at ≥ as_of"),
+    "RES-04": ("completeness", "研究批次 as_of 满足各 endpoint 的及时性阈值（默认交易日 15:00，所有日频 endpoint 统一；hk_hold 持仓快照对应 T 收盘，T+1 披露属抓取侧约束不进入 as_of 定义）且 fetched_at ≥ as_of"),
     "RES-05": ("business", "涨跌停原始价自洽且 limit_pct 交叉校验：previous_close>0、up_limit > previous_close > down_limit；limit_pct 非空时必须属于 {5,10,20,30}，按声明档重算后与 up_limit/down_limit 精确比对（按市场+报价单位取整：沪深 A half-up、北交所 A 涨停 floor/跌停 ceil、沪 B 0.001、深 B 0.01，均按交易所+报价单位；容差仅吸收浮点；H4 口径，A2 不派生，只独立验证派生档位）"),
     "RES-06": ("business", "财务指标公告时点：announced_at ≥ report_end_date，且不晚于批次 as_of（防未来函数）；announced_at 为 null 按 blocker（无公告日无法 as-of join，不进可用数据）"),
     "RES-07": ("consistency", "行业分类树自洽：level∈{1,2,3}；level>1 必须有 parent_code、level=1 不得有；parent 必须在同一 snapshot 存在且 level(parent)=level(child)-1；链≤2 跳到 L1 且无环（每链唯一根）"),

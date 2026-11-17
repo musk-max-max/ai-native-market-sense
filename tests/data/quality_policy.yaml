@@ -108,7 +108,7 @@ research_rules:
   RES-01: {category: completeness, severity: blocker, label: 研究数据不生成周末行（周末粗筛，非法定节假日/交易日历）}
   RES-02: {category: business, severity: blocker, label: 研究数据量纲（金额/量/市值非负，百分比 |x| ≤ 1000，仅 DWD canonical 字段）}
   RES-03: {category: consistency, severity: blocker, label: 研究数据 instrument_id 必须在 dim_instrument（指数/两融豁免；HKEX 港股命名空间显式豁免并计数）}
-  RES-04: {category: completeness, severity: blocker, label: 研究数据 per-endpoint as_of 阈值（A 股/指数当日 15:00，hk_hold T+1 次日 15:00）}
+  RES-04: {category: completeness, severity: blocker, label: 研究数据 per-endpoint as_of 阈值（所有日频 endpoint 统一交易日 15:00，hk_hold 持仓快照对应 T 收盘）}
   RES-05: {category: business, severity: blocker, label: 涨跌停原始价自洽（up>prev>down）+ limit_pct 候选档重算交叉验证}
   RES-06: {category: business, severity: blocker, label: 财报公告时点（announced_at ≥ report_end_date、report_period 季末一致、不晚于 as-of）}
   RES-07: {category: consistency, severity: blocker, label: 行业分类树层级自洽（parent/level/链≤2/无环）}
