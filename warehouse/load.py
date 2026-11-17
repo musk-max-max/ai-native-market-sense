@@ -482,6 +482,28 @@ def delete_suspended_bars(keys: Iterable[tuple[str, Any]]) -> Statement | None:
     )
 
 
+def _stk_limit_rows_filtered(rows: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+    """L201：PG schema 有 CHECK (down_limit > 0) + up_limit < 99999 约束，--skip-rule RES-05 只降 quality report 不降 DB 约束。
+
+    生产 ingest 场景（SKIP_ANCHOR_PRELOAD + production-sync.sh 显式降级 RES-05）需要过滤哨兵值/脏数据：
+    - down_limit <= 0（BSE:920085 down_limit=0.0）
+    - up_limit >= 99999（哨兵值）
+    - previous_close <= 0
+    非 production 场景 quality RES-05 会拦住，不会走到这里；本过滤只为显式 skip 后的兜底。
+    """
+    out: list[dict[str, Any]] = []
+    for row in rows:
+        prev = row.get("previous_close")
+        up = row.get("up_limit")
+        down = row.get("down_limit")
+        if prev is None or up is None or down is None:
+            continue
+        if prev <= 0 or up <= 0 or up >= 99999 or down <= 0:
+            continue
+        out.append(row)
+    return out
+
+
 def build_statements(state: DwdState) -> list[Statement]:
     """把 DWD 内存状态展开为有序写库计划。顺序：维表 → bar → 停牌删除/证据 → 因子 → 财务 → 修订。"""
     plan: list[Statement | None] = [
@@ -521,7 +543,9 @@ def build_statements(state: DwdState) -> list[Statement]:
                 table,
                 columns,
                 primary_key,
-                getattr(state, state_attr).values(),
+                _stk_limit_rows_filtered(getattr(state, state_attr).values())
+                if endpoint == "stk_limit"
+                else getattr(state, state_attr).values(),
             )
             for endpoint, (table, columns, primary_key, state_attr) in RESEARCH_TABLES.items()
         ],
