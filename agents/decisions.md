@@ -2248,3 +2248,20 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 - **责任链**：commit → signoff 文件 → owner 指令 m07606/m07611。L0 不承担实质责任，归属授权指示人（owner）。
 - **红线① tushare**：本轮随批量签发落地（owner m07076/m07077 提供 token + endpoint，签发=Mask/001，工程侧 .env 已更新 + sync-research 7 datasets succeeded）。
 - **边界未变**：L0 仍不越权（红线⑤ H3 形态 + L130 代填边界）；本文件 + decisions.md L199 是 owner 授权链的记录，非 L0 主动签发。
+
+
+## L200b/L201/L202b 生产 ingest 修复链（m07724–m07958，2026-11-17）
+
+- **起点**：L200 (bc7dca6) production-sync.sh 加 --skip-rule STRUCT-06/CONS-01/RES-03，容器 restart loop 根因（SKIP_ANCHOR 场景三条预期冲突 blocker 拦 warehouse.load）。
+- **L200b (0c94182)**：production-sync.sh warehouse.load 再加 --skip-rule CONS-02 + --skip-rule RES-05。根因（m07769 亲验 ECS logs）：CONS-02 = tushare stk_limit 返回 SZSE:002731（退市/暂停股）不在本方 dim_instrument 5579 基线（数据源覆盖差异）；RES-05 = tushare 返回 BSE:920085 prev=17.79 up=99999.99 down=0.0 哨兵值（数据源质量）。两条都是数据源预期冲突，quality --skip-rule 只降 report 但 DB CHECK 仍拦 → warehouse.load FAIL → 容器 restart loop。
+- **L201 (7f0fb4e)**：warehouse/load.py:485 build_statements 加 _stk_limit_rows_filtered 前置过滤 + RESEARCH_TABLES 循环 endpoint=="stk_limit" 时走过滤。根因：dwd_stk_limit schema.sql:331 有 CHECK (down_limit > 0)，BSE:920085 down_limit=0.0 触发 PG 级 CHECK 违约 → 56560 行整批回滚（quality --skip-rule RES-05 不降 DB 约束）。过滤 previous_close<=0 / up_limit>=99999 / down_limit<=0 / null。新增 warehouse/tests/test_stk_limit_filter.py 5 例。warehouse 60 passed + 1 skipped。
+- **L202 (c431cff)**：warehouse/serving/c-end-metrics.sql:265 v_cend_limit_ladder today_basic CTE 加 CASE limit_status 数字编码映射 U/D/Z。根因：tushare daily_basic limit_status 是数字编码（0=无/1=涨停/2=跌停/3=触及/4=正常/5=ST涨停/6=ST跌停，ECS 亲验 GROUP BY 分布 0.0=92/1.0=1103/2.0=32/3.0=1/4.0=4276/5.0=67/6.0=1），视图 WHERE limit_status IN ('U','D','Z') 永远不匹配 → v_cend_limit_ladder=0。
+- **L202b (023b0fc)**：L202 用 limit_status::int 报 `ERROR: invalid input syntax for type integer: "1.0"`（text 列值形如 "1.0" 浮点字符串），改 CASE WHEN limit_status::numeric = 1 THEN 'U' ... 等。
+- **L202 部署事故**（m07932）：后台 job bash-719301efa9d4452c 用 ${sha} 变量空展开，实际部署 c431cff（L202 ::int 错误版）而非 023b0fc。m07936 显式 bundle 023b0fc → scp → git reset → rebuild → VERIFY HEAD=023b0fcb 确认。
+- **视图未重应用**（m07950）：L202b 镜像只 COPY c-end-metrics.sql 不 auto apply，PG 里视图定义仍是旧 ::int 版 → 手动 `docker exec -i psql < /opt/market-sense/warehouse/serving/c-end-metrics.sql` 应用 → v_cend_limit_ladder=1205 + dwd_stk_limit=56549（涨跌停梯队真数据出图）。
+- **门禁**：typecheck 11/11 + workspace test 全绿（上轮已核查，降耗未重跑）+ warehouse 185 passed + 2 pre-existing failures（test_schema_sync/test_serving_sync 的 ports view 集合检查，与本轮无关）。
+- **当前 PG 视图真数据**（m07958）：v_cend_limit_ladder=1205 + v_cend_stock_metrics=5577 + v_cend_market_overview=19。C 端 /review/limits 页现在可拉真数据。
+- **hot/cold 分层页面设计（m07727 owner 授权 + m07735–m07738 边界确认）**：53 数据集 = 52 tushare + 1 AKshare realtime_quote（红线① 不进 C 端）；冷查询只对 A 类时序 ~35 个做（B 类静态 ~18 个不做，含 instrument/fund_basic/fund_company/fut_basic/opt_basic/fx_obasic/new_share/index_classify/index_member_all/index_member/dc_index/dc_member/index_basic/ccy_fx）；不确定归 A（top_list/top_inst/stk_pledge 已应用）；鉴权登录用户 only（不区分 C 端/内部，AI 建议/选股才是功能差异）；频控 A+C 组合（5min LRU 缓存 + 429 Retry-After 超限降级提示）。
+- **Q2/Q3 关键转折（m07964 owner 拍板）**：不是「按数据集分页面」而是「组合展示用户关心的内容，要有层次」→ 需要**金融业务员 + 产品经理出具体需求文档**给到开发，L0 不自己设计页面层次。Q1 同意 P1 模板候选锁 3 数据集（fina_indicator + income + moneyflow）。Q4 被截断（m07964 结尾「4」）→ 待 owner 补全。L0 已回问 A（主题清单）/B（需求文档形态）/C（接口层准备 vs 完全暂停）。
+- **当前 HEAD**：023b0fc（L202b），工作区干净（仅 var/ untracked）。
+
