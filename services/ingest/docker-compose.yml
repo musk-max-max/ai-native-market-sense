@@ -30,6 +30,10 @@ services:
       PG_DSN: ${PG_DSN:?set PG_DSN}
       SYNC_SCHEDULE: "${SYNC_SCHEDULE:-0 18 * * 1-5}"   # 工作日 18:00 UTC=次日 02:00 Asia/Shanghai
       SYNC_LOOKBACK_DAYS: ${SYNC_LOOKBACK_DAYS:-30}
+      # L195: 跳过 bars 主循环的 _ensure_anchors + fetch_market_factors。
+      # 30 日窗口下 anchors_full 会触发 ~5579 instrument × N days 的 adj_factor 拉取（>5 小时）；
+      # serving.v_cend_* 视图当前只读 dwd_stock_bar_daily.close/volume/amount，不依赖 adj_factor。
+      SKIP_ANCHOR_PRELOAD: "1"
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     command: ["/bin/sh", "/app/services/ingest/scripts/production-sync.sh"]
     networks: [ingest-wan, e2e-app-net]
