@@ -42,8 +42,13 @@ python -m market_ingest sync-research \
     echo "[ingest] WARN stk_limit sync failed (non-fatal; v_cend_limit_ladder stays empty)"
 
 echo "[ingest] step 4/4 warehouse.load ODS->DWD (PostgreSQL)"
-# SKIP_ANCHOR_PRELOAD=1 场景下 STRUCT-06 (bars 缺 adj_factor)、CONS-01 (窗口边界 prev_close)、RES-03 (hk_hold/退市引用不在 dim_instrument) 是预期冲突，显式降为 warn。
-# 非 SKIP_ANCHOR 场景这三条仍会拦（quality_config.json 是 single source of truth）。
+# 生产场景预期冲突 blocker 显式降 warn：
+# - STRUCT-06: bars 缺 adj_factor (SKIP_ANCHOR_PRELOAD=1 下预期)
+# - CONS-01: 窗口边界 prev_close 缺前日 bar (30d lookback 起点预期)
+# - RES-03: hk_hold/退市 top_inst 引用不在 dim_instrument (研究数据源覆盖广于 instrument 基线)
+# - CONS-02: stk_limit 引用退市/暂停股不在 dim_instrument (tushare 返回 SZSE:002731 等，数据源覆盖差异)
+# - RES-05: tushare 返回涨跌停价格哨兵值/脏数据 (BSE:920085 prev=17.79 up=99999.99 down=0.0，数据源质量)
+# 非 SKIP_ANCHOR 场景 STRUCT-06/CONS-01 仍会拦（quality_config.json 是 single source of truth）。
 python -m warehouse.load \
     --ods-root /data/ods \
     --internal-ods-root /data/ods/internal \
@@ -51,6 +56,8 @@ python -m warehouse.load \
     --dsn "${PG_DSN}" \
     --skip-rule STRUCT-06 \
     --skip-rule CONS-01 \
-    --skip-rule RES-03
+    --skip-rule RES-03 \
+    --skip-rule CONS-02 \
+    --skip-rule RES-05
 
 echo "[ingest] all done"
