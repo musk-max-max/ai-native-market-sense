@@ -2206,3 +2206,34 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 - **数据依赖**：v_cend_limit_ladder 当前 ECS 0 行（tushare token 失效），页端表现 empty——token 更新后自动出真数据，前端无需再改。
 - **剩余 provisional 项**：(1) 连板 streakDays 需 serving.v_cend_limit_ladder 补 streak 计算（跨日 join dwd_stk_limit 多日序列）；(2) ST 排除计数需视图补 `CASE WHEN i.name LIKE '%ST%'` 聚合。均属口径补完，不影响当前 up/down 计数。
 - **边界**：纯工程实现 + 前端聚合，不触制度签发（H3 形态已合规）；tushare token 失效仍 owner 侧待更新（红线①）；L0 禁代签。
+
+## L195–L198 生产 ingest 修复链（b57 之后，m07076–m07528）
+
+### L195–L197：compose + sync.sh 修复（已在 b60 记录）
+- L195 333b62b：compose 读 TUSHARE_API_URL + TUSHARE_USER_AGENT from .env。
+- L196 5ff0da3：compose 加 SKIP_ANCHOR_PRELOAD=1 跳过 bars _ensure_anchors。
+- L197 bbf83b4：production-sync.sh END=yesterday UTC 避免日中 C04 倒挂。
+
+### L198 3d2ead3（方案 A，用户 m07411 授权）：hk_hold as_of 统一 T 收盘
+- **用户意图**（m07074–m07077）：主 agent 具备最高权限可代 owner 更新运行时 token（工程实施非签发），并提供新 tushare token + 第三方 endpoint tuaremax.top + UA tushare/1.4.24。
+- **C04 根因定位**：sync.py:1771 _research_as_of 把 hk_hold 的 T+1 披露当 as_of 阈值 → as_of=T+1 15:00，日中 fetched_at=T+1 10:00 倒挂（fetched_at < as_of）→ loader.py:757 C04 拒。
+- **语义裁定**（H2 边界内，未触 H3 签发）：as_of 是数据代表的市场时点（models.py:126），不是抓取时间；hk_hold 持仓快照对应 T 收盘，T+1 上午才可从数据源取到属**抓取侧约束**，不进入 as_of 阈值定义。
+- **工程修复**（8 文件，commit 3d2ead3）：
+  - services/ingest/src/market_ingest/sync.py:1771 _research_as_of 移除 hk_hold T+1 特例，统一 market_close_at(day)。
+  - warehouse/quality/quality_config.json research_as_of.hk_hold: offset_days 1→0 + note 更新。
+  - warehouse/quality/checks.py:57 RES-04 label + tests/data/quality_policy.yaml:111 同步。
+  - docs/metrics/P0-metrics.md RES-04 规范行 + warehouse/README.md RES-04 说明。
+  - services/ingest/tests/test_research.py:522 改 test_sync_research_hk_hold_as_of_is_t_close（期望 DAY1 15:00）。
+  - warehouse/tests/test_research.py:270 改 test_res04_hk_hold_uses_t_close_threshold + config policy test。
+- **门禁**：ingest 228 pass + mypy 0 err + pnpm -r typecheck 11/11 + pnpm -r test 全绿 + warehouse 214 passed（2 pre-existing 与本轮无关）。
+- **ECS 部署**：HEAD 3d2ead3 已 scp bundle 到 ECS + git reset --hard 成功；**容器重建被 SSH 限流阻塞**（CGNAT + sshd MaxStartups 触发 banner exchange timeout，连续 5+ 次 60s 间隔重试均失败）。
+
+### SSH 限流根因（本轮再次亲验）
+- China Telecom 家宽 CGNAT → 阿里云上海，NAT 网关回收空闲 TCP；连续多次 ssh/scp 触发 sshd MaxStartups 默认 10:30:100 → banner exchange 超时。
+- workaround：单连接 + 长 cooldown（>2 min）。本轮 cooldown 60s 不够，需 3–5 min 才恢复。
+- 容器当前 Exited (1)（L197 END=yesterday 仍 hk_hold T+1 15:00 触发 C04），等 SSH 恢复后 docker build + compose up -d 即可拉起。
+
+### 落账
+- 本地/GitHub HEAD=3d2ead3（L198 8 文件）。
+- ECS /opt/market-sense HEAD=3d2ead3，但镜像 market-sense-ingest:latest 仍是 bbf83b4 产物，需 SSH 恢复后重建。
+
