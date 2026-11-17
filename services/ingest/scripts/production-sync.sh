@@ -10,7 +10,9 @@ set -eu
 : "${TUSHARE_TOKEN:?set TUSHARE_TOKEN}"
 : "${SYNC_LOOKBACK_DAYS:=30}"
 START=$(date -u -d "-${SYNC_LOOKBACK_DAYS} days" +%Y-%m-%d)
-END=$(date -u +%Y-%m-%d)
+# END 取昨日 UTC：避免日中运行时把今日 bar 的 as_of=15:00 与 fetched_at=now 倒挂（C04 loader 拒）。
+# 生产常规在 18:00 UTC（次日 02:00 Asia/Shanghai）跑，昨日=已收盘交易日。
+END=$(date -u -d '-1 day' +%Y-%m-%d)
 echo "[ingest] window ${START} .. ${END}"
 
 echo "[ingest] step 1/3 sync-instruments"
