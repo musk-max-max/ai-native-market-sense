@@ -23,7 +23,8 @@ services:
     restart: unless-stopped
     environment:
       TUSHARE_TOKEN: ${TUSHARE_TOKEN:?set TUSHARE_TOKEN}
-      TUSHARE_API_URL: "https://api.tushare.pro"
+      TUSHARE_API_URL: ${TUSHARE_API_URL:?set TUSHARE_API_URL}
+      TUSHARE_USER_AGENT: ${TUSHARE_USER_AGENT:?set TUSHARE_USER_AGENT}
       DATA_IMPORT_OPERATOR: "ecs-production-ingest"
       DATA_SOURCE_MODE: live
       PG_DSN: ${PG_DSN:?set PG_DSN}
