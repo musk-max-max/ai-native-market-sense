@@ -273,7 +273,18 @@ WITH latest_limit AS (
 today_basic AS (
     SELECT DISTINCT ON (instrument_id)
            instrument_id, trade_date, close, turnover_rate_pct, pe_ttm,
-           total_market_value, limit_status, as_of
+           total_market_value, 
+           -- L202：tushare daily_basic limit_status 数字编码映射为 U/D/Z 语义
+           -- 0=无状态 1=涨停(U) 2=跌停(D) 3=触及未封(Z) 4=正常 5=ST涨停 6=ST跌停
+           CASE limit_status::int
+               WHEN 1 THEN 'U'
+               WHEN 2 THEN 'D'
+               WHEN 3 THEN 'Z'
+               WHEN 5 THEN 'U'  -- ST涨停也归 U
+               WHEN 6 THEN 'D'  -- ST跌停也归 D
+               ELSE NULL
+           END AS limit_status,
+           as_of
     FROM dwd_daily_basic
     ORDER BY instrument_id, trade_date DESC
 ),
