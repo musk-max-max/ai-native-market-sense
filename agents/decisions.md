@@ -2312,3 +2312,12 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 - **视图应用**：c-end-metrics.sql（L203 limit_up_count 语义修正）+ c-end-themes.sql（M1a 三主题视图）。
 - **验证结果**：v_cend_limit_ladder=1205（stk_limit 真数据出图）+ v_cend_market_overview=19 + v_cend_stock_metrics=5577 + v_cend_theme_sentiment_market=10 + v_cend_theme_sentiment_stock=55809 + v_cend_theme_valuation_price=55722。v_cend_theme_fin_health=0（dwd_fina_indicator/dwd_research_income 未 ingest，待 sync-research）。
 - **C 端可用**：T2 估值行情 + T3 资金情绪真数据出图。T1 财务健康待研究数据集 ingest。
+
+## L208 fina_indicator + income 季频数据底座（941efcc，2026-11-18）
+
+- **owner m08098 六项分发 + A3 9 次真实探针证据**：income 现为 daily 模式 {trade_date} 必失败（code=50101 必填 ts_code）；fina_indicator per_instrument start/end 是**报告期区间**（近 30 天窗口探针 0 行，无季末），且 checkpoint 收窄到 resume+1d → 增量运行结构性错过新报告期，脚本级无解。
+- **方案甲（L0 裁定）**：fina_indicator/income 改 per_period 模式 + *_vip 端点（fina_indicator_vip/income_vip，5000 分档）；sync.py 白名单 + 季末日迭代（_period_dates：窗口内 0331/0630/0930/1231，**不做 resume 收窄**、幂等重拉）；adapter fetch_research 加 per_period 分支 params={period:YYYYMMDD}；ODS endpoint=dataset key 不变（warehouse.load 零改动）；as_of=批次行 announced_at 最大值（C04 公告日≤抓取日天然成立）。
+- **production-sync.sh step 3c**：SYNC_QUARTER_LOOKBACK_DAYS=750（≈近 8 报告期），--datasets fina_indicator,income，失败非致命（与 3b stk_limit 同模式）。
+- **门禁**：services/ingest pytest 229 passed + mypy 25 files clean + warehouse pytest 221 passed/2 skipped + sh -n + --help exit 0 + typecheck 10/10。
+- **估算**：~2 通/期 × 8 期 × 2 集 ≈ 32 通/次 ≪ 默认预算 1000；ODS 增量 ~18 万行（income 修正版重复行，dwd 落表按 PK 合并）。
+- **部署待 SSH cooldown**：ECS SSH 持续限流（CGNAT + MaxStartups 饱和），bundle + scp + 重建 ingest 镜像 + 跑 step 3c 延后；跑完 v_cend_theme_fin_health 应从 0 起量。
