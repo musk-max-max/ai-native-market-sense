@@ -10,6 +10,7 @@ import { WatchlistPage } from './pages/WatchlistPage';
 import { AiHomePage } from './pages/AiHomePage';
 import { AiCardFixturePage } from './pages/AiCardFixturePage';
 import { MePage } from './pages/MePage';
+import { LoginPage } from './pages/LoginPage';
 import { MetricsOverviewPage } from './pages/MetricsOverviewPage';
 import { StockMetricsPage } from './pages/StockMetricsPage';
 import { TabBar } from './components/TabBar';
@@ -53,6 +54,7 @@ export function App() {
         {route.name === 'limitLadder' && <LimitLadderPage />}
         {route.name === 'ai' && <AiHomePage />}
         {route.name === 'me' && <MePage />}
+        {route.name === 'login' && <LoginPage />}
         {route.name === 'metricsOverview' && <MetricsOverviewPage />}
         {route.name === 'stockMetrics' && <StockMetricsPage instrumentId={route.instrumentId} />}
         {route.name === 'stock' && <StockPage instrumentId={route.instrumentId} />}

@@ -17,7 +17,7 @@ import type {
   SharedComponents,
   WatchlistComponents,
 } from '@market-sense/api-client';
-import { readAuthToken } from '../lib/auth';
+import { handleUnauthorized, readAuthToken } from '../lib/auth';
 import type {
   GatewayError,
   MarketGateway,
@@ -100,6 +100,8 @@ function networkError(): GatewayError {
 }
 
 function responseError(status: number): GatewayError {
+  // Q5：行情域 401 在此统一收口跳登录（watchlist 的 401→anonymous 在各方法提前分支，不会走到这）。
+  handleUnauthorized(status);
   return { status, network: false };
 }
 

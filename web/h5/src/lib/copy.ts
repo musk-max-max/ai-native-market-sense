@@ -345,6 +345,21 @@ export const copy = {
       '全文文案以服务端下发版本为准，本页不提供关闭或折叠入口。',
     copyVersionLabel: '文案版本',
   },
+  /** 登录页（/login）：Q5-front Phase 2（L0 m00723 授权落键，词句 L0 已确认）。 */
+  login: {
+    title: '登录',
+    lede: '登录后可使用自选与组合复盘；未登录时不展示账户数据。',
+    emailLabel: '邮箱',
+    passwordLabel: '密码',
+    submit: '登录',
+    submitting: '正在登录…',
+    nextInvalid: '跳转地址无效，已返回首页。',
+    errorInvalid: '邮箱或密码不正确，请重试。',
+    errorValidation: '请检查邮箱与密码格式后重试。',
+    errorForbidden: '暂时无法登录，请稍后再试。',
+    errorNetwork: '网络连接失败，请稍后再试。',
+    errorStorage: '浏览器存储不可用，登录态无法保存，请调整存储设置后重试。',
+  },
   gap: {
     title: '数据缺口',
     footnote: '缺口按受控类别显式标注，不用 0、样例值或推测值填充。',

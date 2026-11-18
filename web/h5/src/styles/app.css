@@ -976,6 +976,84 @@ input {
   font-weight: 600;
 }
 
+/* 登录页（/login · Q5-front Phase 2）：复用 search 表单的尺寸语言，独立类不波及既有页。 */
+.login {
+  margin-top: 18px;
+}
+
+.login__title {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.3;
+}
+
+.login__lede {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.login__form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.login__label {
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+}
+
+.login__input {
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 15px;
+}
+
+.login__input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.login__submit {
+  height: 44px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-size: 15px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.login__submit[disabled] {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.login__error {
+  margin: 4px 0 0;
+  color: var(--danger-text);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.55;
+}
+
+.login__notice {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
 .home__links {
   display: flex;
   flex-wrap: wrap;

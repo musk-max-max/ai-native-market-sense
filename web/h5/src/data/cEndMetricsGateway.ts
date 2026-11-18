@@ -5,7 +5,7 @@
  * 数字以字符串透传，由前端 number() 转换；不输出投资建议/评级/目标价（HANDOFF §1 硬约束 2）。
  */
 
-import { authFetch } from '../lib/auth';
+import { authFetch, handleUnauthorized } from '../lib/auth';
 
 export interface StockMetrics {
   instrument_id: string;
@@ -96,6 +96,7 @@ export class HttpCEndMetricsGateway implements CEndMetricsGateway {
   async getOverview(): Promise<OverviewResult> {
     try {
       const res = await authFetch(`${this.baseUrl}/v1/c-end/overview`);
+      handleUnauthorized(res.status);
       if (!res.ok) return { kind: 'error', status: res.status, network: false };
       const json = (await res.json()) as { metrics?: readonly MarketOverviewMetric[] };
       if (!Array.isArray(json.metrics)) return { kind: 'error', status: res.status, network: false };
@@ -109,6 +110,7 @@ export class HttpCEndMetricsGateway implements CEndMetricsGateway {
     try {
       const encoded = encodeURIComponent(instrumentId);
       const res = await authFetch(`${this.baseUrl}/v1/c-end/stocks/${encoded}/metrics`);
+      handleUnauthorized(res.status);
       if (!res.ok) return { kind: 'error', instrumentId, status: res.status, network: false };
       const json = (await res.json()) as StockMetrics;
       if (!json || typeof json.instrument_id !== 'string') {
@@ -123,6 +125,7 @@ export class HttpCEndMetricsGateway implements CEndMetricsGateway {
   async getLimitLadder(): Promise<LimitLadderResult> {
     try {
       const res = await authFetch(`${this.baseUrl}/v1/c-end/limits`);
+      handleUnauthorized(res.status);
       if (!res.ok) return { kind: 'error', status: res.status, network: false };
       const json = (await res.json()) as { rows?: readonly LimitLadderRow[] };
       if (!Array.isArray(json.rows)) return { kind: 'error', status: res.status, network: false };

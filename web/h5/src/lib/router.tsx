@@ -10,6 +10,7 @@
  *  - /review/limits            B1-02 涨跌停梯队
  *  - /ai                       「AI」Tab：AI 解读聚合入口（docs/design/c-end-h5-v2.md §1.1）
  *  - /me                       「我的」Tab：账户 / 权限 / 退订（置顶）/ 免责全文
+ *  - /login                    Q5 登录页（email+password，写态后跳 ?next= 站内路径）
  *  - /metrics                  多维度市场概览（金融维度目录 v1.0 · 5 tab · GET /v1/c-end/overview）
  *  - /stocks/:id/metrics       个股全维度展示（30+ 维度 · GET /v1/c-end/stocks/:id/metrics）
  *  - /dev/ai-card              AI 卡视觉采证 fixture（A6；非产品路由，页面自标注）
@@ -32,6 +33,7 @@ export type Route =
   | { name: 'metricsOverview' }
   | { name: 'stockMetrics'; instrumentId: string }
   | { name: 'aiCardFixture' }
+  | { name: 'login' }
   | { name: 'notFound'; path: string };
 
 const NAVIGATE_EVENT = 'app:navigate';
@@ -62,6 +64,7 @@ export function parseRoute(pathname: string): Route {
     return { name: 'limitLadder' };
   if (pathname === '/ai' || pathname === '/ai/') return { name: 'ai' };
   if (pathname === '/me' || pathname === '/me/') return { name: 'me' };
+  if (pathname === '/login' || pathname === '/login/') return { name: 'login' };
   if (pathname === '/metrics' || pathname === '/metrics/') return { name: 'metricsOverview' };
   // 视觉采证 fixture 路由：静态数据、零请求；页面上显式标注非 API 响应（m00346）。
   if (pathname === '/dev/ai-card' || pathname === '/dev/ai-card/')

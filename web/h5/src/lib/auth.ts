@@ -8,6 +8,8 @@
  *    既有测试与 Dockerfile 构建参数（web/h5/Dockerfile:29）不需改动；
  *  - 页面不硬编码 token。
  */
+import { navigate } from './router';
+
 const PRIMARY_AUTH_STORAGE_KEY = 'ms_token';
 
 const LEGACY_E2E_STORAGE_KEY: string =
@@ -65,4 +67,19 @@ export async function authFetch(input: RequestInfo | URL, init?: RequestInit): P
   const headers = new Headers(init?.headers);
   headers.set('Authorization', `Bearer ${token}`);
   return fetch(input, { ...init, headers });
+}
+
+/**
+ * 401 统一收口（Q5 分层单点裁定）：仅状态码 401 生效——非 /login 页收到 401 时
+ * 同步 pushState 跳 /login?next=<当前路径+query>；navigate 是同步的，pathname 守卫
+ * 使并发 401 天然去重、且不会在登录页自跳成环。
+ * watchlist 域的 401→anonymous 在 apiGateway 提前分支处理，不会走到这里；
+ * 登录页自身的 401（密码错误）由 LoginPage 就地报错，也不调用本函数。
+ */
+export function handleUnauthorized(status: number | null): void {
+  if (status !== 401) return;
+  if (typeof window === 'undefined') return;
+  const { pathname, search } = window.location;
+  if (pathname === '/login' || pathname === '/login/') return;
+  navigate(`/login?next=${encodeURIComponent(`${pathname}${search}`)}`);
 }
