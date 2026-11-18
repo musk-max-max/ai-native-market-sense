@@ -1,19 +1,25 @@
 /**
- * E2E 登录态读取。
+ * 登录态读写与 Bearer 注入（Q5-front 裁定，A6）。
  *
- * A12 契约：E2E 在页面加载前通过 addInitScript 写入 localStorage["e2e_token"]，
- * 页面请求层读取该 token 并注入 Authorization: Bearer。页面不硬编码 token。
- * 若测试侧通过 E2E_AUTH_STORAGE_KEY 改名，可用构建变量 VITE_E2E_AUTH_STORAGE_KEY 对齐。
+ * 键位契约：
+ *  - 主键 `ms_token`：登录页 writeAuthToken 写入的通用登录态（Q5 裁定）；
+ *  - 回退 `e2e_token`（可经构建变量 VITE_E2E_AUTH_STORAGE_KEY 改名）：
+ *    A12 契约——E2E 在页面加载前用 addInitScript 写入该键，读取端保持回退，
+ *    既有测试与 Dockerfile 构建参数（web/h5/Dockerfile:29）不需改动；
+ *  - 页面不硬编码 token。
  */
-const DEFAULT_AUTH_STORAGE_KEY = 'e2e_token';
+const PRIMARY_AUTH_STORAGE_KEY = 'ms_token';
 
-const AUTH_STORAGE_KEY: string =
-  (import.meta.env.VITE_E2E_AUTH_STORAGE_KEY as string | undefined) ?? DEFAULT_AUTH_STORAGE_KEY;
+const LEGACY_E2E_STORAGE_KEY: string =
+  (import.meta.env.VITE_E2E_AUTH_STORAGE_KEY as string | undefined) ?? 'e2e_token';
 
+/** 读取登录态：ms_token 优先，空/缺时回退 e2e_token；存储不可用视为未登录。 */
 export function readAuthToken(): string | null {
   try {
-    const token = window.localStorage.getItem(AUTH_STORAGE_KEY);
-    return token && token.trim().length > 0 ? token : null;
+    const primary = window.localStorage.getItem(PRIMARY_AUTH_STORAGE_KEY);
+    if (primary && primary.trim().length > 0) return primary;
+    const legacy = window.localStorage.getItem(LEGACY_E2E_STORAGE_KEY);
+    return legacy && legacy.trim().length > 0 ? legacy : null;
   } catch {
     // 隐私模式 / 存储被禁用时视为未登录，不影响行情展示。
     return null;
@@ -22,4 +28,41 @@ export function readAuthToken(): string | null {
 
 export function hasAuthToken(): boolean {
   return readAuthToken() !== null;
+}
+
+/**
+ * 写入登录态（只写主键；不覆盖回退键）。
+ * 空 token 忽略；隐私模式写入失败静默——调用方写后用 hasAuthToken() 复核，
+ * 失败则停留在登录页报「存储不可用」，避免落进 401 跳转回环。
+ */
+export function writeAuthToken(token: string): void {
+  const trimmed = token.trim();
+  if (trimmed.length === 0) return;
+  try {
+    window.localStorage.setItem(PRIMARY_AUTH_STORAGE_KEY, trimmed);
+  } catch {
+    // 隐私模式 / 配额满：无态可写，由调用方复核兜底。
+  }
+}
+
+/** 清除登录态：主键与 E2E 回退键同删，防旧态复活。 */
+export function clearAuthToken(): void {
+  try {
+    window.localStorage.removeItem(PRIMARY_AUTH_STORAGE_KEY);
+    window.localStorage.removeItem(LEGACY_E2E_STORAGE_KEY);
+  } catch {
+    // 存储不可用时本就无态可清。
+  }
+}
+
+/**
+ * 带 Bearer 的 fetch：有登录态才注入 Authorization（Q5：cEndMetrics 网关三处裸 fetch 收口）。
+ * 无 token 时原样透传，让服务端 401 fail-closed，前端再按域语义处理。
+ */
+export async function authFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const token = readAuthToken();
+  if (token === null) return fetch(input, init);
+  const headers = new Headers(init?.headers);
+  headers.set('Authorization', `Bearer ${token}`);
+  return fetch(input, { ...init, headers });
 }

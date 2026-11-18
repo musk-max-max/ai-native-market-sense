@@ -5,6 +5,8 @@
  * 数字以字符串透传，由前端 number() 转换；不输出投资建议/评级/目标价（HANDOFF §1 硬约束 2）。
  */
 
+import { authFetch } from '../lib/auth';
+
 export interface StockMetrics {
   instrument_id: string;
   instrument_name: string | null;
@@ -87,13 +89,13 @@ export interface CEndMetricsGateway {
   getLimitLadder(): Promise<LimitLadderResult>;
 }
 
-/** 默认 fetch 实现：/v1/c-end/*  */
+/** 默认实现：/v1/c-end/*（Q5：三处裸 fetch 统一走 authFetch 注入 Bearer）。 */
 export class HttpCEndMetricsGateway implements CEndMetricsGateway {
   constructor(private readonly baseUrl = '') {}
 
   async getOverview(): Promise<OverviewResult> {
     try {
-      const res = await fetch(`${this.baseUrl}/v1/c-end/overview`);
+      const res = await authFetch(`${this.baseUrl}/v1/c-end/overview`);
       if (!res.ok) return { kind: 'error', status: res.status, network: false };
       const json = (await res.json()) as { metrics?: readonly MarketOverviewMetric[] };
       if (!Array.isArray(json.metrics)) return { kind: 'error', status: res.status, network: false };
@@ -106,7 +108,7 @@ export class HttpCEndMetricsGateway implements CEndMetricsGateway {
   async getStockMetrics(instrumentId: string): Promise<StockMetricsResult> {
     try {
       const encoded = encodeURIComponent(instrumentId);
-      const res = await fetch(`${this.baseUrl}/v1/c-end/stocks/${encoded}/metrics`);
+      const res = await authFetch(`${this.baseUrl}/v1/c-end/stocks/${encoded}/metrics`);
       if (!res.ok) return { kind: 'error', instrumentId, status: res.status, network: false };
       const json = (await res.json()) as StockMetrics;
       if (!json || typeof json.instrument_id !== 'string') {
@@ -120,7 +122,7 @@ export class HttpCEndMetricsGateway implements CEndMetricsGateway {
 
   async getLimitLadder(): Promise<LimitLadderResult> {
     try {
-      const res = await fetch(`${this.baseUrl}/v1/c-end/limits`);
+      const res = await authFetch(`${this.baseUrl}/v1/c-end/limits`);
       if (!res.ok) return { kind: 'error', status: res.status, network: false };
       const json = (await res.json()) as { rows?: readonly LimitLadderRow[] };
       if (!Array.isArray(json.rows)) return { kind: 'error', status: res.status, network: false };
