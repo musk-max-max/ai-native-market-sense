@@ -13,7 +13,7 @@ import { navigate } from './router';
 const PRIMARY_AUTH_STORAGE_KEY = 'ms_token';
 
 const LEGACY_E2E_STORAGE_KEY: string =
-  (import.meta.env.VITE_E2E_AUTH_STORAGE_KEY as string | undefined) ?? 'e2e_token';
+  (import.meta.env?.VITE_E2E_AUTH_STORAGE_KEY as string | undefined) ?? 'e2e_token';
 
 /** 读取登录态：ms_token 优先，空/缺时回退 e2e_token；存储不可用视为未登录。 */
 export function readAuthToken(): string | null {

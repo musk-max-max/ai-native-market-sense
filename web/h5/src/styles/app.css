@@ -1054,6 +1054,97 @@ input {
   line-height: 1.55;
 }
 
+/* ---------- 冷数据降级卡（M1a-F3，需求 §4.3 场景 A/B/C + stale 徽标） ---------- */
+
+.cold-loading {
+  padding: 14px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.cold-card {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.cold-card--throttle {
+  border-color: var(--warning-border);
+  background: var(--warning-bg);
+}
+
+.cold-card--timeout {
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+}
+
+.cold-card--error {
+  border-color: var(--danger-border);
+  background: var(--danger-bg);
+}
+
+.cold-card__title {
+  margin: 0;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.cold-card__body,
+.cold-card__countdown {
+  margin: 6px 0 0;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.cold-card--throttle .cold-card__title,
+.cold-card--throttle .cold-card__body,
+.cold-card--throttle .cold-card__countdown {
+  color: var(--warning-text);
+}
+
+.cold-card--error .cold-card__title,
+.cold-card--error .cold-card__body,
+.cold-card--error .cold-card__countdown {
+  color: var(--danger-text);
+}
+
+.cold-card__retry {
+  margin-top: 10px;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cold-card__retry[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.cold-stale-badge {
+  display: inline-block;
+  margin: 0 0 8px;
+  padding: 3px 9px;
+  border: 1px solid var(--warning-border);
+  border-radius: var(--radius-pill);
+  background: var(--warning-bg);
+  color: var(--warning-text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .home__links {
   display: flex;
   flex-wrap: wrap;
