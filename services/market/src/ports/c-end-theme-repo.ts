@@ -50,6 +50,48 @@ export interface ValuationPriceSeries {
   readonly percentiles: ValuationPercentiles;
 }
 
+/** T3 市场情绪行（v_cend_theme_sentiment_market，按 trade_date DESC；只市场级无个股行）。 */
+export interface SentimentMarketRow {
+  readonly trade_date: string;
+  readonly limit_up_count: string | null;
+  readonly limit_down_count: string | null;
+  readonly advancers: string | null;
+  readonly decliners: string | null;
+  readonly adv_dec_ratio: string | null;
+  readonly max_limit_streak: string | null;
+  readonly moneyflow_net_inflow_total: string | null;
+  readonly margin_financing_balance: string | null;
+}
+
+/** T3 个股资金情绪行（v_cend_theme_sentiment_stock，按 trade_date DESC；无涨跌停列）。 */
+export interface SentimentStockRow {
+  readonly instrument_id: string;
+  readonly trade_date: string;
+  readonly net_inflow_amount: string | null;
+  readonly lhb_net_amount: string | null;
+  readonly inst_net_buy_amount: string | null;
+  readonly financing_balance: string | null;
+}
+
+/**
+ * T3 个股窗口汇总（近 windowRows 个交易日）。
+ * 空序列 → 全 null（含 lhb_count）；有序列但 0 天上榜 → lhb_count='0'。
+ */
+export interface SentimentStockSummary {
+  readonly net_inflow_sum: string | null;
+  readonly net_inflow_latest: string | null;
+  readonly lhb_count: string | null;
+  readonly lhb_net_buy_sum: string | null;
+  readonly inst_net_buy_sum: string | null;
+  readonly financing_balance_latest: string | null;
+  readonly financing_balance_change: string | null;
+}
+
+export interface SentimentStockSeries {
+  readonly rows: readonly SentimentStockRow[];
+  readonly summary: SentimentStockSummary;
+}
+
 export interface CEndThemeRepo {
   /**
    * T1：个股财务健康近 8 季（announced_at DESC，视图已 rn<=8 截断）。
@@ -62,4 +104,13 @@ export interface CEndThemeRepo {
    * windowRows 由路由按 range 解析（1y=250、3y=750）；空序列 → rows:[] + 分位全 null。
    */
   getValuationPrice(instrumentId: string, windowRows: number): Promise<ValuationPriceSeries>;
+
+  /** T3：市场级情绪日序列（trade_date DESC 前 windowRows 个交易日）。 */
+  getSentimentMarket(windowRows: number): Promise<readonly SentimentMarketRow[]>;
+
+  /**
+   * T3：个股资金情绪窗口（trade_date DESC 前 windowRows 个交易日）+ 窗口汇总。
+   * windowRows 由路由按 window 解析（30d=30）；空序列 → rows:[] + summary 全 null。
+   */
+  getSentimentStock(instrumentId: string, windowRows: number): Promise<SentimentStockSeries>;
 }

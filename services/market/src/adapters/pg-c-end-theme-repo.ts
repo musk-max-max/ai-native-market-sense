@@ -11,6 +11,10 @@ import type { Pool, PoolClient } from 'pg';
 
 import type {
   CEndThemeRepo,
+  SentimentMarketRow,
+  SentimentStockRow,
+  SentimentStockSeries,
+  SentimentStockSummary,
   ThemeFinHealthRow,
   ValuationPriceRow,
   ValuationPriceSeries,
@@ -88,6 +92,80 @@ export class PgCEndThemeRepo implements CEndThemeRepo {
       rows,
       percentiles:
         percentileRows[0] ?? { pe_ttm: null, pb: null, close: null, turnover_rate_pct: null },
+    };
+  }
+
+  async getSentimentMarket(windowRows: number): Promise<readonly SentimentMarketRow[]> {
+    // 窗口行：trade_date DESC 前 windowRows 个交易日（30d=30）；streak 已在视图内
+    // 按全历史算完（窗口截断不影响跨窗口边界的连板延续）
+    const { rows } = await this.pool.query<SentimentMarketRow>(
+      `SELECT trade_date, limit_up_count, limit_down_count, advancers, decliners,
+              adv_dec_ratio, max_limit_streak, moneyflow_net_inflow_total,
+              margin_financing_balance
+         FROM (
+           SELECT v.*, ROW_NUMBER() OVER (ORDER BY v.trade_date DESC) AS rn_desc
+             FROM serving.v_cend_theme_sentiment_market v
+         ) w
+        WHERE w.rn_desc <= $1
+        ORDER BY w.trade_date DESC`,
+      [windowRows],
+    );
+    return rows;
+  }
+
+  async getSentimentStock(instrumentId: string, windowRows: number): Promise<SentimentStockSeries> {
+    // 窗口行：该股 trade_date DESC 前 windowRows 个有数据的交易日
+    const { rows } = await this.pool.query<SentimentStockRow>(
+      `SELECT instrument_id, trade_date, net_inflow_amount, lhb_net_amount,
+              inst_net_buy_amount, financing_balance
+         FROM (
+           SELECT v.*, ROW_NUMBER() OVER (ORDER BY v.trade_date DESC) AS rn_desc
+             FROM serving.v_cend_theme_sentiment_stock v
+            WHERE v.instrument_id = $1
+         ) w
+        WHERE w.rn_desc <= $2
+        ORDER BY w.trade_date DESC`,
+      [instrumentId, windowRows],
+    );
+    // 窗口汇总：净流入合计/最新、上榜天数与净额、机构净买合计、融资余额最新与变化
+    // （最新 - 最早非空）；空窗口 → 全 null（含 lhb_count，CASE WHEN EXISTS 兜底）
+    const { rows: summaryRows } = await this.pool.query<SentimentStockSummary>(
+      `WITH w AS (
+        SELECT net_inflow_amount, lhb_net_amount, inst_net_buy_amount, financing_balance,
+               ROW_NUMBER() OVER (ORDER BY trade_date DESC) AS rn_desc
+          FROM serving.v_cend_theme_sentiment_stock
+         WHERE instrument_id = $1
+      ),
+      win AS (SELECT * FROM w WHERE rn_desc <= $2)
+      SELECT
+        (SELECT SUM(net_inflow_amount) FROM win) AS net_inflow_sum,
+        (SELECT net_inflow_amount FROM win ORDER BY rn_desc LIMIT 1) AS net_inflow_latest,
+        CASE WHEN EXISTS (SELECT 1 FROM win)
+             THEN (SELECT COUNT(*) FROM win WHERE lhb_net_amount IS NOT NULL)
+        END AS lhb_count,
+        (SELECT SUM(lhb_net_amount) FROM win WHERE lhb_net_amount IS NOT NULL) AS lhb_net_buy_sum,
+        (SELECT SUM(inst_net_buy_amount) FROM win WHERE inst_net_buy_amount IS NOT NULL) AS inst_net_buy_sum,
+        (SELECT financing_balance FROM win WHERE financing_balance IS NOT NULL
+          ORDER BY rn_desc LIMIT 1) AS financing_balance_latest,
+        (SELECT financing_balance FROM win WHERE financing_balance IS NOT NULL
+          ORDER BY rn_desc LIMIT 1)
+        - (SELECT financing_balance FROM win WHERE financing_balance IS NOT NULL
+          ORDER BY rn_desc DESC LIMIT 1) AS financing_balance_change`,
+      [instrumentId, windowRows],
+    );
+    return {
+      rows,
+      summary:
+        summaryRows[0] ??
+        ({
+          net_inflow_sum: null,
+          net_inflow_latest: null,
+          lhb_count: null,
+          lhb_net_buy_sum: null,
+          inst_net_buy_sum: null,
+          financing_balance_latest: null,
+          financing_balance_change: null,
+        } satisfies SentimentStockSummary),
     };
   }
 }

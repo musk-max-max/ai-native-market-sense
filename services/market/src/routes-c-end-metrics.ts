@@ -5,6 +5,8 @@
  *  - GET /c-end/limits              涨跌停梯队
  *  - GET /c-end/stocks/:instrument_id/themes/fin-health  个股财务健康近 8 季（M1a T1）
  *  - GET /c-end/stocks/:instrument_id/themes/valuation-price  个股估值行情窗口+分位（M1a T2）
+ *  - GET /c-end/themes/money-sentiment  市场级资金与情绪（M1a T3，只市场级汇总）
+ *  - GET /c-end/stocks/:instrument_id/themes/money-sentiment  个股资金与情绪（M1a T3）
  *
  * 边界：
  *  - 挂 /v1/c-end/**（C 端公开，但受 market plugin 的 EntitlementGate 保护）；
@@ -35,6 +37,19 @@ function parseRange(request: FastifyRequest): { readonly range: string; readonly
     throw validationError();
   }
   return { range, windowRows };
+}
+
+/** M1a T3 窗口：window=30d→30 个交易日（缺省 30d；非法值 400 VALIDATION_ERROR）。 */
+const SENTIMENT_WINDOW: Readonly<Record<string, number>> = { '30d': 30 };
+
+function parseWindow(request: FastifyRequest): { readonly window: string; readonly windowRows: number } {
+  const value = asRecord(request.query).window;
+  const windowName = value === undefined ? '30d' : String(value);
+  const windowRows = SENTIMENT_WINDOW[windowName];
+  if (windowRows === undefined) {
+    throw validationError();
+  }
+  return { window: windowName, windowRows };
 }
 
 function parseInstrumentId(request: FastifyRequest): string {
@@ -105,6 +120,35 @@ export function registerCEndMetricsRoutes(
       as_of: series.rows[0]?.trade_date ?? null,
       rows: series.rows,
       percentiles: series.percentiles,
+    };
+  });
+
+  // GET /c-end/themes/money-sentiment?window=30d（M1a T3 市场级：情绪四件套+资金面，日粒度）
+  // 数据源 serving.v_cend_theme_sentiment_market（只按 trade_date 聚合，H3 m02407 禁个股行）。
+  app.get('/c-end/themes/money-sentiment', async (request: FastifyRequest) => {
+    const { window: windowName, windowRows } = parseWindow(request);
+    const rows = await deps.themes.getSentimentMarket(windowRows);
+    return {
+      window: windowName,
+      // 空序列 → 200 + as_of:null + rows:[]（无数据 ≠ 出错，与 /metrics 404 语义区分）
+      as_of: rows[0]?.trade_date ?? null,
+      rows,
+    };
+  });
+
+  // GET /c-end/stocks/:instrument_id/themes/money-sentiment?window=30d（M1a T3 个股级）
+  // 数据源 serving.v_cend_theme_sentiment_stock（主力净流入+龙虎榜+机构净买+个股融资；
+  // 无涨跌停列——H3 m02407）。summary = 近 30 日窗口汇总（空序列 → 全 null）。
+  app.get('/c-end/stocks/:instrument_id/themes/money-sentiment', async (request: FastifyRequest) => {
+    const instrumentId = parseInstrumentId(request);
+    const { window: windowName, windowRows } = parseWindow(request);
+    const series = await deps.themes.getSentimentStock(instrumentId, windowRows);
+    return {
+      instrument_id: instrumentId,
+      window: windowName,
+      as_of: series.rows[0]?.trade_date ?? null,
+      rows: series.rows,
+      summary: series.summary,
     };
   });
 }

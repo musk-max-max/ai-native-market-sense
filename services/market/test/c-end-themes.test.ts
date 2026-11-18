@@ -7,6 +7,10 @@ import { createMarketPlugin } from '../src/plugin.js';
 import type { CEndMetricsRepo } from '../src/ports/c-end-metrics-repo.js';
 import type {
   CEndThemeRepo,
+  SentimentMarketRow,
+  SentimentStockRow,
+  SentimentStockSeries,
+  SentimentStockSummary,
   ThemeFinHealthRow,
   ValuationPriceSeries,
 } from '../src/ports/c-end-theme-repo.js';
@@ -83,10 +87,88 @@ const FAKE_VALUATION_SERIES: ValuationPriceSeries = {
   percentiles: { pe_ttm: '66.7', pb: '66.7', close: '66.7', turnover_rate_pct: '66.7' },
 };
 
+// T3 市场情绪（3 个交易日；四件套+资金面，全部字符串数字）
+const FAKE_SENTIMENT_MARKET: readonly SentimentMarketRow[] = [
+  {
+    trade_date: '2026-11-17',
+    limit_up_count: '86',
+    limit_down_count: '12',
+    advancers: '3120',
+    decliners: '1876',
+    adv_dec_ratio: '1.6631',
+    max_limit_streak: '7',
+    moneyflow_net_inflow_total: '1234567890.55',
+    margin_financing_balance: '1876543210000',
+  },
+  {
+    trade_date: '2026-11-14',
+    limit_up_count: '54',
+    limit_down_count: '31',
+    advancers: '2011',
+    decliners: '2988',
+    adv_dec_ratio: '0.673',
+    max_limit_streak: '5',
+    moneyflow_net_inflow_total: '-987654321.10',
+    margin_financing_balance: '1875123456789',
+  },
+  {
+    trade_date: '2026-11-13',
+    limit_up_count: '41',
+    limit_down_count: '44',
+    advancers: '2500',
+    decliners: '2500',
+    adv_dec_ratio: '1',
+    max_limit_streak: '4',
+    moneyflow_net_inflow_total: null,
+    margin_financing_balance: null,
+  },
+];
+
+const FAKE_SENTIMENT_STOCK_ROWS: readonly SentimentStockRow[] = [
+  {
+    instrument_id: 'SSE:600519',
+    trade_date: '2026-11-17',
+    net_inflow_amount: '12345678.90',
+    lhb_net_amount: null,
+    inst_net_buy_amount: null,
+    financing_balance: '987654321.00',
+  },
+  {
+    instrument_id: 'SSE:600519',
+    trade_date: '2026-11-14',
+    net_inflow_amount: '-5555555.55',
+    lhb_net_amount: '-23456789.10',
+    inst_net_buy_amount: '-12000000.00',
+    financing_balance: '990000000.00',
+  },
+];
+
+const FAKE_SENTIMENT_STOCK_SUMMARY: SentimentStockSummary = {
+  net_inflow_sum: '67890123.35',
+  net_inflow_latest: '12345678.90',
+  lhb_count: '1',
+  lhb_net_buy_sum: '-23456789.10',
+  inst_net_buy_sum: '-12000000.00',
+  financing_balance_latest: '987654321.00',
+  financing_balance_change: '-2345679.00',
+};
+
+const EMPTY_SENTIMENT_STOCK_SUMMARY: SentimentStockSummary = {
+  net_inflow_sum: null,
+  net_inflow_latest: null,
+  lhb_count: null,
+  lhb_net_buy_sum: null,
+  inst_net_buy_sum: null,
+  financing_balance_latest: null,
+  financing_balance_change: null,
+};
+
 class FakeCEndThemeRepo implements CEndThemeRepo {
   finHealthCalls: string[] = [];
   valuationCalls: Array<{ instrumentId: string; windowRows: number }> = [];
   valuationSeries: ValuationPriceSeries = FAKE_VALUATION_SERIES;
+  sentimentMarketCalls: number[] = [];
+  sentimentStockCalls: Array<{ instrumentId: string; windowRows: number }> = [];
 
   async getFinHealth(instrumentId: string): Promise<readonly ThemeFinHealthRow[]> {
     this.finHealthCalls.push(instrumentId);
@@ -101,6 +183,22 @@ class FakeCEndThemeRepo implements CEndThemeRepo {
       return { rows: [], percentiles: { pe_ttm: null, pb: null, close: null, turnover_rate_pct: null } };
     }
     return { rows, percentiles: this.valuationSeries.percentiles };
+  }
+
+  async getSentimentMarket(windowRows: number): Promise<readonly SentimentMarketRow[]> {
+    this.sentimentMarketCalls.push(windowRows);
+    // 固定夹具（3 行），窗口参数只记录不裁剪（窗口语义由仓储 SQL 测试覆盖）
+    return FAKE_SENTIMENT_MARKET;
+  }
+
+  async getSentimentStock(instrumentId: string, windowRows: number): Promise<SentimentStockSeries> {
+    this.sentimentStockCalls.push({ instrumentId, windowRows });
+    const rows = FAKE_SENTIMENT_STOCK_ROWS.filter((row) => row.instrument_id === instrumentId);
+    // 空序列 → summary 全 null（与仓储 CASE WHEN EXISTS 兜底语义一致）
+    if (rows.length === 0) {
+      return { rows: [], summary: EMPTY_SENTIMENT_STOCK_SUMMARY };
+    }
+    return { rows, summary: FAKE_SENTIMENT_STOCK_SUMMARY };
   }
 }
 
@@ -137,6 +235,38 @@ const FIN_HEALTH_TOP_KEYS = ['instrument_id', 'as_of', 'rows'];
 const VALUATION_TOP_KEYS = ['instrument_id', 'range', 'as_of', 'rows', 'percentiles'];
 const VALUATION_ROW_KEYS = ['instrument_id', 'trade_date', 'pe_ttm', 'pb', 'close', 'turnover_rate_pct'];
 const PERCENTILE_KEYS = ['pe_ttm', 'pb', 'close', 'turnover_rate_pct'];
+// T3 market sentiment 顶层键全集（window 回显；无 instrument_id——只市场级）
+const SENTIMENT_MARKET_TOP_KEYS = ['window', 'as_of', 'rows'];
+const SENTIMENT_MARKET_ROW_KEYS = [
+  'trade_date',
+  'limit_up_count',
+  'limit_down_count',
+  'advancers',
+  'decliners',
+  'adv_dec_ratio',
+  'max_limit_streak',
+  'moneyflow_net_inflow_total',
+  'margin_financing_balance',
+];
+// T3 stock sentiment 顶层与行键全集（行内无任何涨跌停字段——H3 m02407）
+const SENTIMENT_STOCK_TOP_KEYS = ['instrument_id', 'window', 'as_of', 'rows', 'summary'];
+const SENTIMENT_STOCK_ROW_KEYS = [
+  'instrument_id',
+  'trade_date',
+  'net_inflow_amount',
+  'lhb_net_amount',
+  'inst_net_buy_amount',
+  'financing_balance',
+];
+const SENTIMENT_STOCK_SUMMARY_KEYS = [
+  'net_inflow_sum',
+  'net_inflow_latest',
+  'lhb_count',
+  'lhb_net_buy_sum',
+  'inst_net_buy_sum',
+  'financing_balance_latest',
+  'financing_balance_change',
+];
 const FIN_HEALTH_ROW_KEYS = [
   'instrument_id',
   'as_of',
@@ -296,6 +426,90 @@ describe('c-end theme routes (M1a)', () => {
     assert.deepEqual(body.percentiles, { pe_ttm: null, pb: null, close: null, turnover_rate_pct: null });
   });
 
+  it('returns market sentiment with default window 30d (key allowlist, no instrument rows)', async () => {
+    const repo = new FakeCEndThemeRepo();
+    const app = createApp(repo);
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/c-end/themes/money-sentiment',
+      headers: { authorization: 'Bearer ' + TOKEN },
+    });
+    assert.equal(response.statusCode, 200);
+    const body = JSON.parse(response.body);
+    // 顶层键全集（window 回显；无 instrument_id——只市场级，H3 m02407）
+    assert.deepEqual(Object.keys(body).sort(), [...SENTIMENT_MARKET_TOP_KEYS].sort());
+    assert.equal(body.window, '30d');
+    assert.equal(body.as_of, '2026-11-17');
+    assert.equal(body.rows.length, 3);
+    for (const row of body.rows) {
+      assert.deepEqual(Object.keys(row).sort(), [...SENTIMENT_MARKET_ROW_KEYS].sort());
+      assert.equal(typeof row.limit_up_count, 'string');
+      assert.equal(typeof row.max_limit_streak, 'string');
+      // 行内禁个股标识（只市场级汇总）
+      assert.ok(!('instrument_id' in row));
+    }
+    // 缺省 window=30d → 30 个交易日
+    assert.deepEqual(repo.sentimentMarketCalls, [30]);
+    assertForbiddenAbsent(body);
+  });
+
+  it('rejects unknown money-sentiment window (400) without touching repo', async () => {
+    const repo = new FakeCEndThemeRepo();
+    const app = createApp(repo);
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/c-end/themes/money-sentiment?window=7d',
+      headers: { authorization: 'Bearer ' + TOKEN },
+    });
+    assert.equal(response.statusCode, 400);
+    assert.equal(JSON.parse(response.body).code, 'VALIDATION_ERROR');
+    assert.deepEqual(repo.sentimentMarketCalls, []);
+  });
+
+  it('returns stock sentiment rows + window summary (200, key allowlist)', async () => {
+    const repo = new FakeCEndThemeRepo();
+    const app = createApp(repo);
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/c-end/stocks/SSE:600519/themes/money-sentiment',
+      headers: { authorization: 'Bearer ' + TOKEN },
+    });
+    assert.equal(response.statusCode, 200);
+    const body = JSON.parse(response.body);
+    assert.deepEqual(Object.keys(body).sort(), [...SENTIMENT_STOCK_TOP_KEYS].sort());
+    assert.equal(body.instrument_id, 'SSE:600519');
+    assert.equal(body.window, '30d');
+    assert.equal(body.as_of, '2026-11-17');
+    assert.equal(body.rows.length, 2);
+    for (const row of body.rows) {
+      assert.deepEqual(Object.keys(row).sort(), [...SENTIMENT_STOCK_ROW_KEYS].sort());
+      assert.equal(typeof row.net_inflow_amount, 'string');
+      // H3 m02407：个股行禁涨跌停字段
+      assert.ok(!('limit_up_count' in row || 'limit_status' in row));
+    }
+    assert.deepEqual(Object.keys(body.summary).sort(), [...SENTIMENT_STOCK_SUMMARY_KEYS].sort());
+    assert.equal(body.summary.lhb_count, '1');
+    assert.equal(body.summary.financing_balance_change, '-2345679.00');
+    assert.deepEqual(repo.sentimentStockCalls, [{ instrumentId: 'SSE:600519', windowRows: 30 }]);
+    assertForbiddenAbsent(body);
+  });
+
+  it('returns 200 empty stock sentiment with all-null summary when no rows', async () => {
+    const repo = new FakeCEndThemeRepo();
+    const app = createApp(repo);
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/c-end/stocks/SSE:000001/themes/money-sentiment',
+      headers: { authorization: 'Bearer ' + TOKEN },
+    });
+    assert.equal(response.statusCode, 200);
+    const body = JSON.parse(response.body);
+    assert.equal(body.as_of, null);
+    assert.deepEqual(body.rows, []);
+    // 空序列 → summary 全 null（含 lhb_count；与仓储 CASE WHEN EXISTS 兜底一致）
+    assert.deepEqual(body.summary, EMPTY_SENTIMENT_STOCK_SUMMARY);
+  });
+
   it('theme SQL: DWD-only sources, H4 announced_at guard present (红线静态守门)', async () => {
     const url = new URL('../../../warehouse/serving/c-end-themes.sql', import.meta.url);
     const sql = await readFile(url, 'utf8');
@@ -315,5 +529,18 @@ describe('c-end theme routes (M1a)', () => {
     assert.ok(/i\.income_announced_at\s*<=\s*f\.announced_at/.test(code), 'H4 announced_at 守卫缺失');
     // H4：近 8 季窗口排序键必须是 announced_at（可见时点），不是报告期
     assert.ok(/ORDER BY announced_at DESC NULLS LAST/.test(code), '窗口排序须按 announced_at DESC');
+
+    // T3 视图存在（市场级 + 个股级两段）
+    assert.ok(/CREATE OR REPLACE VIEW serving\.v_cend_theme_sentiment_market/.test(code), 'T3 市场级视图存在');
+    assert.ok(/CREATE OR REPLACE VIEW serving\.v_cend_theme_sentiment_stock/.test(code), 'T3 个股级视图存在');
+    // H3 m02407：个股情绪视图段禁 limit_status / dwd_stk_limit（不暴露涨跌停信息）
+    const stockSeg = code.split('v_cend_theme_sentiment_stock AS')[1]?.split(';')[0] ?? '';
+    assert.ok(stockSeg.length > 0, '个股视图段可解析');
+    assert.ok(!/limit_status|dwd_stk_limit/i.test(stockSeg), '个股视图段禁涨跌停源');
+    // 市场级四件套按 L202b/L203 映射：limit_status::numeric IN (1,5)/(2,6)
+    assert.ok(/limit_status::numeric IN \(1, 5\)/.test(code), '涨停映射 IN (1,5)');
+    assert.ok(/limit_status::numeric IN \(2, 6\)/.test(code), '跌停映射 IN (2,6)');
+    // 连板底座 = dwd_daily_basic.limit_status 岛屿技法（交易日相邻），非 dwd_stk_limit
+    assert.ok(/FROM dwd_daily_basic/i.test(code.split('v_cend_theme_sentiment_market AS')[1]?.split(';')[0] ?? ''), '市场级连板底座 dwd_daily_basic');
   });
 });
