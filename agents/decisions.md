@@ -2265,3 +2265,24 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 - **Q2/Q3 关键转折（m07964 owner 拍板）**：不是「按数据集分页面」而是「组合展示用户关心的内容，要有层次」→ 需要**金融业务员 + 产品经理出具体需求文档**给到开发，L0 不自己设计页面层次。Q1 同意 P1 模板候选锁 3 数据集（fina_indicator + income + moneyflow）。Q4 被截断（m07964 结尾「4」）→ 待 owner 补全。L0 已回问 A（主题清单）/B（需求文档形态）/C（接口层准备 vs 完全暂停）。
 - **当前 HEAD**：023b0fc（L202b），工作区干净（仅 var/ untracked）。
 
+
+## L204 P1a 三文档 + 6 项开放项裁定 + L203 limit_up_count bug（m07964–m08156，2026-11-18）
+
+- **owner 指令（m07964）**：Q1 同意 P1 模板 3 数据集；Q2「不是，你在前端不是只展示数据集，而是你要组合展示用户关心的内容，要有层次，你让金融业务员和产品经理出具体需求文档给到开发」；Q3 同 Q2；Q4 被截断。
+- **owner 指令（m08024）**：「暂停。把需要我决策的列出来」→ L0 删 schedule-9431ec2f（每小时采样，连续 50+ 轮无人类答复，纯耗损）。
+- **owner 指令（m08028）**：A 主题清单由金融业务员+产品经理定义；B 单独 spawn product-manager + 唤醒 finance-expert 作 teammate；C L0 完全暂停 P1a 前端编码等文档。
+- **owner 指令（m08030）**：「金融专家和产品经理都作新开teammate。Q4交给产品经理解决」。
+- **owner 指令（m08098）**：「这些问题分发给负责的teammember」→ L0 把 6 项开放项分发给 a3/a4/a6。
+- **P1a 三文档交付（commit c92a0d5）**：docs/product/p1a-requirements-2026-11-18.md（PM 产出 v1.2，348+ 行）+ docs/product/finance-expert-theme-input-2026-11-18.md（finance-expert 产出，155 行）+ docs/product/p1a-technical-breakdown-2026-11-18.md（L0 产出，260 行）。共 763 行。
+- **需求定稿**：3 主题 T1 fin-health（fina+income）/ T2 valuation-price（daily_basic+daily）/ T3 money-sentiment（moneyflow+top_list+margin+stk_limit 市场级）。T1 一眼三数字 ROE/营收同比/资产负债率。T1 近 8 季 / T2 近 1 年 / T3 近 30 日。T1 冷为主（季频）/ T2·T3 热为主（日频）。路由 /stocks/:id/themes/:themeKey 作个股首屏，/metrics + /stocks/:id/metrics 保留改造。Q4 频控 UX 5min LRU + 429 Retry-After 倒计时 + 30s 客户端节流 + stale-while-error + 冷失败不拖垮热。HARD-002 措辞清单禁「建议/值得/预计/将/可买/可卖/目标/评级/低吸/抄底/止盈/止损」。红线 AKshare 不进 C 端 / limit ladder 仅市场级 / 冷数据不落库 / 登录 only / 数据层不分 C 端 vs 内部 / AI 解读=功能级门。
+- **6 项开放项裁定（A3/A4/A6 已回复，均基于仓库实读证据）**：
+  - **Q1 T3 情绪温度 = 备选 B 四件套全做**（A3）：涨停家数 + 跌停家数 + 涨跌家数比 + 最高连板数。**关键更正**：连板 streak 底座 = dwd_daily_basic.limit_status（schema.sql:172 U/D/Z），**不是** dwd_stk_limit（只有限价档位）。streak 用窗口函数按交易日相邻。**附带发现**：v_cend_market_overview.quote.limit_up_count 按 dwd_stk_limit.limit_pct>0 计数是限价档位非封板，**语义错**，L0 亲验确认。
+  - **Q2 T2 历史分位 = P1a 只做近 1 年**（A3）：range 参数化（1y|3y，默认 1y）留 3y 扩展位。3y 散户解释力增量低 → P1b 零成本加参。
+  - **Q3 income 列名映射**（A3）：DWD 无独立 income 表，income→dwd_research_income，fina→dwd_fina_indicator。**红线**：dwd_fina_indicator 可见时点=announced_at，禁按 report_end_date 做 as-of join（H4 防未来函数，schema.sql:403）。
+  - **Q4 冷代理 endpoint = 与 ingest 同源**（A3）：env 驱动 TUSHARE_API_URL（ECS=tuaremax.top），UA 读 TUSHARE_USER_AGENT **始终携带**。共享 TUSHARE_TOKEN + 200/min 预算。**SEC-008 报备**：transport.py:83-103 docstring 声称 host 白名单但代码只强制 https（实现弱于注释）。
+  - **Q5 鉴权 = Bearer JWT，后端零改动**（A4 + A6 已核）：token issuer = POST /v1/auth/login（services/identity/src/plugin.ts:148-163，body **email+password** 非 username，L0 prompt 笔误已纠正，L0 亲验 plugin.ts 确认）。改动全在前端：cEndMetricsGateway 三处补 Bearer + 新增 /login?next= 路由 + auth.ts 泛化 ms_token 主键 + e2e_token 回退。
+  - **Q3-copy + Q5-front 合并裁定**（A6）：copy 三组命名空间（copy.cold.* / copy.dataBadge.{hot,cold} / copy.theme.* 含 tab 二级）+ {seconds} 单花括号 + lib/copy.ts 加 interpolate() helper。auth.ts 泛化（ms_token 主键 + e2e_token 回退保 A12 契约）+ authFetch 注入 Bearer + /login?next= 路由（next 走 URLSearchParams，校验 '/' 开头非 '//' 防 open redirect）+ handleUnauthorized 去重跳转 + watchlist 401→anonymous 保留 + 防环守卫。
+- **Q5-front Phase 1 落码（A6 commit deaa219）**：auth.ts 泛化 + cEndMetricsGateway 三处 authFetch 收口。门禁：typecheck 0 + test 39/39 + check:compliance 10/10 + check:testids 60 + build 112.4KB gzip / 200KB budget PASS。
+- **L203 fc4b364 limit_up_count bug 修正**：warehouse/serving/c-end-metrics.sql:186-192 v_cend_market_overview 改按 dwd_daily_basic.limit_status::numeric IN (1,5)/(2,6) 派生（原按 dwd_stk_limit.limit_pct>0/<0 计数是限价档位非封板）。dataset 从 stk_limit 改 daily_basic。与 v_cend_limit_ladder L202b 映射一致。owner m08155 三项决策①「同意立即修复」。门禁：warehouse 23 passed + 1 skipped -k 'c_end or market_overview or limit'。ECS 部署待 SSH 恢复（CGNAT 限流）。
+- **owner m08155 三项决策**：① 现网涨停家数 bug 立即修（→ L203）；② 6 项裁定全部接受 + M1a 启动；③ SEC-008 记录待议（仅记录，不改代码）。
+- **当前 HEAD**：fc4b364（L203），工作区干净。
