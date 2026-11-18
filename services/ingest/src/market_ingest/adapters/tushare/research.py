@@ -65,7 +65,8 @@ class ResearchDataset:
     columns: tuple[ColumnSpec, ...]
     #: 需要显式指数代码列表（index_daily 不能只按 trade_date 拉全市场）。
     requires_index_codes: bool = False
-    #: 接入模式：daily（按交易日）/ snapshot（全量快照）/ per_instrument（按标的）。
+    #: 接入模式：daily（按交易日）/ snapshot（全量快照）/ per_instrument（按标的）
+    #: / per_period（按报告期，VIP 接口全市场一次拉一期）。
     mode: str = "daily"
     #: snapshot 模式的分批参数（如申万分类树按 L1/L2/L3 三次调用；空=单次调用）。
     batch_params: tuple[Mapping[str, str], ...] = ()
@@ -726,11 +727,11 @@ _DATASET_META: dict[str, tuple[str, int, int, bool, str]] = {
     "daily_basic": ("daily_basic", 32, 2000, False, "每日指标（PE/PB/换手/市值/涨跌停状态）"),
     "index_daily": ("index_daily", 95, 2000, True, "指数日线；ts_code 必填，按指数代码循环"),
     "fina_indicator": (
-        "fina_indicator",
+        "fina_indicator_vip",
         79,
-        2000,
+        5000,
         False,
-        "财务指标（只能按单只股票取历史；单次最多 100 行）",
+        "财务指标（VIP 档 fina_indicator_vip 按报告期 period 全市场一次拉取）",
     ),
     "stk_limit": ("stk_limit", 183, 2000, False, "每日涨跌停价（2007-01-04 起，2000 分）"),
     "index_classify": (
@@ -755,7 +756,13 @@ _DATASET_META: dict[str, tuple[str, int, int, bool, str]] = {
     "weekly": ("weekly", 28, 2000, False, "周线 OHLCV（每周五盘后更新）"),
     "monthly": ("monthly", 29, 2000, False, "月线 OHLCV（每月盘后更新）"),
     "new_share": ("new_share", 18, 120, False, "IPO 新股列表（每日 19 点更新）"),
-    "income": ("income", 33, 2000, False, "利润表（全部历史，实时更新）"),
+    "income": (
+        "income_vip",
+        33,
+        5000,
+        False,
+        "利润表（VIP 档 income_vip 按报告期 period 全市场一次拉取）",
+    ),
     "balancesheet": ("balancesheet", 34, 2000, False, "资产负债表（全部历史，实时更新）"),
     "cashflow": ("cashflow", 35, 2000, False, "现金流量表（全部历史，实时更新）"),
     "forecast": ("forecast", 36, 2000, False, "业绩预告（全部历史，实时更新）"),
@@ -794,8 +801,11 @@ _DATASET_META: dict[str, tuple[str, int, int, bool, str]] = {
 }
 
 #: 数据集接入模式（研究接口形态决定，非业务策略）。
+#: fina_indicator/income 用 VIP 端点（period=报告期，全市场 1 通/期，L208 方案甲）：
+#: 非 VIP 端点按单股+报告期区间过滤，checkpoint 收窄窗口会结构性错过新披露（实测 code0 0 行）。
 _DATASET_MODES: dict[str, str] = {
-    "fina_indicator": "per_instrument",
+    "fina_indicator": "per_period",
+    "income": "per_period",
     "index_classify": "snapshot",
     "index_member_all": "snapshot",
     "dc_index": "daily",

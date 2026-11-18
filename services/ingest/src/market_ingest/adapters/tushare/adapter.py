@@ -453,7 +453,7 @@ class TushareAdapter:
         return research.research_datasets()
 
     def research_mode(self, dataset: str) -> str:
-        """数据集的抓取形态：daily（按日全市场）/ snapshot（无日期快照）/ per_instrument。"""
+        """数据集的抓取形态：daily / snapshot / per_instrument / per_period。"""
         spec = research.RESEARCH_DATASETS.get(dataset)
         if spec is None:
             raise InvalidRequestError(f"unknown research dataset {dataset!r}")
@@ -475,7 +475,9 @@ class TushareAdapter:
         - ``daily``：全市场接口一次调用/日；``index_daily`` 按 ``index_codes``（canonical
           ``EXCH:CODE``）逐个指数调用（源要求代码必填）；
         - ``snapshot``：无日期快照，按 ``spec.batch_params`` 分批（如申万 L1/L2/L3）；
-        - ``per_instrument``：按单只标的 + 日期区间取历史（财务指标接口形态）；
+        - ``per_instrument``：按单只标的 + 日期区间取历史（逐标的财务数据接口形态）；
+        - ``per_period``：VIP 接口按报告期（``period=YYYYMMDD``）全市场一次拉取
+          （``fina_indicator_vip``/``income_vip``，L208 方案甲）；
         - 单行映射失败落 DLQ（``capture()`` 注入），整页字段漂移抛 ``SchemaDriftError``；
         - 无可取数据（无权限/无记录）→ 空列表；**不造数、不补 0**。
         """
@@ -504,6 +506,19 @@ class TushareAdapter:
                     "start_date": start.strftime("%Y%m%d"),
                     "end_date": end.strftime("%Y%m%d"),
                 },
+                dataset=spec.name,
+            )
+        elif spec.mode == "per_period":
+            # VIP 端点（fina_indicator_vip/income_vip）：period=报告期，全市场一次拉取。
+            # trade_date 由 sync 侧按窗口内季末日迭代传入（L208 方案甲）。
+            if trade_date is None:
+                raise InvalidRequestError(
+                    f"{dataset} requires period/trade_date (per-period dataset)"
+                )
+            raw_rows = self._fetch_rows(
+                spec.api_name,
+                spec.fields,
+                {"period": trade_date.strftime("%Y%m%d")},
                 dataset=spec.name,
             )
         elif spec.mode == "per_board":

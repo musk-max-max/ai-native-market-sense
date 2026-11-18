@@ -970,9 +970,47 @@ def _research_mode(source: object, dataset: str) -> str:
     mode_fn = getattr(source, "research_mode", None)
     if callable(mode_fn):
         mode = mode_fn(dataset)
-        if mode in ("daily", "snapshot", "per_instrument"):
+        if mode in ("daily", "snapshot", "per_instrument", "per_period"):
             return str(mode)
     return "daily"
+
+
+#: 季末日（MMDD）：per_period 模式的迭代日期集合（L208 方案甲）。
+_PERIOD_ENDS: tuple[tuple[int, int], ...] = ((3, 31), (6, 30), (9, 30), (12, 31))
+
+
+def _period_dates(start: date, end: date) -> list[date]:
+    """窗口内所有季末日（升序）。
+
+    per_period **不按 checkpoint 收窄窗口**：季频行在报告期结束后数周才公告，
+    收窄到 resume+1 会永久错过尚未拉取的新报告期；VIP 端点 1 通/期、
+    750 天窗口至多 8 期，全窗口幂等重拉的成本可接受（L208 裁定 3）。
+    """
+    dates: list[date] = []
+    for year in range(start.year, end.year + 1):
+        for month, day in _PERIOD_ENDS:
+            candidate = date(year, month, day)
+            if start <= candidate <= end:
+                dates.append(candidate)
+    return sorted(dates)
+
+
+def _period_as_of(rows: Sequence[Mapping[str, Any]]) -> datetime | None:
+    """季频批次 as_of = 行内 announced_at 最大值（L208 裁定 5）。
+
+    C04：announced_at（公告日）必然不晚于抓取日 → as_of ≤ fetched_at 天然成立；
+    行内无 announced_at（或格式非法）→ None，由 _write 回退 fetched_at。
+    """
+    announced = [str(row["announced_at"]) for row in rows if row.get("announced_at")]
+    if not announced:
+        return None
+    try:
+        latest = date.fromisoformat(max(announced))
+    except ValueError:
+        return None
+    from .models import MARKET_TZ  # 局部导入（同 _close_as_of 模式）
+
+    return datetime(latest.year, latest.month, latest.day, tzinfo=MARKET_TZ)
 
 
 def estimate_research_plan(
@@ -998,7 +1036,11 @@ def estimate_research_plan(
     per_day = 0
     for dataset in datasets:
         mode = modes.get(dataset, "daily")
-        if mode == "per_instrument":
+        if mode == "per_period":
+            # 窗口内季末日各 1 通（VIP 全市场），非交易日数也非标的数。
+            calls = len(_period_dates(start, end))
+            per_day = max(per_day, calls)
+        elif mode == "per_instrument":
             calls = max(1, len(instruments))
             per_day = max(per_day, calls)
         elif mode == "snapshot":
@@ -1088,10 +1130,12 @@ def sync_research(
 ) -> ResearchSyncResult:
     """研究数据集同步：按数据集形态抓取 → canonical ODS 行 → checkpoint 续跑。
 
-    四种形态（由适配器 ``research_mode`` 声明）：
+    五种形态（由适配器 ``research_mode`` 声明）：
     - ``daily``：按交易日逐日抓取，checkpoint 记到日；
     - ``snapshot``：无日期快照（行业树/成分表），一次写入，同日重跑跳过；
-    - ``per_instrument``：逐标的按区间抓取（财务指标），checkpoint 记到标的；
+    - ``per_instrument``：逐标的按区间抓取（逐标的财务数据），checkpoint 记到标的；
+    - ``per_period``：按窗口内季末日迭代、VIP 端点全市场 1 通/期（fina_indicator/
+      income 的 vip 端点，L208 方案甲）；**不做 resume 收窄**，每次全窗口幂等重拉；
     - ``per_board``：逐板块代码抓取（dc_member），checkpoint 记到板块。
 
     验收口径：只保证「数据正确落到 ODS + 字段映射清晰」；DWD/DWS 由 A2 建。
@@ -1178,7 +1222,15 @@ def sync_research(
             source.fetch_research(dataset, **kwargs)  # type: ignore[attr-defined]
         )
 
-    def _write(dataset: str, batch_id: str, rows: list[dict[str, Any]], rejected: int, **kwargs: Any) -> None:
+    def _write(
+        dataset: str,
+        batch_id: str,
+        rows: list[dict[str, Any]],
+        rejected: int,
+        *,
+        as_of: datetime | None = None,
+        **kwargs: Any,
+    ) -> None:
         nonlocal ods_batches
         if ods_root is not None and rows:
             fetched = clock()
@@ -1188,7 +1240,7 @@ def sync_research(
                     batch_id=batch_id,
                     endpoint=dataset,
                     source=SourceRef(
-                        source=adapter_name(source), as_of=fetched, fetched_at=fetched
+                        source=adapter_name(source), as_of=as_of or fetched, fetched_at=fetched
                     ),
                     rows=tuple(ods.research_rows(rows, endpoint=dataset)),
                     rows_rejected=rejected,
@@ -1250,6 +1302,48 @@ def sync_research(
                         row_count=rows_by_dataset[dataset],
                         rejected_count=storage.count_rejected(batch_id),
                     )
+                    continue
+
+                if mode == "per_period":
+                    # L208 方案甲：按窗口内季末日逐期全市场拉取（VIP period 端点）。
+                    # 不做 resume 收窄——收窄会永久错过新报告期，全窗口幂等重拉；
+                    # set_checkpoint 只作观测（下次 resume 不参与窗口计算）。
+                    batch_id = f"{run_id}-{dataset}"
+                    current["batch"] = batch_id
+                    storage.create_batch(batch_id, dataset, adapter_name(source), clock())
+                    dataset_failed = False
+                    for period in _period_dates(start, end):
+                        if is_interrupted():
+                            status, halted, dataset_failed = "interrupted", "interrupt_signal", True
+                            break
+                        rejected_before = storage.count_rejected(batch_id)
+                        try:
+                            rows = _fetch(dataset, trade_date=period)
+                        except (QuotaExhaustedError, SourceAuthError, SchemaDriftError, SourceUnavailableError) as exc:
+                            status, halted = BarsSyncService._classify_failure(exc)
+                            _mark_consistency_blocked(dataset, period.isoformat())
+                            dataset_failed = True
+                            break
+                        _write(
+                            dataset,
+                            batch_id,
+                            rows,
+                            storage.count_rejected(batch_id) - rejected_before,
+                            as_of=_period_as_of(rows) or clock(),
+                        )
+                        days_done += 1
+                        storage.set_checkpoint(dataset, _MARKET_SCOPE, period, run_id, clock())
+                        checkpoints[dataset] = period.isoformat()
+                    storage.finish_batch(
+                        batch_id,
+                        finished_at=clock(),
+                        status=status if dataset_failed else "succeeded",
+                        row_count=rows_by_dataset[dataset],
+                        rejected_count=storage.count_rejected(batch_id),
+                        note=halted if dataset_failed else None,
+                    )
+                    if dataset_failed:
+                        break
                     continue
 
                 if mode == "per_instrument":

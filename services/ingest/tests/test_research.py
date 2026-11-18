@@ -352,8 +352,11 @@ def test_research_datasets_registry() -> None:
     # L172 抽样断言：新数据集元数据正确
     assert research.RESEARCH_DATASETS["daily"].points_min == 120
     assert research.RESEARCH_DATASETS["share_float"].points_min == 3000
-    assert research.RESEARCH_DATASETS["income"].mode == "daily"
-    assert research.RESEARCH_DATASETS["income"].api_name == "income"
+    # L208 方案甲：fina/income 走 VIP period 端点（per_period，全市场 1 通/期）
+    assert research.RESEARCH_DATASETS["income"].mode == "per_period"
+    assert research.RESEARCH_DATASETS["income"].api_name == "income_vip"
+    assert research.RESEARCH_DATASETS["fina_indicator"].mode == "per_period"
+    assert research.RESEARCH_DATASETS["fina_indicator"].api_name == "fina_indicator_vip"
     assert research.RESEARCH_DATASETS["top_inst"].points_min == 5000
     assert research.RESEARCH_DATASETS["index_daily"].requires_index_codes is True
 
@@ -864,32 +867,22 @@ def test_map_index_classify_and_member_envelopes() -> None:
     assert member["is_new"] == "Y"
 
 
-def test_fetch_research_per_instrument_uses_range_params() -> None:
+def test_fetch_research_per_period_uses_period_params() -> None:
+    # L208 方案甲：fina_indicator 走 fina_indicator_vip，period=报告期末日，全市场一次拉取。
     entries = [
         entry(
-            "fina_indicator",
-            {
-                "ts_code": "600519.SH",
-                "start_date": "20240101",
-                "end_date": "20241231",
-                "offset": 0,
-                "limit": 6000,
-            },
-            [fina_row(), fina_row(end_date="20240630", ann_date="20240830", eps="11.0")],
+            "fina_indicator_vip",
+            {"period": "20240331", "offset": 0, "limit": 6000},
+            [fina_row(), fina_row(end_date="20240331", ann_date="20240430", eps="11.0")],
         )
     ]
     adapter, guard, _ = _adapter(entries)
-    rows = adapter.fetch_research(
-        "fina_indicator",
-        instrument_id="SSE:600519",
-        start=date(2024, 1, 1),
-        end=date(2024, 12, 31),
-    )
-    assert [row["report_period"] for row in rows] == ["2023Q4", "2024Q2"]
+    rows = adapter.fetch_research("fina_indicator", trade_date=date(2024, 3, 31))
+    assert [row["report_period"] for row in rows] == ["2023Q4", "2024Q1"]
     assert guard.run_calls == 1
-    assert adapter.research_mode("fina_indicator") == "per_instrument"
-    with pytest.raises(InvalidRequestError, match="requires instrument_id"):
-        adapter.fetch_research("fina_indicator", start=date(2024, 1, 1), end=date(2024, 12, 31))
+    assert adapter.research_mode("fina_indicator") == "per_period"
+    with pytest.raises(InvalidRequestError, match="requires period"):
+        adapter.fetch_research("fina_indicator")
 
 
 
@@ -958,32 +951,30 @@ def test_fetch_research_bad_row_without_sink_refuses_silent_drop() -> None:
         adapter.fetch_research("stk_limit", DAY1)
 
 
-def test_sync_research_per_instrument_writes_one_batch_per_instrument(tmp_path: Path) -> None:
-    entries = [
-        entry(
-            "fina_indicator",
-            {
-                "ts_code": "600519.SH",
-                "start_date": "20240101",
-                "end_date": "20241231",
-                "offset": 0,
-                "limit": 6000,
-            },
-            [fina_row()],
-        ),
-        entry(
-            "fina_indicator",
-            {
-                "ts_code": "000001.SZ",
-                "start_date": "20240101",
-                "end_date": "20241231",
-                "offset": 0,
-                "limit": 6000,
-            },
-            [fina_row(ts_code="000001.SZ", eps="1.2", end_date="20240630", ann_date="20240830")],
-        ),
-    ]
-    adapter, guard, clock = _adapter(entries)
+def test_sync_research_per_period_iterates_quarter_ends_without_resume_narrowing(
+    tmp_path: Path,
+) -> None:
+    # L208 方案甲：per_period 按窗口内季末日逐期全市场拉取，不做 resume 收窄
+    # （收窄会永久错过新报告期），重跑仍走全窗口幂等重拉。
+    periods = [date(2024, 3, 31), date(2024, 6, 30), date(2024, 9, 30), date(2024, 12, 31)]
+    rows_by_period: dict[date, list[dict[str, object]]] = {
+        date(2024, 3, 31): [fina_row(end_date="20240331", ann_date="20240430")],
+        date(2024, 6, 30): [fina_row(end_date="20240630", ann_date="20240830", eps="11.0")],
+        date(2024, 9, 30): [],
+        date(2024, 12, 31): [],
+    }
+
+    def make_entries() -> list[dict[str, object]]:
+        return [
+            entry(
+                "fina_indicator_vip",
+                {"period": period.strftime("%Y%m%d"), "offset": 0, "limit": 6000},
+                rows_by_period[period],
+            )
+            for period in periods
+        ]
+
+    adapter, guard, clock = _adapter(make_entries() + make_entries())
     storage = SqliteStorage(":memory:")
     ods_root = tmp_path / "ods"
     result = sync_research(
@@ -992,19 +983,60 @@ def test_sync_research_per_instrument_writes_one_batch_per_instrument(tmp_path: 
         datasets=["fina_indicator"],
         start=date(2024, 1, 1),
         end=date(2024, 12, 31),
-        instruments=["SSE:600519", "SZSE:000001"],
         ods_root=ods_root,
         clock=clock,
     )
     assert result.status == "succeeded"
-    assert result.days_done == 2
+    assert result.days_done == 4  # 4 个季末日各 1 通
     assert result.rows_by_dataset == {"fina_indicator": 2}
-    assert result.ods_batches == 2
-    assert result.checkpoints["fina_indicator:SSE:600519"] == "2024-12-31"
+    assert result.ods_batches == 2  # 空期不落 ODS 批次
+    assert result.checkpoints["fina_indicator"] == "2024-12-31"
     files = sorted((ods_root / "fina_indicator").rglob("*.json"))
     assert len(files) == 2
-    assert any("dt=2023-12-31" in str(path) for path in files)
-    assert guard.run_calls == 2
+    assert any("dt=2024-03-31" in str(path) for path in files)
+    assert any("dt=2024-06-30" in str(path) for path in files)
+    assert guard.run_calls == 4
+
+    rerun = sync_research(
+        adapter,
+        storage,
+        datasets=["fina_indicator"],
+        start=date(2024, 1, 1),
+        end=date(2024, 12, 31),
+        ods_root=ods_root,
+        clock=clock,
+    )
+    assert rerun.status == "succeeded"
+    assert rerun.days_done == 4  # 不收窄：重跑仍走全窗口 4 个季末日
+    assert rerun.rows_by_dataset == {"fina_indicator": 2}
+    assert guard.run_calls == 8
+
+
+def test_period_dates_and_estimate_use_quarter_ends() -> None:
+    # L208 方案甲：per_period 的迭代集合=窗口内季末日；750 天量级窗口 ≈ 8 个报告期。
+    from market_ingest.sync import _period_dates
+
+    start, end = date(2024, 11, 5), date(2026, 11, 18)
+    periods = _period_dates(start, end)
+    assert [p.isoformat() for p in periods] == [
+        "2024-12-31",
+        "2025-03-31",
+        "2025-06-30",
+        "2025-09-30",
+        "2025-12-31",
+        "2026-03-31",
+        "2026-06-30",
+        "2026-09-30",
+    ]
+    assert len(_period_dates(date(2024, 1, 1), date(2024, 12, 31))) == 4
+    plan = estimate_research_plan(
+        ["fina_indicator", "income"],
+        start,
+        end,
+        modes={"fina_indicator": "per_period", "income": "per_period"},
+    )
+    assert plan["calls_by_dataset"] == {"fina_indicator": 8, "income": 8}
+    assert plan["dataset_modes"] == {"fina_indicator": "per_period", "income": "per_period"}
 
 
 def test_sync_research_snapshot_is_idempotent_per_day(tmp_path: Path) -> None:

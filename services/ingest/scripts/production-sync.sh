@@ -4,8 +4,31 @@
 # 频控：15000 档 TUSHARE_RATE_LIMIT_PER_MIN=200（services/ingest/.env:7）
 # F1 residual：realtime_quote 不在本脚本（AKshare 独立跑，仅内部展示，红线①）
 # 说明：sync-fundamentals 需 --instruments 切片，走 sync-research --datasets=fina_indicator 全市场等价。
+# step 3c（L208）：fina_indicator/income 走 VIP period 端点按窗口内季末日全市场拉取（季频，1 通/期）。
 # step 4 走 warehouse.load 把 ODS 批次幂等落到 PostgreSQL dwd_* 表；serving.v_cend_* 视图由 warehouse/serving/schema.sql + c-end-metrics.sql 提供。
 set -eu
+case "${1:-}" in
+    -h|--help)
+        cat <<'USAGE'
+usage: production-sync.sh [--help]
+
+环境变量：
+  PG_DSN                      PostgreSQL DSN（必填）
+  TUSHARE_TOKEN               Tushare token（必填）
+  SYNC_LOOKBACK_DAYS          日频窗口回看天数（默认 30）
+  SYNC_QUARTER_LOOKBACK_DAYS  季频窗口回看天数（默认 750 ≈ 近 8 个报告期）
+
+步骤：
+  1/3   sync-instruments 仪表基线
+  2/3   sync-bars --market-wide（日线）
+  3/3   sync-research（配置内研究数据集）
+  3b/4  sync-research stk_limit（v_cend_limit_ladder）
+  3c/4  sync-research fina_indicator,income（VIP period 全市场，季末日窗口，L208）
+  4/4   warehouse.load ODS→DWD
+USAGE
+        exit 0
+        ;;
+esac
 : "${PG_DSN:?set PG_DSN}"
 : "${TUSHARE_TOKEN:?set TUSHARE_TOKEN}"
 : "${SYNC_LOOKBACK_DAYS:=30}"
@@ -40,6 +63,18 @@ python -m market_ingest sync-research \
     --ods-root /data/ods --db /data/ingest.db \
     --config /app/services/ingest/config/ingest.yaml || \
     echo "[ingest] WARN stk_limit sync failed (non-fatal; v_cend_limit_ladder stays empty)"
+
+# step 3c（L208 方案甲）：季频窗口独立于日频 30d——750 天 ≈ 近 8 个报告期末（03/06/09/12 月末）。
+# fina_indicator/income 用 *_vip period 端点全市场 1 通/期，不做 resume 收窄（幂等重拉）。
+SYNC_QUARTER_LOOKBACK_DAYS=${SYNC_QUARTER_LOOKBACK_DAYS:-750}
+QUARTER_START=$(date -u -d "-${SYNC_QUARTER_LOOKBACK_DAYS} days" +%Y-%m-%d)
+echo "[ingest] step 3c/4 sync-research fina_indicator,income quarterly (window ${QUARTER_START} .. ${END})"
+python -m market_ingest sync-research \
+    --datasets fina_indicator,income \
+    --start "${QUARTER_START}" --end "${END}" \
+    --ods-root /data/ods --db /data/ingest.db \
+    --config /app/services/ingest/config/ingest.yaml || \
+    echo "[ingest] WARN fina_indicator/income sync failed (non-fatal; v_cend_theme_fin_health stays empty)"
 
 echo "[ingest] step 4/4 warehouse.load ODS->DWD (PostgreSQL)"
 # 生产场景预期冲突 blocker 显式降 warn：
