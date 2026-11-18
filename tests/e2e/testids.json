@@ -59,7 +59,11 @@
     "limitUpCount": "limit-up-count",
     "limitDownCount": "limit-down-count",
     "limitMaxStreak": "limit-max-streak",
-    "limitStreakDistribution": "limit-streak-distribution"
+    "limitStreakDistribution": "limit-streak-distribution",
+    "loginEmail": "login-email",
+    "loginPassword": "login-password",
+    "loginSubmit": "login-submit",
+    "loginError": "login-error"
   },
   "groups": {
     "aiInterpretation": [
@@ -99,6 +103,12 @@
       "limitLadderLoading",
       "limitLadderError",
       "limitLadderEmpty"
+    ],
+    "login": [
+      "loginEmail",
+      "loginPassword",
+      "loginSubmit",
+      "loginError"
     ]
   },
   "stateIds": {
