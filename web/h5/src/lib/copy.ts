@@ -532,6 +532,78 @@ export const copy = {
     rowClose20d: '20 日涨跌',
     rowClose60d: '60 日涨跌',
   },
+
+  /** 冷数据降级 UX（需求 §4.3；键名 Q3-copy 裁定 copy.cold.*，文案 PM §4.4 定稿）。 */
+  cold: {
+    throttleTitle: '历史数据请求过于频繁',
+    throttleBody: '已进入冷却，请稍后手动重试',
+    throttleCountdown: '{seconds} 秒后可重试',
+    throttleCountdownMax: '5 分钟后可重试',
+    throttleRetryAction: '重新加载历史数据',
+    timeoutTitle: '历史数据加载超时',
+    timeoutBody: '当前网络或数据源响应较慢',
+    timeoutCountdown: '{seconds} 秒后可重试',
+    timeoutRetryAction: '重试',
+    errorTitle: '历史数据暂时无法获取',
+    errorBody: '请稍后再试，不影响近期数据查看',
+    errorRetryAction: '重试',
+    staleBadge: '以下为 {minutes} 分钟前缓存',
+    loading: '加载历史数据…',
+    unavailable: '该指标暂无历史数据',
+  },
+
+  /** 数据热度徽标（主题卡片角标；Q3-copy 裁定 dataBadge.{hot,cold} 独立命名空间）。 */
+  dataBadge: {
+    hot: '近 30 天',
+    cold: '历史（实时查询）',
+  },
+
+  /** C 端主题页（M1a-F；路由 /stocks/:id/themes/:themeKey，themeKey 三值见 tab）。 */
+  theme: {
+    finHealth: '财务健康',
+    valuationPrice: '估值与价格',
+    moneySentiment: '资金与情绪',
+    entryTitle: '按主题看',
+    entryLede: '每个主题回答一个问题：质量、价格、资金情绪。',
+    loading: '正在加载主题数据…',
+    errorTitle: '主题数据暂时无法加载。',
+    empty: '该标的暂无该主题数据。',
+    asOfLabel: '数据截止',
+    primaryTitle: '一眼结论',
+    secondaryTitle: '关键支撑',
+    trendToggle: '查看历史趋势',
+    trendTitle: '历史趋势',
+    footerNote: '仅数据展示，不构成投资建议。',
+    closeLabel: '收盘价（日频）',
+    periodLabel: '报告期',
+    rowRevenue: '营业收入',
+    rowNetProfit: '净利润',
+    rowNetProfitParent: '归母净利润',
+    rowEps: '每股收益',
+    tab: {
+      finHealth: '财务健康',
+      valuationPrice: '估值与价格',
+      moneySentiment: '资金与情绪',
+      allMetrics: '全部指标',
+    } as Readonly<Record<string, string>>,
+    dataset: {
+      finHealth: '财报指标（近 8 季）',
+      valuationPrice: '估值与行情（近 1 年）',
+      sentimentMarket: '市场资金与情绪（近 30 日）',
+      sentimentStock: '个股资金与情绪（近 30 日）',
+    } as Readonly<Record<string, string>>,
+    /** P 层一眼结论模板（interpolate 单花括号参数；HARD-002 禁词逐条自查通过）。 */
+    p1Roe: '最新报告期 ROE {value}，近 8 季中位数 {median}。',
+    p1Revenue: '最新报告期营业收入同比 {value}。',
+    p1Debt: '最新报告期资产负债率 {value}。',
+    p2Pe: '当前 PE-TTM {value}，近 1 年分位 {percentile}。',
+    p2Close: '最新收盘价 {value}，30 日涨跌 {change}。',
+    p2Pb: '当前 PB {value}，近 1 年分位 {percentile}。',
+    p3Inflow: '近 30 日主力净流入合计 {value}。',
+    p3Margin: '最新融资余额 {value}。',
+    p3Market: '最新交易日涨停 {up} 家、跌停 {down} 家，涨跌比 {ratio}，最高连板 {streak} 板。',
+  },
+
   staff: {
     banner: '内部员工视图 · 全量数据 · AI 拉满',
     bannerGuest: '普通用户视图 · 合规展示',
@@ -546,3 +618,24 @@ export const copy = {
   },
 } as const;
 export type Copy = typeof copy;
+
+/**
+ * 单花括号插值（Q3-copy 裁定）：把模板里的 {key} 替换为 params[key]。
+ * - 参数名 lowerCamelCase；缺参时原样保留占位符并在 DEV 下 warn（不静默吞）。
+ * - 只用单花括号 {key}，不用 {{key}}。
+ */
+export function interpolate(
+  template: string,
+  params: Readonly<Record<string, string | number>>,
+): string {
+  return template.replace(/\{(\w+)\}/g, (token: string, key: string) => {
+    const value = params[key];
+    if (value === undefined || value === null) {
+      if (import.meta.env?.DEV) {
+        console.warn(`[copy] interpolate 缺少参数 ${key}：${template}`);
+      }
+      return token;
+    }
+    return String(value);
+  });
+}
