@@ -7,9 +7,11 @@
  * 文案：用户可见文案从 lib/copy.ts 引用（compliance.test 单一来源门禁）。
  */
 import { useEffect, useState } from 'react';
-import { Card, List, Tabs } from 'antd-mobile';
+import { Card, Grid, List, Tabs } from 'antd-mobile';
 import { cEndMetricsGateway, type MarketOverviewMetric } from '../data/cEndMetricsGateway';
+import { gateway } from '../data/index';
 import { copy, MISSING } from '../lib/copy';
+import { Link, THEME_KEYS, type ThemeKey } from '../lib/router';
 
 const DOMAIN_TABS: readonly { key: string; testid: string }[] = [
   { key: 'quote', testid: 'tab-quote' },
@@ -65,9 +67,29 @@ function MetricRow({ metric }: { metric: MarketOverviewMetric }) {
   );
 }
 
+const THEME_ENTRY_LABEL: Readonly<Record<ThemeKey, string>> = {
+  'fin-health': copy.theme.finHealth,
+  'valuation-price': copy.theme.valuationPrice,
+  'money-sentiment': copy.theme.moneySentiment,
+};
+
 export function MetricsOverviewPage() {
   const [metrics, setMetrics] = useState<readonly MarketOverviewMetric[] | null>(null);
   const [error, setError] = useState<{ status: number | null; network: boolean } | null>(null);
+  const [entryInstrument, setEntryInstrument] = useState<string | null>(null);
+
+  // 主题入口目标股（§3.2）：自选第一只；无自选（或匿名/失败）不渲染宫格。
+  // 说明：当前无「市场页选中股」存储，故不带默认股参数（需求文档同款口径）。
+  useEffect(() => {
+    let alive = true;
+    void gateway.getWatchlist().then((r) => {
+      if (!alive) return;
+      setEntryInstrument(r.kind === 'ready' ? (r.instrumentIds[0] ?? null) : null);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -101,6 +123,28 @@ export function MetricsOverviewPage() {
           <p>{copy.metrics.loading}</p>
         </div>
       ) : (
+        <>
+        {entryInstrument !== null ? (
+          <Card title={copy.theme.entryTitle} data-testid="theme-entry">
+            <p data-testid="theme-entry-lede" style={{ fontSize: 13 }}>
+              {copy.theme.entryLede}
+            </p>
+            <Grid columns={3} gap={8} data-testid="theme-entry-grid">
+              {THEME_KEYS.map((key) => (
+                <Grid.Item key={key} data-testid={'theme-entry-' + key}>
+                  <Link
+                    href={'/stocks/' + encodeURIComponent(entryInstrument) + '/themes/' + key}
+                    className="theme-entry__link"
+                    data-testid={'theme-entry-link-' + key}
+                  >
+                    {THEME_ENTRY_LABEL[key]}
+                  </Link>
+                </Grid.Item>
+              ))}
+            </Grid>
+          </Card>
+        ) : null}
+
         <Tabs data-testid="metrics-overview-tabs">
           {DOMAIN_TABS.map((tab) => {
             const rows = grouped[tab.key] ?? [];
@@ -121,6 +165,7 @@ export function MetricsOverviewPage() {
             );
           })}
         </Tabs>
+        </>
       )}
     </section>
   );

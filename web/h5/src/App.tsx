@@ -13,17 +13,27 @@ import { MePage } from './pages/MePage';
 import { LoginPage } from './pages/LoginPage';
 import { MetricsOverviewPage } from './pages/MetricsOverviewPage';
 import { StockMetricsPage } from './pages/StockMetricsPage';
+import { ThemePage } from './pages/ThemePage';
 import { TabBar } from './components/TabBar';
 import { StaffBanner } from './components/StaffBanner';
-import { Link, useRoute } from './lib/router';
+import { Link, navigate, useRoute } from './lib/router';
 
 export function App() {
   const route = useRoute();
 
   useEffect(() => {
-    if (route.name !== 'stock' && route.name !== 'notFound' && route.name !== 'aiCardFixture' && route.name !== 'metricsOverview' && route.name !== 'stockMetrics') {
+    if (route.name !== 'stock' && route.name !== 'notFound' && route.name !== 'aiCardFixture' && route.name !== 'metricsOverview' && route.name !== 'stockMetrics' && route.name !== 'stockTheme') {
       track('page_view', { route: route.name });
     }
+  }, [route]);
+
+  // 需求 §3.1：主题视图是个股指标区的默认首屏；平铺（全部指标）降为二级 Tab，
+  // 只有显式 ?view=flat（主题 Tab 条的「全部指标」）才停在平铺页，避免重定向回环。
+  useEffect(() => {
+    if (route.name !== 'stockMetrics' || typeof window === 'undefined') return;
+    if (new URLSearchParams(window.location.search).get('view') === 'flat') return;
+    const target = '/stocks/' + encodeURIComponent(route.instrumentId) + '/themes/fin-health';
+    navigate(target, { replace: true });
   }, [route]);
 
   return (
@@ -57,6 +67,9 @@ export function App() {
         {route.name === 'login' && <LoginPage />}
         {route.name === 'metricsOverview' && <MetricsOverviewPage />}
         {route.name === 'stockMetrics' && <StockMetricsPage instrumentId={route.instrumentId} />}
+        {route.name === 'stockTheme' && (
+          <ThemePage instrumentId={route.instrumentId} initialTheme={route.themeKey} />
+        )}
         {route.name === 'stock' && <StockPage instrumentId={route.instrumentId} />}
         {route.name === 'aiCardFixture' && <AiCardFixturePage />}
         {route.name === 'notFound' && <NotFoundPage />}

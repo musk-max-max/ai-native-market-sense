@@ -13,6 +13,7 @@
  *  - /login                    Q5 登录页（email+password，写态后跳 ?next= 站内路径）
  *  - /metrics                  多维度市场概览（金融维度目录 v1.0 · 5 tab · GET /v1/c-end/overview）
  *  - /stocks/:id/metrics       个股全维度展示（30+ 维度 · GET /v1/c-end/stocks/:id/metrics）
+ *  - /stocks/:id/themes/:themeKey  M1a-F 单股单主题视图（themeKey ∈ fin-health|valuation-price|money-sentiment）
  *  - /dev/ai-card              AI 卡视觉采证 fixture（A6；非产品路由，页面自标注）
  *
  * 5 个底部 Tab 的路由映射见 components/TabBar.tsx（/review/limits 与个股页归「行情」）。
@@ -32,9 +33,15 @@ export type Route =
   | { name: 'stock'; instrumentId: string }
   | { name: 'metricsOverview' }
   | { name: 'stockMetrics'; instrumentId: string }
+  | { name: 'stockTheme'; instrumentId: string; themeKey: ThemeKey }
   | { name: 'aiCardFixture' }
   | { name: 'login' }
   | { name: 'notFound'; path: string };
+
+/** M1a-F 主题键（lead 派单口径；需求 §3.1 表的旧三值已废弃）。 */
+export type ThemeKey = 'fin-health' | 'valuation-price' | 'money-sentiment';
+
+export const THEME_KEYS: readonly ThemeKey[] = ['fin-health', 'valuation-price', 'money-sentiment'];
 
 const NAVIGATE_EVENT = 'app:navigate';
 
@@ -69,6 +76,16 @@ export function parseRoute(pathname: string): Route {
   // 视觉采证 fixture 路由：静态数据、零请求；页面上显式标注非 API 响应（m00346）。
   if (pathname === '/dev/ai-card' || pathname === '/dev/ai-card/')
     return { name: 'aiCardFixture' };
+
+  // 主题路由先于个股路由匹配（段数不同，正则互不重叠）。
+  const themeMatch = /^\/(?:stocks|stock)\/([^/]+)\/themes\/(fin-health|valuation-price|money-sentiment)\/?$/.exec(pathname);
+  if (themeMatch && themeMatch[1] && themeMatch[2]) {
+    return {
+      name: 'stockTheme',
+      instrumentId: normalizeInstrumentId(themeMatch[1]),
+      themeKey: themeMatch[2] as ThemeKey,
+    };
+  }
 
   const stockMatch = /^\/(?:stocks|stock)\/([^/]+)\/?$/.exec(pathname);
   if (stockMatch && stockMatch[1]) {
@@ -116,6 +133,7 @@ interface LinkProps {
   className?: string;
   'aria-current'?: 'page' | undefined;
   'aria-label'?: string;
+  'data-testid'?: string;
 }
 
 /** 站内链接：保留浏览器原生可访问性语义，仅拦截同标签页左键点击。 */

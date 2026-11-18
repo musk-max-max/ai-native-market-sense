@@ -10,6 +10,7 @@
 import { useEffect, useState } from 'react';
 import { Card, Grid, List } from 'antd-mobile';
 import { cEndMetricsGateway, type StockMetrics } from '../data/cEndMetricsGateway';
+import { ThemeTabStrip } from '../components/ThemeTabStrip';
 import { copy, MISSING } from '../lib/copy';
 
 interface MetricRow {
@@ -152,6 +153,8 @@ export function StockMetricsPage({ instrumentId }: { instrumentId: string }) {
 
   return (
     <section data-testid="stock-metrics" aria-label={copy.metrics.stockPageAriaLabel}>
+      {/* §3.2：平铺页降为二级 Tab，顶部主题条常驻（active='all' 当前态） */}
+      <ThemeTabStrip instrumentId={instrumentId} active="all" />
       <Card title={heading}>
         <p data-testid="stock-metrics-note" style={{ fontSize: 12 }}>
           {copy.metrics.stockPageNote}

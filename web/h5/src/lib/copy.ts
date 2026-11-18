@@ -580,18 +580,21 @@ export const copy = {
     rowNetProfit: '净利润',
     rowNetProfitParent: '归母净利润',
     rowEps: '每股收益',
+    rowAdvDecRatio: '涨跌比',
+    rowInstNetBuy: '机构净买入',
+    rowFinancingBalance: '融资余额',
     tab: {
       finHealth: '财务健康',
       valuationPrice: '估值与价格',
       moneySentiment: '资金与情绪',
       allMetrics: '全部指标',
-    } as Readonly<Record<string, string>>,
+    },
     dataset: {
       finHealth: '财报指标（近 8 季）',
       valuationPrice: '估值与行情（近 1 年）',
       sentimentMarket: '市场资金与情绪（近 30 日）',
       sentimentStock: '个股资金与情绪（近 30 日）',
-    } as Readonly<Record<string, string>>,
+    },
     /** P 层一眼结论模板（interpolate 单花括号参数；HARD-002 禁词逐条自查通过）。 */
     p1Roe: '最新报告期 ROE {value}，近 8 季中位数 {median}。',
     p1Revenue: '最新报告期营业收入同比 {value}。',
