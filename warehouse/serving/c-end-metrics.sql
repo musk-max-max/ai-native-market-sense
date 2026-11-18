@@ -184,12 +184,12 @@ SELECT 'quote.last_close_avg'::text AS metric_key,
        '直取'::text AS derivation
 UNION ALL
 SELECT 'quote.limit_up_count',
-       (SELECT count(*) FROM dwd_stk_limit WHERE trade_date = (SELECT MAX(trade_date) FROM dwd_stk_limit) AND limit_pct > 0)::text,
-       '家', 'stk_limit', '派生'
+       (SELECT count(*) FROM dwd_daily_basic WHERE trade_date = (SELECT MAX(trade_date) FROM dwd_daily_basic) AND limit_status::numeric IN (1, 5))::text,
+       '家', 'daily_basic', '派生'
 UNION ALL
 SELECT 'quote.limit_down_count',
-       (SELECT count(*) FROM dwd_stk_limit WHERE trade_date = (SELECT MAX(trade_date) FROM dwd_stk_limit) AND limit_pct < 0)::text,
-       '家', 'stk_limit', '派生'
+       (SELECT count(*) FROM dwd_daily_basic WHERE trade_date = (SELECT MAX(trade_date) FROM dwd_daily_basic) AND limit_status::numeric IN (2, 6))::text,
+       '家', 'daily_basic', '派生'
 UNION ALL
 SELECT 'flow.net_inflow_total',
        (SELECT SUM(net_inflow_amount) FROM dwd_moneyflow WHERE trade_date = (SELECT MAX(trade_date) FROM dwd_moneyflow))::text,
