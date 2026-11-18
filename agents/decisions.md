@@ -2286,3 +2286,20 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 - **L203 fc4b364 limit_up_count bug 修正**：warehouse/serving/c-end-metrics.sql:186-192 v_cend_market_overview 改按 dwd_daily_basic.limit_status::numeric IN (1,5)/(2,6) 派生（原按 dwd_stk_limit.limit_pct>0/<0 计数是限价档位非封板）。dataset 从 stk_limit 改 daily_basic。与 v_cend_limit_ladder L202b 映射一致。owner m08155 三项决策①「同意立即修复」。门禁：warehouse 23 passed + 1 skipped -k 'c_end or market_overview or limit'。ECS 部署待 SSH 恢复（CGNAT 限流）。
 - **owner m08155 三项决策**：① 现网涨停家数 bug 立即修（→ L203）；② 6 项裁定全部接受 + M1a 启动；③ SEC-008 记录待议（仅记录，不改代码）。
 - **当前 HEAD**：fc4b364（L203），工作区干净。
+
+## L205 M1a 后端三主题完成（A3，2026-11-18）
+
+- **M1a-T1 0370c2f**：warehouse/serving/c-end-themes.sql v_cend_theme_fin_health（近 8 季 rn<=8，income 期对期 JOIN 带 H4 守卫 income.announced_at<=f.announced_at）+ ports/c-end-theme-repo.ts + adapters/pg-c-end-theme-repo.ts + routes fin-health 路由 + plugin 接线（cEndThemeRepo 可注入）+ test/c-end-themes.test.ts 5 用例。含 L0 授权的 warehouse 门禁期望集机械补全（test_schema_sync::test_eighteen_tables_present 补 41 表 + test_serving_sync::test_every_ports_view_exists_in_schema_sql 加 RESEARCH_VIEWS_L172 41 视图）。
+- **M1a-T2 8dfec83**：v_cend_theme_valuation_price（range 1y|3y → 250/750 行窗口分位，样本 <2 → null）+ routes valuation-price 路由 + 测试。
+- **M1a-T3 63285e9**：v_cend_theme_sentiment_market（四件套+moneyflow/margin 合计，连板用 limit_status 岛屿技法按交易日相邻）+ v_cend_theme_sentiment_stock（主力净流入/龙虎榜/机构净买/个股融资）+ 两条 GET /c-end/.../themes/money-sentiment?window=30d 路由 + 测试。
+- **门禁**：typecheck 10/10 ✅ + market test 178 pass/0 fail ✅ + warehouse 221 passed/2 skipped ✅。
+- **测试守门**：c-end-themes.test.ts 15 用例，键全集 allowlist + H3 个股视图段禁 limit_status/dwd_stk_limit + H4 announced_at 守卫 + window/range 非法 400 不触仓储。
+- **口径更正**：个股融资源 = dwd_research_margin_detail（dwd_margin 是交易所级无 instrument_id，派单口径按此修正）。
+- **留 P1b**：北向 hk_hold 按需求定稿留 P1b 未进 T3。
+- **待 H2/owner**：c-end-themes.sql 应用点脚本（ecs-deploy-c-end.sh/production-sync.sh）+ contracts/market/openapi.yaml 补条目 + ownership.yaml warehouse/ 归属更新。
+
+## L206 M1a 前端任务下发 + Console adapter P1b（2026-11-18）
+
+- **M1a-F 前端任务**：派 A6 落 C 端主题页 T1/T2/T3（/stocks/:id/themes/:themeKey 路由 + ThemePage + 三主题子组件 + antd-mobile 沿用 P0 模式 + HARD-002 措辞清单 + 冷数据降级 UX + 鉴权 401 跳转 + copy.theme.* + copy.cold.* + copy.dataBadge.*），commit 粒度 M1a-F1/F2/F3。
+- **Console adapter P1b 维持**（A6 三条证据：G-CONTRACT 69 passed / adapter 大头已入库 89ebffd+01e53db+bc7b9be+d3284ef / 无生产流量）。
+- **G-02 三处整改列 A4 联调硬前置**：ApprovalQueuePage.tsx:64 setApprovalRef('console/'+selectedId) + mock backend.ts:92 seed/initial-release + :344 rollback/target.releaseId，全域无 generateApprovalRef/uuidv7，真栈一接必 400。届时 A4 联调排期时 A6 接。
