@@ -1,6 +1,6 @@
 # P1a 需求文档：C 端 H5 主题式分层展示（热/冷数据）
 
-- **文档版本**：v1.1（已合并 finance-expert 定稿，§7 open questions 已收敛）
+- **文档版本**：v1.2（已合并 finance-expert 定稿 + L0 六项开放项裁定；P1a 编码暂停待 owner 审阅）
 - **日期**：2026-11-18
 - **作者**：product-manager
 - **读者**：L0 开发（前端 web/h5 + 后端 services/market）
@@ -30,7 +30,9 @@ Owner 原话（m07964，转述）：「你在前端不是只展示数据集，�
 > **红线（不可协商）**：
 > 1. AKshare 数据 **永不** 出现在 C 端任何页面（m07735）。
 > 2. 冷路径数据 **永不持久化**——不写 PG、不进 ingest、不进 warehouse（m07727）。
-> 3. C 端 **不展示** 个股级 limit ladder 明细行，只允许市场级汇总计数（H3 m02407）。
+> 3. C 端 **不展示** 个股级 limit ladder 明细行，只允许市场级汇总计数（H3 m02407）。**底座更正（L0 裁定）**：涨跌停/连板 streak 的权威底座是 `dwd_daily_basic.limit_status`（`warehouse/dwd/schema.sql:172`，U/D/Z），**不是** `dwd_stk_limit`（后者只有限价档位，非封板事实）；streak 用窗口函数按交易日相邻计算。
+
+> **冷代理 endpoint（L0 裁定 Q4）**：冷路径与 ingest **同源**——env 驱动 `TUSHARE_API_URL`（ECS = `tuaremax.top`），UA 必带；共享 `TUSHARE_TOKEN` + **200/min** 预算。前端频控（§4）叠加在此共享预算之上。**SEC-008 报备**：`transport.py` docstring 声称 host 白名单但代码只强制 https，实现弱于注释，已记录待议（见 §7）。
 
 ### 0.3 鉴权与频控（m07736 + m07738）
 
@@ -81,7 +83,7 @@ Owner 原话（m07964，转述）：「你在前端不是只展示数据集，�
 | T3 | 每股收益 EPS | income basic_eps | 元 | 热最新 + 冷 | 与 T2 估值衔接（EPS↔PE） |
 | T(序列) | 近 8 季 ROE / 营收 / 净利趋势 | fina_indicator + income 历史报告期 | % / 元 | **冷** | A 类时序，季频下钻 |
 
-> **income 列名对齐**：上表字段名为**语义名**（权威）。income 具体列名（东财口径常见 `revenue` / `n_revenue` / `n_income_attr_p` 等）**以 `warehouse/dwd/schema.sql` 实际列名为准**；金融专家不锁代码列名，L0 落地时对齐。
+> **income 列名映射（L0 裁定，权威）**：上表字段名为**语义名**。DWD **无独立 `income` 表**——income 语义落在 **`dwd_research_income`**，fina 语义落在 **`dwd_fina_indicator`**。**红线（H4 防未来函数）**：`dwd_fina_indicator` 的可见时点 = **`announced_at`**，**禁止**按 `report_end_date` 做 as-of join（`warehouse/dwd/schema.sql:403`）。L0 落地时按此表名/时点对齐。
 
 **信息层级逻辑**：一眼三个数字（赚不赚/长不长/重不重）→ 卡片给毛利率/净利率/规模佐证 → 折叠区给 8 季趋势图（走冷路径）。
 
@@ -94,7 +96,7 @@ Owner 原话（m07964，转述）：「你在前端不是只展示数据集，�
 | P1 | 市盈率 PE-TTM | daily_basic.pe_ttm | 倍 | 热 | 估值第一指标，散户最熟 |
 | P2 | 最新**收盘价** + 近 30 日涨跌幅 | stock_bar_daily.close + 派生 | 元 / % | 热 | 「现在多少钱、最近涨没涨」（见下方收盘价红线） |
 | P3 | 市净率 PB | daily_basic.pb | 倍 | 热 | 补 PE 失真场景（周期/亏损股） |
-| S1 | PE 历史分位（近 1 年/近 3 年） | daily_basic.pe_ttm 冷序列派生 | 百分位 | **冷** | 「贵不贵」要和自身历史比，不能只看绝对值 |
+| S1 | PE 历史分位（**P1a 仅近 1 年**） | daily_basic.pe_ttm 冷序列派生 | 百分位 | **冷** | 「贵不贵」要和自身历史比。**L0 裁定**：range 参数化（`1y|3y`，默认 `1y`），3y 留扩展位，对散户解释力增量低 → P1b 零成本加参 |
 | S2 | 总市值 | daily_basic.total_market_value | 元 | 热 | 体量/盘子大小 |
 | S3 | 换手率 | daily 派生 / daily_basic.turnover_rate_pct | % | 热 | 活跃度/关注热度 |
 | S4 | 近 1 年最高/最低价 | stock_bar_daily 冷序列派生 | 元 | **冷** | 区间位置感 |
@@ -123,7 +125,7 @@ Owner 原话（m07964，转述）：「你在前端不是只展示数据集，�
 | T3 | 行业资金流向对比 | moneyflow + index_member_all 派生 | 元 | 热 | 个股资金在板块中相对位置（P1a 唯一同业对比） |
 | P1b 暂缓 | 北向持股 hk_hold | hk_hold.holding_ratio_pct | % | 旬频，冷为主 | 「聪明钱」叙事，但旬频+口径波动+可得性不稳 → **P1a 不纳入，P1b 评估** |
 
-> **T3 情绪框架定稿（finance-expert）**：P3 用「**主力资金 + 两融 + 市场涨跌停温度**」三件套；情绪温度计由**涨停家数 / 跌停家数 / 涨跌家数比 / 连板高度**四个 **stk_limit 市场级派生**计数共同构成，均符合 H3 m02407（仅市场级汇总）。**北向 hk_hold 放 P1b**，P1a 用上述三件套已自洽。
+> **T3 情绪框架定稿（finance-expert + L0 裁定）**：P3 用「**主力资金 + 两融 + 市场涨跌停温度**」三件套；情绪温度计 = **备选 B 四件套全做**——①涨停家数 ②跌停家数 ③涨跌家数比 ④最高连板数，均属市场级汇总，符合 H3 m02407。**连板 streak 底座 = `dwd_daily_basic.limit_status`**（窗口函数按交易日相邻），**非 `dwd_stk_limit`**（后者只有限价档位）。**附带发现（L0 已核，M1a 修正）**：现首页 `v_cend_market_overview.quote.limit_up_count` 按 `dwd_stk_limit.limit_pct>0` 计数（`warehouse/serving/c-end-metrics.sql:186-192`）语义为限价档位、**非封板**，**语义错**，M1a 须改按 `limit_status` 派生。**北向 hk_hold 放 P1b**。
 
 > **红线提醒**：T3 中一切 limit ladder 相关展示**只能是市场级或板块级汇总计数**（家数、市值合计、板块分布 count），**不得出现个股级涨停梯队明细行**（H3 m02407）。
 
@@ -258,7 +260,7 @@ dataBadgeCold:            '历史（实时查询）',
 coldUnavailable:          '该指标暂无历史数据',
 ```
 
-> **待开发确认**：插值语法（`{seconds}` vs `{{seconds}}`）、命名空间前缀、是否已有 cold* 前缀冲突——L0 前端落 copy.ts 时统一。
+> **命名空间与插值（L0 裁定 Q3-copy，权威）**：采用**三组命名空间**——`copy.cold.*`（本节降级文案）、`copy.dataBadge.{hot,cold}`（热冷角标）、`copy.theme.*`（主题名，含 tab 二级）。插值语法 = **`{seconds}` 单花括号**；`lib/copy.ts` 加 `interpolate()` helper。键定义 + snapshot + manifest 由 L0 落 F1。原「待开发确认」的插值/命名空间/前缀冲突三项已由本裁定收敛。
 
 ### 4.5 P 层「一句人话结论」措辞边界（HARD-002，finance-expert 定稿）
 
@@ -298,7 +300,7 @@ P 层结论句**只做事实描述与历史呈现，不做评级/目标价/买�
 
 - **仅登录用户**可访问所有主题页（含热与冷）。未登录访问 → 跳登录 / 弹登录。
 - **数据层不区分 C 端 vs 内部**：C 端与内部走同一套 `/v1/c-end/*` → serving 视图。不存在「C 端专用降级数据」。
-- 现有网关（`cEndMetricsGateway.ts`）请求需携带登录态（token / cookie）；401 → 前端跳登录，**不展示任何指标**。
+- **鉴权机制（L0 裁定 Q5，权威）**：**Bearer JWT**，后端零改动。token issuer = `POST /v1/auth/login`（`services/identity/src/plugin.ts:148-163`，body 为 **email + password**）。改动**全在前端**：`cEndMetricsGateway` 三处补 Bearer 头 + 新增 `/login?next=` 路由 + `auth.ts` 泛化 `ms_token` 主键 + `e2e_token` 回退。401 → 前端跳登录，**不展示任何指标**。
 
 ### 5.2 AI 解读 / 智能选股功能门（feature-gate）
 
@@ -341,7 +343,26 @@ P1a **明确不做**：
 | Q5 | 措辞边界 | 见 §4.5 可接受/不可接受清单；结论句只描述历史/当期数据，不处方向；含建议/值得/预计/将/可买可卖/目标/评级/低吸/抄底/止盈/止损一律拒绝。 |
 | Q6 | 下钻深度 | **T1 近 8 季 / T2 近 1 年 / T3 近 30 日，够用不加长**；长周期用「近 1 年/近 3 年估值分位」一个冷派生指标覆盖，避免冷查询成本与认知过载。 |
 
-**剩余 L0 落地待办（非 open question，转开发）**：① income 列名对齐 `warehouse/dwd/schema.sql`；② copy.ts 命名空间/插值语法确认；③ 主题页登录态携带与 401 跳转接入现有 auth。
+### 7.1 L0 六项开放项裁定（基于仓库实读，已回灌上文）
+
+| # | 裁定 | 落点 |
+|---|---|---|
+| Q1 | T3 情绪温度 = **备选 B 四件套全做**；连板 streak 底座 = `dwd_daily_basic.limit_status`（非 `dwd_stk_limit`）；现 `limit_up_count` 语义错，**M1a 修正** | §0.2 / §2.3 |
+| Q2 | T2 历史分位 **P1a 仅近 1 年**；range 参数化（`1y|3y`，默认 `1y`），3y 留 P1b 扩展位 | §2.2 |
+| Q3 | DWD **无独立 income 表**，income→`dwd_research_income`，fina→`dwd_fina_indicator`；**H4 红线**：可见时点 = `announced_at`，禁按 `report_end_date` as-of join | §2.1 |
+| Q4 | 冷代理与 ingest **同源**，env 驱动 `TUSHARE_API_URL`（`tuaremax.top`），UA 必带，共享 token + 200/min 预算；**SEC-008 报备**（transport.py 实现弱于注释） | §0.2 / §7.2 |
+| Q5 | 鉴权 = **Bearer JWT，后端零改动**；issuer = `POST /v1/auth/login`（**email+password**）；改动全在前端；A6 已授权落码 | §5.1 |
+| Q3-copy | 三组命名空间 `copy.cold.*` / `copy.dataBadge.{hot,cold}` / `copy.theme.*` + `{seconds}` 单花括号 + `interpolate()` helper；键+snapshot+manifest 落 F1 | §4.4 |
+
+### 7.2 待 owner 审阅 / 待议项
+
+1. **6 项裁定是否全部接受**（本节 §7.1）。
+2. **M1a 是否启动**——后端 serving 视图扩展，含 `limit_up_count` 语义修正（改按 `limit_status` 派生）。
+3. **SEC-008 是否记录待议**——`transport.py` docstring 声称 host 白名单但代码只强制 https，实现弱于注释。
+
+> **当前状态**：P1a **编码暂停**，待 owner 审完上述三项。A6 的 Q5-front（前端 Bearer JWT）已单独授权落码，等 commit 锚。
+
+**剩余 L0 落地待办（非 open question，转开发）**：① income 列名对齐（按 §7.1 Q3 已明确表名）；② copy.ts 键+snapshot+manifest 落 F1；③ 主题页 Bearer 携带与 401 跳转接入（Q5 已授权 A6 落码）。
 
 ---
 
