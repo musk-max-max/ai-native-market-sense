@@ -2303,3 +2303,12 @@ Open objectives: ①H3 正式回签 f58 前端快照（A7 已发）②H3 回签�
 - **M1a-F 前端任务**：派 A6 落 C 端主题页 T1/T2/T3（/stocks/:id/themes/:themeKey 路由 + ThemePage + 三主题子组件 + antd-mobile 沿用 P0 模式 + HARD-002 措辞清单 + 冷数据降级 UX + 鉴权 401 跳转 + copy.theme.* + copy.cold.* + copy.dataBadge.*），commit 粒度 M1a-F1/F2/F3。
 - **Console adapter P1b 维持**（A6 三条证据：G-CONTRACT 69 passed / adapter 大头已入库 89ebffd+01e53db+bc7b9be+d3284ef / 无生产流量）。
 - **G-02 三处整改列 A4 联调硬前置**：ApprovalQueuePage.tsx:64 setApprovalRef('console/'+selectedId) + mock backend.ts:92 seed/initial-release + :344 rollback/target.releaseId，全域无 generateApprovalRef/uuidv7，真栈一接必 400。届时 A4 联调排期时 A6 接。
+
+## L207 ECS 部署 L203 + M1a 视图（2026-11-18）
+
+- **触发**：owner 强制重启实例清 MaxStartups 队列 → SSH 恢复（uptime 3 min）。
+- **e2e 栈重启**：重启后 5 容器全 Exited (255)，docker start 拉起 postgres/redis/tushare-replay/api/web，全 healthy。
+- **代码同步**：/opt/market-sense git reset --hard 63285e9（M1a-T3）。
+- **视图应用**：c-end-metrics.sql（L203 limit_up_count 语义修正）+ c-end-themes.sql（M1a 三主题视图）。
+- **验证结果**：v_cend_limit_ladder=1205（stk_limit 真数据出图）+ v_cend_market_overview=19 + v_cend_stock_metrics=5577 + v_cend_theme_sentiment_market=10 + v_cend_theme_sentiment_stock=55809 + v_cend_theme_valuation_price=55722。v_cend_theme_fin_health=0（dwd_fina_indicator/dwd_research_income 未 ingest，待 sync-research）。
+- **C 端可用**：T2 估值行情 + T3 资金情绪真数据出图。T1 财务健康待研究数据集 ingest。
