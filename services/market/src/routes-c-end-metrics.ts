@@ -4,6 +4,7 @@
  *  - GET /c-end/stocks/:instrument_id/metrics  个股全维度
  *  - GET /c-end/limits              涨跌停梯队
  *  - GET /c-end/stocks/:instrument_id/themes/fin-health  个股财务健康近 8 季（M1a T1）
+ *  - GET /c-end/stocks/:instrument_id/themes/valuation-price  个股估值行情窗口+分位（M1a T2）
  *
  * 边界：
  *  - 挂 /v1/c-end/**（C 端公开，但受 market plugin 的 EntitlementGate 保护）；
@@ -21,6 +22,19 @@ import { validationError } from './errors.js';
 
 function asRecord(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
+}
+
+/** M1a T2 分档：range=1y→250 交易日、3y→750 交易日（缺省 1y；非法值 400 VALIDATION_ERROR）。 */
+const VALUATION_RANGE: Readonly<Record<string, number>> = { '1y': 250, '3y': 750 };
+
+function parseRange(request: FastifyRequest): { readonly range: string; readonly windowRows: number } {
+  const value = asRecord(request.query).range;
+  const range = value === undefined ? '1y' : String(value);
+  const windowRows = VALUATION_RANGE[range];
+  if (windowRows === undefined) {
+    throw validationError();
+  }
+  return { range, windowRows };
 }
 
 function parseInstrumentId(request: FastifyRequest): string {
@@ -74,6 +88,23 @@ export function registerCEndMetricsRoutes(
       // 空行（无已披露财报）→ 200 + as_of:null + rows:[]，与 /metrics 的 404（标的不存在）语义区分
       as_of: rows[0]?.as_of ?? null,
       rows,
+    };
+  });
+
+  // GET /c-end/stocks/:instrument_id/themes/valuation-price?range=1y|3y（M1a T2：近 1 年/3 年日频+分位）
+  // 数据源 serving.v_cend_theme_valuation_price（close 真源 dwd_stock_bar_daily，估值/换手 dwd_daily_basic）；
+  // 窗口与分位在仓储 SQL 计算（1y=250、3y=750 交易日，分位 0-100 保留 1 位，样本 <2 → null）。
+  app.get('/c-end/stocks/:instrument_id/themes/valuation-price', async (request: FastifyRequest) => {
+    const instrumentId = parseInstrumentId(request);
+    const { range, windowRows } = parseRange(request);
+    const series = await deps.themes.getValuationPrice(instrumentId, windowRows);
+    return {
+      instrument_id: instrumentId,
+      range,
+      // 空序列（该标的无行情行）→ 200 + as_of:null + rows:[] + 分位全 null（非 404：非"标的不存在"语义）
+      as_of: series.rows[0]?.trade_date ?? null,
+      rows: series.rows,
+      percentiles: series.percentiles,
     };
   });
 }

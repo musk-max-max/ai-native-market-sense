@@ -27,10 +27,39 @@ export interface ThemeFinHealthRow {
   readonly staleness_ms: string | null;
 }
 
+/** T2 估值行情行（v_cend_theme_valuation_price，按 trade_date DESC）。 */
+export interface ValuationPriceRow {
+  readonly instrument_id: string;
+  readonly trade_date: string;
+  readonly pe_ttm: string | null;
+  readonly pb: string | null;
+  readonly close: string | null;
+  readonly turnover_rate_pct: string | null;
+}
+
+/** T2 窗口分位（近 windowRows 交易日，0-100 保留 1 位；样本 <2 或最新值缺失 → null）。 */
+export interface ValuationPercentiles {
+  readonly pe_ttm: string | null;
+  readonly pb: string | null;
+  readonly close: string | null;
+  readonly turnover_rate_pct: string | null;
+}
+
+export interface ValuationPriceSeries {
+  readonly rows: readonly ValuationPriceRow[];
+  readonly percentiles: ValuationPercentiles;
+}
+
 export interface CEndThemeRepo {
   /**
    * T1：个股财务健康近 8 季（announced_at DESC，视图已 rn<=8 截断）。
    * 空数组 = 该标的无已披露财报 → 路由返回 200 空行（不 404：非"标的不存在"语义）。
    */
   getFinHealth(instrumentId: string): Promise<readonly ThemeFinHealthRow[]>;
+
+  /**
+   * T2：个股估值行情窗口（trade_date DESC 前 windowRows 个交易日）+ 同窗口分位。
+   * windowRows 由路由按 range 解析（1y=250、3y=750）；空序列 → rows:[] + 分位全 null。
+   */
+  getValuationPrice(instrumentId: string, windowRows: number): Promise<ValuationPriceSeries>;
 }

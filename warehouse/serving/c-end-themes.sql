@@ -84,3 +84,25 @@ WHERE f.rn <= 8;
 COMMENT ON VIEW serving.v_cend_theme_fin_health IS
   'P1a T1 个股财务健康近 8 季（可见时点=announced_at，H4 禁 report_end_date as-of join；收入侧 income 并入带 announced_at <= fina.announced_at 守卫）';
 
+-- ============================================================
+-- T2 valuation-price：个股估值行情（近 1 年 / 近 3 年，日频）
+-- 行 = 一个交易日：close 以 dwd_stock_bar_daily 为价格真源，pe_ttm / pb /
+-- turnover_rate_pct 来自 dwd_daily_basic（LEFT JOIN，缺估值行时留 NULL 不丢价格行）。
+-- 窗口（1y=250、3y=750 交易日）与分位在消费方（services/market 仓储 SQL）按 range
+-- 参数执行；视图只出该标的全序列（与其它 v_cend_* 视图一致，不做行数截断）。
+-- ============================================================
+CREATE OR REPLACE VIEW serving.v_cend_theme_valuation_price AS
+SELECT bar.instrument_id,
+       bar.trade_date,
+       basic.pe_ttm,
+       basic.pb,
+       bar.close,
+       basic.turnover_rate_pct
+FROM dwd_stock_bar_daily bar
+LEFT JOIN dwd_daily_basic basic
+       ON basic.instrument_id = bar.instrument_id
+      AND basic.trade_date = bar.trade_date;
+
+COMMENT ON VIEW serving.v_cend_theme_valuation_price IS
+  'P1a T2 个股估值行情日序列（价格真源 dwd_stock_bar_daily，估值/换手 dwd_daily_basic；窗口与分位按 range 在消费方 SQL 计算）';
+
