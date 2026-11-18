@@ -47,6 +47,52 @@ RESEARCH_VIEWS = {
     "serving_quote_realtime",
 }
 
+# L172 数据平台批次（0f9dd38 等）新增的 research 视图：schema.sql 当前真源，2026-11-18 按 L0 授权机械补全。
+# 不并入 RESEARCH_VIEWS：README 尚未逐个文档化（既有文档漂移，另案跟踪），避免误触发 README 测试。
+RESEARCH_VIEWS_L172 = {
+    "serving_research_balancesheet",
+    "serving_research_block_trade",
+    "serving_research_cashflow",
+    "serving_research_cb_basic",
+    "serving_research_cb_daily",
+    "serving_research_cb_issue",
+    "serving_research_daily",
+    "serving_research_dc_index",
+    "serving_research_dc_member",
+    "serving_research_dividend",
+    "serving_research_express",
+    "serving_research_forecast",
+    "serving_research_fund_basic",
+    "serving_research_fund_company",
+    "serving_research_fund_daily",
+    "serving_research_fund_div",
+    "serving_research_fund_nav",
+    "serving_research_fut_basic",
+    "serving_research_fut_daily",
+    "serving_research_fut_holding",
+    "serving_research_fut_settle",
+    "serving_research_fut_wsr",
+    "serving_research_fx_daily",
+    "serving_research_fx_obasic",
+    "serving_research_income",
+    "serving_research_index_basic",
+    "serving_research_index_monthly",
+    "serving_research_index_weekly",
+    "serving_research_margin_detail",
+    "serving_research_monthly",
+    "serving_research_new_share",
+    "serving_research_opt_basic",
+    "serving_research_opt_daily",
+    "serving_research_pledge_detail",
+    "serving_research_pledge_stat",
+    "serving_research_repurchase",
+    "serving_research_share_float",
+    "serving_research_stk_holdernumber",
+    "serving_research_stk_holdertrade",
+    "serving_research_trade_cal",
+    "serving_research_weekly",
+}
+
 
 def test_every_ports_view_exists_in_schema_sql():
     declared = {view["name"] for view in ports()["views"]}
@@ -58,7 +104,7 @@ def test_every_ports_view_exists_in_schema_sql():
         "serving_fundamental_summary",
     }
     # 研究数据集视图只供内部消费，不进入 C 端 ports.yaml（KD-INGEST-CONSUME 边界）
-    assert schema_views() == declared | RESEARCH_VIEWS, declared ^ schema_views()
+    assert schema_views() == declared | RESEARCH_VIEWS | RESEARCH_VIEWS_L172, declared ^ schema_views()
 
 
 def test_every_view_has_a_method_and_vice_versa():

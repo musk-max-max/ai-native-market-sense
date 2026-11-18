@@ -25,6 +25,7 @@ import type { DomainPlugin, DomainPluginOptions } from '../../api/src/plugin.js'
 import { PgEntitlementControlRepo } from './adapters/pg-entitlement-control-repo.js';
 import { PgEntitlementEventRepo } from './adapters/pg-entitlement-event-repo.js';
 import { PgCEndMetricsRepo } from './adapters/pg-c-end-metrics-repo.js';
+import { PgCEndThemeRepo } from './adapters/pg-c-end-theme-repo.js';
 import { PgDataPlatformRepo } from './adapters/pg-data-platform-repo.js';
 import { PgServingRepo } from './adapters/pg-serving-repo.js';
 import { PgWatchlistRepo } from './adapters/pg-watchlist-repo.js';
@@ -57,6 +58,7 @@ import {
 } from './ports/entitlement.js';
 import type { ServingRepo } from './ports/serving-repo.js';
 import type { CEndMetricsRepo } from './ports/c-end-metrics-repo.js';
+import type { CEndThemeRepo } from './ports/c-end-theme-repo.js';
 import type { DataPlatformRepo } from './ports/data-platform-repo.js';
 import type { WatchlistRepo } from './ports/watchlist-repo.js';
 import { registerMarketRoutes } from './routes.js';
@@ -72,6 +74,8 @@ export interface MarketPluginOptions {
   readonly watchlistRepo?: WatchlistRepo;
   readonly dataPlatformRepo?: DataPlatformRepo;
   readonly cEndMetricsRepo?: CEndMetricsRepo;
+  /** P1a 主题视图仓储（M1a）；缺省按 pool 自建 PgCEndThemeRepo。 */
+  readonly cEndThemeRepo?: CEndThemeRepo;
   readonly authenticate?: Authenticate;
   /** 复用外壳/测试的 pool；不传则按 DATABASE_URL 自建并负责关闭 */
   readonly pool?: Pool;
@@ -274,7 +278,8 @@ async function installMarketPlugin(
   const dataPlatform = options.dataPlatformRepo ?? new PgDataPlatformRepo(pool as Pool);
   registerDataPlatformRoutes(app, { dataPlatform });
   const cEndMetrics = options.cEndMetricsRepo ?? new PgCEndMetricsRepo(pool as Pool);
-  registerCEndMetricsRoutes(app, { metrics: cEndMetrics });
+  const cEndThemes = options.cEndThemeRepo ?? new PgCEndThemeRepo(pool as Pool);
+  registerCEndMetricsRoutes(app, { metrics: cEndMetrics, themes: cEndThemes });
 
   if (options.pool === undefined && pool !== null) {
     const ownedPool = pool;
