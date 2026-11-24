@@ -89,7 +89,7 @@ def _validate_endpoint(endpoint: str) -> None:
     parts = urlsplit(endpoint)
     if parts.scheme != "https":
         host = (parts.hostname or "").lower()
-        is_local = host in {"127.0.0.1", "localhost", "0.0.0.0", ""}
+        is_local = host in {"127.0.0.1", "localhost", "0.0.0.0", ""} or host.startswith("tushare-replay")
         allow = os.environ.get(ALLOW_INSECURE_ENV) == "1"
         if not (is_local and allow):
             raise ValueError(
