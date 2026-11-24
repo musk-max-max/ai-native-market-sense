@@ -60,6 +60,7 @@ joined AS (
            i.code,
            i.security_type,
            i.list_status,
+           i.listed_at,
            GREATEST(b.trade_date, s.trade_date) AS trade_date,
            (s.trade_date IS NOT NULL AND (b.trade_date IS NULL OR s.trade_date > b.trade_date)) AS suspended,
            b.open, b.high, b.low, b.close, b.prev_close, b.volume, b.amount,
